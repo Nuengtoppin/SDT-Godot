@@ -125,7 +125,8 @@ func _apply_restrict(t: String) -> String:
 func _apply_format() -> void:
 	if _control == null:
 		return
-	var font := _font if _font != null and embedFonts else null
+	# embedFonts = false means a device font; those arrive here as SystemFont, so the font is used either way.
+	var font := _font
 	if font != null and _letter_spacing != 0.0:
 		var fv := FontVariation.new()
 		fv.base_font = font
@@ -262,7 +263,30 @@ var textHeight: float:
 
 var numLines: int:
 	get:
+		if _control is Label or _control is TextEdit:
+			return maxi(1, _control.get_line_count())
 		return maxi(1, _text.split("\n").size())
+
+
+var _scroll_v: int = 1
+
+## 1-based index of the top visible line (Label only; input fields scroll themselves).
+var scrollV: int:
+	get:
+		return _scroll_v
+	set(value):
+		_scroll_v = clampi(value, 1, maxScrollV)
+		if _control is Label:
+			_control.lines_skipped = _scroll_v - 1
+			_control.clip_text = _scroll_v > 1 or not _multiline
+
+
+var maxScrollV: int:
+	get:
+		var f: Font = _font if _font != null else ThemeDB.fallback_font
+		var lh := f.get_height(int(round(_font_size))) + _leading
+		var visible_lines := maxi(1, int(floor((_box.size.y - GUTTER * 2 + _leading) / maxf(1.0, lh))))
+		return maxi(1, numLines - visible_lines + 1)
 
 
 var type: String:
@@ -326,6 +350,47 @@ func setTextFormat(fmt: Dictionary) -> void:
 func setSelection(from: int, to: int) -> void:
 	if _control is LineEdit:
 		_control.select(from, to)
+		_control.caret_column = to
+	elif _control is TextEdit:
+		var a := _index_to_line_col(from)
+		var b := _index_to_line_col(to)
+		_control.select(a.x, a.y, b.x, b.y)
+		_control.set_caret_line(b.x)
+		_control.set_caret_column(b.y)
+
+
+var length: int:
+	get:
+		return text.length()
+
+
+## Character index of the caret (input fields; 0 otherwise).
+var caretIndex: int:
+	get:
+		if _control is LineEdit:
+			return _control.caret_column
+		if _control is TextEdit:
+			var idx := 0
+			for i in _control.get_caret_line():
+				idx += _control.get_line(i).length() + 1
+			return idx + _control.get_caret_column()
+		return 0
+
+
+func replaceText(begin: int, end: int, new_text: String) -> void:
+	var t := text
+	begin = clampi(begin, 0, t.length())
+	end = clampi(end, begin, t.length())
+	text = t.substr(0, begin) + new_text + t.substr(end)
+	setSelection(begin + new_text.length(), begin + new_text.length())
+
+
+func _index_to_line_col(idx: int) -> Vector2i:
+	var line := 0
+	while line < _control.get_line_count() - 1 and idx > _control.get_line(line).length():
+		idx -= _control.get_line(line).length() + 1
+		line += 1
+	return Vector2i(line, mini(idx, _control.get_line(line).length()))
 
 
 func grab_input_focus() -> void:

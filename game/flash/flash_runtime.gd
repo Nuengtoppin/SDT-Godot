@@ -21,7 +21,7 @@ const SCREEN_BLEND_MODES := {"overlay": 0, "hardlight": 1, "screen": 2, "lighten
 	"difference": 5, "invert": 6}
 
 ## Root of the Flash display list (700x600 stage space).
-var stage: FlashSprite
+var stage: FlashStage
 var libraries: Array = []
 var base_library: FlashLibrary
 ## Frames per second of the logic tick (Flash frame rate).
@@ -56,7 +56,7 @@ func _ready() -> void:
 	Engine.physics_ticks_per_second = int(frame_rate)
 	_index_gd_classes()
 	base_library = load_library(BASE_LIBRARY)
-	stage = FlashSprite.new()
+	stage = FlashStage.new()
 	stage.name = "Stage"
 	stage.flash_name = "root1"
 
@@ -406,7 +406,9 @@ func _mouse_target_at(p: Vector2) -> FlashDisplayObject:
 	return t if t != null else stage
 
 
-func _unhandled_input(event: InputEvent) -> void:
+## _input (not _unhandled_input) so clicks and keys on text fields (Godot Controls) still reach the Flash
+## display list, as in Flash where the TextField is an ordinary event target.
+func _input(event: InputEvent) -> void:
 	if stage == null:
 		return
 	if event is InputEventMouseButton:
@@ -571,3 +573,27 @@ func set_player_pan(p: AudioStreamPlayer, pan: float) -> void:
 func set_master_volume(v: float) -> void:
 	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(v, 0.0001)))
 	AudioServer.set_bus_mute(0, v <= 0.0)
+
+
+# ---------------------------------------------------------------- external content
+
+## Folder that relative content paths (mods, custom hair / backgrounds) resolve against, like a SWF's own
+## location in Flash: the executable's folder when exported, the project's parent folder in the editor.
+func content_root() -> String:
+	if OS.has_feature("editor"):
+		return ProjectSettings.globalize_path("res://").get_base_dir().get_base_dir()
+	return OS.get_executable_path().get_base_dir()
+
+
+func resolve_content_path(url: String) -> String:
+	if url == "":
+		return ""
+	var p := url.replace("\\", "/")
+	if p.begins_with("file:///"):
+		p = p.substr(8)
+	elif p.begins_with("file://"):
+		p = p.substr(7)
+	p = p.uri_decode()
+	if p.is_absolute_path() or p.begins_with("res://") or p.begins_with("user://"):
+		return p
+	return content_root().path_join(p)

@@ -49,6 +49,8 @@ var eventPhase: int = AT_TARGET
 var defaultPrevented := false
 var _stop := false
 var _stop_immediate := false
+## ErrorEvent.text / TextEvent.text
+var text: String = ""
 
 # Mouse
 var stageX: float = 0.0

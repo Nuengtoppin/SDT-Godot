@@ -22,6 +22,8 @@ var _library = null
 var _flash_parent: FlashDisplayObject = null
 
 var mouseEnabled: bool = true
+## Flash bitmap caching hint; rendering here does not need it, kept so game code can set it.
+var cacheAsBitmap: bool = false
 
 var _color_transform: FlashColorTransform = FlashColorTransform.new()
 var _blend_mode: String = "normal"
@@ -87,6 +89,18 @@ func _tree_node() -> Node2D:
 func _on_added() -> void:
 	if not _listeners.is_empty() or _flash_parent != null:
 		dispatchEvent(FlashEvent.new(FlashEvent.ADDED, true))
+	if get_root() == Flash.stage:
+		_dispatch_stage_event(FlashEvent.ADDED_TO_STAGE)
+
+
+## ADDED_TO_STAGE / REMOVED_FROM_STAGE go to the object and every descendant (they do not bubble).
+func _dispatch_stage_event(type: String) -> void:
+	if not _listeners.is_empty():
+		dispatchEvent(FlashEvent.new(type))
+	var kids = get("_children")
+	if kids != null:
+		for c in kids.duplicate():
+			c._dispatch_stage_event(type)
 
 
 func _on_removed() -> void:

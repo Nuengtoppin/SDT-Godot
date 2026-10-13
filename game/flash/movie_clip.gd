@@ -62,7 +62,30 @@ func _setup_symbol(library, char_id: int) -> void:
 
 func _get(property: StringName):
 	var c = _named.get(String(property))
+	if c == null and not _dyn.is_empty():
+		return _dyn.get(String(property))
 	return c
+
+
+## MovieClip is a dynamic class in AS3: unknown properties can be set at runtime (mods rely on this).
+var _dyn: Dictionary = {}
+
+
+func _set(property: StringName, value) -> bool:
+	var n := String(property)
+	if _named.has(n):
+		return false
+	_dyn[n] = value
+	return true
+
+
+func hasOwnProperty(n: String) -> bool:
+	if _dyn.has(n) or _named.has(n):
+		return true
+	for p in get_property_list():
+		if p["name"] == n:
+			return true
+	return false
 
 
 func get_property_bound_child(n: String) -> FlashDisplayObject:

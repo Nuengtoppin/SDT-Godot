@@ -66,6 +66,8 @@ func removeChild(child: FlashDisplayObject) -> FlashDisplayObject:
 	if child._flash_parent != self:
 		push_error("remove_child_flash: not a child")
 		return child
+	if get_root() == Flash.stage:
+		child._dispatch_stage_event(FlashEvent.REMOVED_FROM_STAGE)
 	_detach(child)
 	child._on_removed()
 	return child
