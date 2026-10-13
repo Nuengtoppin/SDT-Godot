@@ -1,0 +1,211 @@
+class_name Neck
+extends FlashMovieClip
+## Port of obj.her.Neck: draws the neck procedurally (gradient fills + outline band) through outline points placed
+## in the symbol, with a throat bulge and a swallow wave.
+
+var neckPoints: Array = []
+var numPoints: int = 0
+var highlightPoints: Array = []
+var numHighlightPoints: int = 0
+var frontEndPoint: int = 0
+var shadeLight: int = 16178890
+var shade1: int = 14925224
+var shade2: int = 13541515
+var shade3: int = 11306097
+var mainGradient: Transform2D
+var highlightGradient: Transform2D
+var swallowing := false
+var swallowProgress: float = 0.0
+var swallowSize: float = 10.0
+var swallowStart: float = 0.2
+var bulgeSize: float = 35.0
+var bulgeVec: Vector2
+var throatBulgeAmount: float = 1.0
+var _tanLayer: FlashSprite
+var tanAlpha: float = 1.0
+
+
+func _init() -> void:
+	_tanLayer = FlashSprite.new()
+	_tanLayer.blendMode = "overlay"
+	addChild(_tanLayer)
+	numPoints = 0
+	var p = get("outline%d" % numPoints)
+	while p:
+		neckPoints.append(Vector2(p.x, p.y))
+		numPoints += 1
+		p = get("outline%d" % numPoints)
+	numPoints -= 1
+	numHighlightPoints = 0
+	p = get("highlight%d" % numHighlightPoints)
+	while p:
+		highlightPoints.append(Vector2(p.x, p.y))
+		numHighlightPoints += 1
+		p = get("highlight%d" % numHighlightPoints)
+	numHighlightPoints -= 1
+	respacePoints()
+	mainGradient = Transform2D(Vector2(-0.0003204345703125, -0.142364501953125),
+		Vector2(0.2744293212890625, -0.000640869140625), Vector2(-19.099, 76.85))
+	highlightGradient = Transform2D(Vector2(0.0777435302734375, 0.0058441162109375),
+		Vector2(-0.0086517333984375, 0.114990234375), Vector2(-8.649, 109))
+	bulgeVec = Maths.getUnitVector(PI * 0.75)
+
+
+func setSkin(palette: SkinPalette) -> void:
+	shadeLight = palette.light.rgb
+	shade1 = palette.shade1.rgb
+	shade2 = palette.shade2.rgb
+	shade3 = palette.shade3.rgb
+
+
+## Resamples the front of the neck outline into evenly spaced points along a quadratic spline.
+func respacePoints() -> void:
+	var old: Array = neckPoints.duplicate()
+	neckPoints = []
+	var seg := -1
+	numPoints -= 1
+	var segments := 6.0
+	var steps := int(segments * 5)
+	var mid1 := Vector2()
+	var mid2 := Vector2()
+	var d1 := Vector2()
+	var d2 := Vector2()
+	for i in steps:
+		var s := int(floor(float(i) / steps * segments))
+		if seg != s:
+			seg = s
+			mid1 = (old[seg] + old[seg + 1]) * 0.5
+			mid2 = (old[seg + 1] + old[seg + 2]) * 0.5
+			d1 = old[seg + 1] - mid1
+			d2 = mid2 - old[seg + 1]
+		var t := float(i) / steps * segments - seg
+		var a: Vector2 = mid1 + d1 * t
+		var b: Vector2 = old[seg + 1] + d2 * t
+		neckPoints.append(a + (b - a) * t)
+	frontEndPoint = neckPoints.size()
+	neckPoints.append_array(old.slice(int(segments) + 1))
+	numPoints = neckPoints.size()
+
+
+func swallow() -> void:
+	swallowing = true
+	swallowProgress = swallowStart
+
+
+func render(depth: float) -> void:
+	var pts: Array = neckPoints.duplicate()
+	bulgeSize = 35.0 * (1.0 + (g.him.getPenisWidthWithTwitch() - 1.0) * 1.5)
+	for i in frontEndPoint:
+		var f := float(i) / frontEndPoint
+		if throatBulgeAmount > 0:
+			var rel := f - depth
+			var bulge := 1.0 / (1.0 + pow(2.0, rel * 35.0)) * throatBulgeAmount
+			var amt := minf(1.0, 0.6 + 0.6 * depth) * minf(35.0, bulgeSize * bulge * pow(1.0 - f, 1.4))
+			pts[i] = pts[i] + Vector2(amt, 0.3 * amt)
+		if swallowing:
+			var sw := swallowSize * maxf(0.0, 2.0 / (2.0 + pow(8.0 * (f - swallowProgress), 2.0)) - 0.2)
+			sw *= minf(1.0, minf((swallowProgress - swallowStart) * 5.0, 2.0 - swallowProgress * 2.0))
+			pts[i] = pts[i] + Vector2(sw * 0.8, sw * 0.5)
+	if swallowing:
+		swallowProgress += 0.05
+		if swallowProgress > 1:
+			swallowing = false
+	var gr := graphics
+	gr.clear()
+	gr.beginGradientFill("radial", [shade1, shade3], [1, 1], [209, 250], mainGradient, "pad", "rgb", 0.1)
+	var mid: Vector2 = (pts[0] + pts[1]) * 0.5
+	var first := mid
+	var tg := _tanLayer.graphics
+	if tanAlpha > 0:
+		tg.clear()
+		tg.beginFill(0, tanAlpha)
+		tg.moveTo(pts[0].x, pts[0].y)
+		tg.lineTo(first.x, first.y)
+	gr.moveTo(pts[0].x, pts[0].y)
+	gr.lineTo(first.x, first.y)
+	var i := 1
+	while i < numPoints - 1:
+		mid = (pts[i] + pts[i + 1]) * 0.5
+		gr.curveTo(pts[i].x, pts[i].y, mid.x, mid.y)
+		if tanAlpha > 0:
+			tg.curveTo(pts[i].x, pts[i].y, mid.x, mid.y)
+		i += 1
+	mid = (pts[pts.size() - 1] + pts[0]) * 0.5
+	gr.lineTo(pts[i].x, pts[i].y)
+	gr.lineStyle()
+	gr.curveTo(mid.x, mid.y, pts[0].x, pts[0].y)
+	gr.endFill()
+	if tanAlpha > 0:
+		tg.lineTo(pts[i].x, pts[i].y)
+		tg.lineStyle()
+		tg.curveTo(mid.x, mid.y, pts[0].x, pts[0].y)
+		tg.endFill()
+	gr.beginGradientFill("radial", [shadeLight, shade1], [1, 1], [215, 250], highlightGradient, "pad", "rgb", 0.1)
+	var hp := highlightPoints
+	gr.moveTo(hp[0].x, hp[0].y)
+	first = (hp[0] + hp[1]) * 0.5
+	gr.lineTo(first.x, first.y)
+	i = 1
+	while i < numHighlightPoints - 1:
+		mid = (hp[i] + hp[i + 1]) * 0.5
+		gr.curveTo(hp[i].x, hp[i].y, mid.x, mid.y)
+		i += 1
+	gr.lineTo(hp[i].x, hp[i].y)
+	gr.lineStyle()
+	mid = (hp[hp.size() - 1] + hp[0]) * 0.5
+	gr.curveTo(mid.x, mid.y, hp[0].x, hp[0].y)
+	gr.endFill()
+	# Outline band along the neck edge.
+	gr.beginFill(5849907, 1)
+	gr.moveTo(pts[0].x, pts[0].y)
+	var outer: Array = []
+	var inner: Array = []
+	var outerMid: Array = []
+	var innerMid: Array = []
+	var dirs: Array = []
+	var w := 0.6
+	outer.resize(numPoints)
+	inner.resize(numPoints)
+	outerMid.resize(numPoints)
+	innerMid.resize(numPoints)
+	dirs.resize(numPoints)
+	outer[0] = pts[0]
+	inner[0] = pts[0]
+	i = 0
+	while i < numPoints - 1:
+		var d: Vector2 = pts[i + 1] - pts[i]
+		d /= sqrt(d.x * d.x + d.y * d.y)
+		dirs[i] = d
+		if i > 0:
+			var pd: Vector2 = dirs[i - 1]
+			var n := Vector2((pd.y + d.y) * w, -((pd.x + d.x) * w))
+			outer[i] = pts[i] - n
+			inner[i] = pts[i] + n
+			outerMid[i] = outer[i - 1] + (outer[i] - outer[i - 1]) * 0.5
+			innerMid[i] = inner[i - 1] + (inner[i] - inner[i - 1]) * 0.5
+		i += 1
+	outerMid[i] = outer[i - 1] + (pts[i] - outer[i - 1]) * 0.5
+	innerMid[i] = inner[i - 1] + (pts[i] - inner[i - 1]) * 0.5
+	gr.lineTo(outerMid[1].x, outerMid[1].y)
+	i = 1
+	while i < numPoints - 1:
+		gr.curveTo(outer[i].x, outer[i].y, outerMid[i + 1].x, outerMid[i + 1].y)
+		i += 1
+	gr.lineTo(pts[numPoints - 1].x, pts[numPoints - 1].y)
+	i = numPoints - 1
+	gr.lineTo(innerMid[i].x, innerMid[i].y)
+	while i > 1:
+		gr.curveTo(inner[i - 1].x, inner[i - 1].y, innerMid[i - 1].x, innerMid[i - 1].y)
+		i -= 1
+	gr.lineTo(pts[0].x, pts[0].y)
+
+
+var throatBulge: float:
+	get:
+		return throatBulgeAmount
+	set(v):
+		throatBulgeAmount = v
+
+var tan: FlashSprite:
+	get:
+		return _tanLayer

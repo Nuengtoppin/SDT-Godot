@@ -65,3 +65,45 @@ func has_offsets() -> bool:
 func is_identity() -> bool:
 	return not has_offsets() and redMultiplier == 1.0 and greenMultiplier == 1.0 \
 		and blueMultiplier == 1.0 and alphaMultiplier == 1.0
+
+
+# ---------------------------------------------------------------- fl.motion.Color helpers
+
+## fl.motion.Color.setTint: blends towards 'tint_color' by 'multiplier' (0..1).
+static func tint(tint_color: int, multiplier: float) -> FlashColorTransform:
+	var ct := FlashColorTransform.new()
+	ct.redMultiplier = 1.0 - multiplier
+	ct.greenMultiplier = 1.0 - multiplier
+	ct.blueMultiplier = 1.0 - multiplier
+	ct.redOffset = floor(((tint_color >> 16) & 0xFF) * multiplier + 0.5)
+	ct.greenOffset = floor(((tint_color >> 8) & 0xFF) * multiplier + 0.5)
+	ct.blueOffset = floor((tint_color & 0xFF) * multiplier + 0.5)
+	return ct
+
+
+## fl.motion.Color.brightness setter (-1..1).
+static func brightness(b: float) -> FlashColorTransform:
+	b = clampf(b, -1.0, 1.0)
+	var m := 1.0 - absf(b)
+	var o := b * 255.0 if b > 0.0 else 0.0
+	return FlashColorTransform.new(m, m, m, 1.0, o, o, o, 0.0)
+
+
+## fl.motion.Color.interpolateTransform
+static func interpolate_transform(a: FlashColorTransform, b: FlashColorTransform, t: float) -> FlashColorTransform:
+	var u := 1.0 - t
+	return FlashColorTransform.new(a.redMultiplier * u + b.redMultiplier * t, a.greenMultiplier * u + b.greenMultiplier * t,
+		a.blueMultiplier * u + b.blueMultiplier * t, a.alphaMultiplier * u + b.alphaMultiplier * t,
+		a.redOffset * u + b.redOffset * t, a.greenOffset * u + b.greenOffset * t,
+		a.blueOffset * u + b.blueOffset * t, a.alphaOffset * u + b.alphaOffset * t)
+
+
+## fl.motion.Color.interpolateColor (ARGB ints; channels truncated like the uint maths in Flash).
+static func interpolate_color(a: int, b: int, t: float) -> int:
+	var u := 1.0 - t
+	var out := 0
+	for shift in [24, 16, 8, 0]:
+		var ca: int = (a >> shift) & 0xFF
+		var cb: int = (b >> shift) & 0xFF
+		out |= (int(ca * u + cb * t) & 0xFF) << shift
+	return out

@@ -238,10 +238,9 @@ func _bounds_through(t: Transform2D) -> Rect2:
 func _hit_shape(p: Vector2) -> bool:
 	if _graphics != null and _graphics.hit(p):
 		return true
+	# Like Flash's hitTestPoint: invisible children count, masks do not.
 	for i in range(_children.size() - 1, -1, -1):
 		var c: FlashDisplayObject = _children[i]
-		if not c.visible and c._masking.is_empty():
-			continue
 		if c._clip_depth > 0 or not c._masking.is_empty():
 			continue
 		if c._hit_shape(c.transform.affine_inverse() * p):

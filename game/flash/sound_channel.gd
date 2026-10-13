@@ -28,6 +28,7 @@ func _start(sound: FlashSound, start_pos: float, plays: int, st: FlashSoundTrans
 func _apply_transform() -> void:
 	if _player != null:
 		_player.volume_db = linear_to_db(maxf(_transform.volume, 0.00001))
+		Flash.set_player_pan(_player, _transform.pan)
 
 
 func _on_finished() -> void:

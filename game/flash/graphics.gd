@@ -29,6 +29,15 @@ func _notification(what: int) -> void:
 			RenderingServer.free_rid(rid)
 
 
+## flash.geom.Matrix.createGradientBox: maps the -819.2..819.2 gradient square onto a w x h box at (tx, ty).
+static func createGradientBox(w: float, h: float, rot: float = 0.0, tx: float = 0.0, ty: float = 0.0) -> Transform2D:
+	# Flash's formula: a = cos*w, b = sin*h, c = -sin*w, d = cos*h (all / 1638.4).
+	var c := cos(rot)
+	var s := sin(rot)
+	return Transform2D(Vector2(c * w / 1638.4, s * h / 1638.4), Vector2(-s * w / 1638.4, c * h / 1638.4),
+		Vector2(tx + w / 2.0, ty + h / 2.0))
+
+
 func clear() -> void:
 	_fills.clear()
 	_lines.clear()

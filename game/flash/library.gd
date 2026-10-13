@@ -65,6 +65,29 @@ func get_texture(img: String) -> Texture2D:
 	return t
 
 
+var _images: Dictionary = {}
+
+
+## CPU copy of a shape image (for software rendering into BitmapData).
+func get_image(img: String) -> Image:
+	var im: Image = _images.get(img)
+	if im == null:
+		var p := path.path_join("shapes/%s.png" % img)
+		if p.begins_with("res://"):
+			var tex: Texture2D = load(p)
+			im = tex.get_image() if tex != null else null
+		else:
+			im = Image.load_from_file(p)
+		if im != null:
+			if im.is_compressed():
+				im.decompress()
+			if im.has_mipmaps():
+				im.clear_mipmaps()
+			im.convert(Image.FORMAT_RGBA8)
+		_images[img] = im
+	return im
+
+
 func file_path(rel: String) -> String:
 	return path.path_join(rel)
 

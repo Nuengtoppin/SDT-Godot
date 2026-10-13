@@ -103,12 +103,29 @@ func take_pending_symbol():
 	return p
 
 
-## Finds the library symbol for a ported class (by short AS3 class name): [library, id], or [] if none.
-func find_class_symbol(short_name: String) -> Array:
+## AS3 class names that clash with Godot built-in classes are ported under these GDScript names.
+const CLASS_ALIASES := {"Slider": "SDTSlider", "MenuButton": "SDTMenuButton"}
+
+
+## GDScript class name used for an AS3 short class name.
+static func gd_class_name(as3_short: String) -> String:
+	return CLASS_ALIASES.get(as3_short, as3_short)
+
+
+## Finds the library symbol for a class: [library, id], or [] if none. Exact (fully qualified or top-level) names
+## win over short-name matches, since e.g. both "MenuCheckbox" and "obj.MenuCheckbox" exist.
+func find_class_symbol(name_: String) -> Array:
+	for lib in libraries:
+		if lib.classes.has(name_):
+			return [lib, int(lib.classes[name_])]
+	var short := name_.get_slice(".", name_.get_slice_count(".") - 1)
+	for alias in CLASS_ALIASES:
+		if CLASS_ALIASES[alias] == short:
+			short = alias
 	for lib in libraries:
 		var by_id: Dictionary = _lib_class_by_id[lib]
 		for id in by_id:
-			if by_id[id] == short_name:
+			if by_id[id] == short:
 				return [lib, id]
 	return []
 
@@ -117,14 +134,17 @@ func _gd_script_for(short_name: String) -> Script:
 	if _script_cache.has(short_name):
 		return _script_cache[short_name]
 	var s: Script = null
-	if _gd_classes.has(short_name):
-		s = load(_gd_classes[short_name])
+	var gd_name := gd_class_name(short_name)
+	if _gd_classes.has(gd_name):
+		s = load(_gd_classes[gd_name])
 	_script_cache[short_name] = s
 	return s
 
 
-## Instantiates character 'id' of 'lib' (what a timeline PlaceObject does).
-func create_char(lib: FlashLibrary, id: int) -> FlashDisplayObject:
+## Instantiates character 'id' of 'lib' (what a timeline PlaceObject does). When placed by a timeline, the
+## parent and placement are applied before the class constructor body runs, as in Flash.
+func create_char(lib: FlashLibrary, id: int, parent = null, place: Dictionary = {}, pidx: int = -1,
+		depth: int = -1, birth: int = -1) -> FlashDisplayObject:
 	var c: Dictionary = lib.get_char(id)
 	match c.get("t", ""):
 		"shape", "morph":
@@ -133,14 +153,13 @@ func create_char(lib: FlashLibrary, id: int) -> FlashDisplayObject:
 			return s
 		"sprite":
 			var short = _lib_class_by_id[lib].get(id)
+			_pending_symbol = [lib, id, parent, place, pidx, depth, birth]
 			if short != null:
 				var script := _gd_script_for(short)
 				if script != null:
-					_pending_symbol = [lib, id]
 					var o = script.new()
 					_pending_symbol = null
 					return o
-			_pending_symbol = [lib, id]
 			var mc := FlashMovieClip.new()
 			_pending_symbol = null
 			return mc
@@ -180,8 +199,7 @@ func _create_button(lib: FlashLibrary, id: int, c: Dictionary) -> FlashDisplayOb
 
 ## Creates an instance of a library class by AS3 name (short or fully qualified), e.g. Flash.create("MenuButton").
 func create(as3_class: String) -> FlashDisplayObject:
-	var short := as3_class.get_slice(".", as3_class.get_slice_count(".") - 1)
-	var found := find_class_symbol(short)
+	var found := find_class_symbol(as3_class)
 	if found.is_empty():
 		push_error("Flash.create: no library symbol for class %s" % as3_class)
 		return null
@@ -527,9 +545,26 @@ func _get_audio_player() -> AudioStreamPlayer:
 		if not p.playing and not p.has_meta("busy"):
 			return p
 	var np := AudioStreamPlayer.new()
+	# Each pooled player gets its own bus with a panner, for SoundTransform.pan.
+	var bus := AudioServer.bus_count
+	AudioServer.add_bus(bus)
+	var bus_name := "FlashSfx%d" % _audio_pool.size()
+	AudioServer.set_bus_name(bus, bus_name)
+	AudioServer.set_bus_send(bus, "Master")
+	AudioServer.add_bus_effect(bus, AudioEffectPanner.new())
+	np.bus = bus_name
 	add_child(np)
 	_audio_pool.append(np)
 	return np
+
+
+## Stereo pan (-1..1) for a pooled player.
+func set_player_pan(p: AudioStreamPlayer, pan: float) -> void:
+	var bus := AudioServer.get_bus_index(p.bus)
+	if bus > 0:
+		var fx := AudioServer.get_bus_effect(bus, 0) as AudioEffectPanner
+		if fx:
+			fx.pan = clampf(pan, -1.0, 1.0)
 
 
 ## Global volume / mute (flash.media.SoundMixer.soundTransform).

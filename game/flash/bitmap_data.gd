@@ -123,3 +123,120 @@ func clone() -> FlashBitmapData:
 func dispose() -> void:
 	image = Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
 	_texture = null
+
+
+## BitmapData.merge: per channel new = (src * mult + dst * (256 - mult)) / 256 (multipliers 0..256).
+func merge(source: FlashBitmapData, source_rect: Rect2i, dest: Vector2i, rm: int, gm: int, bm: int, am: int) -> void:
+	var src := source.image.get_data()
+	var dst := image.get_data()
+	var sw := source.width
+	var dw := width
+	var mults := [rm, gm, bm, am]
+	for yy in source_rect.size.y:
+		var sy := source_rect.position.y + yy
+		var dy := dest.y + yy
+		if sy < 0 or sy >= source.height or dy < 0 or dy >= height:
+			continue
+		for xx in source_rect.size.x:
+			var sx := source_rect.position.x + xx
+			var dx := dest.x + xx
+			if sx < 0 or sx >= sw or dx < 0 or dx >= dw:
+				continue
+			var si := (sy * sw + sx) * 4
+			var di := (dy * dw + dx) * 4
+			for ch in 4:
+				var m: int = mults[ch]
+				dst[di + ch] = (src[si + ch] * m + dst[di + ch] * (256 - m)) >> 8
+	image.set_data(width, height, false, Image.FORMAT_RGBA8, dst)
+	_tex_dirty = true
+
+
+## BitmapData.draw for shape-based display objects: software-renders obj's shapes through matrix m
+## (bilinear sampling, normal alpha compositing), applying the colour transform ct.
+func draw(obj: FlashDisplayObject, m: Transform2D = Transform2D.IDENTITY, ct: FlashColorTransform = null,
+		clip: Rect2i = Rect2i()) -> void:
+	var dst := image.get_data()
+	_draw_rec(obj, m, ct if ct != null else FlashColorTransform.new(), dst, clip if clip.size != Vector2i.ZERO else rect)
+	image.set_data(width, height, false, Image.FORMAT_RGBA8, dst)
+	_tex_dirty = true
+
+
+func _draw_rec(o: FlashDisplayObject, m: Transform2D, ct: FlashColorTransform, dst: PackedByteArray, clip: Rect2i) -> void:
+	if o is FlashShape:
+		var s: FlashShape = o
+		if s._entry.is_empty() or not s._entry.has("img"):
+			return
+		var img: Image = s._library.get_image(s._entry["img"])
+		if img == null:
+			return
+		var sc: float = s._library.scale
+		var e: Dictionary = s._entry
+		# shape-local -> image pixel: (p - entry.xy) * scale ; dest pixel -> shape-local: inverse of m
+		var inv := m.affine_inverse()
+		var r := FlashDisplayObject._xform_rect(m, Rect2(e["x"], e["y"], img.get_width() / sc, img.get_height() / sc))
+		var x0 := maxi(clip.position.x, int(floor(r.position.x)))
+		var y0 := maxi(clip.position.y, int(floor(r.position.y)))
+		var x1 := mini(clip.end.x, int(ceil(r.end.x)))
+		var y1 := mini(clip.end.y, int(ceil(r.end.y)))
+		var iw := img.get_width()
+		var ih := img.get_height()
+		var dw := width
+		for py in range(y0, y1):
+			for px in range(x0, x1):
+				var lp := inv * Vector2(px + 0.5, py + 0.5)
+				var ix := (lp.x - e["x"]) * sc - 0.5
+				var iy := (lp.y - e["y"]) * sc - 0.5
+				if ix < -1 or iy < -1 or ix > iw or iy > ih:
+					continue
+				var c := _bilinear(img, ix, iy, iw, ih)
+				if c.a <= 0.0:
+					continue
+				c = Color(c.r * ct.redMultiplier + ct.redOffset / 255.0, c.g * ct.greenMultiplier + ct.greenOffset / 255.0,
+					c.b * ct.blueMultiplier + ct.blueOffset / 255.0, c.a * ct.alphaMultiplier + ct.alphaOffset / 255.0)
+				c = c.clamp()
+				var di := (py * dw + px) * 4
+				var da := dst[di + 3] / 255.0
+				var oa := c.a + da * (1.0 - c.a)
+				if oa <= 0.0:
+					continue
+				for ch in 3:
+					var sv: float = c[ch]
+					var dv := dst[di + ch] / 255.0
+					dst[di + ch] = clampi(int((sv * c.a + dv * da * (1.0 - c.a)) / oa * 255.0 + 0.5), 0, 255)
+				dst[di + 3] = clampi(int(oa * 255.0 + 0.5), 0, 255)
+	elif o is FlashSprite:
+		for ch in (o as FlashSprite)._children:
+			if ch.visible:
+				var cct := ch.colorTransform
+				cct.concat(ct)
+				_draw_rec(ch, m * ch.transform, cct, dst, clip)
+
+
+static func _bilinear(img: Image, x: float, y: float, w: int, h: int) -> Color:
+	var x0 := int(floor(x))
+	var y0 := int(floor(y))
+	var fx := x - x0
+	var fy := y - y0
+	var c00 := _px(img, x0, y0, w, h)
+	var c10 := _px(img, x0 + 1, y0, w, h)
+	var c01 := _px(img, x0, y0 + 1, w, h)
+	var c11 := _px(img, x0 + 1, y0 + 1, w, h)
+	# interpolate premultiplied to avoid dark fringes
+	var p := (c00 * (1 - fx) * (1 - fy)) + (c10 * fx * (1 - fy)) + (c01 * (1 - fx) * fy) + (c11 * fx * fy)
+	if p.a <= 0.0:
+		return Color(0, 0, 0, 0)
+	return Color(p.r / p.a, p.g / p.a, p.b / p.a, p.a)
+
+
+static func _px(img: Image, x: int, y: int, w: int, h: int) -> Color:
+	if x < 0 or y < 0 or x >= w or y >= h:
+		return Color(0, 0, 0, 0)
+	var c := img.get_pixel(x, y)
+	return Color(c.r * c.a, c.g * c.a, c.b * c.a, c.a)
+
+
+## Copies a region of another bitmap with an offset (BitmapData.draw(otherBitmapData, translate) case).
+func draw_bitmap(source: FlashBitmapData, offset: Vector2i, clip: Rect2i) -> void:
+	var src_rect := Rect2i(clip.position - offset, clip.size)
+	image.blend_rect(source.image, src_rect, clip.position)
+	_tex_dirty = true

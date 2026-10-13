@@ -26,6 +26,13 @@ func _init() -> void:
 	var pending = Flash.take_pending_symbol()
 	if pending != null:
 		_setup_symbol(pending[0], pending[1])
+		var p = pending[2]
+		if p != null:
+			# Timeline placement happens before the class constructor body (AS3 semantics).
+			_depth = pending[5]
+			_birth = pending[6]
+			_flash_parent = p
+			p._apply_place(self, pending[3], pending[4], true)
 		return
 	var script: Script = get_script()
 	if script == null:
@@ -216,12 +223,13 @@ func _goto(f: int, initial: bool) -> void:
 			_remove_timeline_child(d)
 			child = null
 		if child == null:
-			child = Flash.create_char(_library, int(place["c"]))
+			child = Flash.create_char(_library, int(place["c"]), self, place, pidx, d, birth)
 			if child == null:
 				continue
 			child._depth = d
 			child._birth = birth
-			_apply_place(child, place, pidx, true)
+			if child._place_index != pidx:
+				_apply_place(child, place, pidx, true)
 			_timeline_children[d] = child
 			_insert_by_depth(child)
 			if _in_render_state_chain():
