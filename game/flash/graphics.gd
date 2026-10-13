@@ -38,7 +38,7 @@ func clear() -> void:
 	_mark()
 
 
-func begin_fill(color: int, alpha: float = 1.0) -> void:
+func beginFill(color: int, alpha: float = 1.0) -> void:
 	_end_current_fill()
 	var c := Color.hex((color << 8) | 0xFF)
 	c.a = alpha
@@ -46,7 +46,7 @@ func begin_fill(color: int, alpha: float = 1.0) -> void:
 
 
 ## type: "linear" or "radial". colors: RGB ints; alphas: 0..1; ratios: 0..255; m: Transform2D gradient box.
-func begin_gradient_fill(type: String, colors: Array, alphas: Array, ratios: Array, m: Transform2D = Transform2D.IDENTITY,
+func beginGradientFill(type: String, colors: Array, alphas: Array, ratios: Array, m: Transform2D = Transform2D.IDENTITY,
 		_spread: String = "pad", _interp: String = "rgb", focal_point_ratio: float = 0.0) -> void:
 	_end_current_fill()
 	var cols: Array = []
@@ -61,12 +61,12 @@ func begin_gradient_fill(type: String, colors: Array, alphas: Array, ratios: Arr
 		"focal": focal_point_ratio}, "paths": [PackedVector2Array([_pen])]}
 
 
-func end_fill() -> void:
+func endFill() -> void:
 	_end_current_fill()
 	_mark()
 
 
-func line_style(thickness = null, color: int = 0, alpha: float = 1.0) -> void:
+func lineStyle(thickness = null, color: int = 0, alpha: float = 1.0) -> void:
 	if thickness == null or (thickness is float and is_nan(thickness)):
 		_cur_line = null
 		return
@@ -76,7 +76,7 @@ func line_style(thickness = null, color: int = 0, alpha: float = 1.0) -> void:
 	_lines.append(_cur_line)
 
 
-func move_to(x: float, y: float) -> void:
+func moveTo(x: float, y: float) -> void:
 	_pen = Vector2(x, y)
 	if _cur_fill != null:
 		_cur_fill["paths"].append(PackedVector2Array([_pen]))
@@ -85,12 +85,12 @@ func move_to(x: float, y: float) -> void:
 		_lines.append(_cur_line)
 
 
-func line_to(x: float, y: float) -> void:
+func lineTo(x: float, y: float) -> void:
 	_pen = Vector2(x, y)
 	_add_point(_pen)
 
 
-func curve_to(cx: float, cy: float, ax: float, ay: float) -> void:
+func curveTo(cx: float, cy: float, ax: float, ay: float) -> void:
 	var p0 := _pen
 	var c := Vector2(cx, cy)
 	var p1 := Vector2(ax, ay)
@@ -102,22 +102,22 @@ func curve_to(cx: float, cy: float, ax: float, ay: float) -> void:
 	_pen = p1
 
 
-func draw_rect(x: float, y: float, w: float, h: float) -> void:
-	move_to(x, y)
-	line_to(x + w, y)
-	line_to(x + w, y + h)
-	line_to(x, y + h)
-	line_to(x, y)
+func drawRect(x: float, y: float, w: float, h: float) -> void:
+	moveTo(x, y)
+	lineTo(x + w, y)
+	lineTo(x + w, y + h)
+	lineTo(x, y + h)
+	lineTo(x, y)
 
 
-func draw_circle(x: float, y: float, r: float) -> void:
-	move_to(x + r, y)
+func drawCircle(x: float, y: float, r: float) -> void:
+	moveTo(x + r, y)
 	for i in range(1, 33):
 		var a := TAU * i / 32.0
-		line_to(x + cos(a) * r, y + sin(a) * r)
+		lineTo(x + cos(a) * r, y + sin(a) * r)
 
 
-func copy_from(other: FlashGraphics) -> void:
+func copyFrom(other: FlashGraphics) -> void:
 	_fills = other._fills.duplicate(true)
 	_lines = other._lines.duplicate(true)
 	_cur_fill = null

@@ -36,7 +36,7 @@ func _on_finished() -> void:
 		_player.play(_start_pos)
 		return
 	_release()
-	dispatch_event(FlashEvent.new(FlashEvent.SOUND_COMPLETE))
+	dispatchEvent(FlashEvent.new(FlashEvent.SOUND_COMPLETE))
 
 
 func _release() -> void:
@@ -60,7 +60,7 @@ var position: float:
 		return _player.get_playback_position() * 1000.0 if _player != null else 0.0
 
 
-var sound_transform: FlashSoundTransform:
+var soundTransform: FlashSoundTransform:
 	get:
 		return _transform.clone()
 	set(value):

@@ -64,21 +64,21 @@ func get_property_bound_child(n: String) -> FlashDisplayObject:
 
 # ---------------------------------------------------------------- playback API
 
-var current_frame: int:
+var currentFrame: int:
 	get:
 		return _frame + 1
 
-var total_frames: int:
+var totalFrames: int:
 	get:
 		return _total
 
-var is_playing: bool:
+var isPlaying: bool:
 	get:
 		return _playing
 
 
 ## Label of the current frame, or of the closest labelled frame before it ("" if none).
-var current_label: String:
+var currentLabel: String:
 	get:
 		var best := ""
 		var best_f := -1
@@ -91,7 +91,7 @@ var current_label: String:
 		return best
 
 ## Label placed exactly on the current frame ("" if none).
-var current_frame_label: String:
+var currentFrameLabel: String:
 	get:
 		var labels: Dictionary = _sym.get("labels", {})
 		for k in labels:
@@ -100,7 +100,7 @@ var current_frame_label: String:
 		return ""
 
 ## Array of {name, frame} (frame is 1-based), sorted by frame.
-var current_labels: Array:
+var currentLabels: Array:
 	get:
 		var out: Array = []
 		var labels: Dictionary = _sym.get("labels", {})
@@ -126,24 +126,24 @@ func stop() -> void:
 
 
 ## frame: 1-based frame number or label name.
-func goto_and_stop(frame) -> void:
+func gotoAndStop(frame) -> void:
 	_playing = false
 	_update_play_registration()
 	_goto_flash(frame)
 
 
-func goto_and_play(frame) -> void:
+func gotoAndPlay(frame) -> void:
 	_playing = _total > 1
 	_update_play_registration()
 	_goto_flash(frame)
 
 
-func next_frame() -> void:
-	goto_and_stop(mini(_frame + 2, _total))
+func nextFrame() -> void:
+	gotoAndStop(mini(_frame + 2, _total))
 
 
-func prev_frame() -> void:
-	goto_and_stop(maxi(_frame, 1))
+func prevFrame() -> void:
+	gotoAndStop(maxi(_frame, 1))
 
 
 func _goto_flash(frame) -> void:
@@ -160,7 +160,7 @@ func _goto_flash(frame) -> void:
 
 
 ## Registers a code frame script (0-based frame index), like AS3 addFrameScript.
-func add_frame_script(frame_index: int, fn: Callable) -> void:
+func addFrameScript(frame_index: int, fn: Callable) -> void:
 	_code_frame_scripts[frame_index] = fn
 
 
@@ -260,11 +260,11 @@ func _run_frame_script(f: int) -> void:
 				play()
 			"gotoAndStop":
 				_in_frame_script = false
-				goto_and_stop(op[1])
+				gotoAndStop(op[1])
 				return
 			"gotoAndPlay":
 				_in_frame_script = false
-				goto_and_play(op[1])
+				gotoAndPlay(op[1])
 				return
 	_in_frame_script = false
 
@@ -283,7 +283,7 @@ func _apply_place(child: FlashDisplayObject, place: Dictionary, pidx: int, is_ne
 		child.reset_physics_interpolation()
 	if is_new or place.get("ct") != old.get("ct"):
 		var ct = place.get("ct")
-		child.color_transform = FlashColorTransform.from_array(ct) if ct != null else FlashColorTransform.new()
+		child.colorTransform = FlashColorTransform.from_array(ct) if ct != null else FlashColorTransform.new()
 	if child is FlashShape and (is_new or place.get("r", 0) != old.get("r", 0)):
 		(child as FlashShape).set_ratio(int(place.get("r", 0)))
 	if is_new or place.get("n", "") != old.get("n", ""):

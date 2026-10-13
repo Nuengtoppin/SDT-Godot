@@ -25,16 +25,16 @@ func _ready() -> void:
 		return
 	if args.has("frame") and obj is FlashMovieClip:
 		var f: String = args["frame"]
-		(obj as FlashMovieClip).goto_and_stop(int(f) if f.is_valid_int() else f)
+		(obj as FlashMovieClip).gotoAndStop(int(f) if f.is_valid_int() else f)
 	elif obj is FlashMovieClip:
 		(obj as FlashMovieClip).stop()
 	if args.has("blend"):
-		obj.blend_mode = args["blend"]
+		obj.blendMode = args["blend"]
 	var zoom := float(args.get("zoom", "1"))
 	t0 = Time.get_ticks_usec()
-	Flash.stage.add_child_flash(obj)
+	Flash.stage.addChild(obj)
 	print("attach: %.1f ms, nodes: %d" % [(Time.get_ticks_usec() - t0) / 1000.0, _count(obj)])
-	var b := obj.get_bounds(Flash.stage)
+	var b := obj.getBounds(Flash.stage)
 	obj.scale = Vector2(zoom, zoom)
 	obj.position = -b.position * zoom + Vector2(4, 4)
 	print("bounds: ", b)
@@ -84,10 +84,10 @@ func _dump(o: FlashDisplayObject, indent: int, max_depth: int) -> void:
 	if not o.visible:
 		info += " invisible"
 	if o is FlashMovieClip:
-		info += " f%d/%d" % [o.current_frame, o.total_frames]
+		info += " f%d/%d" % [o.currentFrame, o.totalFrames]
 	if o is FlashShape:
 		info += " shape"
-	var b := o.get_bounds(Flash.stage)
+	var b := o.getBounds(Flash.stage)
 	info += " [%d,%d %dx%d]" % [b.position.x, b.position.y, b.size.x, b.size.y]
 	print(info)
 	if indent < max_depth and o is FlashSprite:

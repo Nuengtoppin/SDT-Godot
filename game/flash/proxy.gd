@@ -78,9 +78,9 @@ func _draw_mask_object(o: FlashDisplayObject, inv: Transform2D) -> void:
 				_draw_mask_object(c, inv)
 	elif o is FlashBitmap:
 		var b: FlashBitmap = o
-		if b.bitmap_data != null:
+		if b.bitmapData != null:
 			draw_set_transform_matrix(inv * b.flash_global_transform())
-			draw_texture(b.bitmap_data.get_texture(), Vector2.ZERO)
+			draw_texture(b.bitmapData.get_texture(), Vector2.ZERO)
 
 
 # ---------------------------------------------------------------- tree reconciliation

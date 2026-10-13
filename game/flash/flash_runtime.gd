@@ -165,7 +165,7 @@ func create_char(lib: FlashLibrary, id: int) -> FlashDisplayObject:
 func _create_button(lib: FlashLibrary, id: int, c: Dictionary) -> FlashDisplayObject:
 	var sp := FlashSprite.new()
 	sp._char_id = id
-	sp.button_mode = true
+	sp.buttonMode = true
 	for r in c["records"]:
 		if not r["states"].has("up"):
 			continue
@@ -173,8 +173,8 @@ func _create_button(lib: FlashLibrary, id: int, c: Dictionary) -> FlashDisplayOb
 		if child == null:
 			continue
 		child.set_flash_matrix(r["m"])
-		child.color_transform = FlashColorTransform.from_array(r["ct"])
-		sp.add_child_flash(child)
+		child.colorTransform = FlashColorTransform.from_array(r["ct"])
+		sp.addChild(child)
 	return sp
 
 
@@ -408,7 +408,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			var e := FlashEvent.mouse(FlashEvent.MOUSE_WHEEL)
 			e.delta = 3 if mb.button_index == MOUSE_BUTTON_WHEEL_UP else -3
 			_fill_local(e, target)
-			target.dispatch_event(e)
+			target.dispatchEvent(e)
 	elif event is InputEventMouseMotion:
 		var target := _mouse_target_at(mouse_position())
 		_dispatch_mouse(target, FlashEvent.MOUSE_MOVE)
@@ -418,18 +418,18 @@ func _unhandled_input(event: InputEvent) -> void:
 		if k.echo and not k.pressed:
 			return
 		var e := FlashEvent.new(FlashEvent.KEY_DOWN if k.pressed else FlashEvent.KEY_UP, true)
-		e.key_code = FlashKeys.to_flash(k.physical_keycode if k.keycode == KEY_NONE else k.keycode)
-		e.char_code = k.unicode
-		e.shift_key = k.shift_pressed
-		e.ctrl_key = k.ctrl_pressed
-		e.alt_key = k.alt_pressed
+		e.keyCode = FlashKeys.to_flash(k.physical_keycode if k.keycode == KEY_NONE else k.keycode)
+		e.charCode = k.unicode
+		e.shiftKey = k.shift_pressed
+		e.ctrlKey = k.ctrl_pressed
+		e.altKey = k.alt_pressed
 		var t: FlashDisplayObject = _focus if _focus != null and is_instance_valid(_focus) and _focus.is_inside_tree() else stage
-		t.dispatch_event(e)
+		t.dispatchEvent(e)
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_MOUSE_EXIT and stage != null:
-		stage.dispatch_event(FlashEvent.new(FlashEvent.MOUSE_LEAVE))
+		stage.dispatchEvent(FlashEvent.new(FlashEvent.MOUSE_LEAVE))
 
 
 func _set_focus(o: FlashDisplayObject) -> void:
@@ -438,9 +438,9 @@ func _set_focus(o: FlashDisplayObject) -> void:
 	var old := _focus
 	_focus = o
 	if old != null and is_instance_valid(old):
-		old.dispatch_event(FlashEvent.new(FlashEvent.FOCUS_OUT, true))
+		old.dispatchEvent(FlashEvent.new(FlashEvent.FOCUS_OUT, true))
 	if o != null:
-		o.dispatch_event(FlashEvent.new(FlashEvent.FOCUS_IN, true))
+		o.dispatchEvent(FlashEvent.new(FlashEvent.FOCUS_IN, true))
 
 
 func set_focus(o: FlashDisplayObject) -> void:
@@ -452,15 +452,15 @@ func get_focus() -> FlashDisplayObject:
 
 
 func _fill_local(e: FlashEvent, target: FlashDisplayObject) -> void:
-	var lp := target.global_to_local(Vector2(e.stage_x, e.stage_y))
-	e.local_x = lp.x
-	e.local_y = lp.y
+	var lp := target.globalToLocal(Vector2(e.stageX, e.stageY))
+	e.localX = lp.x
+	e.localY = lp.y
 
 
 func _dispatch_mouse(target: FlashDisplayObject, type: String) -> void:
 	var e := FlashEvent.mouse(type)
 	_fill_local(e, target)
-	target.dispatch_event(e)
+	target.dispatchEvent(e)
 
 
 func _update_mouse_over() -> void:
@@ -473,14 +473,14 @@ func _update_mouse_over() -> void:
 	_mouse_over = target
 	if old != null and is_instance_valid(old):
 		var e := FlashEvent.mouse(FlashEvent.MOUSE_OUT)
-		e.related_object = target
+		e.relatedObject = target
 		_fill_local(e, old)
-		old.dispatch_event(e)
+		old.dispatchEvent(e)
 	if target != null:
 		var e := FlashEvent.mouse(FlashEvent.MOUSE_OVER)
-		e.related_object = old
+		e.relatedObject = old
 		_fill_local(e, target)
-		target.dispatch_event(e)
+		target.dispatchEvent(e)
 	# ROLL_OUT / ROLL_OVER: non-bubbling, sent to every ancestor left / entered.
 	var old_chain := _ancestors(old)
 	var new_chain := _ancestors(target)
@@ -488,17 +488,17 @@ func _update_mouse_over() -> void:
 		if not new_chain.has(o):
 			var e := FlashEvent.mouse(FlashEvent.ROLL_OUT, false)
 			_fill_local(e, o)
-			o.dispatch_event(e)
+			o.dispatchEvent(e)
 	for i in range(new_chain.size() - 1, -1, -1):
 		var o: FlashDisplayObject = new_chain[i]
 		if not old_chain.has(o):
 			var e := FlashEvent.mouse(FlashEvent.ROLL_OVER, false)
 			_fill_local(e, o)
-			o.dispatch_event(e)
+			o.dispatchEvent(e)
 	var hand := false
 	var o2 := target
 	while o2 != null:
-		if o2 is FlashSprite and o2.button_mode and o2.use_hand_cursor:
+		if o2 is FlashSprite and o2.buttonMode and o2.useHandCursor:
 			hand = true
 			break
 		o2 = o2._flash_parent

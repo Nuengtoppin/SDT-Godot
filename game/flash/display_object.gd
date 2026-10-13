@@ -7,8 +7,8 @@ extends Node2D
 ## (position, rotation_degrees, scale, skew); Flash's per-axis scale maps to scale.x / scale.y.
 ##
 ## The "Flash tree" can differ from the Godot tree: masks, filters and blend groups insert proxy nodes
-## (see FlashProxy) between a container and its child. Always navigate with flash_parent() /
-## FlashSprite.get_child_at() etc., never with get_parent()/get_child() directly.
+## (see FlashProxy) between a container and its child. Always navigate with parent /
+## FlashSprite.getChildAt() etc., never with get_parent()/get_child() directly.
 
 ## Instance name as used by ActionScript (getChildByName, timeline property binding).
 var flash_name: String = ""
@@ -21,7 +21,7 @@ var _library = null
 ## Flash parent container (independent of proxies in the Godot tree).
 var _flash_parent: FlashDisplayObject = null
 
-var mouse_enabled: bool = true
+var mouseEnabled: bool = true
 
 var _color_transform: FlashColorTransform = FlashColorTransform.new()
 var _blend_mode: String = "normal"
@@ -38,8 +38,40 @@ var _listeners: Dictionary = {}
 
 # ---------------------------------------------------------------- tree helpers
 
-func flash_parent() -> FlashSprite:
-	return _flash_parent as FlashSprite
+## Flash parent container (DisplayObject.parent).
+var parent: FlashSprite:
+	get:
+		return _flash_parent as FlashSprite
+
+## The stage, if this object is on the display list (DisplayObject.stage).
+var stage: FlashSprite:
+	get:
+		return Flash.stage if is_inside_tree() and get_root() == Flash.stage else null
+
+## Flash-style transform aliases (rotation stays Godot's rotation_degrees: 'rotation' is radians in Godot).
+var x: float:
+	get:
+		return position.x
+	set(value):
+		position.x = value
+
+var y: float:
+	get:
+		return position.y
+	set(value):
+		position.y = value
+
+var scaleX: float:
+	get:
+		return scale.x
+	set(value):
+		scale.x = value
+
+var scaleY: float:
+	get:
+		return scale.y
+	set(value):
+		scale.y = value
 
 
 ## Topmost node actually inserted in the Godot tree for this object (itself or its outermost proxy).
@@ -54,15 +86,11 @@ func _tree_node() -> Node2D:
 
 func _on_added() -> void:
 	if not _listeners.is_empty() or _flash_parent != null:
-		dispatch_event(FlashEvent.new(FlashEvent.ADDED, true))
+		dispatchEvent(FlashEvent.new(FlashEvent.ADDED, true))
 
 
 func _on_removed() -> void:
-	dispatch_event(FlashEvent.new(FlashEvent.REMOVED, true))
-
-
-func get_stage() -> FlashSprite:
-	return Flash.stage if is_inside_tree() else null
+	dispatchEvent(FlashEvent.new(FlashEvent.REMOVED, true))
 
 
 func get_root() -> FlashDisplayObject:
@@ -76,13 +104,13 @@ func get_root() -> FlashDisplayObject:
 
 var alpha: float:
 	get:
-		return _color_transform.alpha_multiplier
+		return _color_transform.alphaMultiplier
 	set(value):
-		_color_transform.alpha_multiplier = value
+		_color_transform.alphaMultiplier = value
 		_apply_color_transform()
 
 
-var color_transform: FlashColorTransform:
+var colorTransform: FlashColorTransform:
 	get:
 		return _color_transform.clone()
 	set(value):
@@ -92,7 +120,7 @@ var color_transform: FlashColorTransform:
 
 func _apply_color_transform() -> void:
 	var ct := _color_transform
-	var c := Color(ct.red_multiplier, ct.green_multiplier, ct.blue_multiplier, ct.alpha_multiplier)
+	var c := Color(ct.redMultiplier, ct.greenMultiplier, ct.blueMultiplier, ct.alphaMultiplier)
 	if _proxy is FlashGroupProxy:
 		# Offscreen group: multipliers apply to the composited image (Flash layer semantics).
 		_proxy.modulate = c
@@ -141,13 +169,13 @@ func effective_color_offset() -> Color:
 	var o: FlashDisplayObject = self
 	while o != null:
 		var ct := o._color_transform
-		off = Color(off.r * ct.red_multiplier + ct.red_offset, off.g * ct.green_multiplier + ct.green_offset,
-			off.b * ct.blue_multiplier + ct.blue_offset, off.a * ct.alpha_multiplier + ct.alpha_offset)
+		off = Color(off.r * ct.redMultiplier + ct.redOffset, off.g * ct.greenMultiplier + ct.greenOffset,
+			off.b * ct.blueMultiplier + ct.blueOffset, off.a * ct.alphaMultiplier + ct.alphaOffset)
 		o = o._flash_parent
 	return off
 
 
-var blend_mode: String:
+var blendMode: String:
 	get:
 		return _blend_mode
 	set(value):
@@ -226,21 +254,21 @@ func flash_global_transform() -> Transform2D:
 	return t
 
 
-func local_to_global(p: Vector2) -> Vector2:
+func localToGlobal(p: Vector2) -> Vector2:
 	return flash_global_transform() * p
 
 
-func global_to_local(p: Vector2) -> Vector2:
+func globalToLocal(p: Vector2) -> Vector2:
 	return flash_global_transform().affine_inverse() * p
 
 
-var mouse_x: float:
+var mouseX: float:
 	get:
-		return global_to_local(Flash.mouse_position()).x
+		return globalToLocal(Flash.mouse_position()).x
 
-var mouse_y: float:
+var mouseY: float:
 	get:
-		return global_to_local(Flash.mouse_position()).y
+		return globalToLocal(Flash.mouse_position()).y
 
 
 # ---------------------------------------------------------------- bounds
@@ -251,7 +279,7 @@ func _local_bounds() -> Rect2:
 
 
 ## Flash getBounds(target): axis-aligned bounds in target's coordinate space.
-func get_bounds(target: FlashDisplayObject = null) -> Rect2:
+func getBounds(target: FlashDisplayObject = null) -> Rect2:
 	var t := flash_global_transform()
 	if target != null:
 		t = target.flash_global_transform().affine_inverse() * t
@@ -288,11 +316,11 @@ var height: float:
 
 
 func _get_width() -> float:
-	return get_bounds(_flash_parent).size.x if _flash_parent else _bounds_through(transform).size.x
+	return getBounds(_flash_parent).size.x if _flash_parent else _bounds_through(transform).size.x
 
 
 func _get_height() -> float:
-	return get_bounds(_flash_parent).size.y if _flash_parent else _bounds_through(transform).size.y
+	return getBounds(_flash_parent).size.y if _flash_parent else _bounds_through(transform).size.y
 
 
 func _set_width(value: float) -> void:
@@ -310,9 +338,9 @@ func _set_height(value: float) -> void:
 # ---------------------------------------------------------------- hit testing
 
 ## Flash hitTestPoint: (x, y) in stage coordinates. shape_flag tests actual drawn pixels instead of bounds.
-func hit_test_point(x: float, y: float, shape_flag: bool = false) -> bool:
+func hitTestPoint(x: float, y: float, shape_flag: bool = false) -> bool:
 	if not shape_flag:
-		return get_bounds(null).has_point(Vector2(x, y))
+		return getBounds(null).has_point(Vector2(x, y))
 	return _hit_shape(flash_global_transform().affine_inverse() * Vector2(x, y))
 
 
@@ -323,7 +351,7 @@ func _hit_shape(_p: Vector2) -> bool:
 
 # ---------------------------------------------------------------- events
 
-func add_event_listener(type: String, listener: Callable, use_capture: bool = false, priority: int = 0) -> void:
+func addEventListener(type: String, listener: Callable, use_capture: bool = false, priority: int = 0) -> void:
 	if type == FlashEvent.ENTER_FRAME:
 		Flash.add_enter_frame(self, listener)
 		return
@@ -336,7 +364,7 @@ func add_event_listener(type: String, listener: Callable, use_capture: bool = fa
 	_listeners[type] = list
 
 
-func remove_event_listener(type: String, listener: Callable, use_capture: bool = false) -> void:
+func removeEventListener(type: String, listener: Callable, use_capture: bool = false) -> void:
 	if type == FlashEvent.ENTER_FRAME:
 		Flash.remove_enter_frame(self, listener)
 		return
@@ -346,14 +374,14 @@ func remove_event_listener(type: String, listener: Callable, use_capture: bool =
 			list.remove_at(i)
 
 
-func has_event_listener(type: String) -> bool:
+func hasEventListener(type: String) -> bool:
 	if type == FlashEvent.ENTER_FRAME:
 		return Flash.has_enter_frame(self)
 	return not _listeners.get(type, []).is_empty()
 
 
 ## Dispatches with Flash semantics: capture phase (root→parent), target, then bubble (parent→root).
-func dispatch_event(event: FlashEvent) -> bool:
+func dispatchEvent(event: FlashEvent) -> bool:
 	event.target = self
 	var chain: Array = []
 	var p := _flash_parent
@@ -363,25 +391,25 @@ func dispatch_event(event: FlashEvent) -> bool:
 	for i in range(chain.size() - 1, -1, -1):
 		if event._stop:
 			return true
-		event.event_phase = FlashEvent.CAPTURING_PHASE
+		event.eventPhase = FlashEvent.CAPTURING_PHASE
 		chain[i]._invoke_listeners(event, true)
 	if not event._stop:
-		event.event_phase = FlashEvent.AT_TARGET
+		event.eventPhase = FlashEvent.AT_TARGET
 		_invoke_listeners(event, false)
 	if event.bubbles:
 		for o in chain:
 			if event._stop:
 				break
-			event.event_phase = FlashEvent.BUBBLING_PHASE
+			event.eventPhase = FlashEvent.BUBBLING_PHASE
 			o._invoke_listeners(event, false)
-	return not event.default_prevented
+	return not event.defaultPrevented
 
 
 func _invoke_listeners(event: FlashEvent, capture: bool) -> void:
 	var list: Array = _listeners.get(event.type, [])
 	if list.is_empty():
 		return
-	event.current_target = self
+	event.currentTarget = self
 	for l in list.duplicate():
 		if l[1] != capture:
 			continue

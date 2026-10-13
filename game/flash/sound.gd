@@ -39,9 +39,9 @@ static func _load_stream(p: String) -> AudioStream:
 
 
 ## start_time in ms; loops = number of additional plays (Flash semantics: loops=0 or 1 plays once).
-func play(start_time: float = 0.0, loops: int = 0, sound_transform: FlashSoundTransform = null) -> FlashSoundChannel:
+func play(start_time: float = 0.0, loops: int = 0, soundTransform: FlashSoundTransform = null) -> FlashSoundChannel:
 	if stream == null:
 		return null
 	var ch := FlashSoundChannel.new()
-	ch._start(self, start_time / 1000.0, maxi(loops, 1), sound_transform)
+	ch._start(self, start_time / 1000.0, maxi(loops, 1), soundTransform)
 	return ch

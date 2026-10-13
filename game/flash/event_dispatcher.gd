@@ -5,7 +5,7 @@ extends RefCounted
 var _listeners: Dictionary = {}
 
 
-func add_event_listener(type: String, listener: Callable, _use_capture: bool = false, priority: int = 0) -> void:
+func addEventListener(type: String, listener: Callable, _use_capture: bool = false, priority: int = 0) -> void:
 	var list: Array = _listeners.get(type, [])
 	for l in list:
 		if l[0] == listener:
@@ -15,20 +15,20 @@ func add_event_listener(type: String, listener: Callable, _use_capture: bool = f
 	_listeners[type] = list
 
 
-func remove_event_listener(type: String, listener: Callable, _use_capture: bool = false) -> void:
+func removeEventListener(type: String, listener: Callable, _use_capture: bool = false) -> void:
 	var list: Array = _listeners.get(type, [])
 	for i in range(list.size() - 1, -1, -1):
 		if list[i][0] == listener:
 			list.remove_at(i)
 
 
-func has_event_listener(type: String) -> bool:
+func hasEventListener(type: String) -> bool:
 	return not _listeners.get(type, []).is_empty()
 
 
-func dispatch_event(event: FlashEvent) -> bool:
+func dispatchEvent(event: FlashEvent) -> bool:
 	event.target = self
-	event.current_target = self
+	event.currentTarget = self
 	for l in _listeners.get(event.type, []).duplicate():
 		var cb: Callable = l[0]
 		if not cb.is_valid():
@@ -39,4 +39,4 @@ func dispatch_event(event: FlashEvent) -> bool:
 			cb.call(event)
 		if event._stop_immediate:
 			break
-	return not event.default_prevented
+	return not event.defaultPrevented

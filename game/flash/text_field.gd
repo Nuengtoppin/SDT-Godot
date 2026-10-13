@@ -20,15 +20,15 @@ var _align := "left"
 var _letter_spacing := 0.0
 var _leading := 0.0
 var _bold := false
-var max_chars: int = 0
+var maxChars: int = 0
 var restrict: String = ""
 var selectable := true
-var auto_size: String = "none"   # none, left, center, right
+var autoSize: String = "none"   # none, left, center, right
 var border := false
-var border_color: int = 0
+var borderColor: int = 0
 var background := false
-var background_color: int = 0xFFFFFF
-var embed_fonts := true
+var backgroundColor: int = 0xFFFFFF
+var embedFonts := true
 var condense_white := false
 
 
@@ -44,7 +44,7 @@ func setup_from_library(lib: FlashLibrary, c: Dictionary) -> void:
 	_word_wrap = int(c.get("wordWrap", 0)) != 0
 	selectable = int(c.get("selectable", 1)) != 0
 	border = int(c.get("border", 0)) != 0
-	max_chars = int(c.get("maxLength", 0))
+	maxChars = int(c.get("maxLength", 0))
 	_font_size = c.get("fontHeight", 12.0)
 	var col: Array = c.get("color", [0, 0, 0, 255])
 	_color = Color8(col[0], col[1], col[2], col[3])
@@ -55,7 +55,7 @@ func setup_from_library(lib: FlashLibrary, c: Dictionary) -> void:
 	var t: String = c.get("text", "")
 	_build_control()
 	if int(c.get("html", 0)) != 0:
-		html_text = t
+		htmlText = t
 	else:
 		text = t
 
@@ -73,7 +73,7 @@ func _build_control() -> void:
 		else:
 			var le := LineEdit.new()
 			le.text_changed.connect(func(_t): _on_text_changed())
-			le.text_submitted.connect(func(_t): dispatch_event(_key_event(13)))
+			le.text_submitted.connect(func(_t): dispatchEvent(_key_event(13)))
 			_control = le
 		_control.focus_entered.connect(func(): Flash.set_focus(self))
 		var empty := StyleBoxEmpty.new()
@@ -92,7 +92,7 @@ func _build_control() -> void:
 
 func _key_event(code: int) -> FlashEvent:
 	var e := FlashEvent.new(FlashEvent.KEY_DOWN, true)
-	e.key_code = code
+	e.keyCode = code
 	return e
 
 
@@ -100,15 +100,15 @@ func _on_text_changed() -> void:
 	var t: String = _control.text
 	if restrict != "":
 		t = _apply_restrict(t)
-	if max_chars > 0 and t.length() > max_chars:
-		t = t.substr(0, max_chars)
+	if maxChars > 0 and t.length() > maxChars:
+		t = t.substr(0, maxChars)
 	if t != _control.text:
 		var caret = _control.caret_column if _control is LineEdit else 0
 		_control.text = t
 		if _control is LineEdit:
 			_control.caret_column = mini(caret, t.length())
 	_text = t
-	dispatch_event(FlashEvent.new(FlashEvent.CHANGE, true))
+	dispatchEvent(FlashEvent.new(FlashEvent.CHANGE, true))
 
 
 func _apply_restrict(t: String) -> String:
@@ -125,7 +125,7 @@ func _apply_restrict(t: String) -> String:
 func _apply_format() -> void:
 	if _control == null:
 		return
-	var font := _font if _font != null and embed_fonts else null
+	var font := _font if _font != null and embedFonts else null
 	if font != null and _letter_spacing != 0.0:
 		var fv := FontVariation.new()
 		fv.base_font = font
@@ -149,8 +149,8 @@ func _apply_format() -> void:
 		_control.add_theme_color_override("font_color", _color)
 		if _control is LineEdit:
 			_control.alignment = _halign()
-			if max_chars > 0:
-				_control.max_length = max_chars
+			if maxChars > 0:
+				_control.max_length = maxChars
 	_control.text = _text
 	_layout()
 
@@ -167,17 +167,17 @@ func _halign() -> HorizontalAlignment:
 
 
 func _layout() -> void:
-	if auto_size != "none" and not _word_wrap:
-		var tw := text_width + GUTTER * 2
+	if autoSize != "none" and not _word_wrap:
+		var tw := textWidth + GUTTER * 2
 		var old_w := _box.size.x
 		_box.size.x = tw
-		if auto_size == "center":
+		if autoSize == "center":
 			_box.position.x += (old_w - tw) / 2.0
-		elif auto_size == "right":
+		elif autoSize == "right":
 			_box.position.x += old_w - tw
-		_box.size.y = text_height + GUTTER * 2
-	elif auto_size != "none":
-		_box.size.y = text_height + GUTTER * 2
+		_box.size.y = textHeight + GUTTER * 2
+	elif autoSize != "none":
+		_box.size.y = textHeight + GUTTER * 2
 	_control.position = _box.position + Vector2(GUTTER, GUTTER)
 	_control.size = _box.size - Vector2(GUTTER * 2, GUTTER * 2)
 	queue_redraw()
@@ -185,9 +185,9 @@ func _layout() -> void:
 
 func _draw() -> void:
 	if background:
-		draw_rect(_box, Color.hex((background_color << 8) | 0xFF))
+		draw_rect(_box, Color.hex((backgroundColor << 8) | 0xFF))
 	if border:
-		draw_rect(_box, Color.hex((border_color << 8) | 0xFF), false, 1.0)
+		draw_rect(_box, Color.hex((borderColor << 8) | 0xFF), false, 1.0)
 
 
 # ---------------------------------------------------------------- Flash API
@@ -202,12 +202,12 @@ var text: String:
 			_layout()
 
 
-func append_text(t: String) -> void:
+func appendText(t: String) -> void:
 	text = text + t
 
 
 ## Minimal htmlText support: extracts <p align> and the first <font> attributes, converts <br> to newlines.
-var html_text: String:
+var htmlText: String:
 	get:
 		return _text
 	set(value):
@@ -237,7 +237,7 @@ var html_text: String:
 		_apply_format()
 
 
-var text_color: int:
+var textColor: int:
 	get:
 		return _color.to_rgba32() >> 8
 	set(value):
@@ -245,7 +245,7 @@ var text_color: int:
 		_apply_format()
 
 
-var text_width: float:
+var textWidth: float:
 	get:
 		var f: Font = _font if _font != null else ThemeDB.fallback_font
 		var w := 0.0
@@ -254,13 +254,13 @@ var text_width: float:
 				+ _letter_spacing * line.length())
 		return w
 
-var text_height: float:
+var textHeight: float:
 	get:
 		var f: Font = _font if _font != null else ThemeDB.fallback_font
 		var lines := maxi(1, _text.split("\n").size())
 		return lines * f.get_height(int(round(_font_size))) + (lines - 1) * _leading
 
-var num_lines: int:
+var numLines: int:
 	get:
 		return maxi(1, _text.split("\n").size())
 
@@ -284,7 +284,7 @@ var multiline: bool:
 		_multiline = value
 		_build_control()
 
-var word_wrap: bool:
+var wordWrap: bool:
 	get:
 		return _word_wrap
 	set(value):
@@ -293,15 +293,15 @@ var word_wrap: bool:
 
 
 ## TextFormat as a Dictionary: font (name or Font), size, color, align, bold, letterSpacing, leading.
-var default_text_format: Dictionary:
+var defaultTextFormat: Dictionary:
 	get:
 		return {"font": _font, "size": _font_size, "color": _color.to_rgba32() >> 8, "align": _align,
 			"bold": _bold, "letterSpacing": _letter_spacing, "leading": _leading}
 	set(value):
-		set_text_format(value)
+		setTextFormat(value)
 
 
-func set_text_format(fmt: Dictionary) -> void:
+func setTextFormat(fmt: Dictionary) -> void:
 	if fmt.has("font") and fmt["font"] != null:
 		var f = fmt["font"]
 		if f is Font:
@@ -323,7 +323,7 @@ func set_text_format(fmt: Dictionary) -> void:
 	_apply_format()
 
 
-func set_selection(from: int, to: int) -> void:
+func setSelection(from: int, to: int) -> void:
 	if _control is LineEdit:
 		_control.select(from, to)
 

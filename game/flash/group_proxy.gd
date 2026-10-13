@@ -60,12 +60,12 @@ func add_child_content(n: Node) -> void:
 func _apply_filter(f: FlashFilter) -> void:
 	if f.type == "Shader":
 		_mat.shader = f.shader
-		for k in f.shader_params:
-			_mat.set_shader_parameter(k, f.shader_params[k])
+		for k in f.shaderParams:
+			_mat.set_shader_parameter(k, f.shaderParams[k])
 		_margin = maxf(_margin, 4.0)
 		return
 	_mat.set_shader_parameter("passes", float(maxi(f.quality, 1)))
-	_mat.set_shader_parameter("blur_px", Vector2(f.blur_x, f.blur_y))
+	_mat.set_shader_parameter("blur_px", Vector2(f.blurX, f.blurY))
 	if f.type == "Blur":
 		_mat.set_shader_parameter("mode", 1)
 	else:
@@ -78,9 +78,9 @@ func _apply_filter(f: FlashFilter) -> void:
 		_mat.set_shader_parameter("strength", f.strength)
 		_mat.set_shader_parameter("inner", f.inner)
 		_mat.set_shader_parameter("knockout", f.knockout)
-		_mat.set_shader_parameter("hide_object", f.hide_object)
-	_margin = maxf(_margin, maxf(f.blur_x, f.blur_y) + f.distance + 2.0)
-	_filter_px = Vector2(f.blur_x, f.blur_y)
+		_mat.set_shader_parameter("hide_object", f.hideObject)
+	_margin = maxf(_margin, maxf(f.blurX, f.blurY) + f.distance + 2.0)
+	_filter_px = Vector2(f.blurX, f.blurY)
 	_filter_offset = f.distance
 
 

@@ -7,11 +7,11 @@ extends FlashDisplayObject
 ## the tick, so all Flash-space queries go through _children and _flash_parent, never the Godot tree.
 
 var _children: Array = []
-var mouse_children: bool = true
-var button_mode: bool = false
-var use_hand_cursor: bool = true
+var mouseChildren: bool = true
+var buttonMode: bool = false
+var useHandCursor: bool = true
 ## Rectangle used instead of children for hit testing, if set (Flash hitArea).
-var hit_area: FlashDisplayObject = null
+var hitArea: FlashDisplayObject = null
 var _tree_dirty := false
 var _graphics: FlashGraphics = null
 var _clip_proxies: Dictionary = {}   # clip mask object -> FlashProxy
@@ -32,16 +32,16 @@ func _draw() -> void:
 
 # ---------------------------------------------------------------- child list API
 
-var num_children: int:
+var numChildren: int:
 	get:
 		return _children.size()
 
 
-func add_child_flash(child: FlashDisplayObject) -> FlashDisplayObject:
-	return add_child_at(child, _children.size() if child._flash_parent != self else _children.size() - 1)
+func addChild(child: FlashDisplayObject) -> FlashDisplayObject:
+	return addChildAt(child, _children.size() if child._flash_parent != self else _children.size() - 1)
 
 
-func add_child_at(child: FlashDisplayObject, index: int) -> FlashDisplayObject:
+func addChildAt(child: FlashDisplayObject, index: int) -> FlashDisplayObject:
 	if child._flash_parent != null:
 		child._flash_parent._detach(child)
 	index = clampi(index, 0, _children.size())
@@ -62,7 +62,7 @@ func _render_state_changed() -> void:
 		queue_redraw()
 
 
-func remove_child_flash(child: FlashDisplayObject) -> FlashDisplayObject:
+func removeChild(child: FlashDisplayObject) -> FlashDisplayObject:
 	if child._flash_parent != self:
 		push_error("remove_child_flash: not a child")
 		return child
@@ -71,13 +71,13 @@ func remove_child_flash(child: FlashDisplayObject) -> FlashDisplayObject:
 	return child
 
 
-func remove_child_at(index: int) -> FlashDisplayObject:
-	return remove_child_flash(_children[index])
+func removeChildAt(index: int) -> FlashDisplayObject:
+	return removeChild(_children[index])
 
 
-func remove_children() -> void:
+func removeChildren() -> void:
 	while not _children.is_empty():
-		remove_child_at(_children.size() - 1)
+		removeChildAt(_children.size() - 1)
 
 
 func _detach(child: FlashDisplayObject) -> void:
@@ -94,15 +94,15 @@ func _detach(child: FlashDisplayObject) -> void:
 	_mark_tree_dirty()
 
 
-func get_child_at(index: int) -> FlashDisplayObject:
+func getChildAt(index: int) -> FlashDisplayObject:
 	return _children[index] if index >= 0 and index < _children.size() else null
 
 
-func get_child_index(child: FlashDisplayObject) -> int:
+func getChildIndex(child: FlashDisplayObject) -> int:
 	return _children.find(child)
 
 
-func set_child_index(child: FlashDisplayObject, index: int) -> void:
+func setChildIndex(child: FlashDisplayObject, index: int) -> void:
 	var i := _children.find(child)
 	if i < 0:
 		return
@@ -112,7 +112,7 @@ func set_child_index(child: FlashDisplayObject, index: int) -> void:
 	_sync_tree()
 
 
-func swap_children(a: FlashDisplayObject, b: FlashDisplayObject) -> void:
+func swapChildren(a: FlashDisplayObject, b: FlashDisplayObject) -> void:
 	var ia := _children.find(a)
 	var ib := _children.find(b)
 	if ia < 0 or ib < 0:
@@ -123,7 +123,7 @@ func swap_children(a: FlashDisplayObject, b: FlashDisplayObject) -> void:
 	_sync_tree()
 
 
-func get_child_by_name(n: String) -> FlashDisplayObject:
+func getChildByName(n: String) -> FlashDisplayObject:
 	for c in _children:
 		if c.flash_name == n:
 			return c
@@ -264,9 +264,9 @@ func _clip_allows(c: FlashDisplayObject, p: Vector2) -> bool:
 func _mouse_target(p: Vector2) -> FlashDisplayObject:
 	if not visible or _mask_hidden:
 		return null
-	if hit_area != null:
+	if hitArea != null:
 		var gp := flash_global_transform() * p
-		return self if mouse_enabled and hit_area.hit_test_point(gp.x, gp.y, true) else null
+		return self if mouseEnabled and hitArea.hitTestPoint(gp.x, gp.y, true) else null
 	for i in range(_children.size() - 1, -1, -1):
 		var c: FlashDisplayObject = _children[i]
 		if not c.visible or c._clip_depth > 0 or not c._masking.is_empty():
@@ -274,29 +274,29 @@ func _mouse_target(p: Vector2) -> FlashDisplayObject:
 		var lp: Vector2 = c.transform.affine_inverse() * p
 		if c._mask != null:
 			var gp := flash_global_transform() * p
-			if not c._mask.hit_test_point(gp.x, gp.y, true):
+			if not c._mask.hitTestPoint(gp.x, gp.y, true):
 				continue
 		if not _clip_allows(c, p):
 			continue
 		if c is FlashSprite:
 			var t: FlashDisplayObject = c._mouse_target(lp)
 			if t != null:
-				if not mouse_children:
-					return self if mouse_enabled else null
+				if not mouseChildren:
+					return self if mouseEnabled else null
 				return t
 		elif c._hit_shape(lp):
-			if c is FlashTextField and c.mouse_enabled:
-				return c if mouse_children else (self if mouse_enabled else null)
-			return self if mouse_enabled else _first_enabled_ancestor()
+			if c is FlashTextField and c.mouseEnabled:
+				return c if mouseChildren else (self if mouseEnabled else null)
+			return self if mouseEnabled else _first_enabled_ancestor()
 	if _graphics != null and _graphics.hit(p):
-		return self if mouse_enabled else _first_enabled_ancestor()
+		return self if mouseEnabled else _first_enabled_ancestor()
 	return null
 
 
 func _first_enabled_ancestor() -> FlashDisplayObject:
 	var o := _flash_parent
 	while o != null:
-		if o.mouse_enabled:
+		if o.mouseEnabled:
 			return o
 		o = o._flash_parent
 	return null

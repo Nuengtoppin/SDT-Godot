@@ -80,36 +80,36 @@ func mark_dirty() -> void:
 	_tex_dirty = true
 
 
-func get_pixel(x: int, y: int) -> int:
+func getPixel(x: int, y: int) -> int:
 	if x < 0 or y < 0 or x >= width or y >= height:
 		return 0
 	return color_to_argb(image.get_pixel(x, y)) & 0xFFFFFF
 
 
-func get_pixel32(x: int, y: int) -> int:
+func getPixel32(x: int, y: int) -> int:
 	if x < 0 or y < 0 or x >= width or y >= height:
 		return 0
 	return color_to_argb(image.get_pixel(x, y))
 
 
-func set_pixel(x: int, y: int, c: int) -> void:
+func setPixel(x: int, y: int, c: int) -> void:
 	if x >= 0 and y >= 0 and x < width and y < height:
 		image.set_pixel(x, y, argb_to_color(c | 0xFF000000))
 		_tex_dirty = true
 
 
-func set_pixel32(x: int, y: int, c: int) -> void:
+func setPixel32(x: int, y: int, c: int) -> void:
 	if x >= 0 and y >= 0 and x < width and y < height:
 		image.set_pixel(x, y, argb_to_color(c))
 		_tex_dirty = true
 
 
-func fill_rect(r: Rect2i, c: int) -> void:
+func fillRect(r: Rect2i, c: int) -> void:
 	image.fill_rect(r, argb_to_color(c if transparent else (c | 0xFF000000)))
 	_tex_dirty = true
 
 
-func copy_pixels(source: FlashBitmapData, source_rect: Rect2i, dest: Vector2i) -> void:
+func copyPixels(source: FlashBitmapData, source_rect: Rect2i, dest: Vector2i) -> void:
 	image.blit_rect(source.image, source_rect, dest)
 	_tex_dirty = true
 
