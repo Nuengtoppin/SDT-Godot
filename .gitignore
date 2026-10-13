@@ -1,0 +1,17 @@
+# Original game binary and everything derived from it (regenerate with tools/swfconv, see README)
+/original/
+/extracted/
+/game/assets/sdt/
+
+# Godot
+.godot/
+*.import
+!game/**/*.svg.import
+
+# Tool environments
+/tools/.venv/
+__pycache__/
+*.pyc
+
+# Local Claude settings
+/.claude/settings.local.json
