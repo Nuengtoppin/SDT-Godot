@@ -20,6 +20,14 @@ const SHAPE_SHADERS := {
 const SCREEN_BLEND_MODES := {"overlay": 0, "hardlight": 1, "screen": 2, "lighten": 3, "darken": 4,
 	"difference": 5, "invert": 6}
 
+## Debug flags from the command line (after --).
+var debug_flags: PackedStringArray = OS.get_cmdline_user_args()
+
+## Debug: render layer-blend / filtered objects directly instead of through offscreen groups.
+var debug_no_groups := "--nogroups" in OS.get_cmdline_user_args()
+## Debug: ignore masks.
+var debug_no_masks := "--nomasks" in OS.get_cmdline_user_args()
+
 ## Root of the Flash display list (700x600 stage space).
 var stage: FlashStage
 var libraries: Array = []
@@ -329,7 +337,7 @@ func _physics_process(_delta: float) -> void:
 	# 3. Masks follow the (possibly moved) objects.
 	for p in _mask_proxies.keys():
 		if is_instance_valid(p):
-			p.queue_redraw()
+			p.refresh()
 		else:
 			_mask_proxies.erase(p)
 	for g in _groups.keys():
@@ -338,6 +346,27 @@ func _physics_process(_delta: float) -> void:
 		else:
 			_groups.erase(g)
 	_update_mouse_over()
+	_free_orphans()
+
+
+var _release_candidates: Array = []
+
+
+## Frees `o` at the end of the tick if it is still off the display list by then.
+func release_if_orphaned(o: FlashDisplayObject) -> void:
+	_release_candidates.append(o)
+
+
+func _free_orphans() -> void:
+	if _release_candidates.is_empty():
+		return
+	var list := _release_candidates
+	_release_candidates = []
+	for o in list:
+		if is_instance_valid(o) and o._flash_parent == null and not o.is_inside_tree():
+			if o == _focus:
+				_focus = null
+			o.queue_free()
 
 
 # ---------------------------------------------------------------- materials
@@ -369,7 +398,7 @@ func shape_material(s: FlashShape) -> Material:
 	if mat != null:
 		return mat
 	mat = ShaderMaterial.new()
-	if SCREEN_BLEND_MODES.has(blend):
+	if SCREEN_BLEND_MODES.has(blend) and not ("--noscreenblend" in OS.get_cmdline_user_args()):
 		mat.shader = SHAPE_SHADERS["screen_read"]
 		mat.set_shader_parameter("mode", SCREEN_BLEND_MODES[blend])
 	else:
@@ -450,6 +479,8 @@ func _input(event: InputEvent) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_MOUSE_EXIT and stage != null:
 		stage.dispatchEvent(FlashEvent.new(FlashEvent.MOUSE_LEAVE))
+	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
+		FlashSharedObject.flush_all()
 
 
 func _set_focus(o: FlashDisplayObject) -> void:
@@ -597,3 +628,28 @@ func resolve_content_path(url: String) -> String:
 	if p.is_absolute_path() or p.begins_with("res://") or p.begins_with("user://"):
 		return p
 	return content_root().path_join(p)
+
+
+## Captures the last rendered frame of the stage area as an Image of size (stage_size * scale). Flash drew the
+## display list into a BitmapData; here the displayed frame is read back, which shows the same content (the game
+## only captures what is on screen) and keeps the window's resolution for high-quality screenshots.
+func capture_screen(stage_size: Vector2, scale: float = 1.0) -> Image:
+	var vp := get_viewport()
+	if vp == null:
+		return null
+	var img := vp.get_texture().get_image()
+	if img == null or img.is_empty():
+		return null
+	var t := vp.get_final_transform()
+	var origin := t.origin
+	var s := t.get_scale()
+	var rect := Rect2i(Vector2i(origin.round()), Vector2i((stage_size * s).round()))
+	rect = rect.intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	if rect.size.x <= 0 or rect.size.y <= 0:
+		return null
+	var out := img.get_region(rect)
+	var want := Vector2i(maxi(1, int(round(stage_size.x * scale))), maxi(1, int(round(stage_size.y * scale))))
+	if out.get_size() != want:
+		out.resize(want.x, want.y, Image.INTERPOLATE_LANCZOS if want.x < out.get_width() else Image.INTERPOLATE_CUBIC)
+	out.convert(Image.FORMAT_RGBA8)
+	return out

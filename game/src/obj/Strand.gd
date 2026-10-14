@@ -32,6 +32,7 @@ var collisionFree: int = 0
 
 func _init(pLayer: FlashSprite = null, pLength: int = 0, pMass: float = 0.0, a = null, b = null,
 		pTopSource: bool = false, pDisappear: bool = false) -> void:
+	super()
 	disappearOnAllAnchor = pDisappear
 	layer = pLayer
 	strandLength = pLength

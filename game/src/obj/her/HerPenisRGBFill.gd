@@ -6,6 +6,7 @@ static var _instances: Array = []
 
 
 func _init() -> void:
+	super()
 	if not _instances.has(self):
 		_instances.append(self)
 

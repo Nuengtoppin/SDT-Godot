@@ -10,6 +10,7 @@ var sizeDecrease: float
 
 func _init(p: Vector2 = Vector2.ZERO, v: Vector2 = Vector2.ZERO, size: float = 1.0, decrease: float = 0.2,
 		a: float = 1.0, isCum: bool = false) -> void:
+	super()
 	if isCum:
 		gotoAndStop("cum")
 	else:

@@ -238,8 +238,8 @@ func setSkin(id: int) -> void:
 	updateSkinList()
 
 
-static func _fill(c: Dictionary) -> FlashColorTransform:
-	return FlashColorTransform.new(1, 1, 1, c["a"], c["r"], c["g"], c["b"])
+static func _fill(c) -> FlashColorTransform:
+	return FlashColorTransform.new(1, 1, 1, c.a, c.r, c.g, c.b)
 
 
 func setTop(_id: int = 0) -> void:

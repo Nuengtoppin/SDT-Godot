@@ -12,29 +12,31 @@ uniform bool inner = false;
 uniform bool knockout = false;
 uniform bool hide_object = false;
 
-vec4 blurred(sampler2D tex, vec2 uv, vec2 px) {
-	vec2 sigma = max(blur_px * sqrt(passes) / 3.4641, vec2(0.001));
-	vec4 acc = vec4(0.0);
-	float wsum = 0.0;
-	for (int y = -4; y <= 4; y++) {
-		for (int x = -4; x <= 4; x++) {
-			vec2 o = vec2(float(x), float(y)) / 4.0;
-			float w = exp(-dot(o, o) * 4.5);
-			acc += texture(tex, uv + o * sigma * 3.0 * px) * w;
-			wsum += w;
-		}
-	}
-	return acc / wsum;
-}
-
 void fragment() {
 	vec2 px = TEXTURE_PIXEL_SIZE;
 	vec4 c = texture(TEXTURE, UV);
 	vec4 r = c;
+	// Gaussian blur of the source (mode 1) or of the offset shadow source (mode 2); TEXTURE cannot be passed to a
+	// helper function, so the loop lives here.
+	vec4 blur = vec4(0.0);
+	if (mode != 0) {
+		vec2 base_uv = mode == 2 ? UV - offset_px * px : UV;
+		vec2 sigma = max(blur_px * sqrt(passes) / 3.4641, vec2(0.001));
+		float wsum = 0.0;
+		for (int y = -4; y <= 4; y++) {
+			for (int x = -4; x <= 4; x++) {
+				vec2 o = vec2(float(x), float(y)) / 4.0;
+				float w = exp(-dot(o, o) * 4.5);
+				blur += texture(TEXTURE, base_uv + o * sigma * 3.0 * px) * w;
+				wsum += w;
+			}
+		}
+		blur /= wsum;
+	}
 	if (mode == 1) {
-		r = blurred(TEXTURE, UV, px);
+		r = blur;
 	} else if (mode == 2) {
-		float a = blurred(TEXTURE, UV - offset_px * px, px).a;
+		float a = blur.a;
 		if (inner) {
 			float ia = clamp((1.0 - a) * strength, 0.0, 1.0) * c.a * shadow_color.a;
 			vec4 sh = vec4(shadow_color.rgb * ia, ia);

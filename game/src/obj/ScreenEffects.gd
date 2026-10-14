@@ -10,6 +10,7 @@ var stoppingPulse := false
 
 
 func _init() -> void:
+	super()
 	whiteout.stop()
 	whiteFlash.stop()
 	addEventListener(FlashEvent.ENTER_FRAME, tick)

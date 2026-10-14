@@ -42,6 +42,7 @@ var _tearsIdle: int = 1000
 
 
 func _init() -> void:
+	super()
 	tearsData = FlashBitmapData.new(tearArea.size.x, tearArea.size.y, true, 0)
 	oldDataBuffer = FlashBitmapData.new(tearArea.size.x, tearArea.size.y, true, 0)
 	tearsLayer = FlashBitmap.new(tearsData, "auto", true)

@@ -100,6 +100,7 @@ var tipMid := Vector2(-324, -11)
 
 
 func _init() -> void:
+	super()
 	x = 420
 	y = 135
 	penisMask = Flash.create("HimMask")
@@ -659,7 +660,7 @@ func ejaculate() -> void:
 	if not ejaculating:
 		g.totalFinishes += 1
 		var extra := minf(30.0, maxf(0.0, (buildUp - ejacPleasure - 20.0) / 6.0))
-		var base := floor(60.0 + randf() * 10.0)
+		var base := floorf(60.0 + randf() * 10.0)
 		ejaculation = []
 		var done := 0
 		var total := int(base + extra)

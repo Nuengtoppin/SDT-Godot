@@ -75,8 +75,21 @@ func _set(property: StringName, value) -> bool:
 	var n := String(property)
 	if _named.has(n):
 		return false
+	# _set also sees engine properties (visible, scale, ...); those must go to the node itself.
+	if not _dyn.has(n) and _native_props().has(property):
+		return false
 	_dyn[n] = value
 	return true
+
+
+static var _native_prop_cache: Dictionary = {}
+
+
+static func _native_props() -> Dictionary:
+	if _native_prop_cache.is_empty():
+		for p in ClassDB.class_get_property_list("Node2D"):
+			_native_prop_cache[StringName(p["name"])] = true
+	return _native_prop_cache
 
 
 func hasOwnProperty(n: String) -> bool:
@@ -230,7 +243,7 @@ func _goto(f: int, initial: bool) -> void:
 	var row: Array = frames[f]
 	var want := {}
 	for e in row:
-		want[e[0]] = e
+		want[int(e[0])] = e
 	# Remove children that are not on the target frame.
 	for d in _timeline_children.keys():
 		if not want.has(d):
@@ -389,6 +402,8 @@ func _remove_timeline_child(d: int) -> void:
 	if child._flash_parent == self:
 		_detach(child)
 		child._on_removed()
+		# Flash garbage-collects it; Godot nodes must be freed explicitly (unless a script re-adds it this tick).
+		Flash.release_if_orphaned(child)
 
 
 # A script that removes a timeline child takes it out of timeline control (Flash behaviour).

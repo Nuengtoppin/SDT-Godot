@@ -184,8 +184,8 @@ func _draw_rec(o: FlashDisplayObject, m: Transform2D, ct: FlashColorTransform, d
 		for py in range(y0, y1):
 			for px in range(x0, x1):
 				var lp := inv * Vector2(px + 0.5, py + 0.5)
-				var ix := (lp.x - e["x"]) * sc - 0.5
-				var iy := (lp.y - e["y"]) * sc - 0.5
+				var ix: float = (lp.x - e["x"]) * sc - 0.5
+				var iy: float = (lp.y - e["y"]) * sc - 0.5
 				if ix < -1 or iy < -1 or ix > iw or iy > ih:
 					continue
 				var c := _bilinear(img, ix, iy, iw, ih)
@@ -207,7 +207,7 @@ func _draw_rec(o: FlashDisplayObject, m: Transform2D, ct: FlashColorTransform, d
 	elif o is FlashSprite:
 		for ch in (o as FlashSprite)._children:
 			if ch.visible:
-				var cct := ch.colorTransform
+				var cct: FlashColorTransform = ch.colorTransform
 				cct.concat(ct)
 				_draw_rec(ch, m * ch.transform, cct, dst, clip)
 
@@ -240,3 +240,30 @@ func draw_bitmap(source: FlashBitmapData, offset: Vector2i, clip: Rect2i) -> voi
 	var src_rect := Rect2i(clip.position - offset, clip.size)
 	image.blend_rect(source.image, src_rect, clip.position)
 	_tex_dirty = true
+
+
+## Pixels of 'r' as 0xAARRGGBB big-endian bytes (Flash ByteArray layout).
+func getPixels(r: Rect2i) -> PackedByteArray:
+	var sub := image.get_region(r)
+	var src := sub.get_data()
+	var out := PackedByteArray()
+	out.resize(src.size())
+	for i in range(0, src.size(), 4):
+		out[i] = src[i + 3]
+		out[i + 1] = src[i]
+		out[i + 2] = src[i + 1]
+		out[i + 3] = src[i + 2]
+	return out
+
+
+func setPixels(r: Rect2i, bytes: PackedByteArray) -> void:
+	var data := PackedByteArray()
+	data.resize(r.size.x * r.size.y * 4)
+	for i in range(0, mini(data.size(), bytes.size()), 4):
+		data[i] = bytes[i + 1]
+		data[i + 1] = bytes[i + 2]
+		data[i + 2] = bytes[i + 3]
+		data[i + 3] = bytes[i]
+	var sub := Image.create_from_data(r.size.x, r.size.y, false, Image.FORMAT_RGBA8, data)
+	image.blit_rect(sub, Rect2i(Vector2i.ZERO, r.size), r.position)
+	mark_dirty()

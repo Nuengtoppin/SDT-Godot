@@ -31,6 +31,7 @@ var showing := true
 
 func _init(src: DialogueLine = null, pTrigger: String = "", clickCb: Callable = Callable(),
 		changeCb: Callable = Callable(), wildcard: bool = false) -> void:
+	super()
 	background.gotoAndStop("normal")
 	spot.gotoAndStop("speaking")
 	moodIcon.gotoAndStop("none")

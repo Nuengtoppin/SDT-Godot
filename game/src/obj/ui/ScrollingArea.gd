@@ -11,6 +11,7 @@ var scroller: ScrollingAreaScroller
 
 
 func _init(w: float = 100, h: float = 100, content: FlashSprite = null, yPad: float = 0) -> void:
+	super()
 	if content == null:
 		return
 	windowContent = content

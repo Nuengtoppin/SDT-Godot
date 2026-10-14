@@ -156,6 +156,8 @@ static func tryToSetFrame(mc, frame) -> void:
 
 static func tryToSetFrameLabel(mc, label: String) -> void:
 	if mc:
+		if not (mc is FlashMovieClip):
+			return  # callers pass `x as MovieClip`, which is null for other display objects
 		for fl in mc.currentLabels:
 			if fl["name"] == label:
 				mc.gotoAndStop(label)
@@ -447,7 +449,7 @@ func setArmSkin(force: bool = false) -> void:
 	setArmFrame(h.rightArmContainer.upperArm, h.isRightArmFree(), force)
 	setArmFrame(h.rightForeArmContainer.upperArm.foreArm, h.isRightArmFree(), force)
 	setArmFrame(h.rightForeArmContainer.upperArm.foreArm.hand, h.isRightArmFree(), force, g.rightHandJobMode)
-	if h.rightForeArmContainer.upperArm.foreArm.hand.grip:
+	if h.rightForeArmContainer.upperArm.foreArm.hand.get("grip"):
 		h.rightForeArmContainer.upperArm.foreArm.hand.grip.visible = true
 		h.rightForeArmContainer.upperArm.foreArm.hand.grip.gotoAndStop(currentSkinType)
 	setArmFrame(h.leftArmContainer.upperArm, h.isLeftArmFree(), force)

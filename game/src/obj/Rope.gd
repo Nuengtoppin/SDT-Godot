@@ -60,6 +60,7 @@ var hairCollisionTest := false
 func _init(graphic: FlashSprite = null, layer = null, anchor = null, container = null, gravityOffset: float = 0.0,
 		limits: String = "none", pLeftLimit: int = 0, pRightLimit: int = 0, customLength: int = 0,
 		customSegLengths = null) -> void:
+	super()
 	if graphic == null:
 		return
 	ropeGraphic = graphic

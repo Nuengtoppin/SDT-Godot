@@ -12,6 +12,7 @@ var labelText: String:
 
 
 func _init(text: String = "", cb: Callable = Callable()) -> void:
+	super()
 	label.text = text
 	_labelText = text
 	_clickCallback = cb

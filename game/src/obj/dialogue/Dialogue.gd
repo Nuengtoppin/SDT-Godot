@@ -89,6 +89,7 @@ var debugBars: Dictionary = {}
 
 
 func _init() -> void:
+	super()
 	x = 0
 	y = g.screenSize.y
 	originalTextFormat = tfContainer.dialogueField.defaultTextFormat

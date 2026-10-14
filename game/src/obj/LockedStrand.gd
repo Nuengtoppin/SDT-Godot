@@ -8,6 +8,7 @@ var step: int = 0
 
 
 func _init(data: FlashBitmapData = null, p_container = null) -> void:
+	super()
 	if data == null:
 		return
 	strandBitmap = FlashBitmap.new(data)

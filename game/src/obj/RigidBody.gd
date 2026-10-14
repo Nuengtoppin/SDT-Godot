@@ -20,6 +20,7 @@ var haveAntiClockwiseLimit := false
 
 
 func _init() -> void:
+	super()
 	addEventListener(FlashEvent.ENTER_FRAME, tick)
 	addEventListener(FlashEvent.ADDED, childAdded)
 	frameChanged()

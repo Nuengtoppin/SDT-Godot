@@ -63,6 +63,7 @@ var browsingForDialogue := false
 
 
 func _init() -> void:
+	super()
 	lineContainer = FlashSprite.new()
 	addChild(lineContainer)
 	helpScroller = ScrollingArea.new(645, 450, help)

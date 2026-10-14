@@ -23,6 +23,7 @@ var selection: String:
 
 
 func _init() -> void:
+	super()
 	arrowButton = getArrowButton()
 	_dropdownWindow = getDropdownWindow()
 	_dropdownLabel = getDropdownLabel()

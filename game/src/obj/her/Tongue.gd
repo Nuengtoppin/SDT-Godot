@@ -43,6 +43,7 @@ var pushPower: Dictionary = {}
 
 
 func _init() -> void:
+	super()
 	nextActionTime = int(floor(randf() * 60)) + 15
 	nearTime = int(ceil(randf() * 20)) + 10
 	nextAction = doNothing

@@ -26,6 +26,7 @@ var tanAlpha: float = 1.0
 
 
 func _init() -> void:
+	super()
 	_tanLayer = FlashSprite.new()
 	_tanLayer.blendMode = "overlay"
 	addChild(_tanLayer)

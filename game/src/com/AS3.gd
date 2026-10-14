@@ -67,3 +67,11 @@ static func looseEquals(a, b) -> bool:
 	if ta == TYPE_BOOL or tb == TYPE_BOOL or isNumber(a) or isNumber(b):
 		return Number(a) == Number(b)
 	return str(a) == str(b)
+
+
+## AS3 int(v) / uint(v) for strings and numbers: NaN and non-numeric become 0, fractions truncate.
+static func toInt(v) -> int:
+	var n := Number(v)
+	if is_nan(n) or is_inf(n):
+		return 0
+	return int(n)

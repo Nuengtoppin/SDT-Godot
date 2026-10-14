@@ -33,7 +33,7 @@ var _mask: FlashDisplayObject = null
 var _masking: Array = []
 ## Clip-depth (timeline) mask: masks siblings with depth in (_depth, _clip_depth].
 var _clip_depth: int = 0
-var _proxy: Node2D = null
+var _proxy: CanvasItem = null
 
 var _listeners: Dictionary = {}
 
@@ -77,9 +77,9 @@ var scaleY: float:
 
 
 ## Topmost node actually inserted in the Godot tree for this object (itself or its outermost proxy).
-func _tree_node() -> Node2D:
-	var n: Node2D = self
-	var p: Node2D = _proxy
+func _tree_node() -> CanvasItem:
+	var n: CanvasItem = self
+	var p: CanvasItem = _proxy
 	while p != null:
 		n = p
 		p = p.get(&"_proxy")

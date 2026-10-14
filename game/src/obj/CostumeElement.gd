@@ -14,6 +14,7 @@ var currentAnchor := Vector2()
 
 
 func _init() -> void:
+	super()
 	mouseChildren = false
 	addEventListener(FlashEvent.CLICK, clicked)
 

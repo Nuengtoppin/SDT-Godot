@@ -34,5 +34,5 @@ static func hueWave(h: float, channel: int, cycle: float = 100.0) -> float:
 	cycle /= 3.0
 	h /= cycle
 	h += channel
-	var v := 6.0 * (h / 3.0 - floor(h / 3.0 + 0.5))
+	var v := 6.0 * (h / 3.0 - floorf(h / 3.0 + 0.5))
 	return maxf(0.0, minf(1.0, absf(v) - 1.0))

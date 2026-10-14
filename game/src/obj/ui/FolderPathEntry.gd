@@ -11,6 +11,7 @@ var folderPath: String:
 
 
 func _init(path: String = "") -> void:
+	super()
 	pathTF.text = path
 	mbDelete.addEventListener(FlashEvent.CLICK, deleteClicked)
 	pathTF.addEventListener(FlashEvent.KEY_UP, pathTyped)

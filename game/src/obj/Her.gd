@@ -268,6 +268,7 @@ var blankEyed := false
 
 
 func _init() -> void:
+	super()
 	backModContainer = FlashSprite.new()
 	previousResistance = resistance["upper"]
 	leftBreastController = BreastController.new(torsoBack.leftBreast, torsoBackCostume.breastCostume)

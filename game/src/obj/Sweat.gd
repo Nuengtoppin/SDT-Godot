@@ -45,6 +45,7 @@ var rightPush: float = 0.0
 
 func _init(container: FlashSprite = null, p: Vector2 = Vector2.ZERO, spread: Vector2 = Vector2.ZERO,
 		others: Array = []) -> void:
+	super()
 	if container == null:
 		return
 	if currentDroplets < MAX_DROPLETS and g.sweat:

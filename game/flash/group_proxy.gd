@@ -10,7 +10,7 @@ extends Node2D
 const DISPLAY_SHADER := preload("res://flash/shaders/group_display.gdshader")
 const MAX_SIZE := 4096
 
-var _proxy: Node2D = null
+var _proxy: CanvasItem = null
 var _obj: FlashDisplayObject = null
 var _vp: SubViewport
 var _rect := Rect2()          # obj-local area captured
@@ -21,6 +21,7 @@ var _mat := ShaderMaterial.new()
 
 func _init() -> void:
 	_vp = SubViewport.new()
+	_vp.world_2d = World2D.new()   # own canvas: content must not also draw in the parent viewport
 	_vp.transparent_bg = true
 	_vp.disable_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -37,10 +38,30 @@ func configure(obj: FlashDisplayObject) -> void:
 	_margin = 0.0
 	_mat.shader = DISPLAY_SHADER
 	_mat.set_shader_parameter("mode", 0)
+	var shader_filter: FlashFilter = null
 	for f in obj._filters:
-		if not (f is FlashFilter) or f.type == "ColorMatrix":
-			continue
-		_apply_filter(f)
+		if f is FlashFilter and f.type == "Shader":
+			shader_filter = f
+	if shader_filter != null:
+		# A shader filter owns the material; a following inner drop shadow is folded into it (the highlight
+		# shader supports that), other filters are dropped.
+		_apply_filter(shader_filter)
+		for f in obj._filters:
+			if f is FlashFilter and f.type == "DropShadow":
+				_mat.set_shader_parameter("has_shadow", true)
+				var a := deg_to_rad(f.angle)
+				_mat.set_shader_parameter("shadow_offset_px", Vector2(cos(a), sin(a)) * f.distance)
+				_mat.set_shader_parameter("shadow_blur_px", Vector2(f.blurX, f.blurY))
+				var c := Color.hex((f.color << 8) | 0xFF)
+				c.a = f.alpha
+				_mat.set_shader_parameter("shadow_color", c)
+				_mat.set_shader_parameter("shadow_strength", f.strength)
+				_margin = maxf(_margin, maxf(f.blurX, f.blurY) + f.distance + 2.0)
+	else:
+		for f in obj._filters:
+			if not (f is FlashFilter) or f.type == "ColorMatrix":
+				continue
+			_apply_filter(f)
 	Flash.register_group(self)
 
 
@@ -62,7 +83,7 @@ func _apply_filter(f: FlashFilter) -> void:
 		_mat.shader = f.shader
 		for k in f.shaderParams:
 			_mat.set_shader_parameter(k, f.shaderParams[k])
-		_margin = maxf(_margin, 4.0)
+		_margin = maxf(_margin, 8.0)
 		return
 	_mat.set_shader_parameter("passes", float(maxi(f.quality, 1)))
 	_mat.set_shader_parameter("blur_px", Vector2(f.blurX, f.blurY))
@@ -117,6 +138,8 @@ func update_layout() -> void:
 	_px_scale = s
 	# Shadow / blur parameters are in render-target pixels (= screen pixels).
 	var stretch := Flash.screen_scale()
+	if _mat.shader != DISPLAY_SHADER:
+		_mat.set_shader_parameter("px_scale", stretch)
 	if _mat.shader == DISPLAY_SHADER:
 		_mat.set_shader_parameter("blur_px", _filter_px * stretch)
 		var a: float = deg_to_rad(_obj._filters[0].angle) if not _obj._filters.is_empty() and _obj._filters[0] is FlashFilter else 0.0

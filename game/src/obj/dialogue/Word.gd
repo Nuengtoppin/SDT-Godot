@@ -2,12 +2,12 @@ class_name Word
 extends RefCounted
 ## Port of obj.dialogue.Word: splits a word into consonant/vowel groups and picks a mouth shape for each.
 
-static var _reAction := RegEx.create_from_string("\[.*?\]")
-static var _reFirst := RegEx.create_from_string("(?i)\W*\w")
+static var _reAction := RegEx.create_from_string("\\[.*?\\]")
+static var _reFirst := RegEx.create_from_string("(?i)\\W*\\w")
 static var _reNotVowel := RegEx.create_from_string("[^aeiouy]")
 static var _reNotCons := RegEx.create_from_string("(?i)[^bcdfghjklmnpqrstvwxz]")
 static var _reCons := RegEx.create_from_string("(?i)[bcdfghjklmnpqrstvwxz]")
-static var _reNonWord := RegEx.create_from_string("\W")
+static var _reNonWord := RegEx.create_from_string("\\W")
 static var _reFF := RegEx.create_from_string("(?i)f|ph")
 static var _reMM := RegEx.create_from_string("(?i)m|p|b")
 static var _reAH := RegEx.create_from_string("a|^a$")

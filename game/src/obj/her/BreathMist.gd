@@ -9,6 +9,7 @@ var maxAlpha: float
 
 
 func _init() -> void:
+	super()
 	speed = Vector2(randf() * (g.breathLevel / 40.0) + 3.0, randf() * 2.0 - 1.2)
 	angSpeed = (randf() - 0.5) / 10.0
 	rotation_degrees = randf() * 360.0

@@ -14,6 +14,7 @@ var _default: String = ""
 
 
 func _init(pCaption: String = "", doneLabel: String = "", cb: Callable = Callable(), pDefault: String = "") -> void:
+	super()
 	caption.text = pCaption
 	mbDoneButton.labelContainer.buttonLabel.text = doneLabel
 	_callback = cb
