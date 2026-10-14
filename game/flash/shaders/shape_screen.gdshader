@@ -11,7 +11,7 @@ float overlay1(float b, float s) {
 }
 
 void fragment() {
-	vec4 c = flash_color(texture(TEXTURE, UV), COLOR);
+	vec4 c = flash_color(texture(TEXTURE, UV), flash_modulate);
 	vec3 b = texture(backdrop, SCREEN_UV).rgb;
 	vec3 r;
 	if (mode == 0) {

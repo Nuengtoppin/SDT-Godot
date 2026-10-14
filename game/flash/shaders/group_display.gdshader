@@ -12,6 +12,13 @@ uniform bool inner = false;
 uniform bool knockout = false;
 uniform bool hide_object = false;
 
+// Fragment COLOR starts as texture * modulate; keep the modulate alone from the vertex stage.
+varying vec4 modulate;
+
+void vertex() {
+	modulate = COLOR;
+}
+
 void fragment() {
 	vec2 px = TEXTURE_PIXEL_SIZE;
 	vec4 c = texture(TEXTURE, UV);
@@ -48,5 +55,5 @@ void fragment() {
 		}
 	}
 	// premultiplied output, scaled by the group's modulate (Flash alpha / multipliers of the composite)
-	COLOR = vec4(r.rgb * COLOR.rgb, r.a) * COLOR.a;
+	COLOR = vec4(r.rgb * modulate.rgb, r.a) * modulate.a;
 }

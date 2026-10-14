@@ -4,6 +4,6 @@ render_mode blend_mul;
 
 // Flash ALPHA blend: destination alpha (and premultiplied colour) scaled by source alpha.
 void fragment() {
-	vec4 c = flash_color(texture(TEXTURE, UV), COLOR);
+	vec4 c = flash_color(texture(TEXTURE, UV), flash_modulate);
 	COLOR = vec4(c.a);
 }

@@ -70,6 +70,13 @@ func _process(_delta: float) -> void:
 		var img := get_viewport().get_texture().get_image()
 		img.save_png(_shot)
 		for pk in _picks:
+			var tgt: FlashDisplayObject = Flash._mouse_target_at(pk)
+			var chain := []
+			var o = tgt
+			while o != null:
+				chain.append("%s#%d" % [o.flash_name, o._char_id])
+				o = o._flash_parent
+			print("TARGET ", pk, " ", chain)
 			print("PICK ", pk)
 			_pick(Flash.stage, pk, "")
 		if _dump != "":

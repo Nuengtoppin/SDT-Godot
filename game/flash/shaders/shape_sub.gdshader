@@ -3,5 +3,5 @@ render_mode blend_sub;
 #include "shape_common.gdshaderinc"
 
 void fragment() {
-	COLOR = flash_color(texture(TEXTURE, UV), COLOR);
+	COLOR = flash_color(texture(TEXTURE, UV), flash_modulate);
 }

@@ -4,6 +4,6 @@ render_mode blend_mul;
 
 // Flash multiply with coverage: dst * mix(1, src, srcAlpha). Alpha channel is left unchanged.
 void fragment() {
-	vec4 c = flash_color(texture(TEXTURE, UV), COLOR);
+	vec4 c = flash_color(texture(TEXTURE, UV), flash_modulate);
 	COLOR = vec4(mix(vec3(1.0), c.rgb, c.a), 1.0);
 }

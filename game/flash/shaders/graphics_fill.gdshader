@@ -1,5 +1,6 @@
 shader_type canvas_item;
 // flash.display.Graphics fills: solid, linear, radial and focal-radial gradients ("pad" spread, rgb interp).
+#define CUSTOM_VERTEX
 #include "shape_common.gdshaderinc"
 
 uniform int fill_mode = 0;             // 0 solid, 1 linear, 2 radial
@@ -13,6 +14,7 @@ uniform float stop_ratios[8];          // 0..1
 varying vec2 gpos;
 
 void vertex() {
+	flash_modulate = COLOR;
 	gpos = (inv_matrix * vec3(VERTEX, 1.0)).xy / 819.2;
 }
 
@@ -48,5 +50,5 @@ void fragment() {
 		}
 		c = ramp(t);
 	}
-	COLOR = flash_color(c, COLOR);
+	COLOR = flash_color(c, flash_modulate);
 }

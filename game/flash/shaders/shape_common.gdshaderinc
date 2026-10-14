@@ -17,3 +17,13 @@ vec4 flash_color(vec4 tex, vec4 modulate) {
 	}
 	return c;
 }
+
+// In a canvas fragment shader COLOR starts as texture * modulate; shapes need the modulate alone (the Flash colour
+// multipliers), so it is passed from the vertex stage.
+varying vec4 flash_modulate;
+
+#ifndef CUSTOM_VERTEX
+void vertex() {
+	flash_modulate = COLOR;
+}
+#endif
