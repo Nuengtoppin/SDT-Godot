@@ -377,7 +377,7 @@ func generateInterpolationPoints() -> void:
 	offsetPoints = []
 	offsetPoints.resize(maxi(strandLength, 1))
 	var dirs: Array = []
-	dirs.resize(strandLength + 1)
+	dirs.resize(maxi(strandLength + 1, 2))   # AS3 arrays grow on write; a 0-link strand writes index 1
 	var lines: Array = []
 	lines.resize(maxi(strandLength, 1))
 	for i in strandLength - 1:

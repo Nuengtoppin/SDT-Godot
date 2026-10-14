@@ -363,10 +363,41 @@ func _free_orphans() -> void:
 	var list := _release_candidates
 	_release_candidates = []
 	for o in list:
-		if is_instance_valid(o) and o._flash_parent == null and not o.is_inside_tree():
+		if is_instance_valid(o) and o._flash_parent == null and not o.is_inside_tree() and _freeable(o):
 			if o == _focus:
 				_focus = null
 			o.queue_free()
+
+
+const _PLAIN_SCRIPTS := [&"FlashShape", &"FlashMovieClip", &"FlashSprite", &"FlashBitmap", &"FlashTextField"]
+
+
+## True if nothing in o's subtree can still be referenced by game code: only plain runtime objects (no game
+## class), no instance names, no listeners, and every Godot descendant belongs to o. Anything else is left for
+## the game to keep or reuse (Flash's garbage collector would only free it once unreferenced).
+func _freeable(o: FlashDisplayObject) -> bool:
+	if not _PLAIN_SCRIPTS.has(o.get_script().get_global_name()):
+		return false
+	if o.flash_name != "" or not o._listeners.is_empty() or has_enter_frame(o):
+		return false
+	if o is FlashSprite:
+		for c in o._children:
+			if not _freeable(c):
+				return false
+	return _owns_godot_subtree(o, o)
+
+
+func _owns_godot_subtree(root: FlashDisplayObject, n: Node) -> bool:
+	for c in n.get_children():
+		if c is FlashDisplayObject:
+			var p: FlashDisplayObject = c
+			while p != null and p != root:
+				p = p._flash_parent
+			if p == null:
+				return false
+		if not _owns_godot_subtree(root, c):
+			return false
+	return true
 
 
 # ---------------------------------------------------------------- materials

@@ -8,6 +8,7 @@ var _frames := 60
 var _clicks: Array = []
 var _frame := 0
 var _dump := ""
+var _quit_at_end := false
 var _picks: Array = []
 var _hide: Array = []
 var _counter: Label = null
@@ -29,6 +30,7 @@ func _ready() -> void:
 			_dump = a.substr(7)
 		elif a.begins_with("--frames="):
 			_frames = int(a.substr(9))
+			_quit_at_end = true
 		elif a.begins_with("--move="):
 			var mp := a.substr(7).split("@")
 			var mxy := mp[0].split(",")
@@ -47,7 +49,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if _shot == "" and _clicks.is_empty():
+	if _shot == "" and _clicks.is_empty() and not _quit_at_end:
 		return
 	_frame += 1
 	if _counter:
@@ -71,6 +73,9 @@ func _process(_delta: float) -> void:
 		var im := get_viewport().get_texture().get_image()
 		var dt = Flash.stage._children[0]
 		print("f%d px=%s dt_vis=%s in_tree=%s" % [_frame, im.get_pixel(im.get_width() / 2, im.get_height() / 2), dt.visible, dt.is_visible_in_tree()])
+	if _quit_at_end and _shot == "" and _frame >= _frames:
+		get_tree().quit()
+		return
 	if _shot != "" and _frame >= _frames:
 		await RenderingServer.frame_post_draw
 		var img := get_viewport().get_texture().get_image()

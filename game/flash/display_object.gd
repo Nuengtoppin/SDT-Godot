@@ -436,3 +436,15 @@ func _invoke_listeners(event: FlashEvent, capture: bool) -> void:
 			cb.call(event)
 		if event._stop_immediate:
 			return
+
+
+func _notification(what: int) -> void:
+	# Debug guard: a display object must never be freed while a live Flash parent still lists it.
+	if what == NOTIFICATION_PREDELETE and _flash_parent != null and is_instance_valid(_flash_parent) 			and not _flash_parent.is_queued_for_deletion() and _flash_parent.get("_children") != null 			and _flash_parent._children.has(self):
+		var path := ""
+		var p: FlashDisplayObject = _flash_parent
+		while p != null:
+			path = "%s#%d/" % [p.flash_name, p._char_id] + path
+			p = p._flash_parent
+		push_error("Freed while still listed by its parent: %s%s#%d (%s)" % [path, flash_name, _char_id,
+			get_script().get_global_name()])

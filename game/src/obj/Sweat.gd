@@ -111,6 +111,13 @@ func kill() -> void:
 			parent.removeChild(self)
 		sweatGroups[sweatParent].erase(self)
 		currentDroplets -= 1
+		# kill() can run mid-tick, after which tick() re-adds the droplet to its parent (as in the original), so
+		# only free it if it is really off the display list once the tick is over.
+		_free_if_detached.call_deferred()
+
+
+func _free_if_detached() -> void:
+	if is_instance_valid(self) and _flash_parent == null:
 		queue_free()
 
 
