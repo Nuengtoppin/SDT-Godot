@@ -114,7 +114,7 @@ var _filter_offset := 0.0
 
 ## Called by the runtime every tick: follows the object's transform and resizes the render target.
 func update_layout() -> void:
-	if _obj == null or not is_instance_valid(_obj) or not is_inside_tree():
+	if _obj == null or not is_instance_valid(_obj) or not is_inside_tree() or not _vp.is_inside_tree():
 		return
 	transform = _obj.transform
 	visible = _obj.visible

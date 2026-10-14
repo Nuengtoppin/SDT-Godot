@@ -227,7 +227,8 @@ static func update_for(obj: FlashDisplayObject) -> void:
 	var outer_parent: Node = obj._tree_node().get_parent()
 	for n in [old_group, old_mask]:
 		if n != null:
-			var holder: Node = n.content_parent() if (n is FlashRectClip or n is FlashProxy) else n
+			# Only the wrapped content is detached; the wrapper keeps its own viewports.
+			var holder: Node = n.content_parent() if (n is FlashRectClip or n is FlashProxy or n is FlashGroupProxy) else n
 			for c in holder.get_children():
 				holder.remove_child(c)
 			if n.get_parent() != null:
