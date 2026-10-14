@@ -379,8 +379,13 @@ func shape_material(s: FlashShape) -> Material:
 	var cm_off := Vector4.ZERO
 	var has_cm := false
 	var o: FlashDisplayObject = s
+	var blend_open := true
 	while o != null:
-		if blend == "normal" and o._blend_mode != "normal" and o._blend_mode != "layer":
+		# An offscreen group composites its whole content with its own blend mode (group_display), so blend
+		# modes at or above a grouped ancestor do not apply to the shapes inside it.
+		if o != s and o._proxy is FlashGroupProxy:
+			blend_open = false
+		if blend_open and blend == "normal" and o._blend_mode != "normal" and o._blend_mode != "layer":
 			blend = o._blend_mode
 		for f in o._filters:
 			if f is FlashFilter and f.type == "ColorMatrix" and f.matrix.size() >= 20:

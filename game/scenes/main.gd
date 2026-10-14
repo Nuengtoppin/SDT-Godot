@@ -51,7 +51,8 @@ func _process(_delta: float) -> void:
 		_counter.text = str(_frame)
 		move_child(_counter, get_child_count() - 1)
 	if _frame % 60 == 0:
-		print("frame %d nodes=%d objects=%d" % [_frame, Performance.get_monitor(Performance.OBJECT_NODE_COUNT), Performance.get_monitor(Performance.OBJECT_COUNT)])
+		print("frame %d fps=%d nodes=%d objects=%d" % [_frame, Engine.get_frames_per_second(), Performance.get_monitor(Performance.OBJECT_NODE_COUNT), Performance.get_monitor(Performance.OBJECT_COUNT)])
+		print("   running=%s paused=%s locked=%s mouse=%s cur=%s flashmouse=%s" % [g.gameRunning, g.gamePaused, g.controlLocked, g.currentMousePos, g.currentPos, Flash.mouse_position()])
 	for c in _clicks:
 		if c[0] == _frame:
 			if c.size() > 2:

@@ -9,6 +9,9 @@ extends Node2D
 
 const DISPLAY_SHADER := preload("res://flash/shaders/group_display.gdshader")
 const MAX_SIZE := 4096
+## Blend modes applied when compositing the group (0 = normal); see group_display.gdshader.
+const BLEND_IDS := {"overlay": 1, "hardlight": 2, "screen": 3, "lighten": 4, "darken": 5, "difference": 6,
+	"invert": 7, "multiply": 8, "add": 9, "subtract": 10}
 
 var _proxy: CanvasItem = null
 var _obj: FlashDisplayObject = null
@@ -38,6 +41,7 @@ func configure(obj: FlashDisplayObject) -> void:
 	_margin = 0.0
 	_mat.shader = DISPLAY_SHADER
 	_mat.set_shader_parameter("mode", 0)
+	_mat.set_shader_parameter("blend_mode", BLEND_IDS.get(obj._blend_mode, 0))
 	var shader_filter: FlashFilter = null
 	for f in obj._filters:
 		if f is FlashFilter and f.type == "Shader":

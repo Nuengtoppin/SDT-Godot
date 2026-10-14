@@ -11,6 +11,29 @@ uniform float strength = 1.0;
 uniform bool inner = false;
 uniform bool knockout = false;
 uniform bool hide_object = false;
+// Blend mode of the grouped object itself, applied against the backdrop (a BackBufferCopy precedes the group):
+// 0 normal, 1 overlay, 2 hardlight, 3 screen, 4 lighten, 5 darken, 6 difference, 7 invert, 8 multiply, 9 add,
+// 10 subtract.
+uniform int blend_mode = 0;
+uniform sampler2D backdrop : hint_screen_texture, filter_linear;
+
+float overlay1(float b, float s) {
+	return b < 0.5 ? 2.0 * b * s : 1.0 - 2.0 * (1.0 - b) * (1.0 - s);
+}
+
+vec3 blend_rgb(vec3 b, vec3 s) {
+	if (blend_mode == 1) return vec3(overlay1(b.r, s.r), overlay1(b.g, s.g), overlay1(b.b, s.b));
+	if (blend_mode == 2) return vec3(overlay1(s.r, b.r), overlay1(s.g, b.g), overlay1(s.b, b.b));
+	if (blend_mode == 3) return 1.0 - (1.0 - b) * (1.0 - s);
+	if (blend_mode == 4) return max(b, s);
+	if (blend_mode == 5) return min(b, s);
+	if (blend_mode == 6) return abs(b - s);
+	if (blend_mode == 7) return 1.0 - b;
+	if (blend_mode == 8) return b * s;
+	if (blend_mode == 9) return min(b + s, 1.0);
+	if (blend_mode == 10) return max(b - s, 0.0);
+	return s;
+}
 
 // Fragment COLOR starts as texture * modulate; keep the modulate alone from the vertex stage.
 varying vec4 modulate;
@@ -55,5 +78,10 @@ void fragment() {
 		}
 	}
 	// premultiplied output, scaled by the group's modulate (Flash alpha / multipliers of the composite)
-	COLOR = vec4(r.rgb * modulate.rgb, r.a) * modulate.a;
+	vec4 o = vec4(r.rgb * modulate.rgb, r.a) * modulate.a;
+	if (blend_mode != 0 && o.a > 0.0) {
+		vec3 b = texture(backdrop, SCREEN_UV).rgb;
+		o.rgb = blend_rgb(b, o.rgb / o.a) * o.a;
+	}
+	COLOR = o;
 }

@@ -283,7 +283,7 @@ static func update_for(obj: FlashDisplayObject) -> void:
 		old_mask.queue_free()
 	# Backdrop copy for blend modes that read what is behind the object.
 	var outer := obj._tree_node()
-	if SCREEN_BLENDS.has(obj._blend_mode):
+	if SCREEN_BLENDS.has(obj._blend_mode) or (need_group and FlashGroupProxy.BLEND_IDS.has(obj._blend_mode)):
 		if old_bbc == null:
 			var bbc := BackBufferCopy.new()
 			bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
