@@ -20,6 +20,9 @@ func _ready() -> void:
 		elif a.begins_with("--pick="):
 			var pxy := a.substr(7).split(",")
 			_picks.append(Vector2(float(pxy[0]), float(pxy[1])))
+		elif a.begins_with("--key="):
+			var kp := a.substr(6).split("@")
+			_clicks.append([int(kp[1]) if kp.size() > 1 else 10, kp[0], "key"])
 		elif a.begins_with("--hide="):
 			_hide.append(a.substr(7))
 		elif a.begins_with("--dump="):
@@ -55,7 +58,9 @@ func _process(_delta: float) -> void:
 		print("   running=%s paused=%s locked=%s mouse=%s cur=%s flashmouse=%s" % [g.gameRunning, g.gamePaused, g.controlLocked, g.currentMousePos, g.currentPos, Flash.mouse_position()])
 	for c in _clicks:
 		if c[0] == _frame:
-			if c.size() > 2:
+			if c.size() > 2 and c[2] is String:
+				_key(c[1])
+			elif c.size() > 2:
 				_move(c[1])
 			else:
 				_click(c[1])
@@ -92,7 +97,7 @@ func _process(_delta: float) -> void:
 
 func _click(p: Vector2) -> void:
 	var screen: Vector2 = get_viewport().get_final_transform() * p
-	Input.warp_mouse(screen)
+	Flash.mouse_override = p
 	var m := InputEventMouseMotion.new()
 	m.position = screen
 	m.global_position = screen
@@ -138,7 +143,7 @@ func _dump_obj(f: FileAccess, o: FlashDisplayObject, depth: int) -> void:
 
 func _move(p: Vector2) -> void:
 	var screen: Vector2 = get_viewport().get_final_transform() * p
-	Input.warp_mouse(screen)
+	Flash.mouse_override = p
 	var m := InputEventMouseMotion.new()
 	m.position = screen
 	m.global_position = screen
@@ -191,3 +196,14 @@ func _dump_godot(f: FileAccess, n: Node, depth: int) -> void:
 	f.store_line("%s%s [%s]%s" % ["  ".repeat(depth), n.name, n.get_script().get_global_name() if n.get_script() else n.get_class(), extra])
 	for c in n.get_children():
 		_dump_godot(f, c, depth + 1)
+
+
+func _key(k: String) -> void:
+	var code := OS.find_keycode_from_string(k)
+	for pressed in [true, false]:
+		var e := InputEventKey.new()
+		e.keycode = code
+		e.physical_keycode = code
+		e.pressed = pressed
+		Input.parse_input_event(e)
+		await get_tree().physics_frame

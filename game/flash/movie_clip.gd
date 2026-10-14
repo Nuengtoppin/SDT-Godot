@@ -366,6 +366,9 @@ func _rename_child(child: FlashDisplayObject, n: String) -> void:
 func _bind_property(n: String, value) -> void:
 	if Flash.is_bindable_property(self, n):
 		set(n, value)
+	elif n == "hitArea":
+		# The instance name assignment (this.hitArea = child) sets Sprite.hitArea in Flash.
+		hitArea = value
 
 
 func _insert_by_depth(child: FlashDisplayObject) -> void:

@@ -24,7 +24,6 @@ var _mat := ShaderMaterial.new()
 
 func _init() -> void:
 	_vp = SubViewport.new()
-	_vp.world_2d = World2D.new()   # own canvas: content must not also draw in the parent viewport
 	_vp.transparent_bg = true
 	_vp.disable_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS

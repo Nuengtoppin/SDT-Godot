@@ -54,7 +54,6 @@ func _init() -> void:
 
 static func _make_viewport() -> SubViewport:
 	var vp := SubViewport.new()
-	vp.world_2d = World2D.new()   # own canvas: content must not also draw in the parent viewport
 	vp.transparent_bg = true
 	vp.disable_3d = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS

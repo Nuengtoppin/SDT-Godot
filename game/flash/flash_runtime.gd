@@ -419,8 +419,14 @@ func shape_material(s: FlashShape) -> Material:
 
 # ---------------------------------------------------------------- input
 
+## Debug / automation: when set, used as the mouse position instead of the OS cursor.
+var mouse_override = null
+
+
 ## Mouse position in stage coordinates.
 func mouse_position() -> Vector2:
+	if mouse_override != null:
+		return mouse_override
 	if stage != null and stage.is_inside_tree():
 		return stage.get_global_mouse_position()
 	return Vector2.ZERO
