@@ -46,6 +46,7 @@ func _ready() -> void:
 		add_child(_counter)
 	Flash.attach_stage(self)
 	Flash.stage.addChild(DT.new())
+	add_child(preload("res://scenes/fps_counter.gd").new())
 
 
 func _process(_delta: float) -> void:
@@ -74,6 +75,7 @@ func _process(_delta: float) -> void:
 		var dt = Flash.stage._children[0]
 		print("f%d px=%s dt_vis=%s in_tree=%s" % [_frame, im.get_pixel(im.get_width() / 2, im.get_height() / 2), dt.visible, dt.is_visible_in_tree()])
 	if _quit_at_end and _shot == "" and _frame >= _frames:
+		_print_targets()
 		get_tree().quit()
 		return
 	if _shot != "" and _frame >= _frames:
@@ -212,3 +214,14 @@ func _key(k: String) -> void:
 		e.pressed = pressed
 		Input.parse_input_event(e)
 		await get_tree().physics_frame
+
+
+## Prints the Flash mouse target (with its parent chain) at each --pick point.
+func _print_targets() -> void:
+	for pk in _picks:
+		var o = Flash._mouse_target_at(pk)
+		var chain := []
+		while o != null:
+			chain.append("%s#%d" % [o.flash_name, o._char_id])
+			o = o._flash_parent
+		print("TARGET ", pk, " ", chain)
