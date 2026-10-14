@@ -28,9 +28,19 @@ static func named(as3_class: String) -> FlashSound:
 	return from_library(found[0], found[1])
 
 
+## Library sounds stay loaded once used: otherwise every play after the last reference went away reloads the
+## file (a disk read mid-game). The base game's sounds take a few MB.
+static var _stream_cache: Dictionary = {}
+
+
 static func _load_stream(p: String) -> AudioStream:
 	if p.begins_with("res://"):
-		return load(p)
+		var cached: AudioStream = _stream_cache.get(p)
+		if cached == null:
+			cached = load(p)
+			_stream_cache[p] = cached
+			Flash.hitch_note("sound load")
+		return cached
 	if p.get_extension().to_lower() == "mp3":
 		return AudioStreamMP3.load_from_file(p)
 	if p.get_extension().to_lower() == "wav":

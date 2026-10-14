@@ -79,7 +79,7 @@ func _init() -> void:
 
 
 static func getTimer() -> int:
-	return Time.get_ticks_msec()
+	return Flash.getTimer()
 
 
 func _pan(p: float) -> float:

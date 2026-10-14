@@ -63,6 +63,7 @@ func _ready() -> void:
 	process_physics_priority = -100
 	Engine.physics_ticks_per_second = int(frame_rate)
 	_index_gd_classes()
+	_setup_frame_monitor()
 	base_library = load_library(BASE_LIBRARY)
 	stage = FlashStage.new()
 	stage.name = "Stage"
@@ -318,6 +319,8 @@ func _physics_process(_delta: float) -> void:
 	if paused:
 		return
 	tick_count += 1
+	in_tick = true
+	_ph["tick_start"] = Time.get_ticks_usec()
 	if tick_count % 15 == 0:
 		FlashDisplayObject.hb_gen += 1   # periodically rebuild loose hit-test bounds tight
 	var prof := profiling
@@ -332,20 +335,26 @@ func _physics_process(_delta: float) -> void:
 			_playing.erase(mc)
 	var t1 := Time.get_ticks_usec() if prof else 0
 	# 2. ENTER_FRAME listeners (game logic).
+	_slowest_listener_us = 0
 	for e in _enter_frame.duplicate():
 		if not is_instance_valid(e[0]):
 			continue
 		var cb: Callable = e[1]
 		if cb.is_valid():
-			var ts := Time.get_ticks_usec() if prof else 0
+			var ts := Time.get_ticks_usec()
 			if cb.get_argument_count() == 0:
 				cb.call()
 			else:
 				cb.call(FlashEvent.new(FlashEvent.ENTER_FRAME))
-			if prof:
+			var dt := Time.get_ticks_usec() - ts
+			if prof or dt > _slowest_listener_us:
 				var obj = e[0]
-				var key := "%s.%s" % [obj.get_script().get_global_name() if obj.get_script() else obj.get_class(), cb.get_method()]
-				_prof[key] = _prof.get(key, 0) + Time.get_ticks_usec() - ts
+				var key := "%s.%s" % [obj.get_script().get_global_name() if obj.get_script() else obj.get_class(), cb.get_method()] 					if is_instance_valid(obj) else "(freed)." + str(cb.get_method())
+				if dt > _slowest_listener_us:
+					_slowest_listener_us = dt
+					_slowest_listener = key
+				if prof:
+					_prof[key] = _prof.get(key, 0) + dt
 	var t2 := Time.get_ticks_usec() if prof else 0
 	# 3. Masks follow the (possibly moved) objects.
 	for p in _mask_proxies.keys():
@@ -361,7 +370,10 @@ func _physics_process(_delta: float) -> void:
 			_groups.erase(g)
 	var t4 := Time.get_ticks_usec() if prof else 0
 	_update_mouse_over()
+	_finish_lazy_detach()
+	in_tick = false
 	_free_orphans()
+	_ph["tick_end"] = Time.get_ticks_usec()
 	if prof:
 		var t5 := Time.get_ticks_usec()
 		_prof["#timelines"] = _prof.get("#timelines", 0) + t1 - t0
@@ -379,6 +391,7 @@ func _physics_process(_delta: float) -> void:
 		_prof_ticks += 1
 		if _prof_ticks % 150 == 0:
 			_print_profile()
+			_ph["skip"] = true   # printing takes long; keep it out of the frame statistics
 
 
 ## Debug: per-tick timing of runtime phases and ENTER_FRAME listeners (--profile on the command line).
@@ -387,6 +400,111 @@ var _prof: Dictionary = {}
 var _prof_ticks := 0
 var _prof_max := 0
 var _prof_worst: Dictionary = {}   # bucket -> usec during the worst tick
+# ---------------------------------------------------------------- frame monitor
+# Always on (cheap): timestamps the phases of every rendered frame and logs "HITCH" lines for frames that take
+# over HITCH_MS, with what happened in them, so a stutter seen while playing can be diagnosed from the log.
+# With --profile it also accumulates per-phase statistics, printed with the tick profile.
+
+const HITCH_MS := 50
+var _ph: Dictionary = {}           # phase -> timestamp (usec) for the current frame
+var _ph_prev_end := 0              # post_draw of the previous frame
+var _hitch_notes: Dictionary = {}  # note -> count during the current frame
+var _slowest_listener := ""        # slowest ENTER_FRAME listener of the last tick ...
+var _slowest_listener_us := 0      # ... and its time
+var _prof_frames: Dictionary = {}
+
+
+class _PhaseNode:
+	extends Node
+	var key := ""
+
+	func _process(_d: float) -> void:
+		Flash._ph[key] = Time.get_ticks_usec()
+
+	func _physics_process(_d: float) -> void:
+		if key == "process_first":
+			Flash._ph["physics_start"] = Time.get_ticks_usec()
+
+
+func _setup_frame_monitor() -> void:
+	for k in ["process_first", "process_last"]:
+		var n := _PhaseNode.new()
+		n.key = k
+		n.process_priority = -1000000 if k == "process_first" else 1000000
+		n.process_physics_priority = -1000000
+		add_child(n)
+	RenderingServer.frame_pre_draw.connect(func(): _ph["pre_draw"] = Time.get_ticks_usec())
+	RenderingServer.frame_post_draw.connect(_end_frame)
+
+
+## Records something worth knowing about if the current frame turns out to be a hitch (a load, a compile, ...).
+func hitch_note(what: String) -> void:
+	_hitch_notes[what] = _hitch_notes.get(what, 0) + 1
+
+
+func _end_frame() -> void:
+	var now := Time.get_ticks_usec()
+	var ph := _ph
+	var prev_end := _ph_prev_end
+	_ph = {}
+	_ph_prev_end = now
+	var notes := _hitch_notes
+	_hitch_notes = {}
+	if prev_end == 0 or ph.has("skip"):
+		return
+	var total := now - prev_end
+	# phase durations in order; missing phases (no tick this frame) are skipped
+	var parts: Array = []
+	var last := prev_end
+	for k in ["physics_start", "tick_start", "tick_end", "process_first", "process_last", "pre_draw"]:
+		if ph.has(k):
+			parts.append([k, ph[k] - last])
+			last = ph[k]
+	parts.append(["post_draw", now - last])
+	if total > HITCH_MS * 1000 and tick_count > 60:
+		var desc := PackedStringArray()
+		for p in parts:
+			desc.append("%s +%.1f" % [_phase_label(p[0]), p[1] / 1000.0])
+		var line := "HITCH %.0f ms at tick %d: %s" % [total / 1000.0, tick_count, ", ".join(desc)]
+		if ph.has("tick_end"):
+			line += "; slowest listener %s %.1f ms" % [_slowest_listener, _slowest_listener_us / 1000.0]
+		if not notes.is_empty():
+			line += "; " + str(notes)
+		print(line)
+	if profiling:
+		var kind := "tick frame" if ph.has("tick_end") else "frame"
+		_prof_frames[kind + "s"] = _prof_frames.get(kind + "s", 0) + 1
+		for p in parts:
+			var key: String = "%s: %s ms" % [kind, _phase_label(p[0])]
+			_prof_frames[key] = _prof_frames.get(key, 0.0) + p[1] / 1000.0
+		if total > _prof_frames.get("worst frame ms", 0.0) * 1000.0:
+			_prof_frames["worst frame ms"] = total / 1000.0
+
+
+static func _phase_label(k: String) -> String:
+	match k:
+		"physics_start": return "wait/begin"
+		"tick_start": return "pre-tick"
+		"tick_end": return "tick"
+		"process_first": return "deferred draws/frees"
+		"process_last": return "_process"
+		"pre_draw": return "pre-render"
+		_: return "render"
+
+
+func _print_frame_stats() -> void:
+	var out := PackedStringArray()
+	for kind in ["tick frame", "frame"]:
+		var n: int = _prof_frames.get(kind + "s", 0)
+		if n == 0:
+			continue
+		var avg := PackedStringArray()
+		for k in _prof_frames:
+			if String(k).begins_with(kind + ": "):
+				avg.append("%s %.2f" % [String(k).substr(kind.length() + 2).trim_suffix(" ms"), _prof_frames[k] / n])
+		out.append("%d %ss avg ms [%s]" % [n, kind, ", ".join(avg)])
+	print("  frames: %s; worst frame %.1f ms" % ["; ".join(out), _prof_frames.get("worst frame ms", 0.0)])
+	_prof_frames.clear()
 
 
 ## Adds the time since t_start (Time.get_ticks_usec()) to a named profile bucket. No-op unless profiling.
@@ -412,6 +530,7 @@ func _print_profile() -> void:
 		Engine.get_frames_per_second()])
 	var vp := get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(vp, true)
+	_print_frame_stats()
 	print("  gpu: main viewport %.2f ms (cpu %.2f ms), draw calls %d, %d mask viewports, vram %d MB" % [
 		RenderingServer.viewport_get_measured_render_time_gpu(vp),
 		RenderingServer.viewport_get_measured_render_time_cpu(vp),
@@ -431,6 +550,41 @@ func _print_profile() -> void:
 
 
 var _release_candidates: Array = []
+
+## flash.utils.getTimer(): milliseconds since start. With --deterministic (benchmarks / tests together with
+## --fixed-fps and --seed) it advances with the ticks instead of the wall clock.
+func getTimer() -> int:
+	if _deterministic:
+		return int(tick_count * 1000.0 / frame_rate)
+	return Time.get_ticks_msec()
+
+
+var _deterministic := "--deterministic" in OS.get_cmdline_user_args()
+
+
+## True while the runtime runs a tick (see FlashSprite._detach).
+var in_tick := false
+var _lazy_detached: Array = []   # [child, old parent]
+
+
+func lazy_detach(child: FlashDisplayObject, from: FlashSprite) -> void:
+	_lazy_detached.append([child, from])
+
+
+## Removes the Godot nodes of children that were removed during the tick and not re-added to the same parent.
+func _finish_lazy_detach() -> void:
+	for e in _lazy_detached:
+		var child: FlashDisplayObject = e[0]
+		var from: FlashSprite = e[1]
+		if not is_instance_valid(child) or not is_instance_valid(from) or child._flash_parent == from:
+			continue
+		var n := child._tree_node()
+		if n.get_parent() == from:
+			from.remove_child(n)
+		var pre: Node = n.get_meta("bbc") if n.has_meta("bbc") else null
+		if pre != null and pre.get_parent() == from:
+			from.remove_child(pre)
+	_lazy_detached.clear()
 
 
 ## Frees `o` at the end of the tick if it is still off the display list by then.

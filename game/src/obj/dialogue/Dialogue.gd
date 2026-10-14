@@ -442,7 +442,7 @@ func update() -> void:
 	if coughDelay > 0:
 		coughDelay -= 1
 	# Typing runs on wall-clock time (one character per typingSpeed ms), independent of the tick rate.
-	currentTime = Time.get_ticks_msec()
+	currentTime = Flash.getTimer()
 	if not lastFrameTime:
 		lastFrameTime = currentTime
 	frameTime = currentTime - lastFrameTime

@@ -87,9 +87,9 @@ func _tree_node() -> CanvasItem:
 
 
 func _on_added() -> void:
-	if not _listeners.is_empty() or _flash_parent != null:
+	if _listener_types.get(FlashEvent.ADDED, 0) > 0:
 		dispatchEvent(FlashEvent.new(FlashEvent.ADDED, true))
-	if get_root() == Flash.stage:
+	if _listener_types.get(FlashEvent.ADDED_TO_STAGE, 0) > 0 and get_root() == Flash.stage:
 		_dispatch_stage_event(FlashEvent.ADDED_TO_STAGE)
 
 
@@ -104,7 +104,8 @@ func _dispatch_stage_event(type: String) -> void:
 
 
 func _on_removed() -> void:
-	dispatchEvent(FlashEvent.new(FlashEvent.REMOVED, true))
+	if _listener_types.get(FlashEvent.REMOVED, 0) > 0:
+		dispatchEvent(FlashEvent.new(FlashEvent.REMOVED, true))
 
 
 func get_root() -> FlashDisplayObject:
@@ -260,12 +261,22 @@ func set_flash_matrix(m: Array) -> void:
 
 ## Global (stage) transform in Flash coordinates (the stage root sits at the canvas origin).
 func flash_global_transform() -> Transform2D:
+	if _gxf_epoch == xf_epoch:
+		return _gxf
 	var t := transform
-	var o := _flash_parent
-	while o != null:
-		t = o.transform * t
-		o = o._flash_parent
+	if _flash_parent != null:
+		t = _flash_parent.flash_global_transform() * t
+	if is_inside_tree():   # transform changes are only reported in the tree
+		_gxf = t
+		_gxf_epoch = xf_epoch
 	return t
+
+
+## Global transforms are cached until any display object moves or is re-parented (xf_epoch changes), which makes
+## repeated coordinate conversions / hit tests within a script step cheap.
+static var xf_epoch := 0
+var _gxf := Transform2D()
+var _gxf_epoch := -1
 
 
 func localToGlobal(p: Vector2) -> Vector2:
@@ -462,6 +473,12 @@ func addEventListener(type: String, listener: Callable, use_capture: bool = fals
 	list.append([listener, use_capture, priority])
 	list.sort_custom(func(a, b): return a[2] > b[2])
 	_listeners[type] = list
+	_listener_types[type] = _listener_types.get(type, 0) + 1
+
+
+## Number of display-object listeners registered per event type (never decremented for freed objects, so it may
+## over-count): dispatching a type nobody listens to is skipped (ADDED / REMOVED fire for every add and remove).
+static var _listener_types: Dictionary = {}
 
 
 func removeEventListener(type: String, listener: Callable, use_capture: bool = false) -> void:
@@ -472,6 +489,7 @@ func removeEventListener(type: String, listener: Callable, use_capture: bool = f
 	for i in range(list.size() - 1, -1, -1):
 		if list[i][0] == listener and list[i][1] == use_capture:
 			list.remove_at(i)
+			_listener_types[type] = maxi(0, _listener_types.get(type, 0) - 1)
 
 
 func hasEventListener(type: String) -> bool:
@@ -483,6 +501,8 @@ func hasEventListener(type: String) -> bool:
 ## Dispatches with Flash semantics: capture phase (root→parent), target, then bubble (parent→root).
 func dispatchEvent(event: FlashEvent) -> bool:
 	event.target = self
+	if _listener_types.get(event.type, 0) == 0:
+		return not event.defaultPrevented
 	var chain: Array = []
 	var p := _flash_parent
 	while p != null:
@@ -526,6 +546,7 @@ func _invoke_listeners(event: FlashEvent, capture: bool) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
+		xf_epoch += 1
 		if _flash_parent != null:
 			_flash_parent._bounds_changed()
 			_hb_notify_parent()
@@ -533,11 +554,14 @@ func _notification(what: int) -> void:
 		return
 	if what == NOTIFICATION_ENTER_TREE:
 		set_notify_local_transform(true)
+		xf_epoch += 1
 		_bounds_changed()
 		_hb_invalidate()
 	# Debug guard: a display object must never be freed while a live Flash parent still lists it.
 	# (On shutdown whole trees are freed after leaving the scene tree, so only in-tree frees are reported.)
-	if what == NOTIFICATION_PREDELETE and is_inside_tree() and _flash_parent != null and is_instance_valid(_flash_parent) 			and not _flash_parent.is_queued_for_deletion() and _flash_parent.get("_children") != null 			and _flash_parent._children.has(self):
+	if what == NOTIFICATION_PREDELETE and is_inside_tree() and _flash_parent != null and is_instance_valid(_flash_parent) \
+			and not _flash_parent.is_queued_for_deletion() and _flash_parent.get("_children") != null \
+			and _flash_parent._children.has(self):
 		var path := ""
 		var p: FlashDisplayObject = _flash_parent
 		while p != null:

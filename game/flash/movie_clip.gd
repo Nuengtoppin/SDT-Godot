@@ -32,6 +32,7 @@ func _init() -> void:
 			_depth = pending[5]
 			_birth = pending[6]
 			_flash_parent = p
+			xf_epoch += 1
 			p._apply_place(self, pending[3], pending[4], true)
 		return
 	var script: Script = get_script()
@@ -392,6 +393,7 @@ func _insert_by_depth(child: FlashDisplayObject) -> void:
 			# No timeline siblings: script-added children always sit above timeline content.
 			_children.insert(0, child)
 	child._flash_parent = self
+	xf_epoch += 1
 	_mark_tree_dirty()
 	_sync_tree()
 	_hb_child_added(child)

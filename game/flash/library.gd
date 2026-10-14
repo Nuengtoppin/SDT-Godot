@@ -67,6 +67,7 @@ func get_texture(img: String) -> Texture2D:
 	var p := path.path_join("shapes/%s.png" % img)
 	if p.begins_with("res://"):
 		Flash.prof_count("#texture loads (blocking)")
+		Flash.hitch_note("blocking texture load")
 		t = load(p)   # waits for an in-flight background load of the same file
 	else:
 		# Mods converted at runtime / outside the project are plain PNG files.

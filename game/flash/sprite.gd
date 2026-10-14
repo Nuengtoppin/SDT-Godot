@@ -46,17 +46,22 @@ func addChildAt(child: FlashDisplayObject, index: int) -> FlashDisplayObject:
 		child._flash_parent._detach(child)
 	index = clampi(index, 0, _children.size())
 	# Fast path: a plain child appended on top of an up-to-date tree just goes to the end of the Godot children.
-	var append := index == _children.size() and not _tree_dirty and child._clip_depth == 0 		and child._masking.is_empty() and (child._depth < 0 or _clip_proxies.is_empty())
+	var append := index == _children.size() and not _tree_dirty and child._clip_depth == 0 \
+		and child._masking.is_empty() and (child._depth < 0 or _clip_proxies.is_empty())
 	_children.insert(index, child)
 	child._flash_parent = self
+	xf_epoch += 1
 	if append:
 		var n := child._tree_node()
 		var pre: Node = n.get_meta("bbc") if n.has_meta("bbc") else null
 		for m in [pre, n]:
 			if m != null:
-				if m.get_parent() != null:
-					m.get_parent().remove_child(m)
-				add_child(m)
+				if m.get_parent() == self:
+					move_child(m, -1)   # lazily detached from here earlier this tick
+				else:
+					if m.get_parent() != null:
+						m.get_parent().remove_child(m)
+					add_child(m)
 		_bounds_changed()
 	else:
 		_mark_tree_dirty()
@@ -87,7 +92,7 @@ func removeChild(child: FlashDisplayObject) -> FlashDisplayObject:
 	if child._flash_parent != self:
 		push_error("remove_child_flash: not a child")
 		return child
-	if get_root() == Flash.stage:
+	if _listener_types.get(FlashEvent.REMOVED_FROM_STAGE, 0) > 0 and get_root() == Flash.stage:
 		child._dispatch_stage_event(FlashEvent.REMOVED_FROM_STAGE)
 	_detach(child)
 	child._on_removed()
@@ -106,6 +111,7 @@ func removeChildren() -> void:
 func _detach(child: FlashDisplayObject) -> void:
 	_children.erase(child)
 	child._flash_parent = null
+	xf_epoch += 1
 	if child._clip_depth > 0 and _clip_proxies.has(child):
 		var p: Node2D = _clip_proxies[child]
 		_clip_proxies.erase(child)
@@ -114,14 +120,20 @@ func _detach(child: FlashDisplayObject) -> void:
 	var n := child._tree_node()
 	# A plain child directly under this node: removing it (and its backdrop copy) keeps the tree in sync.
 	var plain: bool = child._clip_depth == 0 and child._masking.is_empty() and n.get_parent() == self
-	if n.get_parent() != null:
-		n.get_parent().remove_child(n)
 	var pre: Node = n.get_meta("bbc") if n.has_meta("bbc") else null
 	if plain and (pre == null or pre.get_parent() == self):
-		if pre != null:
-			remove_child(pre)
+		if Flash.in_tick:
+			# Scripts often remove a child and re-add it within the tick (sweat droplets do it every tick); nothing
+			# is drawn mid-tick, so the Godot node stays until the end of the tick unless it comes back.
+			Flash.lazy_detach(child, self)
+		else:
+			remove_child(n)
+			if pre != null:
+				remove_child(pre)
 		_bounds_changed()
 	else:
+		if n.get_parent() != null:
+			n.get_parent().remove_child(n)
 		_mark_tree_dirty()
 
 

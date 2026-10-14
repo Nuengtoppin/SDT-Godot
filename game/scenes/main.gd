@@ -28,6 +28,8 @@ func _ready() -> void:
 			_hide.append(a.substr(7))
 		elif a.begins_with("--dump="):
 			_dump = a.substr(7)
+		elif a.begins_with("--seed="):
+			seed(int(a.substr(7)))
 		elif a.begins_with("--frames="):
 			_frames = int(a.substr(9))
 			_quit_at_end = true
