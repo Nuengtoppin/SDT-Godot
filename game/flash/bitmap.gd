@@ -6,6 +6,7 @@ var bitmapData: FlashBitmapData:
 	set(value):
 		bitmapData = value
 		queue_redraw()
+		_content_changed()
 
 var smoothing := true:
 	set(value):

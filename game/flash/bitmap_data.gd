@@ -7,12 +7,17 @@ var image: Image
 var transparent := true
 var _texture: ImageTexture = null
 var _tex_dirty := true
+## Bounding box of possibly non-transparent pixels (everything outside is 0x00000000); lets the per-pixel
+## operations skip empty space. Empty Rect2i() = fully transparent.
+var _bounds := Rect2i()
 
 
 func _init(w: int = 1, h: int = 1, p_transparent: bool = true, fill_color: int = 0xFFFFFFFF) -> void:
 	transparent = p_transparent
 	image = Image.create_empty(maxi(w, 1), maxi(h, 1), false, Image.FORMAT_RGBA8)
 	image.fill(argb_to_color(fill_color if p_transparent else (fill_color | 0xFF000000)))
+	if not p_transparent or fill_color != 0:
+		_bounds = rect
 
 
 static func from_image(img: Image) -> FlashBitmapData:
@@ -21,6 +26,7 @@ static func from_image(img: Image) -> FlashBitmapData:
 	if b.image.get_format() != Image.FORMAT_RGBA8:
 		b.image.convert(Image.FORMAT_RGBA8)
 	b._tex_dirty = true
+	b._bounds = b.rect
 	return b
 
 
@@ -80,6 +86,14 @@ func mark_dirty() -> void:
 	_tex_dirty = true
 
 
+## Extends the content bounds by r (clipped to the bitmap).
+func _grow(r: Rect2i) -> void:
+	r = r.intersection(rect)
+	if not r.has_area():
+		return
+	_bounds = _bounds.merge(r) if _bounds.has_area() else r
+
+
 func getPixel(x: int, y: int) -> int:
 	if x < 0 or y < 0 or x >= width or y >= height:
 		return 0
@@ -96,59 +110,124 @@ func setPixel(x: int, y: int, c: int) -> void:
 	if x >= 0 and y >= 0 and x < width and y < height:
 		image.set_pixel(x, y, argb_to_color(c | 0xFF000000))
 		_tex_dirty = true
+		_grow(Rect2i(x, y, 1, 1))
 
 
 func setPixel32(x: int, y: int, c: int) -> void:
 	if x >= 0 and y >= 0 and x < width and y < height:
 		image.set_pixel(x, y, argb_to_color(c))
 		_tex_dirty = true
+		_grow(Rect2i(x, y, 1, 1))
 
 
 func fillRect(r: Rect2i, c: int) -> void:
-	image.fill_rect(r, argb_to_color(c if transparent else (c | 0xFF000000)))
+	var col := c if transparent else (c | 0xFF000000)
+	if col == 0:
+		if not _bounds.intersects(r):
+			return
+		if r.encloses(_bounds):
+			image.fill_rect(_bounds, Color(0, 0, 0, 0))
+			_bounds = Rect2i()
+			_tex_dirty = true
+			return
+	image.fill_rect(r, argb_to_color(col))
 	_tex_dirty = true
+	if col != 0:
+		_grow(r)
 
 
 func copyPixels(source: FlashBitmapData, source_rect: Rect2i, dest: Vector2i) -> void:
 	image.blit_rect(source.image, source_rect, dest)
 	_tex_dirty = true
+	_grow(Rect2i(dest, source_rect.size))
 
 
 func clone() -> FlashBitmapData:
 	var b := FlashBitmapData.from_image(image.duplicate())
 	b.transparent = transparent
+	b._bounds = _bounds
 	return b
 
 
 func dispose() -> void:
 	image = Image.create_empty(1, 1, false, Image.FORMAT_RGBA8)
 	_texture = null
+	_bounds = Rect2i()
 
 
 ## BitmapData.merge: per channel new = (src * mult + dst * (256 - mult)) / 256 (multipliers 0..256).
 func merge(source: FlashBitmapData, source_rect: Rect2i, dest: Vector2i, rm: int, gm: int, bm: int, am: int) -> void:
+	# clip to both bitmaps; only pixels where source or destination has content can change
+	var r := source_rect.intersection(source.rect)
+	r = Rect2i(r.position - source_rect.position + dest, r.size).intersection(rect)
+	var off := source_rect.position - dest
+	var live := Rect2i(source._bounds.position - off, source._bounds.size).intersection(r) if source._bounds.has_area() else Rect2i()
+	var dlive := _bounds.intersection(r) if _bounds.has_area() else Rect2i()
+	if not live.has_area() and not dlive.has_area():
+		return
+	if not dlive.has_area() and rm == 256 and gm == 256 and bm == 256:
+		_merge_into_empty(source, live, off, am)
+		return
+	var work := live.merge(dlive) if live.has_area() and dlive.has_area() else (live if live.has_area() else dlive)
 	var src := source.image.get_data()
 	var dst := image.get_data()
 	var sw := source.width
 	var dw := width
-	var mults := [rm, gm, bm, am]
-	for yy in source_rect.size.y:
-		var sy := source_rect.position.y + yy
-		var dy := dest.y + yy
-		if sy < 0 or sy >= source.height or dy < 0 or dy >= height:
-			continue
-		for xx in source_rect.size.x:
-			var sx := source_rect.position.x + xx
-			var dx := dest.x + xx
-			if sx < 0 or sx >= sw or dx < 0 or dx >= dw:
-				continue
-			var si := (sy * sw + sx) * 4
+	for dy in range(work.position.y, work.end.y):
+		var sy := dy + off.y
+		for dx in range(work.position.x, work.end.x):
+			var si := (sy * sw + dx + off.x) * 4
 			var di := (dy * dw + dx) * 4
-			for ch in 4:
-				var m: int = mults[ch]
-				dst[di + ch] = (src[si + ch] * m + dst[di + ch] * (256 - m)) >> 8
+			dst[di] = (src[si] * rm + dst[di] * (256 - rm)) >> 8
+			dst[di + 1] = (src[si + 1] * gm + dst[di + 1] * (256 - gm)) >> 8
+			dst[di + 2] = (src[si + 2] * bm + dst[di + 2] * (256 - bm)) >> 8
+			dst[di + 3] = (src[si + 3] * am + dst[di + 3] * (256 - am)) >> 8
 	image.set_data(width, height, false, Image.FORMAT_RGBA8, dst)
 	_tex_dirty = true
+	_grow(work)
+
+
+## merge() fast path for a transparent destination with RGB multipliers 256: RGB is copied as is and only alpha is
+## scaled (the per-tick fade idiom fillRect(0) + merge(clone)). Recomputes tight bounds from the surviving pixels.
+func _merge_into_empty(source: FlashBitmapData, live: Rect2i, off: Vector2i, am: int) -> void:
+	image.blit_rect(source.image, Rect2i(live.position + off, live.size), live.position)
+	_tex_dirty = true
+	if am == 256:
+		_grow(live)
+		return
+	var dst := image.get_data()
+	var dw := width
+	var x0 := live.end.x
+	var y0 := live.end.y
+	var x1 := -1
+	var y1 := -1
+	for y in range(live.position.y, live.end.y):
+		var i := (y * dw + live.position.x) * 4 + 3
+		var row_end := i + live.size.x * 4
+		var any := false
+		while i < row_end:
+			var a: int = dst[i]
+			if a != 0:
+				a = (a * am) >> 8
+				dst[i] = a
+				if a == 0:
+					dst[i - 3] = 0
+					dst[i - 2] = 0
+					dst[i - 1] = 0
+				else:
+					any = true
+					var x := ((i >> 2) % dw)
+					if x < x0:
+						x0 = x
+					if x > x1:
+						x1 = x
+			i += 4
+		if any:
+			if y < y0:
+				y0 = y
+			y1 = y
+	image.set_data(width, height, false, Image.FORMAT_RGBA8, dst)
+	_bounds = Rect2i(x0, y0, x1 - x0 + 1, y1 - y0 + 1) if x1 >= 0 else Rect2i()
 
 
 ## BitmapData.draw for shape-based display objects: software-renders obj's shapes through matrix m
@@ -178,6 +257,7 @@ func _draw_rec(o: FlashDisplayObject, m: Transform2D, ct: FlashColorTransform, d
 		var y0 := maxi(clip.position.y, int(floor(r.position.y)))
 		var x1 := mini(clip.end.x, int(ceil(r.end.x)))
 		var y1 := mini(clip.end.y, int(ceil(r.end.y)))
+		_grow(Rect2i(x0, y0, x1 - x0, y1 - y0))
 		var iw := img.get_width()
 		var ih := img.get_height()
 		var dw := width
@@ -240,6 +320,7 @@ func draw_bitmap(source: FlashBitmapData, offset: Vector2i, clip: Rect2i) -> voi
 	var src_rect := Rect2i(clip.position - offset, clip.size)
 	image.blend_rect(source.image, src_rect, clip.position)
 	_tex_dirty = true
+	_grow(clip)
 
 
 ## Pixels of 'r' as 0xAARRGGBB big-endian bytes (Flash ByteArray layout).
@@ -267,3 +348,4 @@ func setPixels(r: Rect2i, bytes: PackedByteArray) -> void:
 	var sub := Image.create_from_data(r.size.x, r.size.y, false, Image.FORMAT_RGBA8, data)
 	image.blit_rect(sub, Rect2i(Vector2i.ZERO, r.size), r.position)
 	mark_dirty()
+	_grow(r)

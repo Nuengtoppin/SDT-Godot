@@ -394,6 +394,7 @@ func _insert_by_depth(child: FlashDisplayObject) -> void:
 	child._flash_parent = self
 	_mark_tree_dirty()
 	_sync_tree()
+	_hb_child_added(child)
 
 
 func _remove_timeline_child(d: int) -> void:

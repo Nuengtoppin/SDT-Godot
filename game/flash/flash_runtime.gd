@@ -318,35 +318,116 @@ func _physics_process(_delta: float) -> void:
 	if paused:
 		return
 	tick_count += 1
+	if tick_count % 15 == 0:
+		FlashDisplayObject.hb_gen += 1   # periodically rebuild loose hit-test bounds tight
+	var prof := profiling
+	var t0 := Time.get_ticks_usec() if prof else 0
+	var snap: Dictionary = _prof.duplicate() if prof else {}
+	FlashLibrary.poll_streaming()
 	# 1. Timelines advance.
 	for mc in _playing.keys():
 		if is_instance_valid(mc):
 			mc._advance()
 		else:
 			_playing.erase(mc)
+	var t1 := Time.get_ticks_usec() if prof else 0
 	# 2. ENTER_FRAME listeners (game logic).
 	for e in _enter_frame.duplicate():
 		if not is_instance_valid(e[0]):
 			continue
 		var cb: Callable = e[1]
 		if cb.is_valid():
+			var ts := Time.get_ticks_usec() if prof else 0
 			if cb.get_argument_count() == 0:
 				cb.call()
 			else:
 				cb.call(FlashEvent.new(FlashEvent.ENTER_FRAME))
+			if prof:
+				var obj = e[0]
+				var key := "%s.%s" % [obj.get_script().get_global_name() if obj.get_script() else obj.get_class(), cb.get_method()]
+				_prof[key] = _prof.get(key, 0) + Time.get_ticks_usec() - ts
+	var t2 := Time.get_ticks_usec() if prof else 0
 	# 3. Masks follow the (possibly moved) objects.
 	for p in _mask_proxies.keys():
 		if is_instance_valid(p):
 			p.refresh()
 		else:
 			_mask_proxies.erase(p)
+	var t3 := Time.get_ticks_usec() if prof else 0
 	for g in _groups.keys():
 		if is_instance_valid(g):
 			g.update_layout()
 		else:
 			_groups.erase(g)
+	var t4 := Time.get_ticks_usec() if prof else 0
 	_update_mouse_over()
 	_free_orphans()
+	if prof:
+		var t5 := Time.get_ticks_usec()
+		_prof["#timelines"] = _prof.get("#timelines", 0) + t1 - t0
+		_prof["#enter_frame (all)"] = _prof.get("#enter_frame (all)", 0) + t2 - t1
+		_prof["#masks (%d)" % _mask_proxies.size()] = _prof.get("#masks (%d)" % _mask_proxies.size(), 0) + t3 - t2
+		_prof["#groups"] = _prof.get("#groups", 0) + t4 - t3
+		_prof["#mouse+free"] = _prof.get("#mouse+free", 0) + t5 - t4
+		if t5 - t0 > _prof_max:
+			_prof_max = t5 - t0
+			_prof_worst.clear()
+			for k in _prof:
+				var d: int = _prof[k] - snap.get(k, 0)
+				if d > 0:
+					_prof_worst[k] = d
+		_prof_ticks += 1
+		if _prof_ticks % 150 == 0:
+			_print_profile()
+
+
+## Debug: per-tick timing of runtime phases and ENTER_FRAME listeners (--profile on the command line).
+var profiling := "--profile" in OS.get_cmdline_user_args()
+var _prof: Dictionary = {}
+var _prof_ticks := 0
+var _prof_max := 0
+var _prof_worst: Dictionary = {}   # bucket -> usec during the worst tick
+
+
+## Adds the time since t_start (Time.get_ticks_usec()) to a named profile bucket. No-op unless profiling.
+func prof(key: String, t_start: int) -> void:
+	if profiling:
+		_prof[key] = _prof.get(key, 0) + Time.get_ticks_usec() - t_start
+
+
+## Counts an event in a profile bucket (printed as events per tick in the 'ms/tick' column).
+func prof_count(key: String) -> void:
+	if profiling:
+		_prof[key] = _prof.get(key, 0) + 1000
+
+
+func _print_profile() -> void:
+	var keys := _prof.keys()
+	keys.sort_custom(func(a, b): return _prof[a] > _prof[b])
+	var total := 0
+	for k in keys:
+		if not String(k).begins_with("#") or k == "#enter_frame (all)":
+			continue
+	print("--- profile over %d ticks: worst tick %.2f ms, render fps %d" % [_prof_ticks, _prof_max / 1000.0,
+		Engine.get_frames_per_second()])
+	var vp := get_viewport().get_viewport_rid()
+	RenderingServer.viewport_set_measure_render_time(vp, true)
+	print("  gpu: main viewport %.2f ms (cpu %.2f ms), draw calls %d, %d mask viewports, vram %d MB" % [
+		RenderingServer.viewport_get_measured_render_time_gpu(vp),
+		RenderingServer.viewport_get_measured_render_time_cpu(vp),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+		_mask_proxies.size(),
+		RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED) / 1048576])
+	for k in keys.slice(0, 18):
+		print("  %8.3f ms/tick  %s" % [_prof[k] / 1000.0 / _prof_ticks, k])
+	var wk := _prof_worst.keys()
+	wk.sort_custom(func(a, b): return _prof_worst[a] > _prof_worst[b])
+	print("  worst tick:")
+	for k in wk.slice(0, 10):
+		print("  %8.3f ms  %s" % [_prof_worst[k] / 1000.0, k])
+	_prof.clear()
+	_prof_ticks = 0
+	_prof_max = 0
 
 
 var _release_candidates: Array = []

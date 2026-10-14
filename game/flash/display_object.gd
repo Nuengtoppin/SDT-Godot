@@ -297,7 +297,93 @@ func getBounds(target: FlashDisplayObject = null) -> Rect2:
 	var t := flash_global_transform()
 	if target != null:
 		t = target.flash_global_transform().affine_inverse() * t
+	if _gclean and _gb_ok and t == _gb_xf:
+		return _gb
+	if not is_inside_tree():
+		return _bounds_through(t)
+	_gb = _bounds_through_mark(t)
+	_gb_xf = t
+	_gb_ok = true
+	return _gb
+
+
+# Bounds caches. Hit tests and getBounds() run many times per tick over large subtrees (sweat, strands, mouse), so
+# objects cache them. Caches are only kept for objects in the scene tree, because Godot only reports transform
+# changes there; entering the tree invalidates them.
+#
+# Exact cache (getBounds): any change below an object (a transform, shape frame, graphics, text box or child list)
+# calls _bounds_changed(), which marks it and its ancestors dirty, stopping at the first ancestor that is already
+# dirty (a dirty object's ancestors are always dirty).
+var _gclean := false
+var _gb := Rect2()               # last getBounds() result ...
+var _gb_xf := Transform2D()      # ... and the transform it was computed through
+var _gb_ok := false
+
+# Loose cache (FlashSprite._hit_bounds, for rejecting hit tests early): a superset of the content's local bounds.
+# Moved / added / reshaped children only grow it (_hb_include), removals leave it as is, and every cache is rebuilt
+# tight when the runtime bumps hb_gen (twice a second). Valid when _hb_gen == hb_gen; an invalid object's
+# ancestors are always invalid.
+static var hb_gen := 0
+var _hb := Rect2()
+var _hb_gen := -1
+
+
+func _bounds_changed() -> void:
+	_gclean = false
+	_gb_ok = false
+	var o := _flash_parent
+	while o != null and o._gclean:
+		o._gclean = false
+		o._gb_ok = false
+		o = o._flash_parent
+
+
+## _bounds_through() that also marks the visited subtree clean (its changes now propagate to the caller's cache).
+func _bounds_through_mark(t: Transform2D) -> Rect2:
+	_gclean = true
 	return _bounds_through(t)
+
+
+func _hb_invalidate() -> void:
+	var o: FlashDisplayObject = self
+	while o != null and o._hb_gen == hb_gen:
+		o._hb_gen = -1
+		o = o._flash_parent
+
+
+## Grows the loose bounds of self and its ancestors to include r (in self's space).
+func _hb_include(r: Rect2) -> void:
+	var o: FlashDisplayObject = self
+	while o != null and o._hb_gen == hb_gen:
+		if o._hb.encloses(r):
+			return
+		o._hb = o._hb.merge(r)
+		r = _xform_rect(o.transform, r)
+		o = o._flash_parent
+
+
+## Makes the parent's loose bounds cover this object (after it moved, changed shape or was added).
+func _hb_notify_parent() -> void:
+	var p := _flash_parent
+	if p == null or p._hb_gen != hb_gen:
+		return
+	var b: Rect2
+	if self is FlashSprite:
+		if _hb_gen != hb_gen:
+			p._hb_invalidate()
+			return
+		b = _hb
+	else:
+		b = _local_bounds().grow(1.0)
+	if b.size == Vector2.ZERO and b.position == Vector2.ZERO:
+		return
+	p._hb_include(_xform_rect(transform, b))
+
+
+## Content of this (leaf) object changed shape.
+func _content_changed() -> void:
+	_bounds_changed()
+	_hb_notify_parent()
 
 
 func _bounds_through(t: Transform2D) -> Rect2:
@@ -439,6 +525,16 @@ func _invoke_listeners(event: FlashEvent, capture: bool) -> void:
 
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
+		if _flash_parent != null:
+			_flash_parent._bounds_changed()
+			_hb_notify_parent()
+		_gb_ok = false
+		return
+	if what == NOTIFICATION_ENTER_TREE:
+		set_notify_local_transform(true)
+		_bounds_changed()
+		_hb_invalidate()
 	# Debug guard: a display object must never be freed while a live Flash parent still lists it.
 	# (On shutdown whole trees are freed after leaving the scene tree, so only in-tree frees are reported.)
 	if what == NOTIFICATION_PREDELETE and is_inside_tree() and _flash_parent != null and is_instance_valid(_flash_parent) 			and not _flash_parent.is_queued_for_deletion() and _flash_parent.get("_children") != null 			and _flash_parent._children.has(self):

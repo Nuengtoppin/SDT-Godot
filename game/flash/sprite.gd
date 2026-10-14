@@ -45,14 +45,35 @@ func addChildAt(child: FlashDisplayObject, index: int) -> FlashDisplayObject:
 	if child._flash_parent != null:
 		child._flash_parent._detach(child)
 	index = clampi(index, 0, _children.size())
+	# Fast path: a plain child appended on top of an up-to-date tree just goes to the end of the Godot children.
+	var append := index == _children.size() and not _tree_dirty and child._clip_depth == 0 		and child._masking.is_empty() and (child._depth < 0 or _clip_proxies.is_empty())
 	_children.insert(index, child)
 	child._flash_parent = self
-	_mark_tree_dirty()
-	_sync_tree()
+	if append:
+		var n := child._tree_node()
+		var pre: Node = n.get_meta("bbc") if n.has_meta("bbc") else null
+		for m in [pre, n]:
+			if m != null:
+				if m.get_parent() != null:
+					m.get_parent().remove_child(m)
+				add_child(m)
+		_bounds_changed()
+	else:
+		_mark_tree_dirty()
+		_sync_tree()
+	_hb_child_added(child)
 	if _in_render_state_chain():
 		child._render_state_changed()
 	child._on_added()
 	return child
+
+
+func _hb_child_added(child: FlashDisplayObject) -> void:
+	if _hb_gen != hb_gen:
+		return
+	if child is FlashSprite and child.is_inside_tree():
+		child._hit_bounds()
+	child._hb_notify_parent()
 
 
 func _render_state_changed() -> void:
@@ -91,9 +112,17 @@ func _detach(child: FlashDisplayObject) -> void:
 		p._release_children()
 		p.queue_free()
 	var n := child._tree_node()
+	# A plain child directly under this node: removing it (and its backdrop copy) keeps the tree in sync.
+	var plain: bool = child._clip_depth == 0 and child._masking.is_empty() and n.get_parent() == self
 	if n.get_parent() != null:
 		n.get_parent().remove_child(n)
-	_mark_tree_dirty()
+	var pre: Node = n.get_meta("bbc") if n.has_meta("bbc") else null
+	if plain and (pre == null or pre.get_parent() == self):
+		if pre != null:
+			remove_child(pre)
+		_bounds_changed()
+	else:
+		_mark_tree_dirty()
 
 
 func getChildAt(index: int) -> FlashDisplayObject:
@@ -144,6 +173,7 @@ func contains(o: FlashDisplayObject) -> bool:
 
 func _mark_tree_dirty() -> void:
 	_tree_dirty = true
+	_bounds_changed()
 
 
 ## Rebuilds the Godot child order (with mask / group proxies) from _children.
@@ -237,7 +267,59 @@ func _bounds_through(t: Transform2D) -> Rect2:
 	return r
 
 
+func _bounds_through_mark(t: Transform2D) -> Rect2:
+	_gclean = true
+	var r := Rect2()
+	var first := true
+	if _graphics != null and _graphics.has_content():
+		r = _xform_rect(t, _graphics.bounds())
+		first = false
+	for c in _children:
+		var cb: Rect2 = c._bounds_through_mark(t * c.transform)
+		if cb.size == Vector2.ZERO and cb.position == Vector2.ZERO:
+			continue
+		if first:
+			r = cb
+			first = false
+		else:
+			r = r.merge(cb)
+	return r
+
+
+## Loose local bounds of everything below (children's cached bounds transformed, so a superset of the exact
+## bounds when children are rotated); cheap to keep up to date, used to reject hit tests early.
+func _hit_bounds() -> Rect2:
+	if _hb_gen == hb_gen:
+		return _hb
+	var r := Rect2()
+	var first := true
+	if _graphics != null and _graphics.has_content():
+		r = _graphics.bounds()
+		first = false
+	for c in _children:
+		var cb: Rect2
+		if c is FlashSprite:
+			cb = c._hit_bounds()
+		else:
+			cb = c._local_bounds()
+		if cb.size == Vector2.ZERO and cb.position == Vector2.ZERO:
+			continue
+		cb = _xform_rect(c.transform, cb)
+		if first:
+			r = cb
+			first = false
+		else:
+			r = r.merge(cb)
+	r = r.grow(1.0)
+	if is_inside_tree():
+		_hb = r
+		_hb_gen = hb_gen
+	return r
+
+
 func _hit_shape(p: Vector2) -> bool:
+	if not _hit_bounds().has_point(p):
+		return false
 	if _graphics != null and _graphics.hit(p):
 		return true
 	# Like Flash's hitTestPoint: invisible children count, masks do not.
@@ -268,6 +350,8 @@ func _mouse_target(p: Vector2) -> FlashDisplayObject:
 	if hitArea != null:
 		var gp := flash_global_transform() * p
 		return self if mouseEnabled and hitArea.hitTestPoint(gp.x, gp.y, true) else null
+	if not _hit_bounds().has_point(p):
+		return null
 	for i in range(_children.size() - 1, -1, -1):
 		var c: FlashDisplayObject = _children[i]
 		if not c.visible or c._clip_depth > 0 or not c._masking.is_empty():

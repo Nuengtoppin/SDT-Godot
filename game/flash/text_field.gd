@@ -182,6 +182,7 @@ func _layout() -> void:
 	_control.position = _box.position + Vector2(GUTTER, GUTTER)
 	_control.size = _box.size - Vector2(GUTTER * 2, GUTTER * 2)
 	queue_redraw()
+	_content_changed()
 
 
 func _draw() -> void:

@@ -151,6 +151,8 @@ func _end_current_fill() -> void:
 
 
 func _mark() -> void:
+	_owner._bounds_changed()
+	_owner._hb_invalidate()
 	if not _dirty:
 		_dirty = true
 		_owner.queue_redraw()

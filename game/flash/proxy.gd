@@ -156,7 +156,7 @@ static func draw_mask_object(d: CanvasItem, o: FlashDisplayObject, inv: Transfor
 			return
 		d.draw_set_transform_matrix(inv * s.flash_global_transform())
 		var sc: float = s._library.scale
-		d.draw_texture_rect(s._texture, Rect2(s._entry["x"], s._entry["y"], s._texture.get_width() / sc,
+		d.draw_texture_rect(s._texture, Rect2(s._draw_entry["x"], s._draw_entry["y"], s._texture.get_width() / sc,
 			s._texture.get_height() / sc), false)
 	elif o is FlashSprite:
 		var sp: FlashSprite = o
