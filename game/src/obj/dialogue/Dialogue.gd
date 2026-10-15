@@ -92,10 +92,9 @@ func _init() -> void:
 	super()
 	x = 0
 	y = g.screenSize.y
-	tfContainer.alpha = 0.9  # port: 0.75 in the original, which is too see-through
 	originalTextFormat = tfContainer.dialogueField.defaultTextFormat
 	originalFont = originalTextFormat["font"]
-	gotoAndStop("speaking")
+	_gotoStyle("speaking")
 	mouseEnabled = false
 	mouseChildren = false
 	library = DialogueLibrary.new()
@@ -645,11 +644,11 @@ func startSpeakingPhrase(line: DialogueLine) -> void:
 		sayingSpeakingStyle = false
 	match line.style:
 		DialogueLine.THOUGHT_STYLE:
-			gotoAndStop("thought")
+			_gotoStyle("thought")
 		DialogueLine.HIM_STYLE:
-			gotoAndStop("him")
+			_gotoStyle("him")
 		_:
-			gotoAndStop("speaking")
+			_gotoStyle("speaking")
 	waitingToContinue = false
 	if line.nextLine:
 		queuedPhrase = line.nextLine
@@ -715,6 +714,22 @@ func smartReplace(s: String, token: String, fn: Callable) -> String:
 	if v != "":
 		return re.sub(s, "$1" + v.replace("$", "$$") + "$2", true)
 	return re.sub(s, "", true)
+
+
+## Port extension: the text boxes are drawn 90% opaque (35-45% in the original, too see-through) and the
+## speaking-style text at 90% instead of 75%. Box shape id -> its strongest fill alpha in the original art.
+const BOX_ALPHA := 0.9
+const BOX_FILL_ALPHA := {38: 0.349, 44: 0.349, 45: 0.349, 46: 0.451}
+
+
+func _gotoStyle(label: String) -> void:
+	gotoAndStop(label)
+	for i in numChildren:
+		var c = getChildAt(i)
+		if c is FlashShape and BOX_FILL_ALPHA.has(c._char_id):
+			c.alpha = BOX_ALPHA / BOX_FILL_ALPHA[c._char_id]
+	if label == "speaking":
+		tfContainer.alpha = BOX_ALPHA
 
 
 func updateTextField() -> void:
