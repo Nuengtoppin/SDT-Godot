@@ -234,6 +234,20 @@ func _merge_into_empty(source: FlashBitmapData, live: Rect2i, off: Vector2i, am:
 ## (bilinear sampling, normal alpha compositing), applying the colour transform ct.
 func draw(obj: FlashDisplayObject, m: Transform2D = Transform2D.IDENTITY, ct: FlashColorTransform = null,
 		clip: Rect2i = Rect2i()) -> void:
+	# Fast path: a bitmap drawn without rotation / skew / colour transform (imported images, e.g. custom
+	# backgrounds and hair) is scaled and composited with native Image operations.
+	if obj is FlashBitmap and (obj as FlashBitmap).bitmapData != null and m.x.y == 0.0 and m.y.x == 0.0 \
+			and m.x.x > 0.0 and m.y.y > 0.0 and (ct == null or ct.is_identity()) and clip.size == Vector2i.ZERO:
+		var src: Image = (obj as FlashBitmap).bitmapData.image.duplicate()
+		var w := maxi(1, int(round(src.get_width() * m.x.x)))
+		var h := maxi(1, int(round(src.get_height() * m.y.y)))
+		if w != src.get_width() or h != src.get_height():
+			src.resize(w, h, Image.INTERPOLATE_BILINEAR)
+		var at := Vector2i(int(round(m.origin.x)), int(round(m.origin.y)))
+		image.blend_rect(src, Rect2i(Vector2i.ZERO, src.get_size()), at)
+		_grow(Rect2i(at, src.get_size()))
+		_tex_dirty = true
+		return
 	var dst := image.get_data()
 	_draw_rec(obj, m, ct if ct != null else FlashColorTransform.new(), dst, clip if clip.size != Vector2i.ZERO else rect)
 	image.set_data(width, height, false, Image.FORMAT_RGBA8, dst)
@@ -241,18 +255,27 @@ func draw(obj: FlashDisplayObject, m: Transform2D = Transform2D.IDENTITY, ct: Fl
 
 
 func _draw_rec(o: FlashDisplayObject, m: Transform2D, ct: FlashColorTransform, dst: PackedByteArray, clip: Rect2i) -> void:
+	var img: Image = null
+	var sc := 1.0
+	var ex := 0.0
+	var ey := 0.0
 	if o is FlashShape:
 		var s: FlashShape = o
 		if s._entry.is_empty() or not s._entry.has("img"):
 			return
-		var img: Image = s._library.get_image(s._entry["img"])
-		if img == null:
+		img = s._library.get_image(s._entry["img"])
+		sc = s._library.scale
+		ex = s._entry["x"]
+		ey = s._entry["y"]
+	elif o is FlashBitmap:
+		var bd: FlashBitmapData = (o as FlashBitmap).bitmapData
+		if bd == null:
 			return
-		var sc: float = s._library.scale
-		var e: Dictionary = s._entry
-		# shape-local -> image pixel: (p - entry.xy) * scale ; dest pixel -> shape-local: inverse of m
+		img = bd.image
+	if img != null:
+		# local -> image pixel: (p - origin) * scale ; dest pixel -> local: inverse of m
 		var inv := m.affine_inverse()
-		var r := FlashDisplayObject._xform_rect(m, Rect2(e["x"], e["y"], img.get_width() / sc, img.get_height() / sc))
+		var r := FlashDisplayObject._xform_rect(m, Rect2(ex, ey, img.get_width() / sc, img.get_height() / sc))
 		var x0 := maxi(clip.position.x, int(floor(r.position.x)))
 		var y0 := maxi(clip.position.y, int(floor(r.position.y)))
 		var x1 := mini(clip.end.x, int(ceil(r.end.x)))
@@ -264,8 +287,8 @@ func _draw_rec(o: FlashDisplayObject, m: Transform2D, ct: FlashColorTransform, d
 		for py in range(y0, y1):
 			for px in range(x0, x1):
 				var lp := inv * Vector2(px + 0.5, py + 0.5)
-				var ix: float = (lp.x - e["x"]) * sc - 0.5
-				var iy: float = (lp.y - e["y"]) * sc - 0.5
+				var ix: float = (lp.x - ex) * sc - 0.5
+				var iy: float = (lp.y - ey) * sc - 0.5
 				if ix < -1 or iy < -1 or ix > iw or iy > ih:
 					continue
 				var c := _bilinear(img, ix, iy, iw, ih)

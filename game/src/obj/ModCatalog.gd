@@ -10,13 +10,15 @@ extends RefCounted
 ## New mods are converted on a worker thread and inspected once (which items, their types and slots); the result is
 ## cached next to the conversion (catalog.json), so later startups only read small files.
 
-const SCAN_FOLDERS := ["Clothing", "Hair"]
+const SCAN_FOLDERS := ["Clothing", "Hair", "Backgrounds"]
+const IMAGE_EXTENSIONS := ["png", "jpg", "jpeg", "gif", "bmp"]
 const CATALOG_VERSION := 1
 const HAIR_TYPES := [ModTypes.HAIR, ModTypes.DYNAMIC_HAIR]
 
 ## Entries: {path, items: Array[int], title, modTypes: Array[String], helper (costume pickers only)}
 var entries: Array = []
 var hair_entries: Array = []
+var bg_entries: Array = []
 var _queue: Array = []        # paths still to inspect
 var _converting: Dictionary = {}  # task id -> [path, bytes, dir]
 var _busy := false
@@ -33,8 +35,15 @@ func _scan(dir: String) -> void:
 	if d == null:
 		return
 	for f in d.get_files():
-		if f.get_extension().to_lower() == "swf":
+		var ext := f.get_extension().to_lower()
+		if ext == "swf":
 			_queue.append(dir.path_join(f))
+		elif ext in IMAGE_EXTENSIONS and dir.begins_with(Flash.mods_dir("Backgrounds")):
+			# background images: shown like the vanilla "Import background"
+			var e := {"path": _relative(dir.path_join(f)), "image": true, "items": [], "modTypes": [],
+				"title": f.get_basename().replace("_", " ").strip_edges(), "picker": "bg"}
+			entries.append(e)
+			bg_entries.append(e)
 	for sub in d.get_directories():
 		_scan(dir.path_join(sub))
 
@@ -133,8 +142,9 @@ func _add(path: String, cat: Dictionary) -> void:
 		var key = gr[0]
 		var e: Dictionary = gr[1]
 		entries.append(e)
-		if key is String and key == "hair":
-			hair_entries.append(e)
+		if key is String:
+			e["picker"] = key
+			(hair_entries if key == "hair" else bg_entries).append(e)
 		else:
 			e["helper"] = key
 			key.modEntries.append(e)
@@ -144,6 +154,8 @@ func _add(path: String, cat: Dictionary) -> void:
 func _picker_key(it: Dictionary):
 	if it["modType"] in HAIR_TYPES:
 		return "hair"
+	if it["modType"] == ModTypes.BACKGROUND:
+		return "bg"
 	var key: String = it["targetElement"] if it["targetElement"] != "" else it["modType"]
 	if it["modType"] == ModTypes.HAIR_COSTUME:
 		return g.characterControl.headwearControl
@@ -196,9 +208,12 @@ func remove(e: Dictionary) -> void:
 
 ## Marks items restored before the scan finished (saved character loaded at startup) as their pickers' options.
 func _sync_loaded() -> void:
-	for pkg in g.customElementLoader.loadedModPackages:
+	var cel := g.customElementLoader
+	for pkg in cel.loadedModPackages:
 		if not pkg.items.is_empty():
 			mark_selected(pkg.filePath.get_slice("|", 0), pkg.items)
+	if cel.customBGLoaded and cel.proxyBGPackage and cel.proxyBGPackage.hasFilePath():
+		mark_selected(cel.proxyBGPackage.path, [])
 
 
 ## Shows a restored saved item as the current option of its picker.
@@ -210,6 +225,9 @@ func mark_selected(path: String, items: Array) -> void:
 		var h: CharacterElementHelper = e["helper"]
 		h.modEntryIndex = h.modEntries.find(e)
 		h.updateMenuList.call(e["title"])
+	elif e.get("picker") == "bg":
+		g.inGameMenu.bgModIndex = bg_entries.find(e)
+		g.inGameMenu.updateBGPicker()
 	else:
 		g.inGameMenu.hairModIndex = hair_entries.find(e)
 		g.inGameMenu.customMenu.mlHair.itemLabel.text = e["title"]

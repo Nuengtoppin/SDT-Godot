@@ -201,18 +201,23 @@ func registerMenuList(ml) -> void:
 		if not n:
 			n = String(elementNameList[selection])
 			modEntryIndex = -1
-		var label = menuList.itemLabel
-		label.text = n
-		label.scaleX = 1
-		label.scaleY = 1
-		label.y = -7
-		if label.textWidth > 82:
-			label.scaleX = 82.0 / label.textWidth
-			label.scaleY = label.scaleX
-			label.y = 2 - label.textHeight * 0.5
-		label.x = 19 - label.width * 0.5
+		setPickerLabel(menuList, n)
 	menuList.leftArrow.addEventListener(FlashEvent.CLICK, func(_e = null) -> void: _step(-1))
 	menuList.rightArrow.addEventListener(FlashEvent.CLICK, func(_e = null) -> void: _step(1))
+
+
+## Shows 'n' in a picker's label, shrunk to fit.
+static func setPickerLabel(ml, n: String) -> void:
+	var label = ml.itemLabel
+	label.text = n
+	label.scaleX = 1
+	label.scaleY = 1
+	label.y = -7
+	if label.textWidth > 82:
+		label.scaleX = 82.0 / label.textWidth
+		label.scaleY = label.scaleX
+		label.y = 2 - label.textHeight * 0.5
+	label.x = 19 - label.width * 0.5
 
 
 func _step(d: int) -> void:

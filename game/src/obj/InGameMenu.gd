@@ -294,6 +294,7 @@ func _init():
 	g.characterControl.earringControl.registerMenuList(costumeMenu.mlEarring)
 	g.characterControl.earringControl.registerRGBButton(costumeMenu.rgbEarring,underwearSwatch,256,false)
 	g.characterControl.headwearControl.registerMenuList(costumeMenu.mlHeadwear)
+	_setupBGPicker()
 	g.characterControl.headwearControl.registerRGBButton(costumeMenu.rgbHeadwear,underwearSwatch,256,false)
 	g.characterControl.headwearControl.registerSecondaryRGBButton(costumeMenu.rgbHeadwear2,underwearSwatch,256,false)
 	sceneMenu.cbAuto.addEventListener(FlashEvent.CLICK,cbAutoClicked)
@@ -551,6 +552,62 @@ func setBGCheckboxes():
 		else:
 			sceneMenu["cbBG" + str(_loc1_)].setOff()
 		_loc1_ += 1
+	updateBGPicker()
+
+
+## Port extension: the four BG checkboxes are replaced by a picker like the costume ones: the built-in
+## backgrounds, then the background mods and images in Mods/Backgrounds (see ModCatalog). bgModIndex is the one
+## applied through the picker (-1: a built-in background).
+const BG_NAMES := ["Lab", "Dungeon", "Classroom", "White"]
+var bgPicker: FlashMovieClip = null
+var bgModIndex := -1
+
+
+func _setupBGPicker():
+	var first = sceneMenu.cbBG1
+	for i in range(1, g.bgNum + 1):
+		sceneMenu["cbBG" + str(i)].visible = false
+	bgPicker = Flash.create_char(costumeMenu.mlCollar._library, costumeMenu.mlCollar._char_id)
+	sceneMenu.addChild(bgPicker)
+	bgPicker.itemLabel.autoSize = "center"
+	var b: Rect2 = bgPicker.getBounds(bgPicker)
+	var cb: Rect2 = first.getBounds(sceneMenu)
+	bgPicker.x = cb.position.x - b.position.x - 2
+	bgPicker.y = cb.get_center().y - b.get_center().y
+	bgPicker.leftArrow.addEventListener(FlashEvent.CLICK, func(_e = null): _stepBG(-1))
+	bgPicker.rightArrow.addEventListener(FlashEvent.CLICK, func(_e = null): _stepBG(1))
+	updateBGPicker()
+
+
+func updateBGPicker():
+	if bgPicker == null:
+		return
+	var mods: Array = g.modCatalog.bg_entries if g.modCatalog else []
+	if bgModIndex >= 0 and bgModIndex < mods.size():
+		CharacterElementHelper.setPickerLabel(bgPicker, mods[bgModIndex]["title"])
+	else:
+		bgModIndex = -1
+		CharacterElementHelper.setPickerLabel(bgPicker, BG_NAMES[clampi(g.bgID - 1, 0, BG_NAMES.size() - 1)])
+
+
+func _stepBG(d: int):
+	var n: int = BG_NAMES.size()
+	var mods: Array = g.modCatalog.bg_entries if g.modCatalog else []
+	var cur: int = n + bgModIndex if bgModIndex >= 0 else g.bgID - 1
+	var i: int = max(0, min(n + mods.size() - 1, cur + d))
+	g.customElementLoader.clearCustomBackground()
+	if i < n:
+		bgModIndex = -1
+		g.characterControl.setBackground(i + 1)
+	else:
+		bgModIndex = i - n
+		var e: Dictionary = mods[bgModIndex]
+		if e.get("image", false):
+			g.customElementLoader.tryToLoadBGFile(Flash.resolve_content_path(e["path"]))
+		else:
+			g.modCatalog.apply(e)
+	setBGCheckboxes()
+	g.saveData.saveCharData()
 
 
 func setStyleCheckboxes():
