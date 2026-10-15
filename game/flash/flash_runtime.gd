@@ -65,12 +65,16 @@ func _ready() -> void:
 	_index_gd_classes()
 	_setup_frame_monitor()
 	base_library = load_library(BASE_LIBRARY)
+	FlashSwfMod.register()
+	if not DirAccess.dir_exists_absolute(mods_dir()):
+		DirAccess.make_dir_recursive_absolute(mods_dir())
 	stage = FlashStage.new()
 	stage.name = "Stage"
 	stage.flash_name = "root1"
 
 
 func _exit_tree() -> void:
+	FlashLibrary.drain_streaming()
 	if stage != null and stage.get_parent() == null:
 		stage.free()
 
@@ -161,6 +165,8 @@ func create_char(lib: FlashLibrary, id: int, parent = null, place: Dictionary = 
 			s.setup(lib, id)
 			return s
 		"sprite":
+			if lib.is_mod:
+				return lib.mod.instantiate(id, parent, place, pidx, depth, birth)
 			var short = _lib_class_by_id[lib].get(id)
 			_pending_symbol = [lib, id, parent, place, pidx, depth, birth]
 			if short != null:
@@ -806,6 +812,9 @@ func _notification(what: int) -> void:
 		stage.dispatchEvent(FlashEvent.new(FlashEvent.MOUSE_LEAVE))
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
 		FlashSharedObject.flush_all()
+		FlashLibrary.drain_streaming()
+	if what == NOTIFICATION_PREDELETE:
+		free_orphaned_text_fields()
 
 
 func _set_focus(o: FlashDisplayObject) -> void:
@@ -817,6 +826,20 @@ func _set_focus(o: FlashDisplayObject) -> void:
 		old.dispatchEvent(FlashEvent.new(FlashEvent.FOCUS_OUT, true))
 	if o != null:
 		o.dispatchEvent(FlashEvent.new(FlashEvent.FOCUS_IN, true))
+
+
+## Frees display-object subtrees that were removed from the display list but never freed (Flash would have
+## garbage-collected them) and contain text fields: called at shutdown, while the text server still exists.
+func free_orphaned_text_fields() -> void:
+	for id in FlashTextField._live.keys():
+		var tf = instance_from_id(id)
+		if tf == null or not is_instance_valid(tf) or tf.is_inside_tree():
+			continue
+		var top: Node = tf
+		while top.get_parent() != null:
+			top = top.get_parent()
+		if not top.is_inside_tree() and not top.is_queued_for_deletion():
+			top.free()
 
 
 func set_focus(o: FlashDisplayObject) -> void:
@@ -941,6 +964,11 @@ func content_root() -> String:
 	return OS.get_executable_path().get_base_dir()
 
 
+## Folder for mods (.swf mods, custom hair / background images): Mods/ next to the game. File dialogs start here.
+func mods_dir() -> String:
+	return content_root().path_join("Mods")
+
+
 func resolve_content_path(url: String) -> String:
 	if url == "":
 		return ""
@@ -978,3 +1006,4 @@ func capture_screen(stage_size: Vector2, scale: float = 1.0) -> Image:
 		out.resize(want.x, want.y, Image.INTERPOLATE_LANCZOS if want.x < out.get_width() else Image.INTERPOLATE_CUBIC)
 	out.convert(Image.FORMAT_RGBA8)
 	return out
+

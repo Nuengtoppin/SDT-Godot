@@ -53,7 +53,7 @@ func _filters_to_godot(filters: Array) -> PackedStringArray:
 
 
 func _open(saving: bool, default_name: String, filters: PackedStringArray) -> void:
-	var start := last_dir if last_dir != "" else OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+	var start := last_dir if last_dir != "" else Flash.mods_dir()
 	var mode := DisplayServer.FILE_DIALOG_MODE_SAVE_FILE if saving else DisplayServer.FILE_DIALOG_MODE_OPEN_FILE
 	if DisplayServer.has_feature(DisplayServer.FEATURE_NATIVE_DIALOG_FILE):
 		DisplayServer.file_dialog_show("Save file" if saving else "Open file", start, default_name, false, mode,

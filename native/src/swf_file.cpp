@@ -214,7 +214,7 @@ struct LineStyle {
 };
 
 struct Rec {
-	enum Type { STYLE, LINE, CURVE } type;
+	enum Type { STYLE, LINE, CURVE } type = LINE;
 	// STYLE
 	bool has_move = false;
 	int32_t mx = 0, my = 0;
@@ -872,6 +872,9 @@ struct Accum {
 			float *row = a.data() + (size_t)y * (w + 2);
 			double dy = std::min((double)(y + 1), p1.y) - std::max((double)y, p0.y);
 			double xnext = x + dxdy * dy;
+			// floating-point drift must never leave the row (writes at -1 / past w + 1 would corrupt memory)
+			x = std::clamp(x, 0.0, (double)w);
+			xnext = std::clamp(xnext, 0.0, (double)w);
 			double d = dy * dir;
 			double xa = std::min(x, xnext), xb = std::max(x, xnext);
 			double xa_floor = std::floor(xa);

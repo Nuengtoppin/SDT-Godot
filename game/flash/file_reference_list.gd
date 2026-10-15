@@ -13,7 +13,7 @@ func browse(filters: Array = []) -> bool:
 		var ext: String = f.get("extension", "*.*") if f is Dictionary else "*.*"
 		godot_filters.append(ext.replace(";", ",") + ";" + desc)
 	var start := FlashFileReference.last_dir if FlashFileReference.last_dir != "" \
-		else OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+		else Flash.mods_dir()
 	if DisplayServer.has_feature(DisplayServer.FEATURE_NATIVE_DIALOG_FILE):
 		DisplayServer.file_dialog_show("Open files", start, "", false, DisplayServer.FILE_DIALOG_MODE_OPEN_FILES,
 			godot_filters, func(ok: bool, paths: PackedStringArray, _f: int): _picked(ok, paths))

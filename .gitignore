@@ -22,3 +22,6 @@ __pycache__/
 /game/bin/*.dll
 /game/bin/*.a
 /game/bin/*.so
+
+# Mods folder used when running from the repo (Flash.mods_dir)
+/Mods/

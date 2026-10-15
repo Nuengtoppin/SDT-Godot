@@ -13,6 +13,10 @@ var document_class: String = ""
 var width: float = 700.0
 var height: float = 600.0
 var fps: float = 30.0
+## Set for libraries converted from SWF mods at runtime (see FlashSwfMod): their symbols never map to the game's
+## GDScript classes, and their ActionScript runs through `mod`.
+var is_mod := false
+var mod: Object = null
 
 var _textures: Dictionary = {}
 
@@ -103,6 +107,15 @@ func request_texture(img: String, waiter: Object = null) -> Texture2D:
 
 func is_texture_cached(img: String) -> bool:
 	return _textures.get(img) != null
+
+
+## Waits for every background load to finish (before quitting: worker threads must not outlive the renderer).
+static func drain_streaming() -> void:
+	for lib in _streaming:
+		for img in lib._pending.keys():
+			ResourceLoader.load_threaded_get(lib.path.path_join("shapes/%s.png" % img))
+		lib._pending.clear()
+	_streaming.clear()
 
 
 ## Called once per tick by the runtime: hands finished background loads to their waiting shapes.
