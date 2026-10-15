@@ -14,6 +14,11 @@ var _input := false
 var _multiline := false
 var _word_wrap := false
 var _font: Font = null
+## Port extension (not in Flash): thickens the glyphs (FontVariation.variation_embolden), e.g. for thin fonts.
+var embolden := 0.0:
+	set(value):
+		embolden = value
+		_apply_format()
 var _font_size: float = 12.0
 var _color := Color.BLACK
 var _align := "left"
@@ -127,10 +132,11 @@ func _apply_format() -> void:
 		return
 	# embedFonts = false means a device font; those arrive here as SystemFont, so the font is used either way.
 	var font := _font
-	if font != null and _letter_spacing != 0.0:
+	if font != null and (_letter_spacing != 0.0 or embolden != 0.0):
 		var fv := FontVariation.new()
 		fv.base_font = font
 		fv.spacing_glyph = int(round(_letter_spacing))
+		fv.variation_embolden = embolden
 		font = fv
 	if _control is Label:
 		var ls := LabelSettings.new()
