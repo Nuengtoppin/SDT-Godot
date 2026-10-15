@@ -39,7 +39,11 @@ var lineScroller: ScrollingArea
 var helpScroller: ScrollingArea
 var logScroller: ScrollingArea
 var logCount: int = 0
-var logCache: String = ""
+## The log is kept as lines and joined when shown (appending to one growing string made every dialogue load slower).
+var _logLines := PackedStringArray()
+var logCache: String:
+	get:
+		return "\n".join(_logLines)
 var editingWildcards := false
 var lines: Array = []
 var selectedLines: Array = []
@@ -172,10 +176,7 @@ func close() -> void:
 
 
 func appendLog(s: String, _p2: bool = true) -> void:
-	if logCache:
-		logCache = logCache + "\n" + str(logCount) + ": " + s
-	else:
-		logCache = str(logCount) + ": " + s
+	_logLines.append(str(logCount) + ": " + s)
 	logCount += 1
 
 
