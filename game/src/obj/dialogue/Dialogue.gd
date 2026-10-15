@@ -716,20 +716,11 @@ func smartReplace(s: String, token: String, fn: Callable) -> String:
 	return re.sub(s, "", true)
 
 
-## Port extension: the text boxes are drawn 90% opaque (35-45% in the original, too see-through) and the
-## speaking-style text at 90% instead of 75%. Box shape id -> its strongest fill alpha in the original art.
-const BOX_ALPHA := 0.9
-const BOX_FILL_ALPHA := {38: 0.349, 44: 0.349, 45: 0.349, 46: 0.451}
-
-
+## Port extension: the speaking-style text is drawn fully opaque (75% in the original).
 func _gotoStyle(label: String) -> void:
 	gotoAndStop(label)
-	for i in numChildren:
-		var c = getChildAt(i)
-		if c is FlashShape and BOX_FILL_ALPHA.has(c._char_id):
-			c.alpha = BOX_ALPHA / BOX_FILL_ALPHA[c._char_id]
 	if label == "speaking":
-		tfContainer.alpha = BOX_ALPHA
+		tfContainer.alpha = 1.0
 
 
 func updateTextField() -> void:
