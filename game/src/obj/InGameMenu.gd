@@ -629,7 +629,10 @@ func _stepDialogue(d: int):
 		g.dialogueControl.resetCustomDialogue()
 	else:
 		dialogueFileIndex = i - 1
-		g.dialogueControl.loadCustomDialogue(FileAccess.get_file_as_string(files[i - 1]))
+		g.dialogueControl.loadCustomDialogue(Flash.bytes_to_string(FileAccess.get_file_as_bytes(files[i - 1])))
+		if moddingMenu.dialogueLibraryName.text == "No name":
+			# dialogue without a dialogue_name line: show which file it is
+			CharacterElementHelper.setPickerLabel(dialoguePicker, files[i - 1].get_file().get_basename())
 
 
 func updateBGPicker():
@@ -1558,7 +1561,7 @@ func dialogueCompleteHandler(param1 = null):
 	var e = param1
 	if browsingForDialogue:
 		dialogueBA = dialogueFile.data
-		loadedDialogue = dialogueBA.get_string_from_utf8()
+		loadedDialogue = Flash.bytes_to_string(dialogueBA)
 		g.dialogueControl.loadCustomDialogue(loadedDialogue)
 	elif savingDialogue:
 		savingDialogue = false

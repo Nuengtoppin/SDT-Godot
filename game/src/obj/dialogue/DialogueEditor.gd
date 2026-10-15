@@ -673,7 +673,7 @@ func dialogueSelectHandler(_e = null) -> void:
 
 func dialogueCompleteHandler(_e = null) -> void:
 	if browsingForDialogue:
-		var text := dialogueFile.data.get_string_from_utf8()
+		var text := Flash.bytes_to_string(dialogueFile.data)
 		if text == "" and dialogueFile.data.size() > 0:
 			g.showError("Error loading dialogue file. Check encoding is UTF-8")
 			return

@@ -122,6 +122,67 @@ const CLASS_ALIASES := {"Slider": "SDTSlider", "MenuButton": "SDTMenuButton"}
 
 
 ## GDScript class name used for an AS3 short class name.
+## ByteArray.toString(): a UTF-16 (LE / BE) or UTF-8 byte order mark selects the encoding, otherwise UTF-8 -
+## with bytes that are not valid UTF-8 taken as single characters (Windows-1252, as text saved in Notepad as
+## "ANSI" is meant) instead of being replaced.
+const _CP1252 := [0x20AC, 0x81, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039,
+	0x0152, 0x8D, 0x017D, 0x8F, 0x90, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122,
+	0x0161, 0x203A, 0x0153, 0x9D, 0x017E, 0x0178]
+
+
+static func bytes_to_string(b: PackedByteArray) -> String:
+	var n := b.size()
+	if n >= 2 and b[0] == 0xFF and b[1] == 0xFE:
+		return b.slice(2).get_string_from_utf16()
+	if n >= 2 and b[0] == 0xFE and b[1] == 0xFF:
+		var sw := b.slice(2)
+		for i in range(0, sw.size() - 1, 2):
+			var t := sw[i]
+			sw[i] = sw[i + 1]
+			sw[i + 1] = t
+		return sw.get_string_from_utf16()
+	var start := 3 if n >= 3 and b[0] == 0xEF and b[1] == 0xBB and b[2] == 0xBF else 0
+	# valid UTF-8 (the usual case): decode natively
+	var i := start
+	var valid := true
+	while i < n:
+		var c := b[i]
+		if c < 0x80:
+			i += 1
+			continue
+		var k := 1 if c >= 0xC2 and c < 0xE0 else (2 if c >= 0xE0 and c < 0xF0 else (3 if c >= 0xF0 and c < 0xF5 else -1))
+		if k < 0 or i + k >= n:
+			valid = false
+			break
+		for j in range(1, k + 1):
+			if i + j >= n or (b[i + j] & 0xC0) != 0x80:
+				valid = false
+				break
+		if not valid:
+			break
+		i += k + 1
+	if valid:
+		return b.slice(start).get_string_from_utf8()
+	var out := PackedStringArray()
+	i = start
+	while i < n:
+		var c := b[i]
+		var k := 1 if c >= 0xC2 and c < 0xE0 else (2 if c >= 0xE0 and c < 0xF0 else (3 if c >= 0xF0 and c < 0xF5 else -1))
+		var ok := k > 0 and i + k < n
+		if ok:
+			for j in range(1, k + 1):
+				if (b[i + j] & 0xC0) != 0x80:
+					ok = false
+					break
+		if ok:
+			out.append(b.slice(i, i + k + 1).get_string_from_utf8())
+			i += k + 1
+		else:
+			out.append(char(_CP1252[c - 0x80] if c >= 0x80 and c < 0xA0 else c))
+			i += 1
+	return "".join(out)
+
+
 static func gd_class_name(as3_short: String) -> String:
 	return CLASS_ALIASES.get(as3_short, as3_short)
 
