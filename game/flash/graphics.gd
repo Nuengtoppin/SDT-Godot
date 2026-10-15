@@ -17,6 +17,11 @@ var _items: Array = []      # RID per fill
 var _materials: Array = []  # ShaderMaterial per fill
 var _dirty := false
 var _bounds := Rect2()
+var _bounds_ok := false
+## Set once the owner's bounds caches have been invalidated for the current change; cleared when bounds are read
+## again (so drawing a long path invalidates once instead of once per point).
+var _inval_sent := false
+var _mat_state: Array = []  # per fill material: last parameters set, to skip unchanged ones
 
 
 func _init(owner: FlashSprite) -> void:
@@ -104,10 +109,14 @@ func curveTo(cx: float, cy: float, ax: float, ay: float) -> void:
 	var c := Vector2(cx, cy)
 	var p1 := Vector2(ax, ay)
 	var n := clampi(int((p0.distance_to(c) + c.distance_to(p1)) / 3.0), 2, 24)
-	for i in range(1, n + 1):
-		var t := float(i) / n
+	var pts := PackedVector2Array()
+	pts.resize(n)
+	var inv := 1.0 / n
+	for i in n:
+		var t := (i + 1) * inv
 		var u := 1.0 - t
-		_add_point(p0 * (u * u) + c * (2.0 * u * t) + p1 * (t * t))
+		pts[i] = p0 * (u * u) + c * (2.0 * u * t) + p1 * (t * t)
+	_add_points(pts)
 	_pen = p1
 
 
@@ -135,6 +144,19 @@ func copyFrom(other: FlashGraphics) -> void:
 	_mark()
 
 
+func _add_points(pts: PackedVector2Array) -> void:
+	if _cur_fill != null:
+		var paths: Array = _cur_fill["paths"]
+		var last: PackedVector2Array = paths[paths.size() - 1]
+		last.append_array(pts)
+		paths[paths.size() - 1] = last
+	if _cur_line != null:
+		var lp: PackedVector2Array = _cur_line["points"]
+		lp.append_array(pts)
+		_cur_line["points"] = lp
+	_mark()
+
+
 func _add_point(p: Vector2) -> void:
 	if _cur_fill != null:
 		var paths: Array = _cur_fill["paths"]
@@ -151,8 +173,11 @@ func _end_current_fill() -> void:
 
 
 func _mark() -> void:
-	_owner._bounds_changed()
-	_owner._hb_invalidate()
+	_bounds_ok = false
+	if not _inval_sent:
+		_inval_sent = true
+		_owner._bounds_changed()
+		_owner._hb_invalidate()
 	if not _dirty:
 		_dirty = true
 		_owner.queue_redraw()
@@ -163,7 +188,10 @@ func has_content() -> bool:
 
 
 func bounds() -> Rect2:
-	_compute_bounds()
+	_inval_sent = false
+	if not _bounds_ok:
+		_compute_bounds()
+		_bounds_ok = true
 	return _bounds
 
 
@@ -226,6 +254,7 @@ func _render(canvas: CanvasItem) -> void:
 		var m := ShaderMaterial.new()
 		m.shader = FILL_SHADER
 		_materials.append(m)
+		_mat_state.append({})
 		RenderingServer.canvas_item_set_material(rid, m.get_rid())
 	for i in _items.size():
 		var rid: RID = _items[i]
@@ -235,7 +264,7 @@ func _render(canvas: CanvasItem) -> void:
 		if i >= fills.size():
 			continue
 		var f: Dictionary = fills[i]
-		_configure_material(_materials[i], f["style"])
+		_configure_material(_materials[i], f["style"], _mat_state[i])
 		for path in f["paths"]:
 			if path.size() < 3:
 				continue
@@ -248,26 +277,39 @@ func _render(canvas: CanvasItem) -> void:
 			canvas.draw_polyline(l["points"], l["color"], l["width"], true)
 
 
-func _configure_material(m: ShaderMaterial, style: Dictionary) -> void:
+func _configure_material(m: ShaderMaterial, style: Dictionary, state: Dictionary) -> void:
 	var off := _owner.effective_color_offset() / 255.0
-	m.set_shader_parameter("offset", Vector4(off.r, off.g, off.b, off.a))
-	m.set_shader_parameter("fill_mode", style["mode"])
+	_set_param(m, state, "offset", Vector4(off.r, off.g, off.b, off.a))
+	_set_param(m, state, "fill_mode", style["mode"])
 	if style["mode"] == 0:
-		m.set_shader_parameter("solid", style["color"])
+		_set_param(m, state, "solid", style["color"])
 		return
-	var mt: Transform2D = style["matrix"].affine_inverse()
-	m.set_shader_parameter("inv_matrix", Basis(Vector3(mt.x.x, mt.x.y, 0), Vector3(mt.y.x, mt.y.y, 0),
+	var sm: Transform2D = style["matrix"]
+	if absf(sm.determinant()) < 1e-12:
+		sm = Transform2D(Vector2(1e-4, 0.0), Vector2(0.0, 1e-4), sm.origin)   # zero-size gradient box
+	var mt: Transform2D = sm.affine_inverse()
+	_set_param(m, state, "inv_matrix", Basis(Vector3(mt.x.x, mt.x.y, 0), Vector3(mt.y.x, mt.y.y, 0),
 		Vector3(mt.origin.x, mt.origin.y, 1)))
-	m.set_shader_parameter("focal", style.get("focal", 0.0))
+	_set_param(m, state, "focal", style.get("focal", 0.0))
 	var cols: Array = style["colors"]
 	var rs: Array = style["ratios"]
-	var n := mini(cols.size(), 8)
-	var pc := PackedVector4Array()
-	var pr := PackedFloat32Array()
-	for i in 8:
-		var c: Color = cols[mini(i, n - 1)]
-		pc.append(Vector4(c.r, c.g, c.b, c.a))
-		pr.append(rs[mini(i, n - 1)])
-	m.set_shader_parameter("stop_count", n)
-	m.set_shader_parameter("stop_colors", pc)
-	m.set_shader_parameter("stop_ratios", pr)
+	# stops rarely change: compare the source arrays before rebuilding the packed uniforms
+	if state.get("cols") != cols or state.get("rs") != rs:
+		state["cols"] = cols.duplicate()
+		state["rs"] = rs.duplicate()
+		var n := mini(cols.size(), 8)
+		var pc := PackedVector4Array()
+		var pr := PackedFloat32Array()
+		for i in 8:
+			var c: Color = cols[mini(i, n - 1)]
+			pc.append(Vector4(c.r, c.g, c.b, c.a))
+			pr.append(rs[mini(i, n - 1)])
+		m.set_shader_parameter("stop_count", n)
+		m.set_shader_parameter("stop_colors", pc)
+		m.set_shader_parameter("stop_ratios", pr)
+
+
+static func _set_param(m: ShaderMaterial, state: Dictionary, key: StringName, v) -> void:
+	if state.get(key) != v:
+		state[key] = v
+		m.set_shader_parameter(key, v)
