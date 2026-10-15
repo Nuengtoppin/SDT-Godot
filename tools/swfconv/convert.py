@@ -361,6 +361,9 @@ def convert(swf_path, out_dir, scale, ffdec, scripts_dir=None):
     # Flash hit-tests geometry: masks of shapes with transparent fills are re-derived from opaque renders.
     subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fix_hitmasks.py'),
                     swf_path, out_dir, '--ffdec', ffdec], check=True)
+    # FFDec does not anti-alias gradient / bitmap fills: re-render those shapes supersampled.
+    subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'supersample.py'),
+                    swf_path, out_dir, '--ffdec', ffdec], check=True)
     print('chars', len(chars), 'synthetic shapes', len(shape_jobs))
 
 

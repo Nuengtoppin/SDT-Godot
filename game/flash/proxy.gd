@@ -58,6 +58,7 @@ static func _make_viewport() -> SubViewport:
 	vp.disable_3d = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	vp.msaa_2d = ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_2d", 0)  # polygons (Graphics fills)
 	vp.size = Vector2i(2, 2)
 	return vp
 
