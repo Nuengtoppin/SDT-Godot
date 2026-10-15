@@ -92,6 +92,7 @@ func _init() -> void:
 	super()
 	x = 0
 	y = g.screenSize.y
+	tfContainer.alpha = 0.9  # port: 0.75 in the original, which is too see-through
 	originalTextFormat = tfContainer.dialogueField.defaultTextFormat
 	originalFont = originalTextFormat["font"]
 	gotoAndStop("speaking")
