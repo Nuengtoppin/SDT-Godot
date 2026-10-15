@@ -295,6 +295,7 @@ func _init():
 	g.characterControl.earringControl.registerRGBButton(costumeMenu.rgbEarring,underwearSwatch,256,false)
 	g.characterControl.headwearControl.registerMenuList(costumeMenu.mlHeadwear)
 	_setupBGPicker()
+	_setupDialoguePicker()
 	g.characterControl.headwearControl.registerRGBButton(costumeMenu.rgbHeadwear,underwearSwatch,256,false)
 	g.characterControl.headwearControl.registerSecondaryRGBButton(costumeMenu.rgbHeadwear2,underwearSwatch,256,false)
 	sceneMenu.cbAuto.addEventListener(FlashEvent.CLICK,cbAutoClicked)
@@ -577,6 +578,58 @@ func _setupBGPicker():
 	bgPicker.leftArrow.addEventListener(FlashEvent.CLICK, func(_e = null): _stepBG(-1))
 	bgPicker.rightArrow.addEventListener(FlashEvent.CLICK, func(_e = null): _stepBG(1))
 	updateBGPicker()
+
+
+## Port extension: the custom dialogue name in the Modding tab becomes a picker: Default, then the dialogue files
+## (.txt) in Mods/Dialogue, re-read on every step. Choosing one loads it like "Load..."; Default resets like the
+## reset button. The label shows the current dialogue's name (also after Load... or the editor).
+var dialoguePicker: FlashMovieClip = null
+var dialogueFileIndex := -1
+
+
+func _setupDialoguePicker():
+	var field = moddingMenu.dialogueLibraryName
+	dialoguePicker = Flash.create_char(costumeMenu.mlCollar._library, costumeMenu.mlCollar._char_id)
+	moddingMenu.addChild(dialoguePicker)
+	dialoguePicker.itemLabel.autoSize = "center"
+	var b: Rect2 = dialoguePicker.getBounds(dialoguePicker)
+	var fb: Rect2 = field.getBounds(moddingMenu)
+	dialoguePicker.x = fb.get_center().x - b.get_center().x
+	dialoguePicker.y = fb.get_center().y - b.get_center().y
+	field.visible = false
+	dialoguePicker.leftArrow.addEventListener(FlashEvent.CLICK, func(_e = null): _stepDialogue(-1))
+	dialoguePicker.rightArrow.addEventListener(FlashEvent.CLICK, func(_e = null): _stepDialogue(1))
+	CharacterElementHelper.setPickerLabel(dialoguePicker, str(field.text))
+
+
+static func _dialogueFiles(dir: String = "") -> Array:
+	if dir == "":
+		dir = Flash.mods_dir("Dialogue")
+	var out: Array = []
+	var d := DirAccess.open(dir)
+	if d == null:
+		return out
+	for f in d.get_files():
+		if f.get_extension().to_lower() == "txt":
+			out.append(dir.path_join(f))
+	for sub in d.get_directories():
+		out.append_array(_dialogueFiles(dir.path_join(sub)))
+	out.sort()
+	return out
+
+
+func _stepDialogue(d: int):
+	var files := _dialogueFiles()
+	var cur: int = dialogueFileIndex + 1 if dialogueFileIndex >= 0 and dialogueFileIndex < files.size() else 0
+	var i: int = max(0, min(files.size(), cur + d))
+	if i == cur:
+		return
+	if i == 0:
+		dialogueFileIndex = -1
+		g.dialogueControl.resetCustomDialogue()
+	else:
+		dialogueFileIndex = i - 1
+		g.dialogueControl.loadCustomDialogue(FileAccess.get_file_as_string(files[i - 1]))
 
 
 func updateBGPicker():
@@ -1455,6 +1508,8 @@ func shuffle():
 
 func setDialogueLibraryName(param1):
 	moddingMenu.dialogueLibraryName.text = param1
+	if dialoguePicker != null:
+		CharacterElementHelper.setPickerLabel(dialoguePicker, str(param1))
 	if param1 == DialogueLibrary.DEFAULT_NAME:
 		moddingMenu.dialogueLibraryName.type = "dynamic"
 		moddingMenu.dialogueLibraryName.textColor = 6784420
@@ -1586,7 +1641,11 @@ func storedCharsCompleteHandler(param1 = null):
 	if browsingForStoredCharsBackup:
 		storedCharsBA = storedCharsBackup.data
 		fileLoadedOkay = false
-		newStoredChars = AMF3.decode(storedCharsBA)
+		if storedCharsBA.size() > 1 and storedCharsBA[0] == 0x00 and storedCharsBA[1] == 0xBF:
+			# Port extension: a Flash save (ChoIrrumatio.sol) instead of a backup file
+			newStoredChars = _storedCharsFromSol(storedCharsBA, storedCharsBackup._path)
+		else:
+			newStoredChars = AMF3.decode(storedCharsBA)
 		fileLoadedOkay = AMF3.lastError == ""
 		if not fileLoadedOkay:
 			showError("Error loading character file.")
@@ -1600,6 +1659,65 @@ func storedCharsCompleteHandler(param1 = null):
 				showError("Error loading character file.")
 	elif savingStoredCharsBackup:
 		savingStoredCharsBackup = false
+
+
+## Port extension: imports a backup file or a Flash save (.sol) from a path, like Load Backup.
+func importStoredCharsFile(path: String) -> bool:
+	var bytes := FileAccess.get_file_as_bytes(path)
+	var chars = _storedCharsFromSol(bytes, path) if bytes.size() > 1 and bytes[0] == 0x00 and bytes[1] == 0xBF 		else AMF3.decode(bytes)
+	if not chars is Array:
+		showError("Error loading character file.")
+		return false
+	instanceStoredCharFile(chars)
+	return true
+
+
+## Port extension: the saved characters of a Flash save (ChoIrrumatio.sol from SDT / the Loader, with thumbnails
+## from ChoIrrumatio_thumbs.sol next to it) as backup-file entries.
+func _storedCharsFromSol(bytes: PackedByteArray, path: String):
+	var data = AMF3.decode_sol(bytes)
+	if data == null:
+		return null
+	var names := _solList(data.get("customCharNames"))
+	var datas := _solList(data.get("customCharData"))
+	var dialogues := _solList(data.get("customCharDialogue"))
+	var shots = null
+	var thumbs := path.get_base_dir().path_join("ChoIrrumatio_thumbs.sol")
+	if path != "" and FileAccess.file_exists(thumbs):
+		var t = AMF3.decode_sol(FileAccess.get_file_as_bytes(thumbs))
+		if t != null:
+			shots = _solList(t.get("customCharShots"))
+		AMF3.lastError = ""
+	var out := []
+	for i in names.size():
+		if names[i] == null:
+			continue
+		var o := {"charName": str(names[i]), "charData": str(datas[i]) if i < datas.size() and datas[i] != null else ""}
+		if i < dialogues.size() and dialogues[i] != null:
+			o["dialogue"] = dialogues[i]
+		if shots is Array and i < shots.size() and shots[i] is PackedByteArray:
+			o["shotBytes"] = shots[i]
+		out.append(o)
+	if data.get("baseCharOrder") != null and data.get("customCharOrder") != null:
+		out.append({"charName": "", "baseCharOrder": _solList(data["baseCharOrder"]),
+			"customCharOrder": _solList(data["customCharOrder"])})
+	return out
+
+
+## Flash arrays with gaps decode as Dictionaries (index -> value); turn them back into Arrays.
+static func _solList(v) -> Array:
+	if v is Array:
+		return v
+	var out := []
+	if v is Dictionary:
+		for k in v:
+			var s := str(k)
+			if s.is_valid_int() and int(s) >= 0:
+				var i := int(s)
+				if i >= out.size():
+					out.resize(i + 1)
+				out[i] = v[k]
+	return out
 
 
 func storedCharsCancelHandler(param1 = null):
@@ -1616,13 +1734,15 @@ func instanceStoredCharFile(param1):
 	var _loc4_ = []
 	for _loc5_ in param1:
 		if _loc5_["charName"]:
-			_loc6_ = { "name":_loc5_.charName, "data":_loc5_.charData, "shotBytes":_loc5_.shotBytes }
+			_loc6_ = { "name":_loc5_.charName, "data":_loc5_.charData, "shotBytes":_loc5_.get("shotBytes") }
+			if _loc5_.get("dialogue") != null:
+				_loc6_["dialogue"] = _loc5_["dialogue"]
 			_loc2_.append(_loc6_)
 		elif _loc5_["baseCharOrder"]:
 			_loc3_ = _loc5_["baseCharOrder"]
 			_loc4_ = _loc5_["customCharOrder"]
 	characterMenu.loadCustomChars(_loc2_)
-	if bool(_loc3_) and bool(_loc4_):
+	if _loc3_ and _loc4_:
 		characterMenu.updateCharOrder(_loc3_,_loc4_)
 		characterMenu.saveOrder()
 	currentTab = 1

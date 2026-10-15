@@ -172,10 +172,12 @@ func _layout() -> void:
 		var tw := textWidth + GUTTER * 2
 		var old_w := _box.size.x
 		_box.size.x = tw
+		# Flash keeps the centre / right edge in place by moving the field itself (its x changes), so code that
+		# then positions the field by x and width works as in Flash.
 		if autoSize == "center":
-			_box.position.x += (old_w - tw) / 2.0
+			position.x += (old_w - tw) / 2.0 * scale.x
 		elif autoSize == "right":
-			_box.position.x += old_w - tw
+			position.x += (old_w - tw) * scale.x
 		_box.size.y = textHeight + GUTTER * 2
 	elif autoSize != "none":
 		_box.size.y = textHeight + GUTTER * 2

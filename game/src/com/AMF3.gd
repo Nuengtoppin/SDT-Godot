@@ -25,6 +25,36 @@ static func decode(bytes: PackedByteArray):
 	return null if d._err else v
 
 
+## Flash local shared object file (.sol, AMF3 encoding): {name: value} of its data, or null (AMF0 files and
+## errors: lastError is set). Header: 00 BF, u32 length, "TCSO", 6 bytes, u16 name length + name, u32 AMF version;
+## then name (AMF3 string), value, one padding byte - with string / object references shared across entries.
+static func decode_sol(bytes: PackedByteArray):
+	if bytes.size() < 22 or bytes[0] != 0x00 or bytes[1] != 0xBF or bytes.slice(6, 10).get_string_from_ascii() != "TCSO":
+		lastError = "Not a Flash shared object"
+		return null
+	var name_len := (bytes[16] << 8) | bytes[17]
+	var p := 18 + name_len
+	if p + 4 > bytes.size():
+		lastError = "Truncated shared object"
+		return null
+	var version := (bytes[p] << 24) | (bytes[p + 1] << 16) | (bytes[p + 2] << 8) | bytes[p + 3]
+	if version != 3:
+		lastError = "Shared object uses AMF%d (only AMF3 is supported)" % version
+		return null
+	var d := AMF3.new()
+	d._b = bytes
+	d._p = p + 4
+	var out := {}
+	while d._p < bytes.size() and d._err == "":
+		var key := d._read_string()
+		var v = d._read_value()
+		d._u8()
+		if d._err == "":
+			out[key] = v
+	lastError = d._err
+	return null if d._err else out
+
+
 static func encode(v) -> PackedByteArray:
 	var e := AMF3.new()
 	e._write_value(v)
