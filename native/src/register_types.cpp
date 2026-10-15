@@ -8,12 +8,14 @@
 #include <godot_cpp/godot.hpp>
 
 #include "sdt_native.h"
+#include "swf_file.h"
 
 void initialize_sdt_native(ModuleInitializationLevel p_level) {
 	if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
 		return;
 	}
 	GDREGISTER_CLASS(SDTNative);
+	GDREGISTER_CLASS(SWFFile);
 }
 
 void uninitialize_sdt_native(ModuleInitializationLevel p_level) {
