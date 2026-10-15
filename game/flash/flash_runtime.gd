@@ -681,7 +681,44 @@ func release_if_orphaned(o: FlashDisplayObject) -> void:
 	_release_candidates.append(o)
 
 
+## Port of Flash's garbage collection for objects the game is done with (e.g. a killed costume element): freed
+## DISPOSE_DELAY ticks later if still off the display list then, along with its whole subtree - unless it carries
+## mod code.
+const DISPOSE_DELAY := 60
+var _disposals: Array = []
+
+
+func dispose_later(o: FlashDisplayObject) -> void:
+	_disposals.append([o, tick_count + DISPOSE_DELAY])
+
+
+func _free_disposals() -> void:
+	while not _disposals.is_empty() and _disposals[0][1] <= tick_count:
+		var o = _disposals.pop_front()[0]
+		if is_instance_valid(o) and o._flash_parent == null and o.get_parent() == null and not o.is_inside_tree() 				and not o.is_queued_for_deletion() and not _has_mod_code(o):
+			if _focus != null and is_instance_valid(_focus) and (o == _focus or o.is_ancestor_of(_focus)):
+				_focus = null
+			o.queue_free()
+
+
+## True if n or a descendant comes from a mod that has ActionScript (FlashAbc): mod code can keep references to
+## any of its objects, as in Flash, so those are never freed early.
+func _has_mod_code(n: Node) -> bool:
+	if n.has_meta(&"abc"):
+		return true
+	if n is FlashDisplayObject:
+		var lib: FlashLibrary = (n as FlashDisplayObject)._library
+		if lib != null and lib.is_mod and lib.mod != null and not lib.mod.abc.is_empty():
+			return true
+	for c in n.get_children():
+		if _has_mod_code(c):
+			return true
+	return false
+
+
 func _free_orphans() -> void:
+	if not _disposals.is_empty():
+		_free_disposals()
 	if _release_candidates.is_empty():
 		return
 	var list := _release_candidates
@@ -888,6 +925,28 @@ func _set_focus(o: FlashDisplayObject) -> void:
 		old.dispatchEvent(FlashEvent.new(FlashEvent.FOCUS_OUT, true))
 	if o != null:
 		o.dispatchEvent(FlashEvent.new(FlashEvent.FOCUS_IN, true))
+
+
+## Debugging: display objects off the scene tree, counted by "class name" (top-level ones only: those whose
+## Godot parent is not off the tree too), most common first.
+func orphan_stats(limit: int = 15) -> Array:
+	var counts := {}
+	var total := 0
+	for id in FlashDisplayObject.off_tree.keys():
+		var o = instance_from_id(id)
+		if o == null or not is_instance_valid(o) or o.is_inside_tree():
+			continue
+		total += 1
+		if o.get_parent() != null:
+			continue
+		var k: String = str(o.get_script().get_global_name()) + " " + str(o.flash_name) + "#" + str(o._char_id)
+		counts[k] = counts.get(k, 0) + 1
+	var keys := counts.keys()
+	keys.sort_custom(func(x, y): return counts[x] > counts[y])
+	var out: Array = [total]
+	for k in keys.slice(0, limit):
+		out.append("%s x%d" % [k, counts[k]])
+	return out
 
 
 ## Frees display-object subtrees that are off the scene tree at shutdown (removed or never added; Flash would have

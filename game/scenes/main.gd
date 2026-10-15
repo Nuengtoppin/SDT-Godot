@@ -3,6 +3,7 @@ extends Node2D
 ## Debug options (after `--` on the command line): --shot=<file.png> [--frames=N] [--click=x,y@frame ...]
 ## saves a screenshot after N frames and quits; --click simulates a left click at stage coordinates.
 ## --eval=<expression>@frame runs a Godot Expression with `g`, `Flash` and `OS` available, e.g. --eval=g.him.ejaculate()@600
+## --driver=res://debug/<script>.gd runs a scripted test: the script's step(frame: int) is called every frame.
 
 var _shot := ""
 var _frames := 60
@@ -13,6 +14,7 @@ var _quit_at_end := false
 var _picks: Array = []
 var _hide: Array = []
 var _counter: Label = null
+var _driver = null
 
 
 func _ready() -> void:
@@ -32,6 +34,8 @@ func _ready() -> void:
 		elif a.begins_with("--eval="):
 			var at := a.rfind("@")
 			_clicks.append([int(a.substr(at + 1)), a.substr(7, at - 7), "eval"])
+		elif a.begins_with("--driver="):
+			_driver = load(a.substr(9)).new()
 		elif a.begins_with("--seed="):
 			seed(int(a.substr(7)))
 		elif a.begins_with("--frames="):
@@ -56,7 +60,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if _shot == "" and _clicks.is_empty() and not _quit_at_end:
+	if _shot == "" and _clicks.is_empty() and not _quit_at_end and _driver == null:
 		return
 	_frame += 1
 	if _counter:
@@ -75,6 +79,8 @@ func _process(_delta: float) -> void:
 				_move(c[1])
 			else:
 				_click(c[1])
+	if _driver != null:
+		_driver.step(_frame)
 	if _frame == 150 and not _hide.is_empty():
 		_hide_matching(Flash.stage)
 	if _frame >= 150 and _frame < 156 and not _hide.is_empty():

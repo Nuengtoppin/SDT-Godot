@@ -24,6 +24,7 @@ func kill() -> void:
 	pathTF.removeEventListener(FlashEvent.FOCUS_IN, textFieldFocusIn)
 	pathTF.removeEventListener(FlashEvent.FOCUS_OUT, textFieldFocusOut)
 	parent.removeChild(self)
+	Flash.dispose_later(self)
 
 
 func deleteClicked(_e = null) -> void:

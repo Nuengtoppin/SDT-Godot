@@ -669,6 +669,8 @@ func clearCustomHair(reset: bool = true, clearProxy: bool = true) -> void:
 		g.hairTop.removeChild(hairOverLayer)
 		g.hairUnder.removeChild(hairUnderLayer)
 		g.hairBack.removeChild(hairBackLayer)
+		for l in [hairOverLayer, hairUnderLayer, hairBackLayer]:
+			Flash.dispose_later(l)
 		g.saveData.clearAutoLoadedHairPath()
 		if clearProxy:
 			proxyHairPackage = null
@@ -683,6 +685,7 @@ func clearCustomBackground(clearProxy: bool = true) -> void:
 		g.saveData.clearAutoLoadedBGPath()
 		g.sceneLayer.removeCustomBGHeight()
 		g.bg.removeChild(bgLayer)
+		Flash.dispose_later(bgLayer)
 		if clearProxy:
 			proxyBGPackage = null
 

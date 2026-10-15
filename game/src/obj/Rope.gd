@@ -140,6 +140,7 @@ func kill() -> void:
 	removeEventListener(FlashEvent.ENTER_FRAME, move)
 	if parent:
 		parent.removeChild(self)
+	Flash.dispose_later(self)
 
 
 func move() -> void:

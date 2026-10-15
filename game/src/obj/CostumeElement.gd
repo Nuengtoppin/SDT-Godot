@@ -92,3 +92,4 @@ func kill() -> void:
 		c.removeEventListener(FlashEvent.CLICK, clicked)
 	if parent:
 		parent.removeChild(self)
+	Flash.dispose_later(self)

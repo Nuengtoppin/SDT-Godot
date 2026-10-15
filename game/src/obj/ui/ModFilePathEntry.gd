@@ -85,6 +85,7 @@ func kill() -> void:
 	pathTF.removeEventListener(FlashEvent.FOCUS_OUT, textFieldFocusOut)
 	modPackage = null
 	parent.removeChild(self)
+	Flash.dispose_later(self)
 
 
 func recheckWithFolders() -> void:

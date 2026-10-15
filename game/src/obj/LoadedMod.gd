@@ -40,6 +40,8 @@ func kill() -> void:
 			_mod.kill()
 		elif not (_mod is FlashSound):
 			_mod.parent.removeChild(_mod)
+			if _mod is FlashDisplayObject:
+				Flash.dispose_later(_mod)
 		_active = false
 		_mod = null
 		_sourceModPackage.removeElement(self)
