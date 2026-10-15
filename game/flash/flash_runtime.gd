@@ -374,6 +374,9 @@ func _physics_process(_delta: float) -> void:
 	in_tick = false
 	_free_orphans()
 	_ph["tick_end"] = Time.get_ticks_usec()
+	# a frame can run several ticks (catching up after a slow frame): count them and their total time
+	_ph["ticks"] = _ph.get("ticks", 0) + 1
+	_ph["ticks_us"] = _ph.get("ticks_us", 0) + _ph["tick_end"] - _ph["tick_start"]
 	if prof:
 		var t5 := Time.get_ticks_usec()
 		_prof["#timelines"] = _prof.get("#timelines", 0) + t1 - t0
@@ -423,7 +426,10 @@ class _PhaseNode:
 
 	func _physics_process(_d: float) -> void:
 		if key == "process_first":
-			Flash._ph["physics_start"] = Time.get_ticks_usec()
+			var now := Time.get_ticks_usec()
+			Flash._ph["physics_start"] = now
+			if not Flash._ph.has("first_physics"):
+				Flash._ph["first_physics"] = now
 
 
 func _setup_frame_monitor() -> void:
@@ -459,7 +465,7 @@ func _end_frame() -> void:
 	# phase durations in order; missing phases (no tick this frame) are skipped
 	var parts: Array = []
 	var last := prev_end
-	for k in ["physics_start", "tick_start", "tick_end", "process_first", "process_last", "pre_draw"]:
+	for k in ["first_physics", "physics_start", "tick_start", "tick_end", "process_first", "process_last", "pre_draw"]:
 		if ph.has(k):
 			parts.append([k, ph[k] - last])
 			last = ph[k]
@@ -475,6 +481,8 @@ func _end_frame() -> void:
 		for p in parts:
 			desc.append("%s +%.1f" % [_phase_label(p[0]), p[1] / 1000.0])
 		var line := "HITCH %.0f ms at tick %d: %s" % [total / 1000.0, tick_count, ", ".join(desc)]
+		if ph.get("ticks", 0) > 1:
+			line += "; %d ticks this frame (%.1f ms in total)" % [ph["ticks"], ph["ticks_us"] / 1000.0]
 		if ph.has("tick_end"):
 			line += "; slowest listener %s %.1f ms" % [_slowest_listener, _slowest_listener_us / 1000.0]
 		line += "; input handlers %.1f ms" % (input_us / 1000.0)
@@ -495,7 +503,8 @@ func _end_frame() -> void:
 
 static func _phase_label(k: String) -> String:
 	match k:
-		"physics_start": return "wait/begin"
+		"first_physics": return "wait/begin (OS events, input)"
+		"physics_start": return "earlier ticks"
 		"tick_start": return "pre-tick"
 		"tick_end": return "tick"
 		"process_first": return "deferred draws/frees"

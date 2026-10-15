@@ -2,7 +2,7 @@ extends Node2D
 ## Main scene: puts the Flash stage in the scene tree and starts the game's document class (DT).
 ## Debug options (after `--` on the command line): --shot=<file.png> [--frames=N] [--click=x,y@frame ...]
 ## saves a screenshot after N frames and quits; --click simulates a left click at stage coordinates.
-## --eval=<expression>@frame runs a Godot Expression with `g` and `Flash` available, e.g. --eval=g.him.ejaculate()@600
+## --eval=<expression>@frame runs a Godot Expression with `g`, `Flash` and `OS` available, e.g. --eval=g.him.ejaculate()@600
 
 var _shot := ""
 var _frames := 60
@@ -237,8 +237,8 @@ func _print_targets() -> void:
 
 func _eval(code: String) -> void:
 	var e := Expression.new()
-	if e.parse(code, ["g", "Flash"]) != OK:
+	if e.parse(code, ["g", "Flash", "OS"]) != OK:
 		push_error("--eval parse error: %s" % e.get_error_text())
 		return
-	var r = e.execute([g, Flash], self)
+	var r = e.execute([g, Flash, Engine.get_singleton("OS")], self)
 	print("eval %s -> %s%s" % [code, r, (" ERROR " + e.get_error_text()) if e.has_execute_failed() else ""])
