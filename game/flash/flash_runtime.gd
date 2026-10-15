@@ -405,7 +405,7 @@ var _prof_worst: Dictionary = {}   # bucket -> usec during the worst tick
 # over HITCH_MS, with what happened in them, so a stutter seen while playing can be diagnosed from the log.
 # With --profile it also accumulates per-phase statistics, printed with the tick profile.
 
-const HITCH_MS := 50
+var HITCH_MS := 50   # --hitch-ms=N to change the threshold
 var _ph: Dictionary = {}           # phase -> timestamp (usec) for the current frame
 var _ph_prev_end := 0              # post_draw of the previous frame
 var _hitch_notes: Dictionary = {}  # note -> count during the current frame
@@ -427,6 +427,9 @@ class _PhaseNode:
 
 
 func _setup_frame_monitor() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--hitch-ms="):
+			HITCH_MS = int(arg.substr(11))
 	for k in ["process_first", "process_last"]:
 		var n := _PhaseNode.new()
 		n.key = k
@@ -461,6 +464,12 @@ func _end_frame() -> void:
 			parts.append([k, ph[k] - last])
 			last = ph[k]
 	parts.append(["post_draw", now - last])
+	var input_us := _frame_input_us
+	var input_max := _frame_input_max
+	var input_max_us := _frame_input_max_us
+	_frame_input_us = 0
+	_frame_input_max_us = 0
+	_frame_input_max = ""
 	if total > HITCH_MS * 1000 and tick_count > 60:
 		var desc := PackedStringArray()
 		for p in parts:
@@ -468,6 +477,9 @@ func _end_frame() -> void:
 		var line := "HITCH %.0f ms at tick %d: %s" % [total / 1000.0, tick_count, ", ".join(desc)]
 		if ph.has("tick_end"):
 			line += "; slowest listener %s %.1f ms" % [_slowest_listener, _slowest_listener_us / 1000.0]
+		line += "; input handlers %.1f ms" % (input_us / 1000.0)
+		if input_max != "":
+			line += " (slowest: %s %.1f ms)" % [input_max, input_max_us / 1000.0]
 		if not notes.is_empty():
 			line += "; " + str(notes)
 		print(line)
@@ -717,6 +729,33 @@ func _mouse_target_at(p: Vector2) -> FlashDisplayObject:
 func _input(event: InputEvent) -> void:
 	if stage == null:
 		return
+	var t0 := Time.get_ticks_usec()
+	_handle_input(event)
+	var dt := Time.get_ticks_usec() - t0
+	_frame_input_us += dt
+	if dt > _frame_input_max_us:
+		_frame_input_max_us = dt
+		_frame_input_max = _describe_input(event)
+
+
+var _frame_input_us := 0        # time spent in _input during the current frame
+var _frame_input_max_us := 0
+var _frame_input_max := ""
+
+
+static func _describe_input(event: InputEvent) -> String:
+	if event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		return "mouse button %d %s at %s" % [mb.button_index, "down" if mb.pressed else "up", mb.position]
+	if event is InputEventMouseMotion:
+		return "mouse motion"
+	if event is InputEventKey:
+		var k := event as InputEventKey
+		return "key %s %s" % [OS.get_keycode_string(k.keycode), "down" if k.pressed else "up"]
+	return event.get_class()
+
+
+func _handle_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		var target := _mouse_target_at(mouse_position())

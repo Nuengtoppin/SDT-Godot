@@ -536,10 +536,17 @@ func _invoke_listeners(event: FlashEvent, capture: bool) -> void:
 		var cb: Callable = l[0]
 		if not cb.is_valid():
 			continue
+		var t0 := Time.get_ticks_usec()
 		if cb.get_argument_count() == 0:
 			cb.call()
 		else:
 			cb.call(event)
+		var dt := Time.get_ticks_usec() - t0
+		if dt > 10000:
+			var obj := cb.get_object()
+			Flash.hitch_note("%s listener %s.%s %.0f ms" % [event.type,
+				obj.get_script().get_global_name() if obj != null and obj.get_script() != null else str(obj),
+				cb.get_method(), dt / 1000.0])
 		if event._stop_immediate:
 			return
 
