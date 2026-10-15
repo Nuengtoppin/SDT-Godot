@@ -15,3 +15,10 @@ __pycache__/
 
 # Local Claude settings
 /.claude/settings.local.json
+
+# Native extension build outputs (build with scons in native/, see native/README.md)
+/native/src/*.o
+/native/.sconsign*.dblite
+/game/bin/*.dll
+/game/bin/*.a
+/game/bin/*.so

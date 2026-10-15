@@ -324,7 +324,14 @@ func checkAllAnchored() -> bool:
 	return true
 
 
+## The native extension builds the whole drawing in one call (same geometry and gradients, as one mesh).
+static var _native: bool = ClassDB.class_exists(&"SDTNative") and not "--nonative" in OS.get_cmdline_user_args()
+
+
 func renderStrand() -> void:
+	if _native:
+		_renderStrandNative()
+		return
 	generateInterpolationPoints()
 	var gr := graphics
 	gr.clear()
@@ -350,6 +357,38 @@ func renderStrand() -> void:
 		if i == 1:
 			gr.curveTo(topCap.x, topCap.y, offsetPoints[0]["inside"].x, offsetPoints[0]["inside"].y)
 	gr.endFill()
+
+
+func _renderStrandNative() -> void:
+	var n := strandLength
+	var pos := PackedVector2Array()
+	var thick := PackedFloat32Array()
+	var dens := PackedFloat32Array()
+	var has_stored := PackedByteArray()
+	var stored := PackedVector2Array()
+	pos.resize(n)
+	thick.resize(n)
+	dens.resize(n)
+	has_stored.resize(n)
+	stored.resize(n * 2)
+	for i in n:
+		var l: StrandLink = links[i]
+		pos[i] = Vector2(l.x, l.y)
+		thick[i] = getLinkThickness(i)
+		dens[i] = l.density
+		if i < n - 1 and l.hasStoredInterPoints:
+			var b: StrandLink = links[i + 1]
+			if not l.anchored or not b.anchored:
+				l.unstoreInterPoints()
+			else:
+				var sp: Dictionary = l.getStoredInterPoints()
+				has_stored[i] = 1
+				stored[i * 2] = sp["inside"]
+				stored[i * 2 + 1] = sp["outside"]
+	var mesh: Array = ClassDB.class_call_static(&"SDTNative", &"build_strand", pos, thick, dens, has_stored, stored,
+		Color.hex((getRGB() << 8) | 0xFF), getAlpha(), maxInterpDist)
+	graphics.clear()
+	graphics.setMesh(mesh[0], mesh[1], mesh[2])
 
 
 func getAlpha() -> float:

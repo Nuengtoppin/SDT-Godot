@@ -22,6 +22,13 @@ var _bounds_ok := false
 ## again (so drawing a long path invalidates once instead of once per point).
 var _inval_sent := false
 var _mat_state: Array = []  # per fill material: last parameters set, to skip unchanged ones
+# A pre-triangulated, vertex-coloured mesh drawn after the fills (set by native code, e.g. strands).
+var _mesh_points := PackedVector2Array()
+var _mesh_colors := PackedColorArray()
+var _mesh_indices := PackedInt32Array()
+var _mesh_item := RID()
+var _mesh_mat: ShaderMaterial = null
+var _mesh_state: Dictionary = {}
 
 
 func _init(owner: FlashSprite) -> void:
@@ -32,6 +39,8 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
 		for rid in _items:
 			RenderingServer.free_rid(rid)
+		if _mesh_item.is_valid():
+			RenderingServer.free_rid(_mesh_item)
 
 
 ## flash.geom.Matrix.createGradientBox: maps the -819.2..819.2 gradient square onto a w x h box at (tx, ty).
@@ -49,6 +58,18 @@ func clear() -> void:
 	_cur_fill = null
 	_cur_line = null
 	_pen = Vector2.ZERO
+	_mesh_points = PackedVector2Array()
+	_mesh_colors = PackedColorArray()
+	_mesh_indices = PackedInt32Array()
+	_mark()
+
+
+## Adds a ready-made triangle mesh with per-vertex colours (drawn on top of this Graphics' fills). Used by native
+## code that builds whole drawings at once (Strand); not part of the Flash API.
+func setMesh(points: PackedVector2Array, colors: PackedColorArray, indices: PackedInt32Array) -> void:
+	_mesh_points = points
+	_mesh_colors = colors
+	_mesh_indices = indices
 	_mark()
 
 
@@ -141,6 +162,9 @@ func copyFrom(other: FlashGraphics) -> void:
 	_cur_fill = null
 	_cur_line = null
 	_pen = other._pen
+	_mesh_points = other._mesh_points
+	_mesh_colors = other._mesh_colors
+	_mesh_indices = other._mesh_indices
 	_mark()
 
 
@@ -184,7 +208,7 @@ func _mark() -> void:
 
 
 func has_content() -> bool:
-	return not _fills.is_empty() or not _lines.is_empty() or _cur_fill != null
+	return not _fills.is_empty() or not _lines.is_empty() or _cur_fill != null or not _mesh_indices.is_empty()
 
 
 func bounds() -> Rect2:
@@ -213,7 +237,19 @@ func _compute_bounds() -> void:
 				first = false
 			else:
 				r = r.expand(p)
+	if not _mesh_points.is_empty():
+		var mb := _points_rect(_mesh_points)
+		r = mb if first else r.merge(mb)
 	_bounds = r
+
+
+static func _points_rect(pts: PackedVector2Array) -> Rect2:
+	var lo := pts[0]
+	var hi := pts[0]
+	for p in pts:
+		lo = lo.min(p)
+		hi = hi.max(p)
+	return Rect2(lo, hi - lo)
 
 
 func _all_fills() -> Array:
@@ -230,6 +266,11 @@ func hit(p: Vector2) -> bool:
 				inside = not inside
 		if inside:
 			return true
+	var mi := _mesh_indices
+	var mp := _mesh_points
+	for k in range(0, mi.size() - 2, 3):
+		if Geometry2D.point_is_inside_triangle(p, mp[mi[k]], mp[mi[k + 1]], mp[mi[k + 2]]):
+			return true
 	return false
 
 
@@ -243,6 +284,9 @@ func _render(canvas: CanvasItem) -> void:
 				var tri := Geometry2D.triangulate_polygon(path)
 				if tri.size() >= 3:
 					canvas.draw_colored_polygon(path, Color.WHITE)
+		if not _mesh_indices.is_empty():
+			RenderingServer.canvas_item_add_triangle_array(canvas.get_canvas_item(), _mesh_indices, _mesh_points,
+				PackedColorArray([Color.WHITE]))
 		return
 	var fills := _all_fills()
 	var parent_rid := _owner.get_canvas_item()
@@ -272,9 +316,28 @@ func _render(canvas: CanvasItem) -> void:
 			if idx.is_empty():
 				continue
 			RenderingServer.canvas_item_add_triangle_array(rid, idx, path, PackedColorArray([Color.WHITE]))
+	_render_mesh(parent_rid, fills.size())
 	for l in _lines:
 		if l["points"].size() >= 2:
 			canvas.draw_polyline(l["points"], l["color"], l["width"], true)
+
+
+func _render_mesh(parent_rid: RID, after: int) -> void:
+	if _mesh_indices.is_empty():
+		if _mesh_item.is_valid():
+			RenderingServer.canvas_item_clear(_mesh_item)
+		return
+	if not _mesh_item.is_valid():
+		_mesh_item = RenderingServer.canvas_item_create()
+		RenderingServer.canvas_item_set_parent(_mesh_item, parent_rid)
+		_mesh_mat = ShaderMaterial.new()
+		_mesh_mat.shader = FILL_SHADER
+		RenderingServer.canvas_item_set_material(_mesh_item, _mesh_mat.get_rid())
+	RenderingServer.canvas_item_clear(_mesh_item)
+	RenderingServer.canvas_item_set_draw_index(_mesh_item, -1000 + after)
+	# solid white fill: the vertex colours carry the colour; the shader still applies colour-transform offsets
+	_configure_material(_mesh_mat, {"mode": 0, "color": Color.WHITE}, _mesh_state)
+	RenderingServer.canvas_item_add_triangle_array(_mesh_item, _mesh_indices, _mesh_points, _mesh_colors)
 
 
 func _configure_material(m: ShaderMaterial, style: Dictionary, state: Dictionary) -> void:

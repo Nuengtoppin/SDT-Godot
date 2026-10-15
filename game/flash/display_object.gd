@@ -452,7 +452,14 @@ func _set_height(value: float) -> void:
 func hitTestPoint(x: float, y: float, shape_flag: bool = false) -> bool:
 	if not shape_flag:
 		return getBounds(null).has_point(Vector2(x, y))
-	return _hit_shape(flash_global_transform().affine_inverse() * Vector2(x, y))
+	var lp := flash_global_transform().affine_inverse() * Vector2(x, y)
+	if native:
+		return ClassDB.class_call_static(&"SDTNative", &"hit_shape", self, lp, hb_gen)
+	return _hit_shape(lp)
+
+
+## The native extension (native/, game/bin/) is used for hot paths when loaded; --nonative forces the GDScript code.
+static var native: bool = ClassDB.class_exists(&"SDTNative") and not "--nonative" in OS.get_cmdline_user_args()
 
 
 ## p is in this object's local space.
