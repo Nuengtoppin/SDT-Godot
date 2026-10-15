@@ -716,10 +716,10 @@ func smartReplace(s: String, token: String, fn: Callable) -> String:
 	return re.sub(s, "", true)
 
 
-## Port extension, for readability: the text boxes are drawn 75% opaque (35-45% in the original), the
+## Port extension, for readability: the text boxes are drawn 50% opaque (35-45% in the original), the
 ## speaking-style text fully opaque (75%) and the thin dialogue font thickened. Box shape id -> its strongest fill
 ## alpha in the original art.
-const BOX_ALPHA := 0.75
+const BOX_ALPHA := 0.5
 const BOX_FILL_ALPHA := {38: 0.349, 44: 0.349, 45: 0.349, 46: 0.451}
 const TEXT_EMBOLDEN := 0.8
 
