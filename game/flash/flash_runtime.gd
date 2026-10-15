@@ -815,7 +815,7 @@ func _notification(what: int) -> void:
 		FlashSharedObject.flush_all()
 		FlashLibrary.drain_streaming()
 	if what == NOTIFICATION_PREDELETE:
-		free_orphaned_text_fields()
+		free_orphans_at_exit()
 
 
 func _set_focus(o: FlashDisplayObject) -> void:
@@ -829,14 +829,14 @@ func _set_focus(o: FlashDisplayObject) -> void:
 		o.dispatchEvent(FlashEvent.new(FlashEvent.FOCUS_IN, true))
 
 
-## Frees display-object subtrees that were removed from the display list but never freed (Flash would have
-## garbage-collected them) and contain text fields: called at shutdown, while the text server still exists.
-func free_orphaned_text_fields() -> void:
-	for id in FlashTextField._live.keys():
-		var tf = instance_from_id(id)
-		if tf == null or not is_instance_valid(tf) or tf.is_inside_tree():
+## Frees display-object subtrees that are off the scene tree at shutdown (removed or never added; Flash would have
+## garbage-collected them), while the engine's servers still exist.
+func free_orphans_at_exit() -> void:
+	for id in FlashDisplayObject.off_tree.keys():
+		var o = instance_from_id(id)
+		if o == null or not is_instance_valid(o) or o.is_inside_tree():
 			continue
-		var top: Node = tf
+		var top: Node = o
 		while top.get_parent() != null:
 			top = top.get_parent()
 		if not top.is_inside_tree() and not top.is_queued_for_deletion():

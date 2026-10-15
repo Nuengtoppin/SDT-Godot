@@ -34,17 +34,6 @@ var condense_white := false
 
 func _init() -> void:
 	_build_control()
-	_live[get_instance_id()] = true
-
-
-## Every text field alive, so the runtime can free orphaned ones before the engine shuts down (see
-## Flash.free_orphaned_text_fields): leaked text fields keep shaped text whose fonts the text server frees first.
-static var _live: Dictionary = {}
-
-
-func _notification(what: int) -> void:
-	if what == NOTIFICATION_PREDELETE:
-		_live.erase(get_instance_id())
 
 
 func setup_from_library(lib: FlashLibrary, c: Dictionary) -> void:

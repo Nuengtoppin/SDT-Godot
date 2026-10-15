@@ -31,6 +31,7 @@ var automaticControl: AutomaticControl
 var characterControl: CharacterControl
 var saveData: SaveData
 var customElementLoader: CustomElementLoader
+var modCatalog: ModCatalog   # port extension: mods offered in the pickers
 var dialogueControl: Dialogue
 var dialogueEditor: DialogueEditor
 var highlight: FlashFilter

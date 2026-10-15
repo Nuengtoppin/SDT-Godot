@@ -15,6 +15,9 @@ var loadedStatusString: String = ""
 var loadingErrorHandler: Callable
 var loadingSuccessHandler: Callable
 var loadingInitHandler: Callable
+## Port extension: the items of the package chosen from a picker (ModCatalog); empty = the whole package. Saved
+## as "<path>|<item>+<item>...".
+var items: Array = []
 
 
 func _init(pDataName: String, src: FlashFileReference = null) -> void:
@@ -76,7 +79,9 @@ func tryToLoadFilePath(p: String, onError: Callable = Callable(), onSuccess: Cal
 	l.contentLoaderInfo.addEventListener(FlashEvent.IO_ERROR, fileIOErrorHandler)
 	l.contentLoaderInfo.addEventListener(FlashEvent.COMPLETE, fileLoaderComplete)
 	l.contentLoaderInfo.addEventListener(FlashEvent.INIT, fileLoaderInit)
-	l.load(filePath)
+	if filePath.contains("|"):
+		items = Array(filePath.get_slice("|", 1).split("+")).map(func(v): return int(v))
+	l.load(filePath.get_slice("|", 0))
 	return l
 
 

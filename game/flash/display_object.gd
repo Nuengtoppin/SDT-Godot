@@ -335,6 +335,11 @@ var _gb_ok := false
 # tight when the runtime bumps hb_gen (twice a second). Valid when _hb_gen == hb_gen; an invalid object's
 # ancestors are always invalid.
 static var hb_gen := 0
+
+## Display objects currently outside the scene tree (created but never added, or removed). Flash's garbage
+## collector would eventually free the unreachable ones; here they stay alive, so at shutdown the runtime frees
+## whatever is still off the tree (Flash.free_orphans_at_exit) - leaked nodes crash the engine's final cleanup.
+static var off_tree: Dictionary = {}
 var _hb := Rect2()
 var _hb_gen := -1
 
@@ -566,7 +571,12 @@ func _notification(what: int) -> void:
 			_hb_notify_parent()
 		_gb_ok = false
 		return
+	if what == NOTIFICATION_POSTINITIALIZE or what == NOTIFICATION_EXIT_TREE:
+		off_tree[get_instance_id()] = true
+	elif what == NOTIFICATION_PREDELETE:
+		off_tree.erase(get_instance_id())
 	if what == NOTIFICATION_ENTER_TREE:
+		off_tree.erase(get_instance_id())
 		set_notify_local_transform(true)
 		xf_epoch += 1
 		_bounds_changed()

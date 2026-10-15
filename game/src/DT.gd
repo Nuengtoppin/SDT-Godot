@@ -206,6 +206,8 @@ func initGame() -> void:
 	g.container.addChild(inGameMenu)
 	customElementLoader.prepareModTargetElementsDictionary()
 	characterControl.registerComponents()
+	g.modCatalog = ModCatalog.new()
+	g.modCatalog.start()
 	g.dialogueEditor = DialogueEditor.new()
 	g.container.addChild(g.dialogueEditor)
 	addEventListener(FlashEvent.ENTER_FRAME, tick)

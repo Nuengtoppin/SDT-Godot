@@ -24,6 +24,10 @@ var rgb2 = {"r": 0, "g": 0, "b": 0, "a": 1}
 var components: Array = []
 var associatedModType := ""
 var listeners: Array = []
+## Port extension: mod items from the Mods folders offered after the built-in options (see ModCatalog), and the
+## one currently applied through this picker (-1: a built-in option is selected).
+var modEntries: Array = []
+var modEntryIndex := -1
 
 
 func _init(names: Array, selecter: Callable = Callable(), filler: Callable = Callable(), finder: Callable = Callable()) -> void:
@@ -196,6 +200,7 @@ func registerMenuList(ml) -> void:
 	updateMenuList = func(n: String = "") -> void:
 		if not n:
 			n = String(elementNameList[selection])
+			modEntryIndex = -1
 		var label = menuList.itemLabel
 		label.text = n
 		label.scaleX = 1
@@ -211,11 +216,22 @@ func registerMenuList(ml) -> void:
 
 
 func _step(d: int) -> void:
-	var i := maxi(0, mini(elementNameList.size() - 1, selection + d))
+	var n := elementNameList.size()
+	var cur := n + modEntryIndex if modEntryIndex >= 0 else selection
+	var i := maxi(0, mini(n + modEntries.size() - 1, cur + d))
 	if associatedModType:
 		g.customElementLoader.clearModTypes([associatedModType])
-	select(i)
-	updateMenuList.call()
+	if modEntryIndex >= 0 and modEntryIndex < modEntries.size():
+		g.modCatalog.remove(modEntries[modEntryIndex])
+	modEntryIndex = -1
+	if i < n:
+		select(i)
+		updateMenuList.call()
+	else:
+		findName("None")
+		g.modCatalog.apply(modEntries[i - n])
+		modEntryIndex = i - n
+		updateMenuList.call(modEntries[i - n]["title"])
 	g.saveData.saveCharData()
 
 

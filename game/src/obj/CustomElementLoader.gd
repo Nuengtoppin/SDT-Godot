@@ -125,7 +125,22 @@ func tryModLoadingErrorHandler(_e = null) -> void:
 
 func tryModLoadingInitHandler(e: FlashEvent) -> void:
 	var content = e.target.content
-	if _p(content, "MOD_VERSION"):
+	if _p(content, "MOD_VERSION") and not loadingModPackage.items.is_empty():
+		# items chosen from a picker (ModCatalog)
+		var mods = _p(content, "mods")
+		if mods is Array:
+			loadingModPackage.setModDetails(_p(content, "modName"), _p(content, "modCreator"))
+			var keep := blockSwfCharData
+			blockSwfCharData = true
+			for i in loadingModPackage.items:
+				if i < mods.size():
+					parseMod(mods[i])
+			blockSwfCharData = keep
+			loadingModPackage.applyStatusString()
+			updateInstancedModElements()
+			if g.modCatalog:
+				g.modCatalog.mark_selected(loadingModPackage.filePath.get_slice("|", 0), loadingModPackage.items)
+	elif _p(content, "MOD_VERSION"):
 		parseMod(content)
 		loadingModPackage.applyStatusString()
 		updateInstancedModElements()

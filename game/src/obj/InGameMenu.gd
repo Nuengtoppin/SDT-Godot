@@ -1109,16 +1109,34 @@ func setCBAuto():
 
 
 func hairLeftClicked(param1 = null):
-	var _loc2_ = max(0,min(charNames.size() - 1,g.characterControl.currentHair - 1))
-	g.characterControl.setHair(_loc2_)
-	updateHairList()
-	g.saveData.saveCharData()
+	_stepHair(-1)
 
 
 func hairRightClicked(param1 = null):
-	var _loc2_ = max(0,min(charNames.size() - 1,g.characterControl.currentHair + 1))
-	g.characterControl.setHair(_loc2_)
-	updateHairList()
+	_stepHair(1)
+
+
+## Port extension: after the built-in hairstyles the hair picker offers hair mods from the Mods folders
+## (see ModCatalog); hairModIndex is the one applied through the picker (-1: a built-in hairstyle).
+var hairModIndex := -1
+
+
+func _stepHair(d: int) -> void:
+	var n: int = charNames.size()
+	var mods: Array = g.modCatalog.hair_entries if g.modCatalog else []
+	var cur: int = n + hairModIndex if hairModIndex >= 0 else g.characterControl.currentHair
+	var i: int = max(0, min(n + mods.size() - 1, cur + d))
+	if i < n:
+		hairModIndex = -1
+		g.characterControl.setHair(i)
+		updateHairList()
+	else:
+		if hairModIndex < 0:
+			g.characterControl.clearHair()
+		g.customElementLoader.clearModTypes([ModTypes.HAIR, ModTypes.DYNAMIC_HAIR])
+		g.modCatalog.apply(mods[i - n])
+		hairModIndex = i - n
+		customMenu.mlHair.itemLabel.text = mods[i - n]["title"]
 	g.saveData.saveCharData()
 
 

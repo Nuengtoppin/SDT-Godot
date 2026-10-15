@@ -29,14 +29,24 @@ static func _loader_handler(path: String, bytes: PackedByteArray) -> FlashDispla
 	return mod.instantiate_root()
 
 
+static var _loaded: Dictionary = {}   # digest -> FlashSwfMod (each file's library is loaded once)
+
+
+## True if 'dir' holds a conversion made by the current converter.
+static func is_converted(dir: String) -> bool:
+	if not FileAccess.file_exists(dir.path_join("library.json")):
+		return false
+	var info = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("library.json")))
+	return info != null and int(info.get("converterVersion", 0)) == CONVERTER_VERSION
+
+
 ## Converts (or reuses the cached conversion of) a SWF and loads it as a library.
 static func load_mod(bytes: PackedByteArray, source_path: String = "") -> FlashSwfMod:
 	var digest := _sha256(bytes)
+	if _loaded.has(digest):
+		return _loaded[digest]
 	var dir := CACHE_ROOT.path_join(digest)
-	var info = null
-	if FileAccess.file_exists(dir.path_join("library.json")):
-		info = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join("library.json")))
-	if info == null or int(info.get("converterVersion", 0)) != CONVERTER_VERSION:
+	if not is_converted(dir):
 		var t0 := Time.get_ticks_msec()
 		if not convert_swf(bytes, dir, Flash.base_library.scale if Flash.base_library else 2.0):
 			push_error("SWF mod: could not convert %s" % source_path)
@@ -46,6 +56,7 @@ static func load_mod(bytes: PackedByteArray, source_path: String = "") -> FlashS
 	if lib == null:
 		return null
 	var mod := FlashSwfMod.new()
+	_loaded[digest] = mod
 	mod.library = lib
 	lib.is_mod = true
 	lib.mod = mod
