@@ -80,10 +80,12 @@ func _init():
 	var _loc3_ = null
 	y = slideOut
 	storedCharsBackup = FlashFileReference.new()
+	storedCharsBackup.start_dir = Flash.mods_dir("Characters")
 	storedCharsBackup.addEventListener(FlashEvent.COMPLETE,storedCharsCompleteHandler)
 	storedCharsBackup.addEventListener(FlashEvent.SELECT,storedCharsSelectHandler)
 	storedCharsBackup.addEventListener(FlashEvent.CANCEL,storedCharsCancelHandler)
 	dialogueFile = FlashFileReference.new()
+	dialogueFile.start_dir = Flash.mods_dir("Dialogue")
 	dialogueFile.addEventListener(FlashEvent.COMPLETE,dialogueCompleteHandler)
 	dialogueFile.addEventListener(FlashEvent.SELECT,dialogueSelectHandler)
 	dialogueFile.addEventListener(FlashEvent.CANCEL,dialogueCancelHandler)

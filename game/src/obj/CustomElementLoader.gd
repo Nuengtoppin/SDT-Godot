@@ -44,13 +44,16 @@ var loadedModPackages: Array = []
 
 func _init() -> void:
 	hairImageFile = FlashFileReference.new()
+	hairImageFile.start_dir = Flash.mods_dir("Hair")
 	hairImageFile.addEventListener(FlashEvent.COMPLETE, hairCompleteHandler)
 	hairImageFile.addEventListener(FlashEvent.SELECT, hairSelectHandler)
 	bgImageFile = FlashFileReference.new()
+	bgImageFile.start_dir = Flash.mods_dir("Backgrounds")
 	bgImageFile.addEventListener(FlashEvent.COMPLETE, bgCompleteHandler)
 	bgImageFile.addEventListener(FlashEvent.SELECT, bgSelectHandler)
 	bgImageFile.addEventListener(FlashEvent.CANCEL, cancelHandler)
 	modFileList = FlashFileReferenceList.new()
+	modFileList.start_dir = Flash.mods_dir("Clothing")
 	modFileList.addEventListener(FlashEvent.SELECT, modSelectHandler)
 	modFileList.addEventListener(FlashEvent.CANCEL, modCancelHandler)
 

@@ -140,6 +140,7 @@ func _init() -> void:
 	mbSortLines.labelContainer.buttonLabel.text = "Sort lines"
 	mbSortLines.addEventListener(FlashEvent.CLICK, sortLinesClicked)
 	dialogueFile = FlashFileReference.new()
+	dialogueFile.start_dir = Flash.mods_dir("Dialogue")
 	dialogueFile.addEventListener(FlashEvent.COMPLETE, dialogueCompleteHandler)
 	dialogueFile.addEventListener(FlashEvent.SELECT, dialogueSelectHandler)
 	dialogueFile.addEventListener(FlashEvent.CANCEL, dialogueCancelHandler)

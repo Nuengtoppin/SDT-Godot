@@ -66,8 +66,9 @@ func _ready() -> void:
 	_setup_frame_monitor()
 	base_library = load_library(BASE_LIBRARY)
 	FlashSwfMod.register()
-	if not DirAccess.dir_exists_absolute(mods_dir()):
-		DirAccess.make_dir_recursive_absolute(mods_dir())
+	for sub in MOD_FOLDERS:
+		if not DirAccess.dir_exists_absolute(mods_dir(sub)):
+			DirAccess.make_dir_recursive_absolute(mods_dir(sub))
 	stage = FlashStage.new()
 	stage.name = "Stage"
 	stage.flash_name = "root1"
@@ -964,9 +965,16 @@ func content_root() -> String:
 	return OS.get_executable_path().get_base_dir()
 
 
-## Folder for mods (.swf mods, custom hair / background images): Mods/ next to the game. File dialogs start here.
-func mods_dir() -> String:
-	return content_root().path_join("Mods")
+## Mods/ next to the game, organised by purpose. The folders only decide where file dialogs open: what a mod
+## does is read from the file itself, so a mod works from any folder. Plugins/ is reserved for mods that change
+## the game (loaded automatically at startup once supported).
+const MOD_FOLDERS := ["Clothing", "Hair", "Backgrounds", "Characters", "Dialogue", "Plugins"]
+
+
+## Mods/ (or one of its MOD_FOLDERS) next to the game.
+func mods_dir(sub: String = "") -> String:
+	var d := content_root().path_join("Mods")
+	return d.path_join(sub) if sub != "" else d
 
 
 func resolve_content_path(url: String) -> String:

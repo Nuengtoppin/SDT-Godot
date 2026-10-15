@@ -9,7 +9,10 @@ var _path: String = ""
 var _save_bytes: PackedByteArray
 var _dialog: FileDialog = null
 
-static var last_dir: String = ""
+## Folder the file dialog opens in (not part of the Flash API; the game sets one per purpose, see
+## Flash.MOD_FOLDERS). Each reference then remembers the folder it was last used in.
+var start_dir: String = ""
+var _last_dir: String = ""
 
 
 ## filters: Array of {description, extension} like FileFilter ("*.txt;*.swf").
@@ -53,7 +56,7 @@ func _filters_to_godot(filters: Array) -> PackedStringArray:
 
 
 func _open(saving: bool, default_name: String, filters: PackedStringArray) -> void:
-	var start := last_dir if last_dir != "" else Flash.mods_dir()
+	var start := _last_dir if _last_dir != "" else (start_dir if start_dir != "" else Flash.mods_dir())
 	var mode := DisplayServer.FILE_DIALOG_MODE_SAVE_FILE if saving else DisplayServer.FILE_DIALOG_MODE_OPEN_FILE
 	if DisplayServer.has_feature(DisplayServer.FEATURE_NATIVE_DIALOG_FILE):
 		DisplayServer.file_dialog_show("Save file" if saving else "Open file", start, default_name, false, mode,
@@ -83,7 +86,7 @@ func _picked(saving: bool, ok: bool, paths: PackedStringArray) -> void:
 		return
 	_path = paths[0]
 	name = _path.get_file()
-	last_dir = _path.get_base_dir()
+	_last_dir = _path.get_base_dir()
 	if saving:
 		dispatchEvent(FlashEvent.new(FlashEvent.SELECT))
 		var f := FileAccess.open(_path, FileAccess.WRITE)

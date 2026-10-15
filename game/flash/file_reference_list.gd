@@ -4,6 +4,9 @@ extends FlashEventDispatcher
 ## each to read it). Events: select, cancel.
 
 var fileList: Array = []
+## Folder the file dialog opens in (see FlashFileReference.start_dir); then the last folder used.
+var start_dir: String = ""
+var _last_dir: String = ""
 
 
 func browse(filters: Array = []) -> bool:
@@ -12,8 +15,7 @@ func browse(filters: Array = []) -> bool:
 		var desc: String = f.get("description", "") if f is Dictionary else str(f)
 		var ext: String = f.get("extension", "*.*") if f is Dictionary else "*.*"
 		godot_filters.append(ext.replace(";", ",") + ";" + desc)
-	var start := FlashFileReference.last_dir if FlashFileReference.last_dir != "" \
-		else Flash.mods_dir()
+	var start := _last_dir if _last_dir != "" else (start_dir if start_dir != "" else Flash.mods_dir())
 	if DisplayServer.has_feature(DisplayServer.FEATURE_NATIVE_DIALOG_FILE):
 		DisplayServer.file_dialog_show("Open files", start, "", false, DisplayServer.FILE_DIALOG_MODE_OPEN_FILES,
 			godot_filters, func(ok: bool, paths: PackedStringArray, _f: int): _picked(ok, paths))
@@ -41,5 +43,5 @@ func _picked(ok: bool, paths: PackedStringArray) -> void:
 		fr._path = p
 		fr.name = p.get_file()
 		fileList.append(fr)
-	FlashFileReference.last_dir = paths[0].get_base_dir()
+	_last_dir = paths[0].get_base_dir()
 	dispatchEvent(FlashEvent.new(FlashEvent.SELECT))
