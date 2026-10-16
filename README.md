@@ -3,8 +3,11 @@
 A port of the Flash game *SDT* to the Godot engine (4.7). It aims to stay faithful to the original while being
 easier to extend (mods, new features) and running much faster than the Flash version.
 
+**Adult content (18+).** The game is sexually explicit.
+
 The game's art, sounds and fonts are included, already converted from the original `SDT.swf` into
-`game/assets/sdt/`, so the original game is not needed to play.
+`game/assets/sdt/`, so the original game is not needed to play. They belong to the original game's author and are
+not covered by this repository's license. If you are a rights holder and want them removed, please open an issue.
 
 ## Layout
 
@@ -17,19 +20,26 @@ The game's art, sounds and fonts are included, already converted from the origin
 - `game/assets/sdt/`: the converted game assets (shapes, sounds, fonts, timelines in `library.json`).
 - `game/bin/`: the native extension, prebuilt for Windows (debug and release DLLs).
 - `tools/swfconv/`: converts `SDT.swf` into the asset library (only needed to regenerate `game/assets/sdt/`).
-- `docs/`: development notes.
-- `Mods/`: created next to the game on first run, with `Clothing`, `Hair`, `Backgrounds`, `Characters`,
-  `Dialogue` and `Plugins` folders. Vanilla SDT `.swf` mods placed there show up in the in-game pickers.
+- `tools/porting/`: one-off scripts used while porting the ActionScript (kept for reference).
+- `Mods/`: created on first run in the repository root (next to `run_debug.bat`; next to the executable in an
+  exported build), with `Clothing`, `Hair`, `Backgrounds`, `Characters`, `Dialogue` and `Plugins` folders.
+  Vanilla SDT `.swf` mods placed there show up in the in-game pickers.
 
 ## Running
 
 1. Install [Godot 4.7.2](https://godotengine.org/download/archive/4.7.2-stable/) (the standard version, not .NET).
-2. Tell `run_debug.bat` where Godot is: put the Godot folder on PATH as `godot.exe`, set the `GODOT` environment
-   variable, or create `run_debug.local.bat` next to it containing
-   `set GODOT=C:\path\to\Godot_v4.7.2-stable_win64_console.exe`.
+2. Tell `run_debug.bat` where Godot is, in one of these ways:
+   - create `run_debug.local.bat` next to it containing
+     `set GODOT=C:\path\to\Godot_v4.7.2-stable_win64_console.exe` (the console version shows the log), or
+   - set the `GODOT` environment variable to that path, or
+   - copy or rename the Godot executable to `godot.exe` in a folder on PATH.
 3. Run `run_debug.bat`. The first run imports the assets once (a few minutes), then the game starts.
 
 You can also open `game/` in the Godot editor and press F5.
+
+The ready-to-run setup is for **Windows** (the launcher and the prebuilt native extension). On Linux or macOS, run
+`godot --headless --path game --import` once, then `godot --path game`. There is no prebuilt native extension for
+those systems yet: Godot reports the missing library and the game uses its slower GDScript code instead.
 
 ## Regenerating the assets (optional)
 
@@ -62,5 +72,11 @@ can be ignored.
 
 Enable the pre-push check once per clone: `git config core.hooksPath .githooks`. It blocks pushes whose new commits
 contain personal information: author emails other than no-reply addresses, other email addresses, user-profile
-paths, and anything matching your own patterns in `.git/info/personal-patterns`. That file stays local; list your
-real name, emails and folder names there, one regex per line.
+paths, commit times outside UTC, and anything matching your own patterns in `.git/info/personal-patterns`. That
+file stays local; list your real name, emails and folder names there, one regex per line.
+
+If it blocks a push, fix the commits first (they are not on the remote yet): `git commit --amend` for the last one,
+an interactive rebase for older ones, or `git filter-repo --mailmap / --replace-text` for many. To commit in UTC,
+set `TZ=UTC` in the environment (Git Bash: `TZ=UTC git commit ...`).
+
+Code contributions are licensed under the MIT license (see `LICENSE`).

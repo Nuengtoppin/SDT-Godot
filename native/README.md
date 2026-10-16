@@ -17,8 +17,8 @@ Requirements: MinGW-w64 g++ (e.g. the one in Strawberry Perl, `C:\Strawberry\c\b
 
 ```
 cd native
-../tools/.venv/Scripts/scons platform=windows use_mingw=yes target=template_debug -j12     # running from the editor binary
-../tools/.venv/Scripts/scons platform=windows use_mingw=yes target=template_release -j12   # exported builds
+../tools/.venv/Scripts/scons platform=windows use_mingw=yes target=template_debug -j8     # running from the editor binary
+../tools/.venv/Scripts/scons platform=windows use_mingw=yes target=template_release -j8   # exported builds
 ```
 
 The first build compiles godot-cpp (several minutes). `extension_api.json` is dumped from the engine binary the game

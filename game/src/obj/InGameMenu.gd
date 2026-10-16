@@ -2,7 +2,7 @@ class_name InGameMenu
 extends FlashMovieClip
 ## Port of obj.InGameMenu: the slide-up options drawer (scene / customisation / modding / options / help tabs),
 ## colour pickers, character save string (getSaveDataString / loadData) and stored-character backups.
-## Drafted with tools/as3_to_gd.py and reviewed by hand against the original.
+## Drafted with tools/porting/as3_to_gd.py and reviewed by hand against the original.
 
 var tabLabels
 var helpMenu

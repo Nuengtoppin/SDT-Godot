@@ -6,7 +6,6 @@
 # Godot
 .godot/
 *.import
-!game/**/*.svg.import
 
 # Tool environments
 /tools/.venv/
@@ -28,6 +27,7 @@ __pycache__/
 # Mods folder used when running from the repo (Flash.mods_dir)
 /Mods/
 
-# Local, machine-specific files
+# Local, machine-specific files and private working notes
+/notes/
 /user/
 /run_debug.local.bat
