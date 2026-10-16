@@ -6,5 +6,10 @@ rem Godot: the GODOT environment variable, else run_debug.local.bat next to this
 rem contain e.g.  set GODOT=C:\path\to\Godot_v4.7.2-stable_win64_console.exe), else godot.exe on PATH.
 if not defined GODOT if exist "%~dp0run_debug.local.bat" call "%~dp0run_debug.local.bat"
 if not defined GODOT set GODOT=godot.exe
+rem First run after downloading: Godot imports the assets once (a few minutes) before the game can start.
+if not exist "%~dp0game\.godot\imported" (
+	echo First run: importing the game assets, this takes a few minutes...
+	"%GODOT%" --headless --path "%~dp0game" --import
+)
 "%GODOT%" --path "%~dp0game" %*
 if errorlevel 1 pause

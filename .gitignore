@@ -1,7 +1,7 @@
-# Original game binary and everything derived from it (regenerate with tools/swfconv, see README)
+# Original game binary and the decompiler's export (not needed to run: the converted assets in game/assets/sdt are
+# included; regenerate them with tools/swfconv, see README)
 /original/
 /extracted/
-/game/assets/sdt/
 
 # Godot
 .godot/
@@ -20,6 +20,8 @@ __pycache__/
 /native/src/*.o
 /native/.sconsign*.dblite
 /game/bin/*.dll
+!/game/bin/sdt_native.windows.template_debug.x86_64.dll
+!/game/bin/sdt_native.windows.template_release.x86_64.dll
 /game/bin/*.a
 /game/bin/*.so
 
