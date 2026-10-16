@@ -1,9 +1,8 @@
 extends RefCounted
 ## Scripted checks (main.gd --driver, use with --save-dir): an overwriting mod clearing the layer with a
 ## character's rope hair, then hair / character changes after the killed elements' disposal delay (used to hit freed
-## objects); text decoding; Flash .sol import guard. Prints "CHECK <name>: <result>".
+## objects); text decoding; Flash .sol import guard (SDT_SOL_DIR). Prints "CHECK <name>: <result>".
 
-const SOL_DIR := "Macromedia/Flash Player/#SharedObjects/<flash-id>/localhost/<loader-pack>/Loader5.45/SDT.swf"
 var _t := 0
 var _android := -1
 
@@ -64,8 +63,13 @@ func _decoding() -> void:
 		_check("decode " + k, "%s %s" % [s.c_escape(), Array(s.to_utf32_buffer().to_int32_array())])
 
 
+## Folder of a Flash save to test the .sol import with (SDT_SOL_DIR environment variable, e.g.
+## %APPDATA%/Macromedia/Flash Player/#SharedObjects/<id>/localhost/<path>/SDT.swf); skipped when not set.
 func _sol() -> void:
-	var dir := OS.get_environment("APPDATA").path_join(SOL_DIR)
+	var dir := OS.get_environment("SDT_SOL_DIR")
+	if dir == "":
+		_check("sol", "skipped (SDT_SOL_DIR not set)")
+		return
 	for f in ["ChoIrrumatio.sol", "ChoIrrumatio_thumbs.sol"]:
 		var p := dir.path_join(f)
 		if not FileAccess.file_exists(p):

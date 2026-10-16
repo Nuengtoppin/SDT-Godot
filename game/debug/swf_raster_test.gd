@@ -3,7 +3,7 @@ extends Node
 ## Run: godot --headless --path game res://debug/swf_raster_test.tscn -- [--swf=path] [--n=200] [--out=dir]
 
 func _ready() -> void:
-	var swf_path := "extracted/SDT.swf"
+	var swf_path := ProjectSettings.globalize_path("res://").path_join("../extracted/SDT.swf").simplify_path()
 	var n := 200
 	var out_dir := ""
 	for a in OS.get_cmdline_user_args():

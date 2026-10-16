@@ -25,3 +25,7 @@ __pycache__/
 
 # Mods folder used when running from the repo (Flash.mods_dir)
 /Mods/
+
+# Local, machine-specific files
+/user/
+/run_debug.local.bat
