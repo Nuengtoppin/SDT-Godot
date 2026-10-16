@@ -1,0 +1,71 @@
+#!/bin/sh
+# Blocks a push when an outgoing commit contains personal information.
+#
+# Checks every commit being pushed:
+#   - author / committer email must be a no-reply address (*@users.noreply.github.com, noreply@*)
+#   - author / committer names, commit messages and added lines must not match:
+#       * the patterns in .git/info/personal-patterns (one extended regex per line, case-insensitive, '#' comments;
+#         this file lives inside .git, so it is never pushed - put real names, emails, folder names there)
+#       * built-in patterns: email addresses other than no-reply ones, Windows user-profile paths
+# Binary files are not scanned.
+#
+# Enable in a clone with:  git config core.hooksPath .githooks
+# Bypass for one push (only if a match is a false positive):  git push --no-verify
+# To remove personal info from commits that are not pushed yet: git commit --amend, or a rebase, or
+# git filter-repo --mailmap / --replace-text (see README "Contributing").
+
+zero=0000000000000000000000000000000000000000
+patterns_file="$(git rev-parse --git-dir)/info/personal-patterns"
+user_patterns=""
+if [ -f "$patterns_file" ]; then
+	user_patterns=$(grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' "$patterns_file" | paste -sd '|' -)
+fi
+builtin='[A-Za-z]:[\/]+Users[\/]+[^\/ "]+|/(c|home|Users)/[a-z][a-z0-9_.-]+/(AppData|Desktop|Documents|Downloads)'
+email='[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+noreply='(users\.noreply\.github\.com|noreply@[A-Za-z0-9.-]+|example\.(com|org))'
+
+# matches are collected in a file: the reporting loops below run in pipeline subshells
+hits=$(mktemp)
+trap 'rm -f "$hits"' EXIT
+report() {
+	echo "  $1" >> "$hits"
+}
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+	[ "$local_sha" = "$zero" ] && continue   # deleting a branch
+	if [ "$remote_sha" = "$zero" ]; then
+		range="$local_sha --not --remotes"
+	else
+		range="$remote_sha..$local_sha"
+	fi
+	for c in $(git rev-list $range); do
+		short=$(git rev-parse --short "$c")
+		ids=$(git log -1 --format='%an <%ae>%n%cn <%ce>' "$c")
+		for e in $(git log -1 --format='%ae %ce' "$c"); do
+			echo "$e" | grep -Eqi "$noreply" || report "$short: author/committer email $e is not a no-reply address"
+		done
+		msg=$(git log -1 --format=%B "$c")
+		added=$(git show --format= --no-color --no-ext-diff --unified=0 "$c" | grep '^+' | grep -v '^+++ ')
+		text=$(printf '%s\n%s\n%s\n' "$ids" "$msg" "$added")
+		if [ -n "$user_patterns" ]; then
+			printf '%s\n' "$text" | grep -Eio "$user_patterns" | sort -u | while read -r m; do
+				report "$short: matches a personal pattern: $m"
+			done
+		fi
+		printf '%s\n' "$msg
+$added" | grep -Eo "$builtin" | sort -u | while read -r m; do
+			report "$short: user-profile path: $m"
+		done
+		printf '%s\n' "$msg
+$added" | grep -Eo "$email" | grep -Evi "$noreply" | sort -u | while read -r m; do
+			report "$short: email address: $m"
+		done
+	done
+done
+
+[ -s "$hits" ] || exit 0
+echo "pre-push: personal information found in commits being pushed:" >&2
+sort -u "$hits" >&2
+echo "Push blocked. Remove the information from those commits (they are not on the remote yet), or use" >&2
+echo "'git push --no-verify' if every match is a false positive." >&2
+exit 1

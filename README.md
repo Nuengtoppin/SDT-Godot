@@ -57,3 +57,10 @@ godot --headless --path game -- --save-dir=/tmp/sdt-test --driver=res://debug/st
 
 `tools/check_all.sh` parse-checks every script. It reports "Identifier not found: Flash / g" for autoloads, which
 can be ignored.
+
+## Contributing
+
+Enable the pre-push check once per clone: `git config core.hooksPath .githooks`. It blocks pushes whose new commits
+contain personal information: author emails other than no-reply addresses, other email addresses, user-profile
+paths, and anything matching your own patterns in `.git/info/personal-patterns`. That file stays local; list your
+real name, emails and folder names there, one regex per line.
