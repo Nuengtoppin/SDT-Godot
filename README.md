@@ -70,13 +70,4 @@ can be ignored.
 
 ## Contributing
 
-Enable the pre-push check once per clone: `git config core.hooksPath .githooks`. It blocks pushes whose new commits
-contain personal information: author emails other than no-reply addresses, other email addresses, user-profile
-paths, commit times outside UTC, and anything matching your own patterns in `.git/info/personal-patterns`. That
-file stays local; list your real name, emails and folder names there, one regex per line.
-
-If it blocks a push, fix the commits first (they are not on the remote yet): `git commit --amend` for the last one,
-an interactive rebase for older ones, or `git filter-repo --mailmap / --replace-text` for many. To commit in UTC,
-set `TZ=UTC` in the environment (Git Bash: `TZ=UTC git commit ...`).
-
 Code contributions are licensed under the MIT license (see `LICENSE`).
