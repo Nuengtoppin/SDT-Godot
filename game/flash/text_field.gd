@@ -17,8 +17,9 @@ var _font: Font = null
 ## Port extension (not in Flash): thickens the glyphs (FontVariation.variation_embolden), e.g. for thin fonts.
 var embolden := 0.0:
 	set(value):
-		embolden = value
-		_apply_format()
+		if value != embolden:
+			embolden = value
+			_apply_format()
 var _font_size: float = 12.0
 var _color := Color.BLACK
 var _align := "left"

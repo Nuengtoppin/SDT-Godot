@@ -677,8 +677,8 @@ func startSpeakingPhrase(line: DialogueLine) -> void:
 		typingSpeed = int(snd.length / p.length()) if p.length() > 0 else DEFAULT_TYPING_SPEED
 	else:
 		typingSpeed = DEFAULT_TYPING_SPEED
-	# A typing speed of 0 would stall the per-millisecond divide; Flash's uint division by zero gave a huge
-	# tick count, i.e. the whole line at once.
+	# port: in Flash a typing speed of 0 (audio shorter than the text) gave uint(Infinity) = 0 characters per
+	# tick, so the line stalled; here it types at the fastest speed instead.
 	typingSpeed = maxi(1, typingSpeed)
 	nextLineTimer = 0
 	typingDelay = 0
@@ -716,8 +716,8 @@ func smartReplace(s: String, token: String, fn: Callable) -> String:
 	return re.sub(s, "", true)
 
 
-## Port extension, for readability: the text boxes are drawn 50% opaque (35-45% in the original), the
-## speaking-style text fully opaque (75%) and the thin dialogue font thickened. Box shape id -> its strongest fill
+## Port extension, for readability: the text boxes are drawn 50% opaque (35-45% in the original), the text
+## fully opaque (75% for speaking and thought lines) and the thin dialogue font thickened. Box shape id -> its strongest fill
 ## alpha in the original art.
 const BOX_ALPHA := 0.5
 const BOX_FILL_ALPHA := {38: 0.349, 44: 0.349, 45: 0.349, 46: 0.451}
@@ -730,8 +730,7 @@ func _gotoStyle(label: String) -> void:
 		var c = getChildAt(i)
 		if c is FlashShape and BOX_FILL_ALPHA.has(c._char_id):
 			c.alpha = BOX_ALPHA / BOX_FILL_ALPHA[c._char_id]
-	if label == "speaking":
-		tfContainer.alpha = 1.0
+	tfContainer.alpha = 1.0
 	tfContainer.dialogueField.embolden = TEXT_EMBOLDEN
 
 

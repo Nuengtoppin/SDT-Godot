@@ -148,8 +148,10 @@ func update_layout() -> void:
 	_rect = Rect2(b.position, Vector2(_vp.size) / s)
 	# Text inside is rasterized at the render target's scale instead of being drawn at its point size and
 	# magnified (blurry), like 2D oversampling does in the main viewport.
-	if absf(_vp.oversampling_override - s) > 0.01:
-		_vp.oversampling_override = s
+	# Quantized up to 1/8 steps so an animated scale does not re-rasterize the glyphs every tick.
+	var os := ceilf(s * 8.0) / 8.0
+	if _vp.oversampling_override != os:
+		_vp.oversampling_override = os
 	_px_scale = s
 	# Shadow / blur parameters are in render-target pixels (= screen pixels).
 	var stretch := Flash.screen_scale()

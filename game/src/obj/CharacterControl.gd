@@ -354,6 +354,8 @@ func setBackground(id: int) -> void:
 	g.customElementLoader.clearModTypes([ModTypes.BACKGROUND])
 	g.bg.gotoAndStop(id)
 	g.bgID = id
+	g.inGameMenu.bgModIndex = -1  # port: the background picker shows the built-in background again
+	g.inGameMenu.updateBGPicker()
 
 
 func initHim() -> void:
@@ -364,9 +366,15 @@ func initHim() -> void:
 
 func clearElements() -> void:
 	for e in currentElements:
+		if not is_instance_valid(e):
+			continue
 		e.removeEventListener("toggled", currentElementToggled)
 		e.kill()
+	var old := currentElements
 	currentElements = []
+	for e in old:
+		if is_instance_valid(e):
+			Flash.dispose_later(e)  # killed earlier while still listed (CostumeElement._can_dispose)
 	g.strandControl.checkCostumeAnchors()
 	g.costumeHitElements = []
 
@@ -485,6 +493,7 @@ func setHair(id: int, withEyebrows: bool = true) -> void:
 		customHairLoaded = false
 	g.customElementLoader.clearModTypes([ModTypes.HAIR, ModTypes.DYNAMIC_HAIR, ModTypes.HAIR_COSTUME])
 	clearElements()
+	g.inGameMenu.hairModIndex = -1  # port: the hair picker is on a built-in hairstyle again
 	var c: Character = characters[id]
 	g.her.hairTop.gotoAndStop(c.hairTop)
 	g.her.hairMidContainer.hairUnder.gotoAndStop(c.hairUnder)

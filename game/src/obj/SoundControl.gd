@@ -86,7 +86,8 @@ func _pan(p: float) -> float:
 	return maxf(leftPan, minf(rightPan, p * 2.0 - 1.0))
 
 
-## Picks a random index different from 'last' (the original loops until it differs).
+## Picks a random index different from 'last' (the original loops until it differs). port: with one sound or none
+## it returns 0 instead of looping forever as the original would.
 static func _pick(list: Array, last: int) -> int:
 	if list.size() <= 1:
 		return 0

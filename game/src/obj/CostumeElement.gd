@@ -83,6 +83,21 @@ func clicked(_e = null) -> void:
 		dispatchEvent(FlashEvent.new("toggled"))
 
 
+## Flash.dispose_later policy: a killed element the game still lists (the character's hair elements after an
+## overwriting hair mod killed them, a mod package's element) stays alive, as in Flash.
+func _can_dispose() -> bool:
+	if g.characterControl.currentElements.has(self):
+		return false
+	for m in g.customElementLoader.instancedModElements:
+		if m._mod == self:
+			return false
+	for pkg in g.customElementLoader.loadedModPackages:
+		for m in pkg.modElements:
+			if m._mod == self:
+				return false
+	return true
+
+
 func kill() -> void:
 	if toggleable:
 		makeUnToggleable()

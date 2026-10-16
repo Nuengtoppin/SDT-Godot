@@ -183,13 +183,17 @@ func getDefaultRGB2():
 
 
 func readRGB(vals: Array, fillName: String) -> void:
+	# AS3 Number(): "" is 0, spaces and hex are accepted; anything else (or a missing value) is NaN = rejected
+	var v: Array = []
 	for i in 4:
-		if not String(vals[i]).is_valid_float():
+		var x := AS3.Number(vals[i]) if i < vals.size() and vals[i] != null else NAN
+		if is_nan(x):
 			return
-	var r := Maths.round(maxf(0.0, minf(255.0, float(vals[0]))))
-	var gg := Maths.round(maxf(0.0, minf(255.0, float(vals[1]))))
-	var b := Maths.round(maxf(0.0, minf(255.0, float(vals[2]))))
-	var a := maxf(0.0, minf(1.0, float(vals[3])))
+		v.append(x)
+	var r := Maths.round(maxf(0.0, minf(255.0, v[0])))
+	var gg := Maths.round(maxf(0.0, minf(255.0, v[1])))
+	var b := Maths.round(maxf(0.0, minf(255.0, v[2])))
+	var a := maxf(0.0, minf(1.0, v[3]))
 	setFill({"r": int(r), "g": int(gg), "b": int(b), "a": a}, fillName)
 
 
@@ -224,6 +228,8 @@ func _step(d: int) -> void:
 	var n := elementNameList.size()
 	var cur := n + modEntryIndex if modEntryIndex >= 0 else selection
 	var i := maxi(0, mini(n + modEntries.size() - 1, cur + d))
+	if i == cur and i >= n:
+		return
 	if associatedModType:
 		g.customElementLoader.clearModTypes([associatedModType])
 	if modEntryIndex >= 0 and modEntryIndex < modEntries.size():

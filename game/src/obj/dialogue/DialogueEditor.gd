@@ -258,8 +258,8 @@ func deleteClicked(_e = null) -> void:
 		lines.erase(l)
 	updateLines()
 	lastSelectedLine = mini(lines.size() - 1, lastSelectedLine)
-	# The original loop only stepped back over lines of the other mode and never exited otherwise (a hang);
-	# stop at the first line in the current mode instead.
+	# port: the original loop only stepped back over lines of the other mode and never exited otherwise (a
+	# hang); stop at the first line in the current mode instead.
 	while lastSelectedLine > -1 and not _inMode(lines[lastSelectedLine]):
 		lastSelectedLine -= 1
 	selectLines()

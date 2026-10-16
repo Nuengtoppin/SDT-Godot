@@ -688,6 +688,8 @@ func clearCustomBackground(clearProxy: bool = true) -> void:
 		Flash.dispose_later(bgLayer)
 		if clearProxy:
 			proxyBGPackage = null
+		g.inGameMenu.bgModIndex = -1
+		g.inGameMenu.updateBGPicker()
 
 
 func prepareModTargetElementsDictionary() -> void:

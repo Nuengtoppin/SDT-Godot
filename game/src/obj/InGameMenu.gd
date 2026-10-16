@@ -651,6 +651,8 @@ func _stepBG(d: int):
 	var mods: Array = g.modCatalog.bg_entries if g.modCatalog else []
 	var cur: int = n + bgModIndex if bgModIndex >= 0 else g.bgID - 1
 	var i: int = max(0, min(n + mods.size() - 1, cur + d))
+	if i == cur and i >= n:
+		return
 	g.customElementLoader.clearCustomBackground()
 	if i < n:
 		bgModIndex = -1
@@ -1239,11 +1241,17 @@ func _stepHair(d: int) -> void:
 	var mods: Array = g.modCatalog.hair_entries if g.modCatalog else []
 	var cur: int = n + hairModIndex if hairModIndex >= 0 else g.characterControl.currentHair
 	var i: int = max(0, min(n + mods.size() - 1, cur + d))
+	if i == cur and i >= n:
+		return
 	if i < n:
 		hairModIndex = -1
 		g.characterControl.setHair(i)
 		updateHairList()
 	else:
+		if g.characterControl.customHairLoaded:
+			# imported image hair would stay on screen under the mod hair
+			g.customElementLoader.clearCustomHair(false)
+			g.characterControl.customHairLoaded = false
 		if hairModIndex < 0:
 			g.characterControl.clearHair()
 		g.customElementLoader.clearModTypes([ModTypes.HAIR, ModTypes.DYNAMIC_HAIR])
@@ -1680,6 +1688,11 @@ func importStoredCharsFile(path: String) -> bool:
 func _storedCharsFromSol(bytes: PackedByteArray, path: String):
 	var data = AMF3.decode_sol(bytes)
 	if data == null:
+		return null
+	if data.get("customCharNames") == null:
+		# e.g. ChoIrrumatio_thumbs.sol or another game's save: not an error-free empty list, which "overwrite
+		# list" would turn into deleting every stored character
+		AMF3.lastError = "No saved characters in this file"
 		return null
 	var names := _solList(data.get("customCharNames"))
 	var datas := _solList(data.get("customCharData"))

@@ -34,6 +34,8 @@ func costumeElementToggled(_e = null) -> void:
 
 
 func kill() -> void:
+	if _mod != null and not is_instance_valid(_mod):
+		_mod = null
 	if _mod:
 		if _mod is CostumeElement:
 			_mod.removeEventListener("toggled", costumeElementToggled)

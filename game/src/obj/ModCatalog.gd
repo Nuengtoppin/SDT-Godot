@@ -197,6 +197,11 @@ func apply(e: Dictionary) -> void:
 			cel.parseMod(mods[i])
 	cel.blockSwfCharData = false
 	cel.loadingModPackage = null
+	# The whole mod was built to get at these items: free what was not placed (root, other items, containers).
+	Flash.dispose_later(root)
+	for m in mods:
+		if m is FlashDisplayObject:
+			Flash.dispose_later(m)
 	cel.updateInstancedModElements()
 	g.inGameMenu.charStoring.populateMods()
 

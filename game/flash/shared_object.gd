@@ -24,8 +24,12 @@ static func flush_all() -> void:
 		so.flush()
 
 
+## Folder of the save files; tests point it elsewhere (main.gd --save-dir) so they never touch the player's save.
+static var save_dir := "user://"
+
+
 func _path() -> String:
-	return "user://%s.sav" % name
+	return save_dir.path_join("%s.sav" % name)
 
 
 func _load() -> void:

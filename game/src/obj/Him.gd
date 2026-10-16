@@ -569,8 +569,8 @@ func move(p: float, mx: float, my: float) -> void:
 								g.her.fillMouth()
 								currentSpurt.detachSourceLink(Vector2(0, 0), 0)
 							else:
-								var sp := randomSpurtSpeed - randf() * 2.0 + absf(my)
-								startSpeed = Vector2(cos(bmSpurtAngle) * sp, sin(bmSpurtAngle) * sp)
+								startSpeed = Vector2(cos(bmSpurtAngle) * (randomSpurtSpeed - randf() * 2.0 + absf(my)),
+									sin(bmSpurtAngle) * (randomSpurtSpeed - randf() * 2.0 + absf(my)))
 								currentSpurt.insertLink(startSpeed, randomSpurtCollisionDelay + int(floor(timerScale * 2.0)), g.randomCumMass())
 								g.soundControl.adjustCumVolume(timerScale, 0.3)
 						elif not inMouth:

@@ -142,45 +142,59 @@ static func bytes_to_string(b: PackedByteArray) -> String:
 			sw[i + 1] = t
 		return sw.get_string_from_utf16()
 	var start := 3 if n >= 3 and b[0] == 0xEF and b[1] == 0xBB and b[2] == 0xBF else 0
-	# valid UTF-8 (the usual case): decode natively
+	# Decoded in runs: valid UTF-8 natively, each invalid byte as one Windows-1252 character.
+	var out := PackedStringArray()
+	var run := start
 	var i := start
-	var valid := true
 	while i < n:
-		var c := b[i]
-		if c < 0x80:
+		if b[i] < 0x80:
 			i += 1
 			continue
-		var k := 1 if c >= 0xC2 and c < 0xE0 else (2 if c >= 0xE0 and c < 0xF0 else (3 if c >= 0xF0 and c < 0xF5 else -1))
-		if k < 0 or i + k >= n:
-			valid = false
-			break
-		for j in range(1, k + 1):
-			if i + j >= n or (b[i + j] & 0xC0) != 0x80:
-				valid = false
-				break
-		if not valid:
-			break
-		i += k + 1
-	if valid:
-		return b.slice(start).get_string_from_utf8()
-	var out := PackedStringArray()
-	i = start
-	while i < n:
+		var k := _utf8_seq(b, i, n)
+		if k > 0:
+			i += k
+			continue
+		if i > run:
+			out.append(b.slice(run, i).get_string_from_utf8())
 		var c := b[i]
-		var k := 1 if c >= 0xC2 and c < 0xE0 else (2 if c >= 0xE0 and c < 0xF0 else (3 if c >= 0xF0 and c < 0xF5 else -1))
-		var ok := k > 0 and i + k < n
-		if ok:
-			for j in range(1, k + 1):
-				if (b[i + j] & 0xC0) != 0x80:
-					ok = false
-					break
-		if ok:
-			out.append(b.slice(i, i + k + 1).get_string_from_utf8())
-			i += k + 1
-		else:
-			out.append(char(_CP1252[c - 0x80] if c >= 0x80 and c < 0xA0 else c))
-			i += 1
+		out.append(char(_CP1252[c - 0x80] if c < 0xA0 else c))
+		i += 1
+		run = i
+	if run == start:
+		return b.slice(start).get_string_from_utf8()
+	if run < n:
+		out.append(b.slice(run).get_string_from_utf8())
 	return "".join(out)
+
+
+## Length of the well-formed UTF-8 multi-byte sequence starting at i (no overlongs or surrogates), or 0.
+static func _utf8_seq(b: PackedByteArray, i: int, n: int) -> int:
+	var c := b[i]
+	var k := 0
+	var lo := 0x80
+	var hi := 0xBF
+	if c >= 0xC2 and c <= 0xDF:
+		k = 2
+	elif c >= 0xE0 and c <= 0xEF:
+		k = 3
+		if c == 0xE0:
+			lo = 0xA0
+		elif c == 0xED:
+			hi = 0x9F
+	elif c >= 0xF0 and c <= 0xF4:
+		k = 4
+		if c == 0xF0:
+			lo = 0x90
+		elif c == 0xF4:
+			hi = 0x8F
+	else:
+		return 0
+	if i + k > n or b[i + 1] < lo or b[i + 1] > hi:
+		return 0
+	for j in range(2, k):
+		if (b[i + j] & 0xC0) != 0x80:
+			return 0
+	return k
 
 
 static func gd_class_name(as3_short: String) -> String:
@@ -404,8 +418,10 @@ func _physics_process(_delta: float) -> void:
 	var t1 := Time.get_ticks_usec() if prof else 0
 	# 2. ENTER_FRAME listeners (game logic).
 	_slowest_listener_us = 0
+	var stale := false
 	for e in _enter_frame.duplicate():
 		if not is_instance_valid(e[0]):
+			stale = true
 			continue
 		var cb: Callable = e[1]
 		if cb.is_valid():
@@ -423,6 +439,9 @@ func _physics_process(_delta: float) -> void:
 					_slowest_listener = key
 				if prof:
 					_prof[key] = _prof.get(key, 0) + dt
+	if stale:
+		# listeners of freed objects
+		_enter_frame = _enter_frame.filter(func(e): return is_instance_valid(e[0]))
 	var t2 := Time.get_ticks_usec() if prof else 0
 	# 3. Masks follow the (possibly moved) objects.
 	for p in _mask_proxies.keys():
@@ -682,8 +701,10 @@ func release_if_orphaned(o: FlashDisplayObject) -> void:
 
 
 ## Port of Flash's garbage collection for objects the game is done with (e.g. a killed costume element): freed
-## DISPOSE_DELAY ticks later if still off the display list then, along with its whole subtree - unless it carries
-## mod code.
+## DISPOSE_DELAY ticks later if still off the display list then, along with its whole subtree (and its filter /
+## mask proxy), unless its class says it is still referenced (a _can_dispose() method returning false). Mod
+## ActionScript that still holds one of them sees it as null (FlashAbc), like a detached object that does
+## nothing.
 const DISPOSE_DELAY := 60
 var _disposals: Array = []
 
@@ -695,25 +716,14 @@ func dispose_later(o: FlashDisplayObject) -> void:
 func _free_disposals() -> void:
 	while not _disposals.is_empty() and _disposals[0][1] <= tick_count:
 		var o = _disposals.pop_front()[0]
-		if is_instance_valid(o) and o._flash_parent == null and o.get_parent() == null and not o.is_inside_tree() 				and not o.is_queued_for_deletion() and not _has_mod_code(o):
-			if _focus != null and is_instance_valid(_focus) and (o == _focus or o.is_ancestor_of(_focus)):
-				_focus = null
-			o.queue_free()
-
-
-## True if n or a descendant comes from a mod that has ActionScript (FlashAbc): mod code can keep references to
-## any of its objects, as in Flash, so those are never freed early.
-func _has_mod_code(n: Node) -> bool:
-	if n.has_meta(&"abc"):
-		return true
-	if n is FlashDisplayObject:
-		var lib: FlashLibrary = (n as FlashDisplayObject)._library
-		if lib != null and lib.is_mod and lib.mod != null and not lib.mod.abc.is_empty():
-			return true
-	for c in n.get_children():
-		if _has_mod_code(c):
-			return true
-	return false
+		if not is_instance_valid(o) or o._flash_parent != null or o.is_inside_tree() or o.is_queued_for_deletion():
+			continue
+		var top: CanvasItem = o._tree_node()
+		if top.get_parent() != null or (o.has_method(&"_can_dispose") and not o._can_dispose()):
+			continue
+		if _focus != null and is_instance_valid(_focus) and (o == _focus or o.is_ancestor_of(_focus)):
+			_focus = null
+		top.queue_free()
 
 
 func _free_orphans() -> void:

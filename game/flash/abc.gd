@@ -317,6 +317,8 @@ var host: Object = null   # resolves globals / classes: host.abc_global(name) ->
 
 ## Runs method 'mi' with 'this' and returns its result. Unsupported instructions abort the method with a warning.
 func run(mi: int, this_obj, args: Array = []):
+	if _freed(this_obj):
+		return null
 	var body: Dictionary = bodies.get(mi, {})
 	if body.is_empty():
 		return null
@@ -712,7 +714,14 @@ func _has(obj: Object, n: String) -> bool:
 	return false
 
 
+## True for an object the runtime has freed (Flash.dispose_later): mod code still holding one sees null.
+static func _freed(v) -> bool:
+	return typeof(v) == TYPE_OBJECT and not is_instance_valid(v)
+
+
 func _find(this_obj, n: String):
+	if _freed(this_obj):
+		return null
 	if this_obj is Object and _has(this_obj, n):
 		return this_obj
 	if host != null and host.abc_has_global(n):
@@ -721,6 +730,8 @@ func _find(this_obj, n: String):
 
 
 func _prop_get(obj, key):
+	if _freed(obj):
+		return null
 	if obj is StringName and obj == _GLOBAL:
 		return host.abc_global(String(key)) if host != null else null
 	if obj is Dictionary:
@@ -766,6 +777,8 @@ func _prop_get(obj, key):
 
 
 func _prop_set(obj, key, value) -> void:
+	if _freed(obj):
+		return
 	if obj is Dictionary and obj.get("__host_object__") == "transform":
 		match str(key):
 			"colorTransform": obj["obj"].colorTransform = value
@@ -782,6 +795,8 @@ func _prop_set(obj, key, value) -> void:
 
 
 func _call(obj, n: String, args: Array):
+	if _freed(obj):
+		return null
 	if obj is StringName and obj == _GLOBAL:
 		return host.abc_call_global(n, args) if host != null else null
 	if obj is Dictionary and obj.has("__host_object__"):
