@@ -5,6 +5,7 @@ extends Node
 var _queue: Array = []
 var _ok := 0
 var _fail := 0
+var _not_vanilla := 0   # .swf files without MOD_VERSION, e.g. Loader code mods (not supported yet)
 var _t0 := 0
 
 
@@ -22,7 +23,7 @@ func _ready() -> void:
 
 func _next() -> void:
 	if _queue.is_empty():
-		print("done: %d ok, %d failed, %d ms" % [_ok, _fail, Time.get_ticks_msec() - _t0])
+		print("done: %d ok, %d failed, %d not vanilla mods, %d ms" % [_ok, _fail, _not_vanilla, Time.get_ticks_msec() - _t0])
 		get_tree().quit()
 		return
 	var path: String = _queue.pop_front()
@@ -43,7 +44,7 @@ func _inited(path: String, c) -> void:
 	var mv = c.get("MOD_VERSION") if c != null else null
 	if mv == null:
 		print("NOT A MOD %s (%s)" % [path.get_file(), c])
-		_fail += 1
+		_not_vanilla += 1
 		_next.call_deferred()
 		return
 	_ok += 1

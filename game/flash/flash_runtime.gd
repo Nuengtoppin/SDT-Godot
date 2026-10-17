@@ -409,6 +409,9 @@ func _physics_process(_delta: float) -> void:
 	var t0 := Time.get_ticks_usec() if prof else 0
 	var snap: Dictionary = _prof.duplicate() if prof else {}
 	FlashLibrary.poll_streaming()
+	if _deterministic:
+		for ch in _active_channels.keys():
+			ch._tick_deterministic()
 	# 1. Timelines advance.
 	for mc in _playing.keys():
 		if is_instance_valid(mc):
@@ -1100,10 +1103,13 @@ func content_root() -> String:
 ## the game (loaded automatically at startup once supported).
 const MOD_FOLDERS := ["Clothing", "Hair", "Backgrounds", "Characters", "Dialogue", "Plugins"]
 
+## --mods-dir=<folder> on the command line: use that folder instead of Mods/ (tests run against a fixed mod set).
+var mods_dir_override := ""
+
 
 ## Mods/ (or one of its MOD_FOLDERS) next to the game.
 func mods_dir(sub: String = "") -> String:
-	var d := content_root().path_join("Mods")
+	var d := mods_dir_override if mods_dir_override != "" else content_root().path_join("Mods")
 	return d.path_join(sub) if sub != "" else d
 
 

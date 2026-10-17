@@ -5,6 +5,8 @@ extends Node2D
 ## --eval=<expression>@frame runs a Godot Expression with `g`, `Flash` and `OS` available, e.g. --eval=g.him.ejaculate()@600
 ## --driver=res://debug/<script>.gd runs a scripted test: the script's step(frame: int) is called every frame.
 ## --save-dir=<folder> keeps the save files there instead of user:// (copy a save in first to test with it).
+## --mods-dir=<folder> reads mods from that folder instead of Mods/ (an empty folder runs without mods).
+## Regression tests: tools/regress.sh (driver res://debug/regress.gd, reference dumps in tests/golden/).
 
 var _shot := ""
 var _frames := 60
@@ -44,6 +46,8 @@ func _ready() -> void:
 		elif a.begins_with("--save-dir="):
 			FlashSharedObject.save_dir = a.substr(11)
 			DirAccess.make_dir_recursive_absolute(FlashSharedObject.save_dir)
+		elif a.begins_with("--mods-dir="):
+			Flash.mods_dir_override = a.substr(11)
 		elif a.begins_with("--seed="):
 			seed(int(a.substr(7)))
 		elif a.begins_with("--frames="):

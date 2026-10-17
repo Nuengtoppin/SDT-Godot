@@ -65,6 +65,16 @@ own save. Example:
 godot --headless --path game -- --save-dir=/tmp/sdt-test --driver=res://debug/stress_costumes.gd
 ```
 
+`tools/regress.sh` runs the regression tests (Git Bash or any POSIX shell, with `GODOT` set). It plays fixed
+scenarios headless (menu, idle, grab and stroking, costume changes, every character, cumming) with sound and timers
+following game time, so runs repeat exactly. It compares dumps of the display list and character state with the
+references in `tests/golden/`. It runs without mods and with a throwaway save. Options:
+- `--update` accepts the current output as the new reference; check `git diff tests/golden` first;
+- `--stress` adds the costume stress test and reports memory per round;
+- `--mods=<folder>` load-tests every `.swf` mod in a folder.
+
+An intended change to the game's behaviour shows up as a difference: review it, then run `--update`.
+
 `tools/check_all.sh` parse-checks every script. It reports "Identifier not found: Flash / g" for autoloads, which
 can be ignored.
 

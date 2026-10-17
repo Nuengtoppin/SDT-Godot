@@ -7,6 +7,10 @@ var _sound: FlashSound
 var _loops_left: int = 0
 var _start_pos: float = 0.0
 var _transform: FlashSoundTransform = FlashSoundTransform.new()
+## With --deterministic, playback ends by game time (Flash.getTimer) instead of the audio clock, so tests repeat
+## exactly: _started_ms is when the current play started and _end_ms when it completes (see _tick_deterministic).
+var _started_ms: int = 0
+var _end_ms: int = 0
 
 
 func _start(sound: FlashSound, start_pos: float, plays: int, st: FlashSoundTransform) -> void:
@@ -20,9 +24,22 @@ func _start(sound: FlashSound, start_pos: float, plays: int, st: FlashSoundTrans
 	if st != null:
 		_transform = st.clone()
 	_apply_transform()
-	if not _player.finished.is_connected(_on_finished):
+	if Flash._deterministic:
+		_schedule()
+	elif not _player.finished.is_connected(_on_finished):
 		_player.finished.connect(_on_finished)
 	_player.play(start_pos)
+
+
+func _schedule() -> void:
+	_started_ms = Flash.getTimer()
+	_end_ms = _started_ms + int((_sound.stream.get_length() - _start_pos) * 1000.0)
+
+
+## Called every tick with --deterministic.
+func _tick_deterministic() -> void:
+	if _player != null and Flash.getTimer() >= _end_ms:
+		_on_finished()
 
 
 func _apply_transform() -> void:
@@ -35,6 +52,8 @@ func _on_finished() -> void:
 	if _loops_left > 0:
 		_loops_left -= 1
 		_player.play(_start_pos)
+		if Flash._deterministic:
+			_schedule()
 		return
 	_release()
 	dispatchEvent(FlashEvent.new(FlashEvent.SOUND_COMPLETE))
@@ -58,7 +77,11 @@ func stop() -> void:
 ## Playback position in milliseconds.
 var position: float:
 	get:
-		return _player.get_playback_position() * 1000.0 if _player != null else 0.0
+		if _player == null:
+			return 0.0
+		if Flash._deterministic:
+			return _start_pos * 1000.0 + Flash.getTimer() - _started_ms
+		return _player.get_playback_position() * 1000.0
 
 
 var soundTransform: FlashSoundTransform:
