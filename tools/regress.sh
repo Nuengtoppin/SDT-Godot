@@ -53,8 +53,13 @@ printf crashy > "$WORK/save_ext/extensions/loading_plugin.txt"
 "$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_ext" --mods-dir="$WORK/mods_ext" \
 	--driver=res://debug/ext_checks.gd > "$WORK/ext_checks.log" 2>&1 &
 ext_pid=$!
+# Built-in DialogueActions checks (game/debug/da_checks.gd)
+"$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_da" --mods-dir="$WORK/mods" \
+	--driver=res://debug/da_checks.gd > "$WORK/da_checks.log" 2>&1 &
+da_pid=$!
 for p in $pids; do wait "$p"; done
 wait "$ext_pid"; ext_status=$?
+wait "$da_pid"; da_status=$?
 
 fail=0
 for s in $scenarios; do
@@ -92,6 +97,13 @@ if [ "$ext_status" = 0 ] && grep -q "^EXT CHECKS: .* 0 failed" "$WORK/ext_checks
 else
 	echo "FAIL extension checks, exit code $ext_status (see $WORK/ext_checks.log):"
 	grep -E "^CHECK FAIL|SCRIPT ERROR" "$WORK/ext_checks.log" | head -12
+	fail=1
+fi
+if [ "$da_status" = 0 ] && grep -q "^DA CHECKS: .* 0 failed" "$WORK/da_checks.log"; then
+	echo "ok   DialogueActions checks ($(grep -c '^CHECK ok' "$WORK/da_checks.log") passed)"
+else
+	echo "FAIL DialogueActions checks, exit code $da_status (see $WORK/da_checks.log):"
+	grep -E "^CHECK FAIL|SCRIPT ERROR" -A1 "$WORK/da_checks.log" | head -16
 	fail=1
 fi
 [ $update = 1 ] && echo "references updated in tests/golden/ (review with git diff before committing)"

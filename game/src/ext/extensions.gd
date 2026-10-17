@@ -11,7 +11,9 @@ extends RefCounted
 ##   order; their time shows in --profile and in HITCH lines as "ext:<id>".
 
 ## Built-in extensions (script paths), in load order.
-const BUILTIN: Array[String] = []
+const BUILTIN: Array[String] = [
+	"res://src/ext/dialogueactions/dialogue_actions.gd",
+]
 
 const CONFIG_FILE := "extensions.cfg"
 
