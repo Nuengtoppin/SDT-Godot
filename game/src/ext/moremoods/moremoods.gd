@@ -34,6 +34,9 @@ var random_timer := 0
 var lower_eyelid_level := 0.0
 
 var _label: ExtButton
+var face = null   # mm_face.gd
+
+const FaceScript := preload("res://src/ext/moremoods/mm_face.gd")
 
 
 func _init() -> void:
@@ -51,12 +54,33 @@ func _setup() -> void:
 	setting("asleepspeakingdialog", false, {"label": "Asleep: allow speaking dialogue"})
 	for m in MOODS:
 		setting("disable" + m + "Selection", false, {"label": "Hide %s in the mood selector" % m})
+	# eyes (moremoods settings file values)
+	setting("startingeyerollmode", 0, {"label": "Eye roll mode for new characters (0 off, 1 roll, 2 roll + cross-eyed)", "min": 0, "max": 2})
+	setting("startingeyelidmode", 0, {"label": "Upper eyelid mode for new characters (0-3)", "min": 0, "max": 3})
+	setting("startingeyelidslider", 0.5, {"label": "Upper eyelid limit for new characters", "min": 0.0, "max": 1.0})
+	setting("eyerolltargetangle", 62.0, {"label": "Eye roll angle", "min": 0.0, "max": 180.0})
+	setting("limiteyerollpassoutangle", true, {"label": "Keep the irises visible when her eyes roll up"})
+	setting("eyelidslidereyeposbaselimit", 54.0, {"label": "Eye angle limit: base", "min": 0.0, "max": 180.0})
+	setting("eyelidslidereyeposscalelimit", 35.0, {"label": "Eye angle limit: eyelid scale", "min": 0.0, "max": 180.0})
+	setting("eyelidslidereyeposscaley", 30.0, {"label": "Eye angle limit: pupil scale", "min": 0.0, "max": 180.0})
+	setting("feareyesamount", 15.0, {"label": "Frightened / Nervous / Overwhelmed: eye jitter", "min": 0.0, "max": 39.0})
+	setting("submissivenormaleye", 85.0, {"label": "Submissive: where she looks (y)", "min": -2000.0, "max": 2000.0})
+	setting("submissivehimeye", 200.0, {"label": "Submissive: where she looks when looking at him (y)", "min": -2000.0, "max": 2000.0})
+	setting("androidmoodpassouteyelid", 0, {"label": "Android: eyelid when passed out", "min": 0, "max": 150})
+	setting("androidmoodpassouteyeycord", -150.0, {"label": "Android: where she looks when passed out (y)", "min": -8000.0, "max": 8000.0})
+	setting("asleepclosedeyelidsthroatmax", 25.0, {"label": "Asleep: eyelid reaction to deep throat", "min": 0.0, "max": 50.0})
+	setting("asleepeyebrowshape", 0, {"label": "Asleep: eyebrows (0 normal, 1 worried, 2 angry)", "min": 0, "max": 2})
 
 
 func _enable() -> void:
 	for m in MOODS:
 		if not m in VANILLA:
 			Moods.register(m, id)
+	face = FaceScript.new(self)
+	face.eyeroll_mode = get_setting("startingeyerollmode")
+	face.eyelid_mode = get_setting("startingeyelidmode")
+	face.eyelid_slider = get_setting("startingeyelidslider")
+	face.hook()
 	hook_before(&"Her.setMood", func(c): c.cancel(); set_mood(c.args[0]))
 	_register_triggers()
 	charcode_field("moremoods", func(): return mood_name, func(v, _l): _load_code_mood(v), Callable(), false)
@@ -114,6 +138,11 @@ func set_mood(m: String) -> void:
 		her.clenchTeeth = false
 	_update_label()
 	Moods.set_extended(m)
+
+
+## Frames she has been biting (bite behaviour comes with the mood behaviours).
+func bite_timer() -> int:
+	return 0
 
 
 func _store_dialogue_var() -> void:

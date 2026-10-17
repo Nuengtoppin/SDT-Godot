@@ -50,7 +50,11 @@ func step(_frame: int) -> void:
 		2:
 			if Flash.tick_count > _t0 + 80:
 				_game_checks_later()
-				_finish()
+				_mood_cycle_i = 0
+				_t0 = Flash.tick_count
+				_phase = 3
+		3:
+			_mood_cycle_step()
 
 
 func _finish() -> void:
@@ -333,6 +337,37 @@ func _mood_checks() -> void:
 	_check("selector cycles (alphabetical)", after_up == "Happy" and Moods.current() == "Frightened", after_up)
 	_check("selector label", mm._label.text == "Frightened")
 	her.setMood("Normal")
+
+
+var _mood_cycle_i := 0
+var _mood_seen := {}
+
+
+## Holds every mood for 12 ticks (faces, eyes and behaviour run through all their code), checking some results.
+func _mood_cycle_step() -> void:
+	var mm = Extensions.get_extension("moremoods")
+	var her = g.her
+	var t := Flash.tick_count - _t0
+	if t % 12 != 0:
+		return
+	if _mood_cycle_i > 0:
+		var prev: String = mm.MOODS[_mood_cycle_i - 1]
+		_mood_seen[prev] = {"upper": her.eye.upperEyelid.currentFrame, "lower": her.eye.lowerEyelid.currentFrame,
+			"iris": her.eye.ball.irisContainer.iris.scaleY, "shock": her.eyelidMotion["shock"]}
+	if _mood_cycle_i >= mm.MOODS.size():
+		var d: Dictionary = _mood_seen
+		_check("all 26 moods ran", d.size() == 26, str(d.size()))
+		_check("Disgusted raises the lower eyelid", d["Disgusted"]["lower"] >= 170, str(d["Disgusted"]))
+		_check("Smug raises the lower eyelid more", d["Smug"]["lower"] >= 175, str(d["Smug"]))
+		_check("Spent lowers the upper eyelid", d["Spent"]["upper"] >= 125, str(d["Spent"]))
+		_check("Android keeps the eyes wide open", d["Android"]["upper"] <= 2, str(d["Android"]))
+		_check("Frightened: shocked eyes", d["Frightened"]["shock"] >= 30, str(d["Frightened"]))
+		_check("Normal eyes unchanged", d["Normal"]["lower"] < 170, str(d["Normal"]))
+		her.setMood("Normal")
+		_finish()
+		return
+	her.setMood(mm.MOODS[_mood_cycle_i])
+	_mood_cycle_i += 1
 
 
 func _game_checks_later() -> void:

@@ -1083,6 +1083,8 @@ func wakeUp() -> void:
 		var p: Vector2 = rightForeArmContainer.upperArm.foreArm.hand.localToGlobal(Vector2())
 		rightArmIK.jumpTo(p)
 		rightArmIK.startTrackingTarget(true)
+	if Hooks.has(&"Her.wakeUp"):   # HOOK
+		Hooks.after(&"Her.wakeUp", self)
 
 
 func updateBlink() -> void:
@@ -1105,6 +1107,8 @@ func blink(lookAround: bool = true) -> void:
 				changeLookTarget(hisFace, 5, 0)
 			else:
 				changeLookTarget(eyesDown, 5, 0)
+	if Hooks.has(&"Her.blink"):   # HOOK
+		Hooks.after(&"Her.blink", self)
 
 
 func wince() -> void:
@@ -1445,6 +1449,10 @@ func updatePosition() -> void:
 
 
 func updateElements() -> void:
+	if Hooks.has(&"Her.updateElements"):   # HOOK
+		var h := Hooks.before(&"Her.updateElements", self, [])
+		if h.cancelled:
+			return
 	updateTorso()
 	updateNeck()
 	if g.characterControl.collarControl.selection == 2:
@@ -1597,6 +1605,8 @@ func updateElements() -> void:
 			if coughFactor <= 0.01:
 				coughFactor = 0
 				coughing = false
+	if Hooks.has(&"Her.updateElements"):   # HOOK
+		Hooks.after(&"Her.updateElements", self)
 
 
 func updateBreathingScaledElements() -> void:
@@ -1651,15 +1661,27 @@ func updateEyes() -> void:
 	eye.upperEyelid.eyeshadow.gotoAndStop(upper)
 	eye.upperEyelid.mascara.gotoAndStop(upper)
 	eye.lowerEyelid.mascara.gotoAndStop(lower)
+	if Hooks.has(&"Her.updateEyes"):   # HOOK
+		Hooks.after(&"Her.updateEyes", self)
 
 
 func changeLookTarget(target: Vector2, randomDelay: int = 30, minDelay: int = 5) -> void:
+	if Hooks.has(&"Her.changeLookTarget"):   # HOOK
+		var h := Hooks.before(&"Her.changeLookTarget", self, [target, randomDelay, minDelay])
+		if h.cancelled:
+			return
+		target = h.args[0]
 	if passOutFactor < 5 and not eyelidMotion["isClosed"]:
 		nextLookTarget = eyesUnfocused if blankEyed else target
 		lookChangeTimer = int(floor(randf() * randomDelay)) + minDelay
 
 
 func lookAt(target: Vector2) -> void:
+	if Hooks.has(&"Her.lookAt"):   # HOOK
+		var h := Hooks.before(&"Her.lookAt", self, [target])
+		if h.cancelled:
+			return
+		target = h.args[0]
 	var local: Vector2 = globalToLocal(g.sceneLayer.localToGlobal(target))
 	var d := Vector2(local.x - eyeAim.x, local.y - eyeAim.y)
 	eyeMotion["target"] = minf(110.0, maxf(75.0, g.getAngle(d.x, d.y)))
@@ -1729,6 +1751,8 @@ func updateLips() -> void:
 	lower += lipSkinOffset
 	head.jaw.gotoAndStop(lower)
 	head.headTan.jaw.gotoAndStop(lower)
+	if Hooks.has(&"Her.updateLips"):   # HOOK
+		Hooks.after(&"Her.updateLips", self)
 
 
 func breastSizeChanged() -> void:
