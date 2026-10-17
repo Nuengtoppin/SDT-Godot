@@ -1856,6 +1856,7 @@ func getSaveDataString(includeFiles = true) -> String:
 	s += ";" + hairhsl + ";" + skinhsl + ";" + hisskinhsl + ";" + bg
 	s += ";" + him
 	s += ";" + collar + ";" + cuffs + ankleCuffs + ";" + gag + ";" + panties + ";" + top + ";" + armwear + bottoms + tops + ";" + legwear + legwearB + ";" + footwear + ";" + eyewear + ";" + headwear + ";" + tonguePiercing + nipplePiercing + bellyPiercing + earring + ";" + tan
+	s += CharCode.save_fields(s)   # HOOK port extension: extension fields and kept unknown fields
 	if includeFiles:
 		var cel = g.customElementLoader
 		if cel.customHairLoaded and cel.proxyHairPackage:
@@ -2159,6 +2160,7 @@ func loadData(param1, param2 = true, param3 = false, param4 = null):
 	updateEarList()
 	updateEyebrowsList()
 	updateCharMenu(0,true)
+	CharCode.load_fields(_loc6_, str(param1), onlyLoadCostume)   # HOOK port extension: extension fields
 	if param2:
 		g.saveData.saveCharData()
 

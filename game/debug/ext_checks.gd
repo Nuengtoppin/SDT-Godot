@@ -38,6 +38,10 @@ class TestExt:
 	var changed: Array = []
 	var order: Array = []
 	var slow := false
+	var value = "abc"
+	var late_value := ""
+	var loads: Array = []   # [value, kind] per setter / reset call
+	var mods_events := 0
 
 	func _init() -> void:
 		id = "test"
@@ -54,6 +58,12 @@ class TestExt:
 		on_late_tick(_late)
 		on_tick(_early)
 		hook_before(&"Probe.calc", func(c): c.args[0] += 100)
+		charcode_field("testField", func(): return value,
+			func(v, l): value = v; loads.append([v, l.kind]),
+			func(l): value = "default"; loads.append(["reset", l.kind]))
+		charcode_field("testLate", func(): return late_value if late_value != "" else null,
+			func(v, _l): late_value = v, Callable(), true)
+		on_event("mods_loaded", func(): mods_events += 1)
 
 	func _disable() -> void:
 		disabled_calls += 1
@@ -101,6 +111,7 @@ func step(_frame: int) -> void:
 				_check("profiler names the extension", Flash._slowest_listener.begins_with("ext:test."), Flash._slowest_listener)
 				_ext.slow = false
 				_settings_checks()
+				_charcode_checks()
 				_disable_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
 				Flash.get_tree().quit(1 if _fail > 0 else 0)
@@ -179,10 +190,73 @@ func _settings_checks() -> void:
 	_ext = again
 
 
+func _charcode_checks() -> void:
+	var menu = g.inGameMenu
+	var e := _ext
+	var code: String = menu.getSaveDataString(false)
+	var n := code.split(";").size()
+	_check("vanilla code is a full code (%d pairs)" % n, n >= CharCode.PARTIAL_PAIRS)
+	_check("field written", ";testField:abc" in code and not "testLate" in code, code.right(80))
+	var base := code.replace(";testField:abc", "")
+	e.loads.clear()
+	menu.loadData(base + ";testField:xyz", false)
+	_check("field loaded from a full code", e.value == "xyz" and e.loads == [["xyz", CharCode.Kind.FULL]], str(e.loads))
+	e.loads.clear()
+	menu.loadData(base, false)
+	_check("full code without the field resets it", e.value == "default" and e.loads == [["reset", CharCode.Kind.FULL]], str(e.loads))
+	e.loads.clear()
+	menu.loadData("mood:Happy;testField:p", false)
+	_check("partial code sets the field", e.value == "p" and e.loads == [["p", CharCode.Kind.PARTIAL]], str(e.loads))
+	e.loads.clear()
+	menu.loadData("mood:Happy", false)
+	_check("partial code without the field keeps it", e.value == "p" and e.loads.is_empty(), str(e.loads))
+	e.loads.clear()
+	CharCode.loading_mod_chardata = true
+	menu.loadData(base, false)
+	CharCode.loading_mod_chardata = false
+	_check("a mod's charData does not reset", e.value == "p" and e.loads.is_empty(), str(e.loads))
+	e.loads.clear()
+	menu.onlyLoadCostume = true
+	menu.loadData(base, false)
+	menu.onlyLoadCostume = false
+	_check("costume-only load does not reset", e.value == "p" and e.loads.is_empty(), str(e.loads))
+	menu.loadData(base + ";loaderThing:1,2:3", false)
+	var saved: String = menu.getSaveDataString(false)
+	_check("unknown field kept (with ':' in the value)", ";loaderThing:1,2:3" in saved, saved.right(80))
+	menu.loadData("mood:Happy;otherThing:x", false)
+	saved = menu.getSaveDataString(false)
+	_check("partial code adds unknown fields", ";loaderThing:1,2:3" in saved and ";otherThing:x" in saved)
+	menu.loadData(base, false)
+	_check("full code replaces unknown fields", not "loaderThing" in menu.getSaveDataString(false))
+	e.value = "a;b"
+	_check("value with ';' is not written", not "testField" in menu.getSaveDataString(false))
+	e.value = "keepme"
+	# after_mods: held back while mods load, applied when they finish
+	var cel = g.customElementLoader
+	var events := e.mods_events
+	cel.readingMods = true
+	menu.loadData(base + ";testLate:late1", false)
+	var held := e.late_value == ""
+	cel.readingMods = false
+	CharCode.mods_loaded()
+	_check("after_mods field waits for mods", held and e.late_value == "late1", e.late_value)
+	_check("mods_loaded event", e.mods_events == events + 1)
+	e.value = "keepme"   # the full code above reset it
+	_check("vanilla key cannot be registered", not CharCode.add_field("mood", "x", func(): return "", func(_v, _l): pass))
+	# disabling keeps the extension's values in the code
+	Extensions.set_enabled("test", false)
+	saved = menu.getSaveDataString(false)
+	_check("disabled extension's field kept", ";testField:keepme" in saved and ";testLate:late1" in saved, saved.right(80))
+	Extensions.set_enabled("test", true)
+	menu.loadData(base + ";testField:back", false)
+	_check("re-enabled extension reads its field", e.value == "back")
+
+
 func _disable_checks() -> void:
+	var d := _ext.disabled_calls
 	Extensions.set_vanilla_mode(true)
 	var t := _ext.ticks
-	_check("vanilla mode disables", not _ext.enabled and _ext.disabled_calls == 1 and not Hooks.has(&"Probe.calc"))
+	_check("vanilla mode disables", not _ext.enabled and _ext.disabled_calls == d + 1 and not Hooks.has(&"Probe.calc"))
 	Extensions._run_ticks(Extensions._ticks, "tick")
 	_check("no ticks while disabled", _ext.ticks == t)
 	Extensions.set_vanilla_mode(false)

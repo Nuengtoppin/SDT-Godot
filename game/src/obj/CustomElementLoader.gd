@@ -116,6 +116,7 @@ func tryToLoadNextMod() -> void:
 		g.inGameMenu.charStoring.populateMods()
 		readingMods = false
 		onlyLoadingCostume = false
+		CharCode.mods_loaded()   # HOOK port extension
 
 
 func tryModLoadingErrorHandler(_e = null) -> void:
@@ -169,6 +170,7 @@ func loadNextModFile() -> void:
 		blockSwfCharData = false
 		g.inGameMenu.charStoring.populateMods()
 		readingMods = false
+		CharCode.mods_loaded()   # HOOK port extension
 
 
 func modCompleteHandler(e: FlashEvent) -> void:
@@ -205,7 +207,9 @@ func parseMod(m) -> void:
 	match str(_p(m, "modType")):
 		ModTypes.MOD_PACKAGE:
 			if _p(m, "charData") and not blockSwfCharData:
+				CharCode.loading_mod_chardata = true   # HOOK port extension: a mod's code is not a full character
 				g.inGameMenu.loadData(m.charData)
+				CharCode.loading_mod_chardata = false
 			if m.hasOwnProperty("dialogueName"):
 				g.dialogueControl.setupDialogueMod(str(m.dialogueName), bool(_p(m, "clearAllDialogue")))
 			var children = _p(m, "mods")

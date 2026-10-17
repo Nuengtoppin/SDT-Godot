@@ -9,8 +9,8 @@ The game code in `game/src` is a 1:1 port of the original ActionScript. Features
 Both use the same API (`SDTExtension`). One switch, **Vanilla mode** (`--vanilla` on the command line), turns every
 extension off and gives the original game.
 
-Status: the hook system, the extension base class, tick callbacks and settings exist. Still to come: character
-code fields, dialogue extension points, menu widgets, the generated options screen and plugin loading.
+Status: the hook system, the extension base class, tick callbacks, events, settings and character code fields
+exist. Still to come: dialogue extension points, menu widgets, the generated options screen and plugin loading.
 
 ## Writing an extension
 
@@ -46,12 +46,33 @@ func _passed_out(call: Hooks.Call) -> void:
 | `setting(key, default, info)` | Declares a setting. Type from the default (bool, int, float, String); `info`: `label`, `desc`, `min`, `max`, `step`, `options`. |
 | `get_setting(key)` / `set_setting(key, value)` | Read / change (saved immediately, then `_setting_changed(key, value)` is called). |
 | `data_dir()` | A folder for the extension's own files, next to the save files. |
+| `on_event(name, fn)` | `fn()` when something happens; events are listed in `Extensions.EVENTS` (e.g. `mods_loaded`). |
+| `charcode_field(key, get, set, reset, after_mods)` | A field in the character code, see below. |
 
 Settings and on/off choices are stored in `extensions.cfg` next to the save files. Test runs with `--save-dir` use
 their own copy.
 
 Tick time is measured per extension: it appears in `--profile` output and in the log's `HITCH` lines as
 `ext:<id>.tick`.
+
+## Character code fields
+
+The character code ("key:value;key:value...", used by saved characters and the Generate / Load box) can carry
+extension fields, in the same form Loader mods used, so codes shared from the Loader keep working:
+
+```gdscript
+charcode_field("tongueLength",
+	func(): return str(length),                    # value to write (null leaves the field out; no ";")
+	func(value: String, load: CharCode.Load): length = float(value),
+	func(load: CharCode.Load): length = 1.0)       # default, when a full code lacks the field
+```
+
+- The reset (default) runs only for a **full** character code. Costume-only loads, a mod's built-in character
+  data and partial codes (fewer than 35 pairs, the Loader mods' rule) leave the current value alone.
+  `load.kind` tells which one it is (`CharCode.Kind.FULL / PARTIAL / COSTUME / MOD_CHARDATA`).
+- `after_mods = true` applies the field once the code's .swf mods have loaded (for values that refer to mod items).
+- Fields nobody knows, from a disabled extension or a Loader mod the port does not have, are kept with the
+  character and written back out, so saving never loses them.
 
 ## Hooks
 

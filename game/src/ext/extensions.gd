@@ -24,6 +24,12 @@ static var _config: ConfigFile = null
 static var _ticks: Array = []        # [extension, Callable], before the game's tick
 static var _late_ticks: Array = []   # [extension, Callable], after it
 static var _installed := false
+static var _events: Dictionary = {}   # event name -> [[extension, Callable]]
+
+## Events extensions can listen to with SDTExtension.on_event(): name -> description.
+const EVENTS := {
+	"mods_loaded": "a character's .swf mods (or mods chosen in a picker) finished loading",
+}
 
 
 ## Called once the game is built (end of DT.initGame): loads the built-in extensions and enables those that are on.
@@ -127,9 +133,30 @@ static func _enable(ext: SDTExtension) -> void:
 static func _disable(ext: SDTExtension) -> void:
 	ext.enabled = false
 	Hooks.remove_owner(ext.id)
+	CharCode.remove_owner(ext.id)
+	for name in _events:
+		_events[name] = _events[name].filter(func(e): return e[0] != ext)
 	_ticks = _ticks.filter(func(t): return t[0] != ext)
 	_late_ticks = _late_ticks.filter(func(t): return t[0] != ext)
 	ext._disable()
+
+
+## Calls every listener of event `name` (see EVENTS) with `args`.
+static func emit(name: String, args: Array = []) -> void:
+	for e in _events.get(name, []).duplicate():
+		var fn: Callable = e[1]
+		if fn.is_valid():
+			fn.callv(args)
+
+
+static func _add_event(ext: SDTExtension, name: String, fn: Callable) -> void:
+	if not EVENTS.has(name):
+		push_error("extension %s: unknown event '%s'" % [ext.id, name])
+		return
+	if not _events.has(name):
+		_events[name] = []
+	_events[name].append([ext, fn])
+	_events[name].sort_custom(func(a, b): return all.find(a[0]) < all.find(b[0]))
 
 
 static func _add_tick(ext: SDTExtension, fn: Callable, late: bool) -> void:

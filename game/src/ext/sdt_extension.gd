@@ -22,8 +22,8 @@ extends RefCounted
 ##     func _tick() -> void:
 ##         pass
 ##
-## Everything registered with on_tick / on_late_tick / hook_before / hook_after is removed automatically when the
-## extension is disabled; _disable() only has to undo changes it made to the game itself.
+## Everything registered with on_tick / on_late_tick / hook_before / hook_after / on_event / charcode_field is removed
+## automatically when the extension is disabled; _disable() only has to undo changes it made to the game itself.
 
 var id := ""
 var title := ""
@@ -82,6 +82,18 @@ func hook_before(name: StringName, fn: Callable, priority := 0, target: Object =
 
 func hook_after(name: StringName, fn: Callable, priority := 0, target: Object = null) -> void:
 	Hooks.add_after(name, fn, id, priority, target)
+
+
+## Runs `fn(...)` when the event `name` happens (see Extensions.EVENTS).
+func on_event(name: String, fn: Callable) -> void:
+	Extensions._add_event(self, name, fn)
+
+
+## Adds a field to the character code (see CharCode): `getter()` returns the value String (or null to leave it
+## out), `setter(value: String, load: CharCode.Load)` applies it, `reset(load)` applies the default when a full
+## code lacks the field. after_mods: apply once the code's mods have loaded.
+func charcode_field(key: String, getter: Callable, setter: Callable, reset := Callable(), after_mods := false) -> void:
+	CharCode.add_field(key, id, getter, setter, reset, after_mods)
 
 
 # ---------------------------------------------------------------- settings
