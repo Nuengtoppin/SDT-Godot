@@ -13,6 +13,7 @@ extends RefCounted
 ## Built-in extensions (script paths), in load order.
 const BUILTIN: Array[String] = [
 	"res://src/ext/dialogueactions/dialogue_actions.gd",
+	"res://src/ext/moremoods/moremoods.gd",
 ]
 
 const CONFIG_FILE := "extensions.cfg"

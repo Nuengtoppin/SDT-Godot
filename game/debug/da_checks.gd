@@ -44,6 +44,7 @@ func step(_frame: int) -> void:
 					g.dialogueControl.sayingPhrase)
 				_game_checks()
 				_world_checks()
+				_mood_checks()
 				_t0 = Flash.tick_count
 				_phase = 2
 		2:
@@ -301,6 +302,37 @@ intro:"hi"
 	_check("da.dialogue.import adds lines", dc.library.getPhrases("extra").size() == 1 and dc.library.getPhrases("button1").size() == 1)
 	_check("da.held / da.finishes / da.her.name readable", adc.replaceValues("*da.finishes*") != ""
 		and adc.replaceValues("*da.her.name*") != "")
+
+
+func _mood_checks() -> void:
+	var mm = Extensions.get_extension("moremoods")
+	_check("moremoods on by default", mm != null and mm.enabled)
+	if mm == null:
+		return
+	var her = g.her
+	var adc = g.dialogueControl.advancedController
+	da.run_code("[DISGUSTED_MOOD]")
+	_check("[DISGUSTED_MOOD]", Moods.current() == "Disgusted" and her.currentMood == "Normal" and mm.angry_lips,
+		"%s / %s" % [Moods.current(), her.currentMood])
+	_check("angry mouth shown", her.head.face.currentLabel == "Angry", her.head.face.currentLabel)
+	_check("dialogue variable moremoods", adc.replaceValues("*moremoods*") == "Disgusted")
+	da.run_code("[BROKEN_MOOD]")
+	_check("Broken: tongue always out", her.tongue.hangingOut and mm.always_tongue_out)
+	her.setMood("Happy")
+	_check("vanilla mood through moremoods", Moods.current() == "Happy" and her.currentMood == "Happy"
+		and not mm.always_tongue_out and her.head.face.currentLabel == "Happy")
+	da.run_code("[FRIGHTENED_MOOD]")
+	var code: String = g.inGameMenu.getSaveDataString(false)
+	_check("character code has moremoods", ";moremoods:Frightened" in code and ";mood:Normal" in code)
+	her.setMood("Angry")
+	g.inGameMenu.loadData(code, false)
+	_check("character code restores the mood", Moods.current() == "Frightened", Moods.current())
+	mm._cycle(1)
+	var after_up := Moods.current()
+	mm._cycle(-1)
+	_check("selector cycles (alphabetical)", after_up == "Happy" and Moods.current() == "Frightened", after_up)
+	_check("selector label", mm._label.text == "Frightened")
+	her.setMood("Normal")
 
 
 func _game_checks_later() -> void:
