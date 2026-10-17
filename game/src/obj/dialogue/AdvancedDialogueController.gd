@@ -23,6 +23,10 @@ func readAdvancedLineSettings(line: DialogueLine) -> void:
 
 
 func setValues(values) -> void:
+	if Hooks.has(&"AdvancedDialogueController.setValues"):   # HOOK (DialogueActions stores variables itself)
+		var h := Hooks.before(&"AdvancedDialogueController.setValues", self, [values])
+		if h.cancelled:
+			return
 	if not (values is Dictionary):
 		return
 	for k in values:
@@ -42,6 +46,17 @@ func setValues(values) -> void:
 
 
 func canPlay(line: DialogueLine) -> bool:
+	if Hooks.has(&"AdvancedDialogueController.canPlay"):   # HOOK
+		var h := Hooks.before(&"AdvancedDialogueController.canPlay", self, [line])
+		if h.cancelled:
+			return bool(h.result)
+		var ok := _canPlay(line)
+		return bool(Hooks.after(&"AdvancedDialogueController.canPlay", self, [line], ok).result)
+	return _canPlay(line)
+
+
+## canPlay's original body (split out so the hook can run after every exit).
+func _canPlay(line: DialogueLine) -> bool:
 	if not line.settings.get("check"):
 		return true
 	outputLog("Running checks for line: \"" + line.phrase + "\"")
@@ -86,11 +101,20 @@ func replaceValues(s: String) -> String:
 	var last := 0
 	for m in _reVar.search_all(s):
 		out += s.substr(last, m.get_start() - last)
-		var k := m.get_string(1)
-		if _dialogueDataStore.has(k):
-			out += AS3.toString(_dialogueDataStore[k])
+		out += customValueReplacer(m.get_string(1))
 		last = m.get_end()
 	return out + s.substr(last)
+
+
+## The value inserted for *key* (AS3: the String.replace callback).
+func customValueReplacer(k: String) -> String:
+	if Hooks.has(&"AdvancedDialogueController.customValueReplacer"):   # HOOK (DialogueActions: its variables, *a + b*)
+		var h := Hooks.before(&"AdvancedDialogueController.customValueReplacer", self, [k])
+		if h.cancelled:
+			return AS3.toString(h.result)
+	if _dialogueDataStore.has(k):
+		return AS3.toString(_dialogueDataStore[k])
+	return ""
 
 
 func outputLog(s: String) -> void:

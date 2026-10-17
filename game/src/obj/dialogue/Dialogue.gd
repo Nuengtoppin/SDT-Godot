@@ -208,12 +208,19 @@ func setupDialogueMod(n: String, clearAll: bool) -> void:
 
 
 func loadCustomDialogue(text: String, save: bool = true) -> void:
+	if Hooks.has(&"Dialogue.loadCustomDialogue"):   # HOOK
+		var h := Hooks.before(&"Dialogue.loadCustomDialogue", self, [text, save])
+		if h.cancelled:
+			return
+		text = h.args[0]
 	if text != "":
 		library.loadCustomDialogue(text)
 		for s in states.values():
 			s.clearPrevPhrases()
 	if save:
 		g.saveData.saveCustomDialogue(library.exportLibrary())
+	if Hooks.has(&"Dialogue.loadCustomDialogue"):   # HOOK
+		Hooks.after(&"Dialogue.loadCustomDialogue", self, [text, save])
 
 
 func exportDialogue() -> String:
@@ -407,6 +414,20 @@ func speechUrgency() -> float:
 
 
 func sayRandomPhrase(stateName: String, reduceOthers: bool = false) -> void:
+	if Hooks.has(&"Dialogue.sayRandomPhrase"):   # HOOK
+		var h := Hooks.before(&"Dialogue.sayRandomPhrase", self, [stateName, reduceOthers])
+		if h.cancelled:
+			return
+		stateName = h.args[0]
+		reduceOthers = h.args[1]
+		_sayRandomPhrase(stateName, reduceOthers)
+		Hooks.after(&"Dialogue.sayRandomPhrase", self, [stateName, reduceOthers])
+		return
+	_sayRandomPhrase(stateName, reduceOthers)
+
+
+## sayRandomPhrase's original body (split out so the hook can run after every exit).
+func _sayRandomPhrase(stateName: String, reduceOthers: bool) -> void:
 	var all: Array = library.getPhrases(stateName).duplicate()
 	var playable: Array = []
 	for l in all:
@@ -519,6 +540,10 @@ func nextWord() -> void:
 
 
 func checkWordAction() -> void:
+	if Hooks.has(&"Dialogue.checkWordAction"):   # HOOK (args: the raw word, e.g. "[SETVAR_x_+=5]")
+		var h := Hooks.before(&"Dialogue.checkWordAction", self, [words[sayingWord].word])
+		if h.cancelled:
+			return
 	var action := Callable()
 	var extraDelay := 0
 	match words[sayingWord].action:
@@ -683,6 +708,8 @@ func startSpeakingPhrase(line: DialogueLine) -> void:
 	nextLineTimer = 0
 	typingDelay = 0
 	speaking = true
+	if Hooks.has(&"Dialogue.startSpeakingPhrase"):   # HOOK
+		Hooks.after(&"Dialogue.startSpeakingPhrase", self, [line])
 
 
 func stopSpeaking() -> void:
