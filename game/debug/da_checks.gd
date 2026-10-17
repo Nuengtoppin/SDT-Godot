@@ -348,6 +348,16 @@ func _mood_cycle_step() -> void:
 	var mm = Extensions.get_extension("moremoods")
 	var her = g.her
 	var t := Flash.tick_count - _t0
+	# keep her busy: grab, then stroke deep and shallow, so the moods' behaviour code runs too
+	var main = Flash.get_tree().current_scene
+	if t == 1:
+		main._move(Vector2(5, 250))
+	elif t > 6:
+		main._move(Vector2(200 + (t % 10) * 30, 240))
+	if t == 150:
+		mm.behaviour.bite_mode = 2
+		mm.behaviour.bite_slider = 1.0
+		mm.behaviour.bite_timer = 70
 	if t % 12 != 0:
 		return
 	if _mood_cycle_i > 0:
@@ -363,6 +373,10 @@ func _mood_cycle_step() -> void:
 		_check("Android keeps the eyes wide open", d["Android"]["upper"] <= 2, str(d["Android"]))
 		_check("Frightened: shocked eyes", d["Frightened"]["shock"] >= 30, str(d["Frightened"]))
 		_check("Normal eyes unchanged", d["Normal"]["lower"] < 170, str(d["Normal"]))
+		_check("a bite ran to the end", mm.behaviour.bite_timer == 0)
+		var adc = g.dialogueControl.advancedController
+		_check("bite and eyelid fields in the character code", ";bitemode:2,1.00" in g.inGameMenu.getSaveDataString(false)
+			and ";uppereyelidlimit:" in g.inGameMenu.getSaveDataString(false))
 		her.setMood("Normal")
 		_finish()
 		return

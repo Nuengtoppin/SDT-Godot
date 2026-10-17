@@ -164,6 +164,10 @@ func touched() -> bool:
 
 
 func update(p: float, movement: float, absMovement: float, vigour: float) -> void:
+	if Hooks.has(&"Tongue.update"):   # HOOK
+		var h := Hooks.before(&"Tongue.update", self, [p, movement, absMovement, vigour])
+		if h.cancelled:
+			return
 	currentPos = p
 	tiltOffset *= 0.8
 	if movement > 30 or vigour > 300:
@@ -216,6 +220,8 @@ func update(p: float, movement: float, absMovement: float, vigour: float) -> voi
 	wiggleSpeed *= 0.9
 	if increasedAction > 0:
 		increasedAction -= 1
+	if Hooks.has(&"Tongue.update"):   # HOOK
+		Hooks.after(&"Tongue.update", self)
 
 
 func updatePiercing() -> void:

@@ -93,6 +93,17 @@ static func after(name: StringName, obj: Object, args: Array = [], result = null
 	return _run(name, "after", obj, args, result)
 
 
+## Calls `fn` with the hook `name` inactive, so the game method runs its original code (what a Loader mod got by
+## calling the function it had replaced, e.g. "tapHands_l").
+static func without(name: StringName, fn: Callable):
+	var was := _running.has(name)
+	_running[name] = true
+	var r = fn.call()
+	if not was:
+		_running.erase(name)
+	return r
+
+
 ## Hook names with handlers, for debugging.
 static func registered() -> Array:
 	return _hooks.keys()

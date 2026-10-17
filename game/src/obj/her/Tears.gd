@@ -96,6 +96,8 @@ func drawLowerEyelidMascara() -> void:
 	lowerEyelidData.draw_bitmap(mascaraData, Vector2i(-33, -3), Rect2i(0, 0, 50, 20))
 	lowerEyelidClear = false
 	lowerEyelidLayer.refresh()
+	if Hooks.has(&"Tears.drawLowerEyelidMascara"):   # HOOK
+		Hooks.after(&"Tears.drawLowerEyelidMascara", self)
 
 
 func clearLowerEyelid(amount: float) -> void:
@@ -105,6 +107,8 @@ func clearLowerEyelid(amount: float) -> void:
 		if amount == 20:
 			lowerEyelidClear = true
 		lowerEyelidLayer.refresh()
+	if Hooks.has(&"Tears.clearLowerEyelid"):   # HOOK
+		Hooks.after(&"Tears.clearLowerEyelid", self)
 
 
 func addTears() -> void:

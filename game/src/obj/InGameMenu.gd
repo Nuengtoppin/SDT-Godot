@@ -1515,6 +1515,8 @@ func shuffle():
 	if g.resetIntroOnNewChar:
 		g.resetIntro()
 	g.saveData.saveCharData()
+	if Hooks.has(&"InGameMenu.shuffle"):   # HOOK
+		Hooks.after(&"InGameMenu.shuffle", self)
 
 
 func setDialogueLibraryName(param1):

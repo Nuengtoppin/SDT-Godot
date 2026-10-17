@@ -92,6 +92,17 @@ for s in $scenarios; do
 		fi
 	done
 done
+# Script errors fail the checks too, except the deliberate ones (the broken test plugins, a duplicate id).
+script_errors() {   # each error line with the "at:" line after it
+	awk '/SCRIPT ERROR|^ERROR/ { e = $0; getline n; print e " | " n }' "$1" \
+		| grep -v -E "at exit|gdscript://|mods_ext/Plugins|missing or duplicate id|already used|contains ';'|has errors|uses class_name" | head -5
+}
+if [ -n "$(script_errors "$WORK/ext_checks.log")" ] || [ -n "$(script_errors "$WORK/da_checks.log")" ]; then
+	echo "FAIL script errors in the checks:"
+	script_errors "$WORK/ext_checks.log"
+	script_errors "$WORK/da_checks.log"
+	fail=1
+fi
 if [ "$ext_status" = 0 ] && grep -q "^EXT CHECKS: .* 0 failed" "$WORK/ext_checks.log"; then
 	echo "ok   extension checks ($(grep -c '^CHECK ok' "$WORK/ext_checks.log") passed)"
 else

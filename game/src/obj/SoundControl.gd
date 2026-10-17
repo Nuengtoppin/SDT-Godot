@@ -16,7 +16,7 @@ var cumPlaying: int = 0
 var queuedCoughs: int = 0
 var consecutiveCoughs: int = 0
 var maxConsecutiveCoughs: int = 1
-const quietBreathingLevel := 1.0
+var quietBreathingLevel: float = 1.0   # port: a variable so moremoods can change it (a private const in the original)
 var lastBreath: int = 0
 var lastInBreath: int = 0
 var lastSuddenBreath: int = 0
@@ -231,6 +231,8 @@ func startHolding() -> void:
 	if not beingHeld:
 		newRandomHoldSound()
 		beingHeld = true
+	if Hooks.has(&"SoundControl.startHolding"):   # HOOK
+		Hooks.after(&"SoundControl.startHolding", self)
 
 
 func stopHolding() -> void:
@@ -421,6 +423,8 @@ func newRandomBreath() -> void:
 		currentBreath.soundTransform = currentBreathST
 		breathStartTime = getTimer()
 		currentBreath.addEventListener(FlashEvent.SOUND_COMPLETE, breathFinished)
+	if Hooks.has(&"SoundControl.newRandomBreath"):   # HOOK
+		Hooks.after(&"SoundControl.newRandomBreath", self)
 
 
 func newInBreath() -> void:

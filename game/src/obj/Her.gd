@@ -806,6 +806,10 @@ func pushPenisTilt() -> float:
 
 
 func ejaculating() -> void:
+	if Hooks.has(&"Her.ejaculating"):   # HOOK
+		var h := Hooks.before(&"Her.ejaculating", self, [])
+		if h.cancelled:
+			return
 	shock(10)
 	if randf() > 0.5:
 		changeLookTarget(eyesDown, 5, 5)
@@ -813,6 +817,8 @@ func ejaculating() -> void:
 			startClenchingTeeth()
 	if held and randf() > 0.5 and aboveSwallowTilt:
 		swallow()
+	if Hooks.has(&"Her.ejaculating"):   # HOOK
+		Hooks.after(&"Her.ejaculating", self)
 
 
 func suck() -> void:
@@ -1033,6 +1039,10 @@ func updateHairLimits() -> void:
 
 
 func passOut() -> void:
+	if Hooks.has(&"Her.passOut"):   # HOOK
+		var h := Hooks.before(&"Her.passOut", self, [])
+		if h.cancelled:
+			return
 	passOutFactor = passOutMax
 	g.soundControl.playPassOut(pos)
 	passedOut = true
@@ -1141,6 +1151,10 @@ func lookDown() -> void:
 
 
 func tapHands(extra: float = 0.0) -> void:
+	if Hooks.has(&"Her.tapHands"):   # HOOK
+		var h := Hooks.before(&"Her.tapHands", self, [extra])
+		if h.cancelled:
+			return
 	if not g.handJobMode:
 		var power := randf() + (1.0 - passOutFactor / passOutMax) * 8.0 + extra
 		if power > 2:
@@ -1157,6 +1171,10 @@ func pushArms() -> void:
 
 
 func cough() -> void:
+	if Hooks.has(&"Her.cough"):   # HOOK
+		var h := Hooks.before(&"Her.cough", self, [])
+		if h.cancelled:
+			return
 	if g.coughing:
 		nextCoughTime = int(floor(randf() * 210)) + 30
 		coughing = true
@@ -1172,6 +1190,10 @@ func cough() -> void:
 
 
 func openCough() -> void:
+	if Hooks.has(&"Her.openCough"):   # HOOK
+		var h := Hooks.before(&"Her.openCough", self, [])
+		if h.cancelled:
+			return
 	if g.coughing:
 		coughing = true
 		coughFactor = randf() + 0.25
@@ -1209,6 +1231,10 @@ func swallow(intensity: float = 0.0, speak: bool = true) -> void:
 
 
 func checkMovementSounds() -> void:
+	if Hooks.has(&"Her.checkMovementSounds"):   # HOOK
+		var h := Hooks.before(&"Her.checkMovementSounds", self, [])
+		if h.cancelled:
+			return
 	var lipB: Vector2 = globalToLocal(head.jaw.localToGlobal(bottomLipA))
 	var mouthVec := Vector2(lipB.x - topLipA.x, lipB.y - topLipA.y)
 	var tip: Vector2 = globalToLocal(g.him.getPenisTipPoint())
@@ -1293,6 +1319,8 @@ func checkMovementSounds() -> void:
 				startClenchingTeeth()
 			offActionTime = int(floor(randf() * 300)) + 150
 			offActionTimer = 0
+	if Hooks.has(&"Her.checkMovementSounds"):   # HOOK
+		Hooks.after(&"Her.checkMovementSounds", self)
 
 
 func updateNoseSquash() -> void:

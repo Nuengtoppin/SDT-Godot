@@ -7,7 +7,8 @@ extends SDTExtension
 ## shapes and sets a vanilla mood underneath (mostly "Normal"); the real mood is Moods.current() / `mood`, the
 ## dialogue variable "moremoods" and the character code field "moremoods".
 ##
-## Stage 1: moods, face, triggers, selector, character code. The per-mood eyes, breathing and behaviour come next.
+## Files: mm_face.gd (eyebrows, eyelids, pupils, gaze, mouth), mm_behaviour.gd (breathing, pulling off, biting,
+## tongue, blushing, coughs, timer actions). The eye roll / eyelid / bite buttons and the mood list come later.
 
 const MOODS := ["Normal", "Happy", "Angry", "Ahegao", "Upset", "Worried", "Aggressive", "Drugged", "Frightened",
 	"Spent", "Submissive", "Depressed", "Nervous", "Elated", "Disgusted", "Broken", "Excited", "Smug", "Horny", "Tease",
@@ -37,6 +38,8 @@ var _label: ExtButton
 var face = null   # mm_face.gd
 
 const FaceScript := preload("res://src/ext/moremoods/mm_face.gd")
+const BehaviourScript := preload("res://src/ext/moremoods/mm_behaviour.gd")
+var behaviour = null   # mm_behaviour.gd
 
 
 func _init() -> void:
@@ -70,6 +73,32 @@ func _setup() -> void:
 	setting("androidmoodpassouteyeycord", -150.0, {"label": "Android: where she looks when passed out (y)", "min": -8000.0, "max": 8000.0})
 	setting("asleepclosedeyelidsthroatmax", 25.0, {"label": "Asleep: eyelid reaction to deep throat", "min": 0.0, "max": 50.0})
 	setting("asleepeyebrowshape", 0, {"label": "Asleep: eyebrows (0 normal, 1 worried, 2 angry)", "min": 0, "max": 2})
+	# behaviour
+	setting("asleepthroatsound", false, {"label": "Asleep: in-throat sound"})
+	setting("nopulloffonaggressive", false, {"label": "Aggressive: never pulls off"})
+	setting("playsoundfordruggeddrool", true, {"label": "Drugged: splat sound when drooling"})
+	setting("spentpassoutquicker", 0.05, {"label": "Spent / Broken: faster passing out", "min": 0.0, "max": 1.0})
+	for k in ["spentoffactioncoughsound", "spentoffactiongagsound", "spentoffactionsplatsound"]:
+		setting(k, false, {"label": "Spent: " + k.trim_prefix("spentoffaction")})
+	for k in ["spentoffactionquietgagsound", "spentoffactionswallowsound", "spentoffactionwince", "spentoffactionaddtear",
+			"spentoffactiongeneratesplat", "spentoffactionaccelbreasts", "spentoffactioncoughfactor"]:
+		setting(k, true, {"label": "Spent: " + k.trim_prefix("spentoffaction")})
+	setting("submissivetongueout", true, {"label": "Submissive: tongue out on the penis"})
+	setting("blushmaxamount", 0.9, {"label": "Strongest mood blush", "min": 0.0, "max": 1.0})
+	for k in ["aggressive", "frightened", "submissive", "nervous", "elated", "excited"]:
+		setting(k + "enableblush", true, {"label": k.capitalize() + ": blushing"})
+	setting("startingbitemode", 1, {"label": "Biting for new characters (0 off, 1 by mood, 2 by slider)", "min": 0, "max": 2})
+	setting("startingbiteslider", 0.6, {"label": "Biting slider for new characters", "min": 0.0, "max": 1.0})
+	setting("biteoccurancedivisor", 40.0, {"label": "How rarely she bites (higher = rarer)", "min": 1.0, "max": 1000.0})
+	setting("angrymoodbite", false, {"label": "Angry: bites"})
+	setting("aggressivemoodbite", true, {"label": "Aggressive: bites"})
+	setting("upsetmoodbite", false, {"label": "Upset: bites"})
+	setting("disgustedmoodbite", true, {"label": "Disgusted: bites"})
+	setting("moremoods_bittenlife", 150, {"label": "moremoods_bitten line: life", "min": 1, "max": 10000})
+	setting("moremoods_bittenpriority", 1, {"label": "moremoods_bitten line: priority", "min": 0, "max": 10})
+	setting("enablevanillasavingeyeroll", true, {"label": "Save the eye roll mode in the character code"})
+	setting("enablevanillasavingeyelid", true, {"label": "Save the eyelid limit in the character code"})
+	setting("enablevanillasavingbitemode", true, {"label": "Save the bite mode in the character code"})
 
 
 func _enable() -> void:
@@ -81,9 +110,25 @@ func _enable() -> void:
 	face.eyelid_mode = get_setting("startingeyelidmode")
 	face.eyelid_slider = get_setting("startingeyelidslider")
 	face.hook()
+	behaviour = BehaviourScript.new(self)
+	behaviour.bite_mode = get_setting("startingbitemode")
+	behaviour.bite_slider = get_setting("startingbiteslider")
+	behaviour.hook()
 	hook_before(&"Her.setMood", func(c): c.cancel(); set_mood(c.args[0]))
 	_register_triggers()
 	charcode_field("moremoods", func(): return mood_name, func(v, _l): _load_code_mood(v), Callable(), false)
+	if get_setting("enablevanillasavingeyeroll"):
+		charcode_field("eyeroll", func(): return "1" if face.eyeroll_enabled() else "0",
+			func(v, _l): face.eyeroll_mode = clampi(int(v.get_slice(",", 0)), 0, 2),
+			func(_l): face.eyeroll_mode = get_setting("startingeyerollmode"))
+	if get_setting("enablevanillasavingeyelid"):
+		charcode_field("uppereyelidlimit", func(): return "%d,%.2f" % [face.eyelid_mode, face.eyelid_slider],
+			func(v, _l): face.eyelid_mode = clampi(int(v.get_slice(",", 0)), 0, 3); face.eyelid_slider = clampf(float(v.get_slice(",", 1)), 0, 1),
+			func(_l): face.eyelid_mode = get_setting("startingeyelidmode"); face.eyelid_slider = get_setting("startingeyelidslider"))
+	if get_setting("enablevanillasavingbitemode"):
+		charcode_field("bitemode", func(): return "%d,%.2f" % [behaviour.bite_mode, behaviour.bite_slider],
+			func(v, _l): behaviour.bite_mode = clampi(int(v.get_slice(",", 0)), 0, 2); behaviour.bite_slider = clampf(float(v.get_slice(",", 1)), 0, 1),
+			func(_l): behaviour.bite_mode = get_setting("startingbitemode"); behaviour.bite_slider = get_setting("startingbiteslider"))
 	menu_button("sceneMenu", -330 - 21, 40, "◄", func(): _cycle(-1), 20, 20)
 	_label = menu_button("sceneMenu", -330, 40, mood_name, func(): pass, 100, 20)
 	menu_button("sceneMenu", -330 + 100 + 1, 40, "►", func(): _cycle(1), 20, 20)
@@ -93,6 +138,8 @@ func _enable() -> void:
 
 
 func _disable() -> void:
+	if behaviour != null:
+		behaviour.remove()
 	# back to the vanilla mood underneath
 	var vanilla: String = g.her.currentMood
 	mood_name = vanilla
@@ -142,7 +189,7 @@ func set_mood(m: String) -> void:
 
 ## Frames she has been biting (bite behaviour comes with the mood behaviours).
 func bite_timer() -> int:
-	return 0
+	return behaviour.bite_timer if behaviour != null else 0
 
 
 func _store_dialogue_var() -> void:

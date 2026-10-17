@@ -48,6 +48,12 @@ func set_color(rgb: int) -> void:
 		_redraw()
 
 
+## The button's label.
+var text: String:
+	get:
+		return _label.text
+
+
 func set_text(t: String) -> void:
 	_label.text = t
 
