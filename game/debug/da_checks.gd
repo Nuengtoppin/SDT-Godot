@@ -43,6 +43,7 @@ func step(_frame: int) -> void:
 				_check("start line plays after loading", g.dialogueControl.sayingPhrase == "Starting now",
 					g.dialogueControl.sayingPhrase)
 				_game_checks()
+				_world_checks()
 				_t0 = Flash.tick_count
 				_phase = 2
 		2:
@@ -233,6 +234,67 @@ func _game_checks() -> void:
 	_check("INSTANT_FLASH covers the screen", gt.fader != null and gt.fader.alpha == 1.0)
 	da.run_code("[MASTURBATE_ON]")
 	_check("MASTURBATE_ON", gt.masturbating)
+
+
+func _world_checks() -> void:
+	var adc = g.dialogueControl.advancedController
+	var cc = g.characterControl
+	var bra = cc.braControl
+	var names: Array = bra.elementNameList
+	adc.setValues({"da.clothes.top.type": names[1]})
+	_check("da.clothes.top.type", bra.selectedName == names[1] and adc.replaceValues("*da.clothes.top.type*") == names[1],
+		adc.replaceValues("*da.clothes.top.type*"))
+	adc.setValues({"da.clothes.top.r": 100})
+	adc.setValues({"da.clothes.top.r": "+20"})
+	_check("da.clothes.top.r (relative)", bra.rgb1["r"] == 120.0, str(bra.rgb1["r"]))
+	adc.setValues({"da.clothes.top.a": 5})
+	_check("clothes alpha clamped", bra.rgb1["a"] == 1.0)
+	adc.setValues({"da.her.body.breasts": 100})
+	adc.setValues({"da.her.body.breasts": "+5"})
+	_check("da.her.body.breasts", cc.breastSize == 105, str(cc.breastSize))
+	adc.setValues({"da.her.body.lipstick.r": 200})
+	_check("da.her.body.lipstick.r", AS3.Number(adc.replaceValues("*da.her.body.lipstick.r*")) == 200.0,
+		adc.replaceValues("*da.her.body.lipstick.r*"))
+	var tears: bool = g.tears
+	adc.setValues({"da.sdtoptions.tears": 0 if tears else 1})
+	_check("da.sdtoptions.tears toggles the option", g.tears != tears)
+	adc.setValues({"da.sdtoptions.tears": 1 if tears else 0})
+	# LOAD_CHARCODE keeps what the code does not list; LOAD_FULL_CHARCODE resets it
+	adc.setValues({"da.clothes.top.type": names[1]})
+	adc.setValues({"da.charcode.load": "mood:Happy"})
+	da.run_code("[LOAD_CHARCODE]")
+	_check("LOAD_CHARCODE keeps unlisted clothes", bra.selectedName == names[1] and g.her.currentMood == "Happy")
+	adc.setValues({"da.charcode.load": "mood:Angry"})
+	da.run_code("[LOAD_FULL_CHARCODE]")
+	_check("LOAD_FULL_CHARCODE resets them", bra.selection == 0 and g.her.currentMood == "Angry", bra.selectedName)
+	g.her.setMood("Normal")
+	# dialogue buttons
+	var dc = g.dialogueControl
+	dc.loadCustomDialogue('dialogue_name:"buttons"
+button1:"pressed one"{"style":"Thought"}
+intro:"hi"
+', false)
+	adc.setValues({"da.button1.name": "Go on"})
+	da.run_code("[BUTTON1_ON]")
+	var b = da.world.buttons[0]
+	_check("button shown with its text", b.visible and b.text == "Go on" and b._flash_parent == g.container)
+	b.on_click.call()
+	_check("button click builds its line", dc.states.has("button1") and dc.states["button1"].build > 0)
+	da.run_code("[BUTTONALL_CLEAR]")
+	_check("BUTTONALL_CLEAR", not b.visible and b.text == "")
+	da.run_code("[CLEARLINES_intro]")
+	_check("CLEARLINES", dc.library.getPhrases("intro").is_empty())
+	# importing another dialogue file's lines
+	var dir: String = Flash.mods_dir("Dialogue")
+	DirAccess.make_dir_recursive_absolute(dir)
+	var f := FileAccess.open(dir.path_join("da_import_test.txt"), FileAccess.WRITE)
+	f.store_string('extra:"imported line"
+')
+	f.close()
+	adc.setValues({"da.dialogue.import": "da_import_test.txt"})
+	_check("da.dialogue.import adds lines", dc.library.getPhrases("extra").size() == 1 and dc.library.getPhrases("button1").size() == 1)
+	_check("da.held / da.finishes / da.her.name readable", adc.replaceValues("*da.finishes*") != ""
+		and adc.replaceValues("*da.her.name*") != "")
 
 
 func _game_checks_later() -> void:

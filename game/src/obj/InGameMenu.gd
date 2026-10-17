@@ -1913,27 +1913,9 @@ func loadData(param1, param2 = true, param3 = false, param4 = null):
 		g.customElementLoader.clearInstancedMods()
 	if param3:
 		charStoring.setEditing(true,param4)
-	g.characterControl.gagControl.findName("none")
-	g.characterControl.legwearControl.findName("None")
-	g.characterControl.legwearBControl.findName("None")
-	g.characterControl.bottomsControl.findName("None")
-	g.characterControl.ankleCuffsControl.findName("None")
-	g.characterControl.topControl.findName("None")
-	g.characterControl.headwearControl.findName("None")
-	g.characterControl.armwearControl.findName("none")
-	g.characterControl.pantiesControl.findName("none")
-	g.characterControl.braControl.findName("none")
-	g.characterControl.footwearControl.findName("none")
-	g.characterControl.tonguePiercingControl.findName("none")
-	g.characterControl.nipplePiercingControl.findName("none")
-	g.characterControl.bellyPiercingControl.findName("none")
-	g.characterControl.earringControl.findName("none")
-	g.her.tan.setTan(0)
+	if not CharCode.keep_unlisted:   # HOOK port extension: DialogueActions' [LOAD_CHARCODE] keeps unlisted items
+		_resetUnlistedForLoad()
 	if not onlyLoadCostume:
-		g.her.setDefaultBodyScale()
-		g.characterControl.setNose(0)
-		g.characterControl.setEyebrows(0)
-		g.characterControl.setEar(0)
 		updateBodySlider()
 		updateArmsList()
 	if not onlyLoadCostume:
@@ -2163,6 +2145,32 @@ func loadData(param1, param2 = true, param3 = false, param4 = null):
 	CharCode.load_fields(_loc6_, str(param1), onlyLoadCostume)   # HOOK port extension: extension fields
 	if param2:
 		g.saveData.saveCharData()
+
+
+## loadData's reset of every clothing slot and of body scale, nose, eyebrows and ears (split out for the
+## DialogueActions hook above; the original runs it inline).
+func _resetUnlistedForLoad():
+	g.characterControl.gagControl.findName("none")
+	g.characterControl.legwearControl.findName("None")
+	g.characterControl.legwearBControl.findName("None")
+	g.characterControl.bottomsControl.findName("None")
+	g.characterControl.ankleCuffsControl.findName("None")
+	g.characterControl.topControl.findName("None")
+	g.characterControl.headwearControl.findName("None")
+	g.characterControl.armwearControl.findName("none")
+	g.characterControl.pantiesControl.findName("none")
+	g.characterControl.braControl.findName("none")
+	g.characterControl.footwearControl.findName("none")
+	g.characterControl.tonguePiercingControl.findName("none")
+	g.characterControl.nipplePiercingControl.findName("none")
+	g.characterControl.bellyPiercingControl.findName("none")
+	g.characterControl.earringControl.findName("none")
+	g.her.tan.setTan(0)
+	if not onlyLoadCostume:
+		g.her.setDefaultBodyScale()
+		g.characterControl.setNose(0)
+		g.characterControl.setEyebrows(0)
+		g.characterControl.setEar(0)
 
 
 func modIOError(param1 = null):

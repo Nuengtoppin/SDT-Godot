@@ -46,6 +46,9 @@ static var _unknown: Dictionary = {}
 static var _pending: Array = []   # [Load, [keys]] waiting for mods to finish loading
 ## Set by CustomElementLoader.parseMod while it loads a mod's built-in charData.
 static var loading_mod_chardata := false
+## Set while DialogueActions' [LOAD_CHARCODE] loads a code: InGameMenu.loadData then skips its reset of every
+## clothing slot, body scale, nose, eyebrows and ears, so only what the code lists changes.
+static var keep_unlisted := false
 
 
 ## Registers a field. `getter()` returns the value String to write, or null to leave the field out; it must not

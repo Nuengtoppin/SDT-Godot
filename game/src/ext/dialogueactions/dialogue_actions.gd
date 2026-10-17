@@ -13,6 +13,7 @@ extends SDTExtension
 const VarsScript := preload("res://src/ext/dialogueactions/da_variables.gd")
 const VarTriggers := preload("res://src/ext/dialogueactions/da_var_triggers.gd")
 const GameTriggers := preload("res://src/ext/dialogueactions/da_game_triggers.gd")
+const WorldTriggers := preload("res://src/ext/dialogueactions/da_world_triggers.gd")
 
 ## Line types DialogueActions adds: name -> [max build, priority]
 const LINE_TYPES := {"start": [180, 3], "orgasm": [240, 3], "passed_out": [240, 3], "choking": [240, 3]}
@@ -23,6 +24,7 @@ const CLEAN_INTERVAL := 200
 
 var vars = null
 var game = null   # da_game_triggers.gd
+var world = null  # da_world_triggers.gd
 var _triggers: Dictionary = {}   # name -> {arg_count: Callable}
 var _line_listeners: Array = []
 var _current_line := ""          # line type being chosen by sayRandomPhrase
@@ -46,6 +48,8 @@ func _enable() -> void:
 	VarTriggers.register(self)
 	game = GameTriggers.new(self)
 	game.register()
+	world = WorldTriggers.new(self)
+	world.register()
 	hook_before(&"Dialogue.checkWordAction", _on_word)
 	hook_before(&"AdvancedDialogueController.customValueReplacer", _on_insert)
 	hook_before(&"AdvancedDialogueController.setValues", _on_set_values)
@@ -64,6 +68,9 @@ func _disable() -> void:
 	if game != null:
 		game.remove()
 	game = null
+	if world != null:
+		world.remove()
+	world = null
 	vars = null
 
 

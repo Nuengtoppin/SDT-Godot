@@ -47,14 +47,14 @@ for s in $scenarios; do
 done
 # Extension system checks (game/debug/ext_checks.gd); not in Vanilla mode, they switch extensions on and off.
 # They load the test plugins from tests/plugins; "crashy" is marked as having crashed the previous start.
-mkdir -p "$WORK/mods_ext/Plugins" "$WORK/save_ext/extensions"
+mkdir -p "$WORK/mods_ext/Plugins" "$WORK/save_ext/extensions" "$WORK/mods_da"
 cp -r tests/plugins/*/ "$WORK/mods_ext/Plugins/"
 printf crashy > "$WORK/save_ext/extensions/loading_plugin.txt"
 "$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_ext" --mods-dir="$WORK/mods_ext" \
 	--driver=res://debug/ext_checks.gd > "$WORK/ext_checks.log" 2>&1 &
 ext_pid=$!
 # Built-in DialogueActions checks (game/debug/da_checks.gd)
-"$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_da" --mods-dir="$WORK/mods" \
+"$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_da" --mods-dir="$WORK/mods_da" \
 	--driver=res://debug/da_checks.gd > "$WORK/da_checks.log" 2>&1 &
 da_pid=$!
 for p in $pids; do wait "$p"; done
