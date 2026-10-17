@@ -48,7 +48,8 @@ func _passed_out(call: Hooks.Call) -> void:
 | `setting(key, default, info)` | Declares a setting. Type from the default (bool, int, float, String); `info`: `label`, `desc`, `min`, `max`, `step`, `options`. |
 | `get_setting(key)` / `set_setting(key, value)` | Read / change (saved immediately, then `_setting_changed(key, value)` is called). |
 | `data_dir()` | A folder for the extension's own files, next to the save files. |
-| `on_event(name, fn)` | `fn()` when something happens; events are listed in `Extensions.EVENTS` (e.g. `mods_loaded`). |
+| `on_event(name, fn)` | `fn(...)` when something happens; events are listed in `Extensions.EVENTS` (`mods_loaded`, `mood_changed`). |
+| `mood()` | Her current mood, including extended moods (see Moods). |
 | `charcode_field(key, get, set, reset, after_mods)` | A field in the character code, see below. |
 | `menu_button(menu, x, y, text, on_click)` | A small button in a game menu (`"optionsMenu"`, `"sceneMenu"`, ...), styled like the Loader's mod buttons; `set_color(0x00FF00)` shows a state. |
 | `on_key(keycode, fn, label)` | `fn()` when a key is pressed during play (Flash key codes; not while typing). Clashes with the game's keys or other extensions are reported in the log. |
@@ -100,6 +101,15 @@ charcode_field("tongueLength",
 - `after_mods = true` applies the field once the code's .swf mods have loaded (for values that refer to mod items).
 - Fields nobody knows, from a disabled extension or a Loader mod the port does not have, are kept with the
   character and written back out, so saving never loses them.
+
+## Moods
+
+The vanilla game has four moods (`Her.currentMood`). Extensions that add moods (moremoods adds 22) take over
+`Her.setMood` with a before-hook, show the mood themselves, set a vanilla mood underneath and call
+`Moods.set_extended(name)`; they declare their moods with `Moods.register(name, id)`.
+
+Everyone else reads `mood()` (or `Moods.current()`): the extended mood while one is active, else the vanilla one.
+The `mood_changed` event reports every change with the mood name.
 
 ## Hooks
 

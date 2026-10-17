@@ -38,6 +38,7 @@ const LOADING_MARKER := "loading_plugin.txt"
 ## Events extensions can listen to with SDTExtension.on_event(): name -> description.
 const EVENTS := {
 	"mods_loaded": "a character's .swf mods (or mods chosen in a picker) finished loading",
+	"mood_changed": "her mood changed; argument: the mood name (an extended one if active, see Moods)",
 }
 
 
@@ -144,6 +145,7 @@ static func _disable(ext: SDTExtension) -> void:
 	ext.enabled = false
 	Hooks.remove_owner(ext.id)
 	CharCode.remove_owner(ext.id)
+	Moods.unregister_owner(ext.id)
 	for w in _widgets.filter(func(x): return x[0] == ext):
 		if is_instance_valid(w[1]) and w[1]._flash_parent != null:
 			w[1]._flash_parent.removeChild(w[1])
@@ -174,6 +176,8 @@ static func shutdown() -> void:
 	CharCode._fields.clear()
 	CharCode._order.clear()
 	CharCode._pending.clear()
+	Moods._registered.clear()
+	Moods._extended = ""
 
 
 # ---------------------------------------------------------------- plugins

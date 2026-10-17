@@ -42,6 +42,7 @@ class TestExt:
 	var late_value := ""
 	var loads: Array = []   # [value, kind] per setter / reset call
 	var mods_events := 0
+	var moods_seen: Array = []
 
 	func _init() -> void:
 		id = "test"
@@ -64,6 +65,7 @@ class TestExt:
 		charcode_field("testLate", func(): return late_value if late_value != "" else null,
 			func(v, _l): late_value = v, Callable(), true)
 		on_event("mods_loaded", func(): mods_events += 1)
+		on_event("mood_changed", func(m): moods_seen.append(m))
 
 	func _disable() -> void:
 		disabled_calls += 1
@@ -112,6 +114,7 @@ func step(_frame: int) -> void:
 				_ext.slow = false
 				_settings_checks()
 				_charcode_checks()
+				_mood_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -287,6 +290,34 @@ func _plugin_checks() -> void:
 	g.her.passOut()
 	dt.keyPressed(e)
 	_check("disabled plugin: button, hook and key removed", b._flash_parent == null and ex.passouts == 1 and ex.key_presses == 1)
+
+
+func _mood_checks() -> void:
+	var e := _ext
+	var her = g.her
+	e.moods_seen.clear()
+	her.setMood("Happy")
+	_check("vanilla mood", Moods.current() == "Happy" and not Moods.is_extended() and e.moods_seen == ["Happy"], str(e.moods_seen))
+	# an extended mood the way moremoods does it: take over setMood, set a vanilla mood underneath
+	Moods.register("Upset", "test")
+	var take_over := func(c):
+		if c.args[0] == "Upset":
+			c.cancel()
+			her.setMood("Normal")       # runs the original (the hook is inactive while its handlers run)
+			Moods.set_extended("Upset")
+	Hooks.add_before(&"Her.setMood", take_over, "test")
+	e.moods_seen.clear()
+	her.setMood("Upset")
+	_check("extended mood", Moods.current() == "Upset" and her.currentMood == "Normal" and e.moods_seen == ["Upset"], str(e.moods_seen))
+	_check("extension sees the extended mood", e.mood() == "Upset" and "Upset" in Moods.all())
+	e.moods_seen.clear()
+	her.setMood("Angry")
+	_check("vanilla mood clears the extended one", Moods.current() == "Angry" and e.moods_seen == ["Angry"], str(e.moods_seen))
+	her.setMood("Upset")
+	Hooks.remove(&"Her.setMood", take_over)
+	Moods.unregister_owner("test")
+	_check("unregistered extended mood is cleared", Moods.current() == "Normal")
+	her.setMood("Normal")
 
 
 func _disable_checks() -> void:

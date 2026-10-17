@@ -86,6 +86,11 @@ func hook_after(name: StringName, fn: Callable, priority := 0, target: Object = 
 	Hooks.add_after(name, fn, id, priority, target)
 
 
+## Her mood, including extended moods (see Moods).
+func mood() -> String:
+	return Moods.current()
+
+
 ## Runs `fn(...)` when the event `name` happens (see Extensions.EVENTS).
 func on_event(name: String, fn: Callable) -> void:
 	Extensions._add_event(self, name, fn)

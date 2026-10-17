@@ -632,6 +632,11 @@ func isLeftArmFree() -> bool:
 
 
 func setMood(m: String) -> void:
+	if Hooks.has(&"Her.setMood"):   # HOOK (moremoods-style extended moods take over here)
+		var h := Hooks.before(&"Her.setMood", self, [m])
+		if h.cancelled:
+			return
+		m = h.args[0]
 	currentMood = m
 	head.face.gotoAndStop(m)
 	head.headTan.face.gotoAndStop(m)
@@ -645,6 +650,7 @@ func setMood(m: String) -> void:
 		tongue.stopHangingOut()
 	if currentMood != ANGRY_MOOD:
 		clenchTeeth = false
+	Moods.vanilla_mood_set(m)   # HOOK port extension: shared mood for extensions (src/ext/moods.gd)
 
 
 func setGagged(v: bool) -> void:
