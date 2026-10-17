@@ -821,6 +821,8 @@ func closeMenu():
 			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		elif g.gameRunning:
 			Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
+	if Hooks.has(&"InGameMenu.closeMenu"):   # HOOK
+		Hooks.after(&"InGameMenu.closeMenu", self)
 
 
 func closeClicked(param1 = null):
@@ -886,6 +888,8 @@ func updateTabs():
 		closeCharacterMenu()
 	if charStoringOpen:
 		closeCharStoring()
+	if Hooks.has(&"InGameMenu.updateTabs"):   # HOOK
+		Hooks.after(&"InGameMenu.updateTabs", self)
 
 
 func characterMenuCloseClicked(param1 = null):

@@ -8,7 +8,7 @@ extends SDTExtension
 ## dialogue variable "moremoods" and the character code field "moremoods".
 ##
 ## Files: mm_face.gd (eyebrows, eyelids, pupils, gaze, mouth), mm_behaviour.gd (breathing, pulling off, biting,
-## tongue, blushing, coughs, timer actions). The eye roll / eyelid / bite buttons and the mood list come later.
+## tongue, blushing, coughs, timer actions), mm_ui.gd (eye roll / eyelid / bite controls, the mood list).
 
 const MOODS := ["Normal", "Happy", "Angry", "Ahegao", "Upset", "Worried", "Aggressive", "Drugged", "Frightened",
 	"Spent", "Submissive", "Depressed", "Nervous", "Elated", "Disgusted", "Broken", "Excited", "Smug", "Horny", "Tease",
@@ -39,6 +39,8 @@ var face = null   # mm_face.gd
 
 const FaceScript := preload("res://src/ext/moremoods/mm_face.gd")
 const BehaviourScript := preload("res://src/ext/moremoods/mm_behaviour.gd")
+const UiScript := preload("res://src/ext/moremoods/mm_ui.gd")
+var ui = null   # mm_ui.gd
 var behaviour = null   # mm_behaviour.gd
 
 
@@ -51,6 +53,8 @@ func _init() -> void:
 
 func _setup() -> void:
 	setting("alphabetizemoods", true, {"label": "Mood selector in alphabetical order"})
+	setting("addmenupopout", true, {"label": "Mood list when clicking the mood name"})
+	setting("closemenuonselect", false, {"label": "Close the mood list after picking a mood"})
 	setting("shufflemoods", true, {"label": "Shuffle picks the added moods too"})
 	setting("spenttongueout", true, {"label": "Spent: tongue always out"})
 	setting("asleepmouthshape", 2, {"label": "Asleep: mouth shape (0 normal, 1 happy, 2 angry)", "min": 0, "max": 2})
@@ -119,27 +123,32 @@ func _enable() -> void:
 	charcode_field("moremoods", func(): return mood_name, func(v, _l): _load_code_mood(v), Callable(), false)
 	if get_setting("enablevanillasavingeyeroll"):
 		charcode_field("eyeroll", func(): return "1" if face.eyeroll_enabled() else "0",
-			func(v, _l): face.eyeroll_mode = clampi(int(v.get_slice(",", 0)), 0, 2),
+			func(v, _l): face.eyeroll_mode = clampi(int(v.get_slice(",", 0)), 0, 2); _refresh_ui(),
 			func(_l): face.eyeroll_mode = get_setting("startingeyerollmode"))
 	if get_setting("enablevanillasavingeyelid"):
 		charcode_field("uppereyelidlimit", func(): return "%d,%.2f" % [face.eyelid_mode, face.eyelid_slider],
-			func(v, _l): face.eyelid_mode = clampi(int(v.get_slice(",", 0)), 0, 3); face.eyelid_slider = clampf(float(v.get_slice(",", 1)), 0, 1),
+			func(v, _l): face.eyelid_mode = clampi(int(v.get_slice(",", 0)), 0, 3); face.eyelid_slider = clampf(float(v.get_slice(",", 1)), 0, 1); _refresh_ui(),
 			func(_l): face.eyelid_mode = get_setting("startingeyelidmode"); face.eyelid_slider = get_setting("startingeyelidslider"))
 	if get_setting("enablevanillasavingbitemode"):
 		charcode_field("bitemode", func(): return "%d,%.2f" % [behaviour.bite_mode, behaviour.bite_slider],
-			func(v, _l): behaviour.bite_mode = clampi(int(v.get_slice(",", 0)), 0, 2); behaviour.bite_slider = clampf(float(v.get_slice(",", 1)), 0, 1),
+			func(v, _l): behaviour.bite_mode = clampi(int(v.get_slice(",", 0)), 0, 2); behaviour.bite_slider = clampf(float(v.get_slice(",", 1)), 0, 1); _refresh_ui(),
 			func(_l): behaviour.bite_mode = get_setting("startingbitemode"); behaviour.bite_slider = get_setting("startingbiteslider"))
 	menu_button("sceneMenu", -330 - 21, 40, "◄", func(): _cycle(-1), 20, 20)
 	_label = menu_button("sceneMenu", -330, 40, mood_name, func(): pass, 100, 20)
 	menu_button("sceneMenu", -330 + 100 + 1, 40, "►", func(): _cycle(1), 20, 20)
+	ui = UiScript.new(self)
+	ui.build()
 	mood_name = g.her.currentMood
 	_update_label()
 	_store_dialogue_var()
+	on_event("mods_loaded", func(): ui.refresh())
 
 
 func _disable() -> void:
 	if behaviour != null:
 		behaviour.remove()
+	if ui != null:
+		ui.remove()
 	# back to the vanilla mood underneath
 	var vanilla: String = g.her.currentMood
 	mood_name = vanilla
@@ -185,6 +194,11 @@ func set_mood(m: String) -> void:
 		her.clenchTeeth = false
 	_update_label()
 	Moods.set_extended(m)
+
+
+func _refresh_ui() -> void:
+	if ui != null:
+		ui.refresh()
 
 
 ## Frames she has been biting (bite behaviour comes with the mood behaviours).

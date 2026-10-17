@@ -52,6 +52,9 @@ func _passed_out(call: Hooks.Call) -> void:
 | `mood()` | Her current mood, including extended moods (see Moods). |
 | `charcode_field(key, get, set, reset, after_mods)` | A field in the character code, see below. |
 | `menu_button(menu, x, y, text, on_click)` | A small button in a game menu (`"optionsMenu"`, `"sceneMenu"`, ...), styled like the Loader's mod buttons; `set_color(0x00FF00)` shows a state. |
+| `menu_slider(menu, x, y, w, h, value, on_change)` | A slider (ExtSlider, value 0..1) in a game menu. |
+| `menu_label(menu, x, y, w, text)` | A text label in a game menu. |
+| `menu_add(menu, obj, x, y)` | Any display object (an ExtList, ...) in a game menu; removed when the extension is disabled. |
 | `on_key(keycode, fn, label)` | `fn()` when a key is pressed during play (Flash key codes; not while typing). Clashes with the game's keys or other extensions are reported in the log. |
 
 Settings and on/off choices are stored in `extensions.cfg` next to the save files. Test runs with `--save-dir` use

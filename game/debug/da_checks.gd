@@ -336,6 +336,31 @@ func _mood_checks() -> void:
 	mm._cycle(-1)
 	_check("selector cycles (alphabetical)", after_up == "Happy" and Moods.current() == "Frightened", after_up)
 	_check("selector label", mm._label.text == "Frightened")
+	# controls
+	var ui = mm.ui
+	ui.eyeroll_button.on_click.call()
+	_check("eye roll button cycles", mm.face.eyeroll_mode == 1 and ui.eyeroll_button._idle == 0x00FF00)
+	ui.eyeroll_button.on_click.call()
+	ui.eyeroll_button.on_click.call()
+	_check("eye roll back to off", mm.face.eyeroll_mode == 0)
+	ui.eyelid_button.on_click.call()
+	ui.eyelid_button.on_click.call()
+	_check("eyelid limit button enables the slider", mm.face.eyelid_mode == 2 and ui.eyelid_slider.enabled)
+	ui.eyelid_slider.on_change.call(0.8)
+	_check("eyelid slider limits the eyelid", her.eye.upperEyelid.currentFrame >= 120, str(her.eye.upperEyelid.currentFrame))
+	ui.eyelid_button.on_click.call()
+	ui.eyelid_button.on_click.call()
+	var bm: int = mm.behaviour.bite_mode
+	ui.bite_button.on_click.call()
+	_check("bite button cycles", mm.behaviour.bite_mode == (bm + 1) % 3)
+	ui.bite_button.on_click.call()
+	ui.bite_button.on_click.call()
+	mm._label.on_click.call()
+	_check("mood list opens on the mood name", ui.list.visible and ui.list.items.size() == 26)
+	var idx: int = ui.list.items.find("Smug")
+	ui._picked(idx)
+	_check("picking a mood in the list", Moods.current() == "Smug")
+	ui.close_list()
 	her.setMood("Normal")
 
 

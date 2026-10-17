@@ -119,6 +119,39 @@ func menu_button(menu: String, x: float, y: float, text: String, on_click: Calla
 	return b
 
 
+## Adds any display object (an ExtSlider, ExtList, text field, ...) to a game menu at (x, y); removed when the
+## extension is disabled. Returns the object, or null if there is no such menu.
+func menu_add(menu: String, obj: FlashDisplayObject, x: float, y: float) -> FlashDisplayObject:
+	var parent = g.inGameMenu.get(menu) if g.inGameMenu != null else null
+	if not parent is FlashSprite:
+		push_error("extension %s: no menu '%s'" % [id, menu])
+		return null
+	obj.x = x
+	obj.y = y
+	parent.addChild(obj)
+	Extensions._add_widget(self, obj)
+	return obj
+
+
+## A slider (ExtSlider) in a game menu; `on_change(value)` while it is dragged.
+func menu_slider(menu: String, x: float, y: float, w: float, h: float, value: float, on_change: Callable) -> ExtSlider:
+	var sl := ExtSlider.new(w, h)
+	sl.set_value(value)
+	sl.on_change = on_change
+	return menu_add(menu, sl, x, y)
+
+
+## A text label in a game menu.
+func menu_label(menu: String, x: float, y: float, w: float, text: String, size := 11.0, align := "left") -> FlashTextField:
+	var t := FlashTextField.new()
+	t.mouseEnabled = false
+	t.selectable = false
+	t._box = Rect2(0, 0, w, size + 8)
+	t.setTextFormat({"size": size, "align": align, "color": 0x000000})
+	t.text = text
+	return menu_add(menu, t, x, y)
+
+
 ## Runs `fn()` when the key with Flash key code `keycode` is pressed during play (not while typing in a text field
 ## or while controls are locked). `label` describes it in clash warnings.
 func on_key(keycode: int, fn: Callable, label := "") -> void:
