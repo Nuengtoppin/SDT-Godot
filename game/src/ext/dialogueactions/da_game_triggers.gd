@@ -10,9 +10,10 @@ const BLOCK_VAR := "da.blockingOrgasm"
 var da
 var vars
 var sfx_volume := 0.5
-## Voice clips of DialogueActions' own SLAP / OW / AH_HARD / OH_HARD / OH_SOFT sounds: not part of the game, read
-## from Mods/Dialogue/DialogueActions/<name>.mp3 (or .ogg / .wav) when the player has them.
+## Voice set for DialogueActions' own SLAP / OW / AH_HARD / OH_HARD / OH_SOFT clips (1 or 2, SETVOICE). The
+## clips ship in VOICE_DIR (from DialogueActions' audio folder); Mods/Dialogue/DialogueActions/ can replace them.
 var voice := 1
+const VOICE_DIR := "res://assets/mods/dialogueactions/voice"
 var fader: FlashSprite = null
 var _fade_alpha_step := 0.02
 var _fade_in := false
@@ -205,15 +206,15 @@ func _voice_clip(trigger: String) -> void:
 	var name: String = clips[int(randf() * clips.size()) % clips.size()]
 	if voice == 2 and trigger != "SLAP":
 		name = (clips[0] if trigger == "OW" else name) + "_2"
-	var dir := Flash.mods_dir("Dialogue").path_join("DialogueActions")
-	for ext in ["mp3", "ogg", "wav"]:
-		var p := dir.path_join(name + "." + ext)
-		if FileAccess.file_exists(p):
+	var user_dir := Flash.mods_dir("Dialogue").path_join("DialogueActions")
+	for p in [user_dir.path_join(name + ".mp3"), user_dir.path_join(name + ".ogg"), user_dir.path_join(name + ".wav"),
+			VOICE_DIR.path_join(name + ".mp3")]:
+		if FileAccess.file_exists(p) or ResourceLoader.exists(p):
 			var s := FlashSound.from_file(p)
 			if s != null:
 				s.play()
 			return
-	vars.dlog("sound %s missing: put DialogueActions' voice clips in %s" % [name, dir])
+	vars.dlog("voice clip %s missing" % name)
 
 
 func _set_voice(v: String) -> void:

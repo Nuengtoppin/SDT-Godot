@@ -196,6 +196,12 @@ func _game_checks() -> void:
 	var gt = da.game
 	var ch_before: int = Flash._active_channels.size()
 	_check("MOAN plays a sound", da.run_code("[MOAN]") and Flash._active_channels.size() > ch_before)
+	var ch_voice: int = Flash._active_channels.size()
+	_check("OH_SOFT plays DialogueActions' shipped voice clip", da.run_code("[OH_SOFT]") and Flash._active_channels.size() > ch_voice)
+	da.run_code("[SETVOICE_2]")
+	var ch_voice2: int = Flash._active_channels.size()
+	_check("voice 2 clips", da.run_code("[AH_HARD]") and Flash._active_channels.size() > ch_voice2)
+	da.run_code("[SETVOICE_1]")
 	da.run_code("[GAG]")
 	_check("GAG plays and starts the gag swallow", gt._gagging and her.head.neck.swallowProgress > 0.8)
 	da.run_code("[TONGUE_OUT]")

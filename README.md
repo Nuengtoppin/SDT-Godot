@@ -6,8 +6,10 @@ easier to extend (mods, new features) and running much faster than the Flash ver
 **Adult content (18+).** The game is sexually explicit.
 
 The game's art, sounds and fonts are included, already converted from the original `SDT.swf` into
-`game/assets/sdt/`, so the original game is not needed to play. They belong to the original game's author and are
-not covered by this repository's license. If you are a rights holder and want them removed, please open an issue.
+`game/assets/sdt/`, so the original game is not needed to play. Art and sounds from community mods whose features
+the port reimplements are included in `game/assets/mods/` (for example DialogueActions' voice clips). They belong
+to their authors (the original game's author, and the mods' authors) and are not covered by this repository's
+license. If you are a rights holder and want something removed, please open an issue.
 
 ## Layout
 
@@ -18,6 +20,7 @@ not covered by this repository's license. If you are a rights holder and want th
   - `game/scenes/main.gd`: entry point, plus the scripted test harness options.
 - `native/`: source of the C++ GDExtension for hot paths (see [native/README.md](native/README.md)).
 - `game/assets/sdt/`: the converted game assets (shapes, sounds, fonts, timelines in `library.json`).
+- `game/assets/mods/`: art and sounds from community mods whose features the port reimplements.
 - `game/bin/`: the native extension, prebuilt for Windows (debug and release DLLs).
 - `tools/swfconv/`: converts `SDT.swf` into the asset library (only needed to regenerate `game/assets/sdt/`).
 - `tools/porting/`: one-off scripts used while porting the ActionScript (kept for reference).

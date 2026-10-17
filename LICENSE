@@ -24,5 +24,6 @@ SOFTWARE.
 
 This license covers the port's code and tools. It does not cover the game assets in
 game/assets/sdt/ (art, sounds, fonts and data converted from the original SDT.swf),
-which belong to the original game's author. native/godot-cpp is a separate project
+which belong to the original game's author, nor the community mod assets in
+game/assets/mods/, which belong to the mods' authors. native/godot-cpp is a separate project
 under its own license.
