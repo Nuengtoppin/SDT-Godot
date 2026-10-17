@@ -72,6 +72,10 @@ func _ready() -> void:
 	add_child(preload("res://scenes/fps_counter.gd").new())
 
 
+func _exit_tree() -> void:
+	Extensions.shutdown()
+
+
 func _process(_delta: float) -> void:
 	if _shot == "" and _clicks.is_empty() and not _quit_at_end and _driver == null:
 		return

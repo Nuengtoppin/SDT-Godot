@@ -4,13 +4,15 @@ The game code in `game/src` is a 1:1 port of the original ActionScript. Features
 (reimplemented Loader mods, fixes, new options) are **extensions**, kept out of the ported classes:
 
 - **Built-in extensions**: `game/src/ext/<name>/`, shipped with the game, each switched on or off in the options.
-- **Plugins**: `Mods/Plugins/<name>/`, installed by the player (plugin loading is not implemented yet).
+- **Plugins**: `Mods/Plugins/<name>/`, installed by the player; loaded automatically at startup, each can be
+  switched off.
 
 Both use the same API (`SDTExtension`). One switch, **Vanilla mode** (`--vanilla` on the command line), turns every
 extension off and gives the original game.
 
-Status: the hook system, the extension base class, tick callbacks, events, settings and character code fields
-exist. Still to come: dialogue extension points, menu widgets, the generated options screen and plugin loading.
+Status: hooks, the extension base class, tick callbacks, events, settings, character code fields, menu buttons,
+hotkeys and plugin loading exist. Still to come: dialogue extension points, more menu widgets and the generated
+options screen (with the list of plugins to switch on and off).
 
 ## Writing an extension
 
@@ -48,12 +50,37 @@ func _passed_out(call: Hooks.Call) -> void:
 | `data_dir()` | A folder for the extension's own files, next to the save files. |
 | `on_event(name, fn)` | `fn()` when something happens; events are listed in `Extensions.EVENTS` (e.g. `mods_loaded`). |
 | `charcode_field(key, get, set, reset, after_mods)` | A field in the character code, see below. |
+| `menu_button(menu, x, y, text, on_click)` | A small button in a game menu (`"optionsMenu"`, `"sceneMenu"`, ...), styled like the Loader's mod buttons; `set_color(0x00FF00)` shows a state. |
+| `on_key(keycode, fn, label)` | `fn()` when a key is pressed during play (Flash key codes; not while typing). Clashes with the game's keys or other extensions are reported in the log. |
 
 Settings and on/off choices are stored in `extensions.cfg` next to the save files. Test runs with `--save-dir` use
 their own copy.
 
 Tick time is measured per extension: it appears in `--profile` output and in the log's `HITCH` lines as
 `ext:<id>.tick`.
+
+## Plugins
+
+A plugin is a folder in `Mods/Plugins/` with a `plugin.cfg` and a main script:
+
+```ini
+[plugin]
+id="myplugin"                 ; unique; also the name of its settings section
+name="My plugin"
+author="me"
+version="1"
+main="plugin.gd"              ; extends SDTExtension
+depends=["otherplugin"]       ; optional: loaded after these
+enabled_by_default=true       ; optional
+```
+
+- Scripts are compiled from the folder at startup. They must not use `class_name`, and they load their other
+  scripts with `load_script("other.gd")` and files with `file_path("art.png")` instead of `res://` paths.
+- A plugin with errors is skipped; the rest of the game and the other plugins still load.
+- If the game crashes or hangs while a plugin loads, that plugin is switched off at the next start.
+- Plugins can do anything a program can, as Loader mods could: only install plugins you trust.
+
+`tests/plugins/example` is a small working plugin.
 
 ## Character code fields
 
@@ -68,7 +95,7 @@ charcode_field("tongueLength",
 ```
 
 - The reset (default) runs only for a **full** character code. Costume-only loads, a mod's built-in character
-  data and partial codes (fewer than 35 pairs, the Loader mods' rule) leave the current value alone.
+  data and partial codes (35 or fewer ";"-separated parts, the Loader mods' rule) leave the current value alone.
   `load.kind` tells which one it is (`CharCode.Kind.FULL / PARTIAL / COSTUME / MOD_CHARDATA`).
 - `after_mods = true` applies the field once the code's .swf mods have loaded (for values that refer to mod items).
 - Fields nobody knows, from a disabled extension or a Loader mod the port does not have, are kept with the

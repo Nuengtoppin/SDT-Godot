@@ -113,6 +113,7 @@ func step(_frame: int) -> void:
 				_settings_checks()
 				_charcode_checks()
 				_disable_checks()
+				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
 				Flash.get_tree().quit(1 if _fail > 0 else 0)
 				_phase = 4
@@ -195,7 +196,7 @@ func _charcode_checks() -> void:
 	var e := _ext
 	var code: String = menu.getSaveDataString(false)
 	var n := code.split(";").size()
-	_check("vanilla code is a full code (%d pairs)" % n, n >= CharCode.PARTIAL_PAIRS)
+	_check("vanilla code is a full code (%d pairs)" % n, n > CharCode.PARTIAL_PAIRS)
 	_check("field written", ";testField:abc" in code and not "testLate" in code, code.right(80))
 	var base := code.replace(";testField:abc", "")
 	e.loads.clear()
@@ -250,6 +251,42 @@ func _charcode_checks() -> void:
 	Extensions.set_enabled("test", true)
 	menu.loadData(base + ";testField:back", false)
 	_check("re-enabled extension reads its field", e.value == "back")
+
+
+## The test plugins in tests/plugins (regress.sh copies them into the run's Mods/Plugins and leaves a loading
+## marker for "crashy", as if it had crashed the previous start).
+func _plugin_checks() -> void:
+	var P := Extensions.plugins
+	if not P.has("example"):
+		_check("test plugins present (run through tools/regress.sh)", false)
+		return
+	var ex = Extensions.get_extension("example")
+	_check("plugin loaded and on by default", P["example"]["error"] == "" and ex != null and ex.enabled and not ex.builtin)
+	_check("plugin manifest read", ex.title == "Example plugin" and ex.author == "tests" and ex.folder.ends_with("example"))
+	_check("plugin helper script", ex.helper != null and ex.helper.answer() == 42)
+	_check("dependency loaded after its dependency", Extensions.all.find(Extensions.get_extension("needs_example")) > Extensions.all.find(ex))
+	_check("broken plugin skipped", P["broken"]["error"] != "" and Extensions.get_extension("broken") == null)
+	_check("class_name plugin refused", P["classname"]["error"] != "" and Extensions.get_extension("classname") == null
+		and g.her.get_script() == Her)
+	_check("missing dependency reported", "missing dependency" in P["missing_dep"]["error"] and Extensions.get_extension("missing_dep") == null)
+	var crashy = Extensions.get_extension("crashy")
+	_check("plugin that crashed last start is off", crashy != null and not crashy.enabled)
+	var dt = Flash.stage.getChildAt(0)
+	var e := FlashEvent.new(FlashEvent.KEY_DOWN)
+	e.keyCode = 120
+	dt.keyPressed(e)
+	g.inTextField = true
+	dt.keyPressed(e)
+	g.inTextField = false
+	_check("plugin hotkey (not while typing)", ex.key_presses == 1, str(ex.key_presses))
+	_check("plugin menu button", ex.button != null and ex.button._flash_parent == g.inGameMenu.optionsMenu)
+	g.her.passOut()
+	_check("Her.passOut hook", ex.passouts == 1)
+	var b: ExtButton = ex.button
+	Extensions.set_enabled("example", false)
+	g.her.passOut()
+	dt.keyPressed(e)
+	_check("disabled plugin: button, hook and key removed", b._flash_parent == null and ex.passouts == 1 and ex.key_presses == 1)
 
 
 func _disable_checks() -> void:

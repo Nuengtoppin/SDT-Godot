@@ -86,6 +86,8 @@ func setMouthFull(v: bool = true) -> void:
 
 func encourage(amount: int = 5) -> void:
 	increasedAction = amount
+	if Hooks.has(&"Tongue.encourage"):   # HOOK
+		Hooks.after(&"Tongue.encourage", self, [amount])
 
 
 func hangOut() -> void:

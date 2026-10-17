@@ -46,10 +46,15 @@ for s in $scenarios; do
 	pids="$pids $!"
 done
 # Extension system checks (game/debug/ext_checks.gd); not in Vanilla mode, they switch extensions on and off.
-"$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_ext" --mods-dir="$WORK/mods" \
+# They load the test plugins from tests/plugins; "crashy" is marked as having crashed the previous start.
+mkdir -p "$WORK/mods_ext/Plugins" "$WORK/save_ext/extensions"
+cp -r tests/plugins/*/ "$WORK/mods_ext/Plugins/"
+printf crashy > "$WORK/save_ext/extensions/loading_plugin.txt"
+"$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_ext" --mods-dir="$WORK/mods_ext" \
 	--driver=res://debug/ext_checks.gd > "$WORK/ext_checks.log" 2>&1 &
-pids="$pids $!"
+ext_pid=$!
 for p in $pids; do wait "$p"; done
+wait "$ext_pid"; ext_status=$?
 
 fail=0
 for s in $scenarios; do
@@ -82,10 +87,10 @@ for s in $scenarios; do
 		fi
 	done
 done
-if grep -q "^EXT CHECKS: .* 0 failed" "$WORK/ext_checks.log"; then
+if [ "$ext_status" = 0 ] && grep -q "^EXT CHECKS: .* 0 failed" "$WORK/ext_checks.log"; then
 	echo "ok   extension checks ($(grep -c '^CHECK ok' "$WORK/ext_checks.log") passed)"
 else
-	echo "FAIL extension checks (see $WORK/ext_checks.log):"
+	echo "FAIL extension checks, exit code $ext_status (see $WORK/ext_checks.log):"
 	grep -E "^CHECK FAIL|SCRIPT ERROR" "$WORK/ext_checks.log" | head -12
 	fail=1
 fi

@@ -337,6 +337,7 @@ func keyPressed(e: FlashEvent) -> void:
 			g.ctrlDown = true
 	if g.inTextField or g.controlLocked:
 		return
+	Extensions.key_pressed(e.keyCode)   # HOOK port extension: extension hotkeys
 	match e.keyCode:
 		191:
 			if g.shiftDown:

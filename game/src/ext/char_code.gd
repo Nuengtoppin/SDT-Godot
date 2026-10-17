@@ -7,13 +7,13 @@ extends RefCounted
 ## - Fields an extension registers are written after the vanilla fields and read after the vanilla ones are applied.
 ## - A field's setter gets the value and a Load context. When a code does not contain the field, its reset is called
 ##   only for a full character code: costume-only loads, a mod's built-in charData and short partial codes leave the
-##   current value alone (the Loader mods' rule: a code with fewer than PARTIAL_PAIRS pairs is partial).
+##   current value alone (the Loader mods' rule: a code is full only with more than PARTIAL_PAIRS ";"-separated parts).
 ## - Fields nobody knows (from a disabled plugin, or a Loader mod the port does not have) are kept and written back
 ##   out, so saving a character never loses them.
 ## - Fields marked after_mods are applied once the code's .swf mods have finished loading (fields that refer to mod
 ##   items, e.g. a headwear offset).
 
-## Loader mods treated codes with fewer pairs than this as partial (setting "partialcharcodeskipdefaultamount").
+## Loader mods treated a code as full only if code.split(";") had more parts than this ("partialcharcodeskipdefaultamount").
 const PARTIAL_PAIRS := 35
 
 ## Keys the vanilla game reads or writes (InGameMenu.loadData / getSaveDataString and the parts they call).
@@ -115,17 +115,15 @@ static func load_fields(pairs: Array, code: String, costume_only: bool) -> void:
 	var from_mod := loading_mod_chardata
 	var l := Load.new()
 	l.code = code
-	var n := 0
 	for p in pairs:
 		if p.size() < 2 or p[0] == "":
 			continue
 		l.pairs[p[0]] = ":".join(PackedStringArray(p.slice(1)))
-		n += 1
 	if from_mod:
 		l.kind = Kind.MOD_CHARDATA
 	elif costume_only:
 		l.kind = Kind.COSTUME
-	elif n < PARTIAL_PAIRS:
+	elif code.split(";").size() <= PARTIAL_PAIRS:
 		l.kind = Kind.PARTIAL
 	else:
 		l.kind = Kind.FULL

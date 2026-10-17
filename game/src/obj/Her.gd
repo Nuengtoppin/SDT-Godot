@@ -1031,6 +1031,8 @@ func passOut() -> void:
 	g.soundControl.playPassOut(pos)
 	passedOut = true
 	startArmsPassOut()
+	if Hooks.has(&"Her.passOut"):   # HOOK
+		Hooks.after(&"Her.passOut", self)
 
 
 func startArmsPassOut(left: bool = true, right: bool = true) -> void:

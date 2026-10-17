@@ -25,6 +25,15 @@ static var _ticks: Array = []        # [extension, Callable], before the game's 
 static var _late_ticks: Array = []   # [extension, Callable], after it
 static var _installed := false
 static var _events: Dictionary = {}   # event name -> [[extension, Callable]]
+static var _widgets: Array = []      # [extension, FlashDisplayObject]
+static var _keys: Dictionary = {}    # Flash key code -> [[extension, Callable, label]]
+
+## Flash key codes the vanilla game uses during play (DT.keyPressed), for clash warnings.
+const VANILLA_KEYS := [16, 17, 191, 32, 65, 80, 79, 73, 85, 89, 67, 88, 66, 72, 75, 84, 83, 74]
+
+## Plugins found in Mods/Plugins: id -> {"folder", "name", "author", "version", "error"} ("" = loaded).
+static var plugins: Dictionary = {}
+const LOADING_MARKER := "loading_plugin.txt"
 
 ## Events extensions can listen to with SDTExtension.on_event(): name -> description.
 const EVENTS := {
@@ -46,6 +55,7 @@ static func start() -> void:
 			push_error("extensions: cannot load %s" % path)
 			continue
 		add(scr.new())
+	load_plugins(Flash.mods_dir("Plugins"))
 
 
 ## Adds an extension (built in or a plugin): declares its settings, loads saved values, enables it if it is on.
@@ -134,11 +144,148 @@ static func _disable(ext: SDTExtension) -> void:
 	ext.enabled = false
 	Hooks.remove_owner(ext.id)
 	CharCode.remove_owner(ext.id)
+	for w in _widgets.filter(func(x): return x[0] == ext):
+		if is_instance_valid(w[1]) and w[1]._flash_parent != null:
+			w[1]._flash_parent.removeChild(w[1])
+	_widgets = _widgets.filter(func(x): return x[0] != ext)
+	for k in _keys:
+		_keys[k] = _keys[k].filter(func(x): return x[0] != ext)
 	for name in _events:
 		_events[name] = _events[name].filter(func(e): return e[0] != ext)
 	_ticks = _ticks.filter(func(t): return t[0] != ext)
 	_late_ticks = _late_ticks.filter(func(t): return t[0] != ext)
 	ext._disable()
+
+
+## Releases every extension when the game quits (main scene _exit_tree). Plugin scripts are compiled at runtime;
+## if static lists still hold their instances while the engine shuts down, Godot can crash on exit.
+static func shutdown() -> void:
+	for ext in all.duplicate():
+		if ext.enabled:
+			_disable(ext)
+	all.clear()
+	by_id.clear()
+	_ticks.clear()
+	_late_ticks.clear()
+	_events.clear()
+	_keys.clear()
+	_widgets.clear()
+	Hooks._hooks.clear()
+	CharCode._fields.clear()
+	CharCode._order.clear()
+	CharCode._pending.clear()
+
+
+# ---------------------------------------------------------------- plugins
+
+## Loads every plugin in `dir` (one folder per plugin, each with a plugin.cfg). A plugin that crashed or hung the
+## game while it was being loaded last time (its id is still in the loading marker) is switched off.
+static func load_plugins(dir: String) -> void:
+	var marker := data_root().path_join(LOADING_MARKER)
+	if FileAccess.file_exists(marker):
+		var bad := FileAccess.get_file_as_string(marker).strip_edges()
+		if bad != "":
+			push_warning("extensions: plugin '%s' did not finish loading last time; it has been switched off" % bad)
+			_config.set_value("enabled", bad, false)
+			_save_config()
+		DirAccess.remove_absolute(marker)
+	var da := DirAccess.open(dir)
+	if da == null:
+		return
+	var found: Array = []   # [id, folder, ConfigFile]
+	for sub in da.get_directories():
+		var folder := dir.path_join(sub)
+		var cfg := ConfigFile.new()
+		if cfg.load(folder.path_join("plugin.cfg")) != OK:
+			continue
+		var pid := str(cfg.get_value("plugin", "id", sub))
+		if plugins.has(pid) or by_id.has(pid):
+			push_warning("extensions: plugin id '%s' (%s) is already used, skipped" % [pid, folder])
+			continue
+		plugins[pid] = {"folder": folder, "name": str(cfg.get_value("plugin", "name", pid)),
+			"author": str(cfg.get_value("plugin", "author", "")),
+			"version": str(cfg.get_value("plugin", "version", "")), "error": ""}
+		found.append([pid, folder, cfg])
+	found.sort_custom(func(a, b): return a[0] < b[0])
+	# a plugin loads after the plugins it depends on
+	var progress := true
+	while progress and not found.is_empty():
+		progress = false
+		for f in found.duplicate():
+			var deps: Array = f[2].get_value("plugin", "depends", [])
+			if deps.all(func(d): return by_id.has(d)):
+				found.erase(f)
+				_load_plugin(f[0], f[1], f[2], marker)
+				progress = true
+	for f in found:
+		plugins[f[0]]["error"] = "missing dependency %s" % [f[2].get_value("plugin", "depends", [])]
+		push_warning("extensions: plugin '%s' not loaded: %s" % [f[0], plugins[f[0]]["error"]])
+
+
+static func _load_plugin(pid: String, folder: String, cfg: ConfigFile, marker: String) -> void:
+	DirAccess.make_dir_recursive_absolute(data_root())
+	var mf := FileAccess.open(marker, FileAccess.WRITE)
+	if mf != null:
+		mf.store_string(pid)
+		mf.close()
+	var scr := compile_script(folder.path_join(str(cfg.get_value("plugin", "main", "plugin.gd"))))
+	var ext = scr.new() if scr != null else null
+	if not ext is SDTExtension:
+		plugins[pid]["error"] = "main script missing, broken or not an SDTExtension"
+		push_warning("extensions: plugin '%s': %s" % [pid, plugins[pid]["error"]])
+	else:
+		ext.id = pid
+		ext.builtin = false
+		ext.folder = folder
+		if ext.title == "":
+			ext.title = plugins[pid]["name"]
+		ext.author = plugins[pid]["author"]
+		ext.version = plugins[pid]["version"]
+		ext.default_enabled = bool(cfg.get_value("plugin", "enabled_by_default", true))
+		add(ext)
+	DirAccess.remove_absolute(marker)
+
+
+## Compiles a GDScript file from anywhere on disk (plugins live outside the project). Plugin scripts may not use
+## class_name, so they cannot take over the name of a game class.
+static func compile_script(path: String) -> GDScript:
+	if not FileAccess.file_exists(path):
+		push_warning("extensions: %s not found" % path)
+		return null
+	var src := FileAccess.get_file_as_string(path)
+	for line in src.split("\n"):
+		if line.strip_edges().begins_with("class_name"):
+			push_warning("extensions: %s uses class_name, which plugin scripts may not do" % path)
+			return null
+	var scr := GDScript.new()
+	scr.source_code = src
+	if scr.reload() != OK:
+		push_warning("extensions: %s has errors" % path)
+		return null
+	return scr
+
+
+# ---------------------------------------------------------------- keys and widgets
+
+## Called from DT.keyPressed after the vanilla guards (not while typing or with controls locked).
+static func key_pressed(keycode: int) -> void:
+	for k in _keys.get(keycode, []).duplicate():
+		if k[1].is_valid():
+			k[1].call()
+
+
+static func _add_key(ext: SDTExtension, keycode: int, fn: Callable, label: String) -> void:
+	if keycode in VANILLA_KEYS:
+		push_warning("extension %s: key %d (%s) is also a key of the game" % [ext.id, keycode, label])
+	if not _keys.has(keycode):
+		_keys[keycode] = []
+	for other in _keys[keycode]:
+		push_warning("extension %s: key %d (%s) is also used by %s (%s)" % [ext.id, keycode, label, other[0].id, other[2]])
+	_keys[keycode].append([ext, fn, label])
+
+
+static func _add_widget(ext: SDTExtension, w: FlashDisplayObject) -> void:
+	_widgets.append([ext, w])
 
 
 ## Calls every listener of event `name` (see EVENTS) with `args`.

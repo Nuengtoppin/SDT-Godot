@@ -32,6 +32,8 @@ var author := ""
 var version := ""
 ## Built-in extensions ship with the game; plugins come from Mods/Plugins.
 var builtin := true
+## A plugin's folder (absolute path); "" for built-in extensions.
+var folder := ""
 ## Whether the extension is on when the player has not chosen yet.
 var default_enabled := false
 ## Set by Extensions while the extension is on.
@@ -94,6 +96,39 @@ func on_event(name: String, fn: Callable) -> void:
 ## code lacks the field. after_mods: apply once the code's mods have loaded.
 func charcode_field(key: String, getter: Callable, setter: Callable, reset := Callable(), after_mods := false) -> void:
 	CharCode.add_field(key, id, getter, setter, reset, after_mods)
+
+
+## Adds a small button (ExtButton) to a game menu at (x, y): `menu` is the name of an InGameMenu member such as
+## "optionsMenu", "sceneMenu", "costumeMenu". `on_click()` runs when it is clicked. Removed when disabled.
+func menu_button(menu: String, x: float, y: float, text: String, on_click: Callable, w := 16.0, h := 16.0) -> ExtButton:
+	var parent = g.inGameMenu.get(menu) if g.inGameMenu != null else null
+	if not parent is FlashSprite:
+		push_error("extension %s: no menu '%s'" % [id, menu])
+		return null
+	var b := ExtButton.new(w, h, text)
+	b.x = x
+	b.y = y
+	b.on_click = on_click
+	parent.addChild(b)
+	Extensions._add_widget(self, b)
+	return b
+
+
+## Runs `fn()` when the key with Flash key code `keycode` is pressed during play (not while typing in a text field
+## or while controls are locked). `label` describes it in clash warnings.
+func on_key(keycode: int, fn: Callable, label := "") -> void:
+	Extensions._add_key(self, keycode, fn, label)
+
+
+## A plugin's own script (path relative to its folder), compiled like its main script. Built-in extensions use
+## preload() instead.
+func load_script(rel_path: String) -> GDScript:
+	return Extensions.compile_script(folder.path_join(rel_path))
+
+
+## Absolute path of a file in the plugin's folder.
+func file_path(rel_path: String) -> String:
+	return folder.path_join(rel_path)
 
 
 # ---------------------------------------------------------------- settings
