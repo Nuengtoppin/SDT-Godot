@@ -19,6 +19,16 @@ static func from_library(lib: FlashLibrary, id: int) -> FlashSound:
 	return s
 
 
+## A sound file on disk (.mp3, .ogg or .wav), e.g. music a dialogue plays; null if it cannot be read.
+static func from_file(path: String) -> FlashSound:
+	var st := _load_stream(path)
+	if st == null:
+		return null
+	var s := FlashSound.new()
+	s.stream = st
+	return s
+
+
 ## new sfxGag1() -> FlashSound.named("sfxGag1")
 static func named(as3_class: String) -> FlashSound:
 	var found: Array = Flash.find_class_symbol(as3_class)
@@ -45,6 +55,8 @@ static func _load_stream(p: String) -> AudioStream:
 		return AudioStreamMP3.load_from_file(p)
 	if p.get_extension().to_lower() == "wav":
 		return AudioStreamWAV.load_from_file(p)
+	if p.get_extension().to_lower() == "ogg":
+		return AudioStreamOggVorbis.load_from_file(p)
 	return null
 
 

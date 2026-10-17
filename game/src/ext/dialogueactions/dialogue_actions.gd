@@ -12,6 +12,7 @@ extends SDTExtension
 
 const VarsScript := preload("res://src/ext/dialogueactions/da_variables.gd")
 const VarTriggers := preload("res://src/ext/dialogueactions/da_var_triggers.gd")
+const GameTriggers := preload("res://src/ext/dialogueactions/da_game_triggers.gd")
 
 ## Line types DialogueActions adds: name -> [max build, priority]
 const LINE_TYPES := {"start": [180, 3], "orgasm": [240, 3], "passed_out": [240, 3], "choking": [240, 3]}
@@ -21,6 +22,7 @@ const START_DELAY := 60
 const CLEAN_INTERVAL := 200
 
 var vars = null
+var game = null   # da_game_triggers.gd
 var _triggers: Dictionary = {}   # name -> {arg_count: Callable}
 var _line_listeners: Array = []
 var _current_line := ""          # line type being chosen by sayRandomPhrase
@@ -42,6 +44,8 @@ func _enable() -> void:
 	vars = VarsScript.new()
 	_triggers.clear()
 	VarTriggers.register(self)
+	game = GameTriggers.new(self)
+	game.register()
 	hook_before(&"Dialogue.checkWordAction", _on_word)
 	hook_before(&"AdvancedDialogueController.customValueReplacer", _on_insert)
 	hook_before(&"AdvancedDialogueController.setValues", _on_set_values)
@@ -57,6 +61,9 @@ func _enable() -> void:
 
 
 func _disable() -> void:
+	if game != null:
+		game.remove()
+	game = null
 	vars = null
 
 
@@ -172,6 +179,7 @@ func _setup_line_types() -> void:
 
 
 func _tick() -> void:
+	game.tick()
 	if g.gamePaused:
 		return
 	var dc = g.dialogueControl

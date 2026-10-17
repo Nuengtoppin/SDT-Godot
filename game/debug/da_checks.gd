@@ -42,6 +42,12 @@ func step(_frame: int) -> void:
 			if Flash.tick_count > _t0 + 90:
 				_check("start line plays after loading", g.dialogueControl.sayingPhrase == "Starting now",
 					g.dialogueControl.sayingPhrase)
+				_game_checks()
+				_t0 = Flash.tick_count
+				_phase = 2
+		2:
+			if Flash.tick_count > _t0 + 80:
+				_game_checks_later()
 				_finish()
 
 
@@ -179,6 +185,66 @@ func _line_checks() -> void:
 	_check("_INSTANT line runs its triggers at once", st.get("k") == 1.0 and st.get("k2") == 2.0)
 	_check("_INSTANT line goes on to the queued line", dc.sayingPhrase == "done line", dc.sayingPhrase)
 	dc.stopSpeaking()
+
+
+var _drops_before := 0
+
+
+func _game_checks() -> void:
+	var her = g.her
+	var gt = da.game
+	var ch_before: int = Flash._active_channels.size()
+	_check("MOAN plays a sound", da.run_code("[MOAN]") and Flash._active_channels.size() > ch_before)
+	da.run_code("[GAG]")
+	_check("GAG plays and starts the gag swallow", gt._gagging and her.head.neck.swallowProgress > 0.8)
+	da.run_code("[TONGUE_OUT]")
+	var out: bool = her.tongue.hangingOut
+	da.run_code("[TONGUE_IN]")
+	_check("TONGUE_OUT / TONGUE_IN", out and not her.tongue.hangingOut)
+	her.maxIntroDist = 10
+	da.run_code("[DEEPTHROAT]")
+	_check("DEEPTHROAT", her.maxIntroDist == 150)
+	her.firstDT = false
+	da.run_code("[RESET_RESIST]")
+	_check("RESET_RESIST", her.firstDT and her.intro)
+	da.run_code("[AUTO_HARD]")
+	var auto_on: bool = g.autoModeOn
+	da.run_code("[AUTO_OFF]")
+	_check("AUTO_HARD / AUTO_OFF", auto_on and not g.autoModeOn)
+	da.run_code("[CUM_BLOCK_ON]")
+	var adc = g.dialogueControl.advancedController
+	_check("CUM_BLOCK_ON and da.blockingOrgasm", gt.blocking and adc.replaceValues("*da.blockingOrgasm*") == "1")
+	adc.setValues({"da.blockingOrgasm": 0})
+	_check("da.blockingOrgasm writable", not gt.blocking)
+	adc.setValues({"da.breathPercentage": 50})
+	_check("da.breathPercentage", is_equal_approx(g.currentBreathLevel, g.breathLevelMax / 2.0), str(g.currentBreathLevel))
+	g.him.pleasure = 0
+	adc.setValues({"da.pleasurePercentage": "+10"})
+	_check("da.pleasurePercentage +10", is_equal_approx(gt._his_pleasure(), 10.0), str(gt._his_pleasure()))
+	da.run_code("[HIDE_HIM]")
+	var hidden: bool = not g.him.visible
+	da.run_code("[SHOW_HIM]")
+	_check("HIDE_HIM / SHOW_HIM", hidden and g.him.visible)
+	_check("arm and cleaning triggers run", da.run_code("[ARMS_BREAST][FIX_ARMS][ARMS_HIS_CROTCH][RUB_HIS_CROTCH_ON][RUB_HIS_CROTCH_OFF][CLEAN_ALL][BOUNCE_TITS_0.3]"))
+	_drops_before = g.strandBackLayer.numChildren
+	da.run_code("[PUSSYDRIP_10]")
+	_check("PUSSYDRIP starts", gt._dripping)
+	da.run_code("[INSTANT_FLASH_ffffff_1]")
+	_check("INSTANT_FLASH covers the screen", gt.fader != null and gt.fader.alpha == 1.0)
+	da.run_code("[MASTURBATE_ON]")
+	_check("MASTURBATE_ON", gt.masturbating)
+
+
+func _game_checks_later() -> void:
+	var gt = da.game
+	_check("PUSSYDRIP made droplets and ended", not gt._dripping and g.strandBackLayer.numChildren > _drops_before,
+		"%d -> %d" % [_drops_before, g.strandBackLayer.numChildren])
+	_check("INSTANT_FLASH with a duration fades back", gt.fader.alpha == 0.0, str(gt.fader.alpha))
+	_check("masturbation raises her pleasure", gt.her_pleasure > 0.0)
+	da.run_code("[MASTURBATE_STOP]")
+	_check("MASTURBATE_STOP", not gt.masturbating)
+	da.run_code("[FLASH_ff0000]")
+	_check("FLASH starts transparent and fades in", gt.fader.alpha == 0.0 and gt._fade_in)
 
 
 func _start_line_setup() -> void:
