@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Regression tests: plays fixed scenarios headless (game/debug/regress.gd) and compares the state dumps with the
-# reference dumps in tests/golden/. Runs without mods and with a throwaway save, so your own save is never touched.
+# reference dumps in tests/golden/. Runs without mods, in Vanilla mode (no extensions) and with a throwaway save,
+# so your own save is never touched.
 #
 #   tools/regress.sh                 run all scenarios, report differences
 #   tools/regress.sh grab cum        run only these scenarios
@@ -34,7 +35,7 @@ mkdir -p "$WORK/mods" "$WORK/out"
 
 run_game() {   # name, extra args...
 	local name=$1; shift
-	"$GODOT" --headless --fixed-fps 30 --path game -- --deterministic --seed=1 \
+	"$GODOT" --headless --fixed-fps 30 --path game -- --deterministic --seed=1 --vanilla \
 		--save-dir="$WORK/save_$name" --mods-dir="$WORK/mods" "$@" > "$WORK/$name.log" 2>&1
 }
 
@@ -44,6 +45,10 @@ for s in $scenarios; do
 	run_game "$s" --driver=res://debug/regress.gd --scenario="$s" --out="$WORK/out" &
 	pids="$pids $!"
 done
+# Extension system checks (game/debug/ext_checks.gd); not in Vanilla mode, they switch extensions on and off.
+"$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_ext" --mods-dir="$WORK/mods" \
+	--driver=res://debug/ext_checks.gd > "$WORK/ext_checks.log" 2>&1 &
+pids="$pids $!"
 for p in $pids; do wait "$p"; done
 
 fail=0
@@ -77,6 +82,13 @@ for s in $scenarios; do
 		fi
 	done
 done
+if grep -q "^EXT CHECKS: .* 0 failed" "$WORK/ext_checks.log"; then
+	echo "ok   extension checks ($(grep -c '^CHECK ok' "$WORK/ext_checks.log") passed)"
+else
+	echo "FAIL extension checks (see $WORK/ext_checks.log):"
+	grep -E "^CHECK FAIL|SCRIPT ERROR" "$WORK/ext_checks.log" | head -12
+	fail=1
+fi
 [ $update = 1 ] && echo "references updated in tests/golden/ (review with git diff before committing)"
 
 if [ $stress = 1 ]; then

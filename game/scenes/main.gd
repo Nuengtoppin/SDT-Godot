@@ -6,6 +6,7 @@ extends Node2D
 ## --driver=res://debug/<script>.gd runs a scripted test: the script's step(frame: int) is called every frame.
 ## --save-dir=<folder> keeps the save files there instead of user:// (copy a save in first to test with it).
 ## --mods-dir=<folder> reads mods from that folder instead of Mods/ (an empty folder runs without mods).
+## --vanilla keeps every port extension and plugin off (Vanilla mode, see src/ext/extensions.gd).
 ## Regression tests: tools/regress.sh (driver res://debug/regress.gd, reference dumps in tests/golden/).
 
 var _shot := ""

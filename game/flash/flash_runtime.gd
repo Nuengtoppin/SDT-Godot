@@ -412,6 +412,10 @@ func _physics_process(_delta: float) -> void:
 	if _deterministic:
 		for ch in _active_channels.keys():
 			ch._tick_deterministic()
+	_slowest_listener_us = 0
+	# 0. Callbacks that run before the game's tick (port extensions, see tick_before).
+	for cb in tick_before:
+		cb.call()
 	# 1. Timelines advance.
 	for mc in _playing.keys():
 		if is_instance_valid(mc):
@@ -420,7 +424,6 @@ func _physics_process(_delta: float) -> void:
 			_playing.erase(mc)
 	var t1 := Time.get_ticks_usec() if prof else 0
 	# 2. ENTER_FRAME listeners (game logic).
-	_slowest_listener_us = 0
 	var stale := false
 	for e in _enter_frame.duplicate():
 		if not is_instance_valid(e[0]):
@@ -437,14 +440,13 @@ func _physics_process(_delta: float) -> void:
 			if prof or dt > _slowest_listener_us:
 				var obj = e[0]
 				var key := "%s.%s" % [obj.get_script().get_global_name() if obj.get_script() else obj.get_class(), cb.get_method()] 					if is_instance_valid(obj) else "(freed)." + str(cb.get_method())
-				if dt > _slowest_listener_us:
-					_slowest_listener_us = dt
-					_slowest_listener = key
-				if prof:
-					_prof[key] = _prof.get(key, 0) + dt
+				account_listener(key, dt)
 	if stale:
 		# listeners of freed objects
 		_enter_frame = _enter_frame.filter(func(e): return is_instance_valid(e[0]))
+	# 2b. Callbacks that run after the game's tick, before masks follow the moved objects (see tick_after).
+	for cb in tick_after:
+		cb.call()
 	var t2 := Time.get_ticks_usec() if prof else 0
 	# 3. Masks follow the (possibly moved) objects.
 	for p in _mask_proxies.keys():
@@ -661,6 +663,22 @@ func _print_profile() -> void:
 
 
 var _release_candidates: Array = []
+
+## Port extension (not in Flash): callables run every tick before the timelines advance (tick_before) and after
+## the ENTER_FRAME listeners (tick_after). The port's extension system (src/ext/extensions.gd) uses them so
+## extensions run at fixed points of the tick instead of wherever their listener happens to be in the list.
+var tick_before: Array[Callable] = []
+var tick_after: Array[Callable] = []
+
+
+## Records the time a tick callback took under `key`: shows in --profile buckets and as the slowest listener in
+## HITCH lines.
+func account_listener(key: String, dt: int) -> void:
+	if dt > _slowest_listener_us:
+		_slowest_listener_us = dt
+		_slowest_listener = key
+	if profiling:
+		_prof[key] = _prof.get(key, 0) + dt
 
 ## flash.utils.getTimer(): milliseconds since start. With --deterministic (benchmarks / tests together with
 ## --fixed-fps and --seed) it advances with the ticks instead of the wall clock.

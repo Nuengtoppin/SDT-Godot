@@ -233,6 +233,7 @@ func initGame() -> void:
 	saveData.updatePlayCounter()
 	openMainMenu()
 	g.her.initialise()
+	Extensions.start()   # port extension: built-in extensions and plugins (src/ext), once the game is built
 
 
 func startGame() -> void:

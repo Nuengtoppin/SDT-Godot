@@ -18,7 +18,11 @@ exit /b 1
 :found
 rem First run after downloading: Godot imports the assets once (a few minutes) before the game can start. The
 rem marker is written only after a complete import, so an interrupted import is redone.
-if exist "%~dp0game\.godot\sdt_import_done" goto run
+if not exist "%~dp0game\.godot\sdt_import_done" goto first
+powershell -NoProfile -Command "$m=(Get-Item '%~dp0game\.godot\sdt_import_done').LastWriteTime; foreach ($d in 'src','flash','scenes','debug') { if (Get-ChildItem -Path ('%~dp0game\' + $d) -Recurse -Filter *.gd -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -gt $m } | Select-Object -First 1) { exit 1 } }; exit 0"
+if errorlevel 1 goto update
+goto run
+:first
 echo First run: importing the game assets, this takes a few minutes...
 "%GODOT%" --headless --path "%~dp0game" --import
 if errorlevel 1 (
@@ -26,6 +30,13 @@ if errorlevel 1 (
 	pause
 	exit /b 1
 )
+echo.> "%~dp0game\.godot\sdt_import_done"
+goto run
+:update
+rem After an update (git pull, new download): scripts newer than the marker may add classes, which Godot only
+rem registers during an import. A quick import (a few seconds) does that.
+echo Scripts changed since the last import: updating...
+"%GODOT%" --headless --path "%~dp0game" --import >nul 2>nul
 echo.> "%~dp0game\.godot\sdt_import_done"
 :run
 "%GODOT%" --path "%~dp0game" %*
