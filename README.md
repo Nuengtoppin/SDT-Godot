@@ -46,7 +46,7 @@ those systems yet: Godot reports the missing library and the game uses its slowe
 
 ## Performance problems
 
-If the game runs slowly, please send `%APPDATA%\Godotpp_userdata\SDT Godot\logs\godot.log` right after
+If the game runs slowly, please send `%APPDATA%\Godot\app_userdata\SDT Godot\logs\godot.log` right after
 playing (later runs replace it). Its `SYSTEM` line says which renderer and graphics card the game uses and whether
 the native extension loaded; a `PERF` line every 30 seconds gives the frame rate and where the time goes (game
 ticks or drawing); `HITCH` lines describe single slow frames.
