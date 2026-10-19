@@ -41,7 +41,7 @@ const DIALOGUE_NAME_KEY := "dialogue_name"
 
 const GENERAL_PHRASE_FREQ := 0.8
 const SPEAK_DELAY := 20
-const DEFAULT_TYPING_SPEED := 55
+var DEFAULT_TYPING_SPEED := 55   # a var in the port: extensions change it (dialogspeed)
 const clearTime := 60
 
 static var _reBeforeBracket := RegEx.create_from_string("(\\S)\\[")
@@ -355,6 +355,10 @@ func cough() -> AudioMod:
 
 
 func checkForSpeechStart() -> void:
+	if Hooks.has(&"Dialogue.checkForSpeechStart"):   # HOOK
+		var h := Hooks.before(&"Dialogue.checkForSpeechStart", self, [])
+		if h.cancelled:
+			return
 	if not g.dialogue:
 		return
 	if interruptTimer > 0:
@@ -657,6 +661,8 @@ func continueSpeaking() -> void:
 		g.her.setSpeaking(true)
 	g.soundControl.resumeDialogue()
 	speaking = true
+	if Hooks.has(&"Dialogue.continueSpeaking"):   # HOOK
+		Hooks.after(&"Dialogue.continueSpeaking", self, [])
 
 
 func startSpeakingPhrase(line: DialogueLine) -> void:

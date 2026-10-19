@@ -158,6 +158,8 @@ func loadDialogueMod(m) -> void:
 			customAudio[line] = a
 			if t == "cough":
 				g.soundControl.loadAudioMod("cough", a)
+	if Hooks.has(&"DialogueLibrary.loadDialogueMod"):   # HOOK
+		Hooks.after(&"DialogueLibrary.loadDialogueMod", self, [m])
 
 
 func loadFromDialogueEditor(lines: Array) -> void:
@@ -175,6 +177,8 @@ func loadFromDialogueEditor(lines: Array) -> void:
 			customLibrary[l.trigger].append(l.getDialogueLine())
 	finishesCleared = true
 	customFinishes = fin
+	if Hooks.has(&"DialogueLibrary.loadFromDialogueEditor"):   # HOOK
+		Hooks.after(&"DialogueLibrary.loadFromDialogueEditor", self, [lines])
 
 
 ## Finish counts are keyed by number (AS3 Dictionary keys 1 and "1" differ, but Number keys 1 and 1.0 match).

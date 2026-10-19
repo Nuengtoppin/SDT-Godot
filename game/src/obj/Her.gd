@@ -459,6 +459,8 @@ func setSpeaking(v: bool) -> void:
 	elif speaking:
 		speakStopDelay = 3
 	speaking = v
+	if Hooks.has(&"Her.setSpeaking"):   # HOOK
+		Hooks.after(&"Her.setSpeaking", self, [v])
 
 
 func isSpeaking() -> bool:
@@ -466,6 +468,10 @@ func isSpeaking() -> bool:
 
 
 func canSpeak() -> bool:
+	if Hooks.has(&"Her.canSpeak"):   # HOOK
+		var h := Hooks.before(&"Her.canSpeak", self, [])
+		if h.cancelled:
+			return bool(h.result)
 	return not gagged and not speaking and not mouthFull and not passedOut and not swallowing and not clenchTeeth
 
 
@@ -475,6 +481,10 @@ var teethClenched: bool:
 
 
 func setTargetPhoneme(word: Dictionary, delay: int = 0) -> void:
+	if Hooks.has(&"Her.setTargetPhoneme"):   # HOOK
+		var h := Hooks.before(&"Her.setTargetPhoneme", self, [word, delay])
+		if h.cancelled:
+			return
 	if word.get("phoneme"):
 		targetPhoneme = word["phoneme"]
 		phonemeDelay = delay
@@ -1426,6 +1436,8 @@ func checkPosition() -> void:
 		else:
 			cough()
 		pos += randf() * 0.01 - 0.005
+	if Hooks.has(&"Her.checkPosition"):   # HOOK
+		Hooks.after(&"Her.checkPosition", self, [])
 
 
 func animateBreathing() -> void:

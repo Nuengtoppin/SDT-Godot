@@ -470,11 +470,23 @@ static func extension_page(ext_id: String) -> Dictionary:
 	var ext: SDTExtension = Extensions.by_id.get(ext_id)
 	if ext == null:
 		return {}
-	var controls: Array = []
+	var groups: Array = []   # a setting's "group" (default "Settings"), in order of first use
 	for s in ext.settings():
-		controls.append(setting_control(ext, s["key"]))
+		var title: String = s.get("group", "Settings")
+		var grp = null
+		for gr in groups:
+			if gr["title"] == title:
+				grp = gr
+		if grp == null:
+			grp = {"title": title, "controls": []}
+			groups.append(grp)
+		grp["controls"].append(setting_control(ext, s["key"]))
 	return {"id": "ext:" + ext_id, "name": ext.title if ext.title != "" else ext.id, "hidden": true, "parent": "mods",
-		"groups": [{"title": "Settings", "controls": controls}]}
+		"groups": groups}
+
+
+static func color_dict(c: Color) -> Dictionary:
+	return {"r": c.r8, "g": c.g8, "b": c.b8, "a": 1.0}
 
 
 ## The control for one extension setting (from its declaration: type of the default, min / max, options).
@@ -493,6 +505,10 @@ static func setting_control(ext: SDTExtension, key: String, extra := {}) -> Dict
 			func(v: String): ext.set_setting(key, v))
 	elif d is bool:
 		spec = toggle(label, tip, get_fn, func(on: bool): ext.set_setting(key, on))
+	elif d is Color:
+		spec = {"type": "color", "label": label, "tip": tip, "alpha": false,
+			"get": func(): return color_dict(ext.get_setting(key)),
+			"set": func(c: Dictionary): ext.set_setting(key, Color8(c["r"], c["g"], c["b"]))}
 	elif (d is int or d is float) and info.has("min") and info.has("max"):
 		spec = {"type": "slider", "label": label, "tip": tip, "min": float(info["min"]), "max": float(info["max"]),
 			"step": 1.0 if d is int else float(info.get("step", 0.0)), "get": func(): return float(ext.get_setting(key)),

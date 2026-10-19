@@ -50,11 +50,13 @@ func step(_frame: int) -> void:
 				_world_checks()
 				_mood_checks()
 				_mt_checks()
+				_dmod_checks()
 				_t0 = Flash.tick_count
 				_phase = 2
 		2:
 			if Flash.tick_count > _t0 + 80:
 				_game_checks_later()
+				_dmod_checks_later()
 				_mt_checks_later()
 				_mood_cycle_i = 0
 				_t0 = Flash.tick_count
@@ -511,6 +513,115 @@ func _mt_checks_later() -> void:
 	Extensions.set_enabled("dialogueactions", true)
 	_check("DialogueActions on again keeps the extensions' triggers", da.recognises("[SHOCK_100]") == "SHOCK"
 		and da.recognises("[FRIGHTENED_MOOD]") == "FRIGHTENED_MOOD" and da.vars.mod_value("mt.vigour") != null)
+
+
+# ---------------------------------------------------------------- dialogpatch, dialogdisplayedit, gaggeddialog,
+# dialogspeed, monitordialog, DA_sbyAddons
+
+var _monitor = null
+var _pp = null
+
+
+func _say(text: String, settings := {}) -> void:
+	var dc = g.dialogueControl
+	dc.stopSpeaking()
+	dc.startSpeakingPhrase(DialogueLine.new(text, settings))
+
+
+func _dmod_checks() -> void:
+	var dc = g.dialogueControl
+	var adc = dc.advancedController
+	var st: Dictionary = adc._dialogueDataStore
+	for e in ["dialogpatch", "dialogdisplayedit", "gaggeddialog", "dialogspeed", "monitordialog", "dasbyaddons"]:
+		_check(e + " on by default", Extensions.is_on(e) and Extensions.get_extension(e).enabled)
+	# dialogpatch
+	var ne := DialogueLine.new("ne", {"check": {"dpx": "!=3"}})
+	st["dpx"] = 5.0
+	_check("dialogpatch: != passes", adc.canPlay(ne))
+	st["dpx"] = 3.0
+	_check("dialogpatch: != fails on equal", not adc.canPlay(ne))
+	st.erase("dpx")
+	var dp = Extensions.get_extension("dialogpatch")
+	var saved: Dictionary = dc.states
+	var intro: bool = g.her.intro
+	g.her.intro = false
+	var hi := DialogueState.new(320, 2)
+	hi.buildState(50)
+	var lo := DialogueState.new(320, 0)
+	lo.buildState(300)
+	var mid := DialogueState.new(320, 1)
+	mid.buildState(100)
+	dc.states = {"zero_state": DialogueState.new(0, 0), "hiB": hi, "lowA": lo, "midC": mid}
+	_check("dialogpatch: the highest priority wins over more build", dp._best_state(dc, [], -1) == "hiB",
+		dp._best_state(dc, [], -1))
+	_check("dialogpatch: cascade takes the next priority", dp._best_state(dc, ["hiB"], 1) == "midC")
+	_check("dialogpatch: cascade priority limit", dp._best_state(dc, ["hiB", "midC"], 1) == "")
+	dc.states = saved
+	g.her.intro = intro
+	# dialogdisplayedit
+	var de = Extensions.get_extension("dialogdisplayedit")
+	_say("alt two", {"style": "HimAlt2"})
+	var ct: FlashColorTransform = dc.getChildAt(0).colorTransform
+	_check("dialogdisplayedit: HimAlt2 is his box in the Alt 2 colour", dc.currentFrame == 3 and ct.redMultiplier == 0.0
+		and ct.redOffset == 150.0 and ct.greenOffset == 150.0 and ct.blueOffset == 0.0, "%d %s" % [dc.currentFrame, ct.redOffset])
+	_say("in red [dialogdisplayedit_speak_red] now", {"style": "Speak"})
+	ct = dc.getChildAt(0).colorTransform
+	_check("dialogdisplayedit: [dialogdisplayedit_speak_red]", ct.redOffset == 255.0 and ct.greenOffset == 50.0
+		and not dc.words.any(func(w): return w.word.begins_with("[dialogdisplayedit")))
+	_say("back [dialogdisplayedit_speak_initialsettings]", {"style": "Speak"})
+	_check("dialogdisplayedit: initialsettings", dc.getChildAt(0).colorTransform.greenOffset == 230.0)
+	_say("custom [dialogdisplayedit_setspeakcustomstyle_ff5050_50ff50]", {"style": "SpeakCustom"})
+	ct = dc.getChildAt(0).colorTransform
+	var tct: FlashColorTransform = dc.tfContainer.colorTransform
+	_check("dialogdisplayedit: SpeakCustom", dc.currentFrame == 1 and dc.sayingSpeakingStyle and ct.redOffset == 255.0
+		and ct.greenOffset == 80.0 and tct.greenOffset == 255.0 and tct.redOffset == 80.0)
+	_say("[ARMS_BACK]", {"style": "Thought"})
+	_check("dialogdisplayedit: no empty box for an actions-only line", dc.alpha == 0.0 and not dc.fadingIn)
+	dc.stopSpeaking()
+	# gaggeddialog
+	var gd = Extensions.get_extension("gaggeddialog")
+	var her = g.her
+	var gagged: bool = her.gagged
+	her.gagged = true
+	var mode: int = gd.gagged_mode
+	gd.set_gagged_mode(0)
+	var vanilla_ok: bool = her.canSpeak()
+	gd.set_gagged_mode(1)
+	_check("gaggeddialog: she can speak gagged", her.canSpeak() and not vanilla_ok and st.get("gaggedialog_gagged") == 1)
+	_say("Stop this", {"style": "Speak"})
+	_check("gaggeddialog: garbled while gagged", dc.words[0].word.begins_with("SH") and dc.words[0].word != "Stop",
+		dc.words[0].word)
+	dc.stopSpeaking()
+	gd._load_code("Disabled,InMouthEnabled")
+	_check("gaggeddialog: character code", gd.gagged_mode == 0 and gd.in_mouth and gd._code() == "Disabled,InMouthEnabled")
+	gd.set_gagged_mode(mode)
+	gd.set_in_mouth(false)
+	her.gagged = gagged
+	# dialogspeed
+	_check("dialogspeed: text speed 40", dc.DEFAULT_TYPING_SPEED == 40)
+	Extensions.set_enabled("dialogspeed", false)
+	_check("dialogspeed off: the game's 55", dc.DEFAULT_TYPING_SPEED == 55)
+	Extensions.set_enabled("dialogspeed", true)
+	# monitordialog, DA_sbyAddons (looked at after some ticks)
+	_monitor = Extensions.get_extension("monitordialog")
+	_monitor.set_setting("visible", true)
+	_pp = Extensions.get_extension("dasbyaddons")
+	dc.library.customLibrary["ProgressivePleasure000"] = [DialogueLine.new("pleasure zero", {})]
+	_pp._dirty = true
+
+
+func _dmod_checks_later() -> void:
+	var dc = g.dialogueControl
+	_check("monitordialog: panel shows the timer", _monitor.panel != null and _monitor.panel.right.begins_with("t:"))
+	_monitor.set_setting("visible", false)
+	_check("monitordialog: hidden again", _monitor.panel == null)
+	_check("DA_sbyAddons: ProgressivePleasure000 found", _pp._levels == [0], str(_pp._levels))
+	_check("DA_sbyAddons: built or played", _pp._waiting == "ProgressivePleasure000" or _pp._next == 1)
+	da.vars.set_value("pleasurelinereset", 1)
+	_check("DA_sbyAddons: pleasurelinereset", _pp._next == 0 and _pp._delay >= 180
+		and dc.advancedController._dialogueDataStore.get("pleasurelinereset") == 0)
+	dc.library.customLibrary.erase("ProgressivePleasure000")
+	_pp._dirty = true
 
 
 func _start_line_setup() -> void:

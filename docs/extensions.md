@@ -14,8 +14,11 @@ Status: hooks, the extension base class, tick callbacks, events, settings, chara
 buttons, controls in the new menu (with generated settings pages and the list of extensions), hotkeys, dialogue
 triggers / variables and plugin loading exist.
 
-Built in: DialogueActions (`dialogueactions`), moremoods (`moremoods`) and MoreTriggers (`moretriggers`), each a
-reimplementation of the Loader mod of that name, written from its documentation and behaviour.
+Built in, each a reimplementation of the Loader mod of that name (id in brackets), written from its documentation
+and behaviour: DialogueActions (`dialogueactions`), moremoods (`moremoods`), MoreTriggers (`moretriggers`),
+DA_sbyAddons (`dasbyaddons`), dialogpatch (`dialogpatch`), dialogdisplayedit (`dialogdisplayedit`), gaggeddialog
+(`gaggeddialog`), dialogspeed (`dialogspeed`) and monitordialog (`monitordialog`). Defaults follow the settings of
+sby's Loader pack where it had some.
 
 ## Writing an extension
 
@@ -48,7 +51,7 @@ func _passed_out(call: Hooks.Call) -> void:
 |---|---|
 | `on_tick(fn)` / `on_late_tick(fn)` | `fn()` every game tick (30 per second), before the game's tick / after the game's logic. Extensions run in load order. |
 | `hook_before(name, fn, priority, target)` / `hook_after(...)` | `fn(call)` around a game method, see Hooks below. |
-| `setting(key, default, info)` | Declares a setting. Type from the default (bool, int, float, String); `info`: `label`, `desc`, `min`, `max`, `step`, `options`. |
+| `setting(key, default, info)` | Declares a setting. Type from the default (bool, int, float, String, Color); `info`: `label`, `desc`, `min`, `max`, `step`, `options`, `group` (a heading on the extension's settings page). |
 | `get_setting(key)` / `set_setting(key, value)` | Read / change (saved immediately, then `_setting_changed(key, value)` is called). |
 | `data_dir()` | A folder for the extension's own files, next to the save files. |
 | `on_event(name, fn)` | `fn(...)` when something happens; events are listed in `Extensions.EVENTS` (`mods_loaded`, `mood_changed`). |

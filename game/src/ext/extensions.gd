@@ -15,6 +15,12 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/dialogueactions/dialogue_actions.gd",
 	"res://src/ext/moremoods/moremoods.gd",
 	"res://src/ext/moretriggers/moretriggers.gd",
+	"res://src/ext/dasbyaddons/dasbyaddons.gd",
+	"res://src/ext/dialogpatch/dialogpatch.gd",
+	"res://src/ext/dialogdisplayedit/dialogdisplayedit.gd",
+	"res://src/ext/gaggeddialog/gaggeddialog.gd",
+	"res://src/ext/dialogspeed/dialogspeed.gd",
+	"res://src/ext/monitordialog/monitordialog.gd",
 ]
 
 const CONFIG_FILE := "extensions.cfg"

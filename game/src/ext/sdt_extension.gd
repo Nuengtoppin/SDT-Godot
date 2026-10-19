@@ -244,6 +244,11 @@ func _coerce(s: Dictionary, value):
 			value = float(value)
 		TYPE_STRING:
 			value = str(value)
+		TYPE_COLOR:
+			if value is String:
+				value = Color.from_string(value, s["default"])
+			elif not value is Color:
+				value = s["default"]
 	if (value is int or value is float) and s.has("min"):
 		value = maxf(value, s["min"]) if value is float else maxi(value, s["min"])
 	if (value is int or value is float) and s.has("max"):
