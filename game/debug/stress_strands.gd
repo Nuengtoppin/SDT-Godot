@@ -57,7 +57,8 @@ func step(_f: int) -> void:
 		a[1].call()
 		history.append("%d:%s" % [t, a[0]])
 	if t >= 9000:
-		print("STRAND OK after %d ticks, %d actions; strands %d cum %d; pending disposals %d; orphan nodes %d" % [t, history.size(),
-			sc.strands.size(), sc.cumStrands.size(), Flash._disposals.size(), Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)])
+		print("STRAND OK after %d ticks, %d actions; strands %d cum %d (native %s); droplets %d; pending disposals %d; orphan nodes %d" % [
+			t, history.size(), sc.strand_count(false), sc.strand_count(true), sc.fluids != null, Sweat.droplet_count(),
+			Flash._disposals.size(), Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)])
 		done = true
 		Flash.get_tree().quit()

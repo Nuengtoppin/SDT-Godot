@@ -90,10 +90,115 @@ static func _hit(o: FlashDisplayObject, px: float, py: float) -> bool:
 
 
 static func clearDroplets() -> void:
+	if _sys != null:
+		_sys.clear()
+		for b in _batches.values():
+			b.set_drops(PackedFloat32Array())
 	for group in sweatGroups.values():
 		for s in group.duplicate():
 			s.kill()
 	sweatGroups = {}
+
+
+# ---------------------------------------------------------------- native droplets
+
+## Port: with the native extension the droplets are simulated by SDTSweat (native/src/sweat.cpp) as plain data and
+## drawn by one SweatBatch per body part, instead of a display object, a listener and a screen copy per droplet.
+## The game creates droplets with spawn(); without the extension it makes Sweat objects as in the original.
+static var native_enabled: bool = ClassDB.class_exists(&"SDTSweat") and not "--nonative" in OS.get_cmdline_user_args()
+static var _sys = null                 # SDTSweat
+static var _cont: Dictionary = {}      # display object -> container index
+static var _cont_objs: Array = []
+static var _batches: Dictionary = {}   # container index -> SweatBatch
+static var _ticker: FlashSprite = null
+
+
+## A new droplet on `container` near p (its space), spread at random, that may land on `others` when it falls
+## (Sweat.new in the original).
+static func spawn(container: FlashSprite, p: Vector2, spread: Vector2, others: Array) -> void:
+	if not native_enabled:
+		Sweat.new(container, p, spread, others)
+		return
+	if not g.sweat:
+		return
+	if _sys == null:
+		_sys = ClassDB.instantiate(&"SDTSweat")
+		_ticker = FlashSprite.new()
+		Flash.add_enter_frame(_ticker, _native_tick)   # after the game's own listeners, like the droplets'
+	var parent := _index(container, true)
+	var o := PackedInt32Array()
+	for c in others:
+		o.append(_index(c, true))
+	_push()
+	_sys.spawn(parent, p, spread, o, MAX_DROPLETS)
+
+
+static func droplet_count() -> int:
+	return _sys.count() if _sys != null else currentDroplets
+
+
+## Index of a body part; with_children: (re)sends its sprite children (the parts a droplet can slide onto).
+static func _index(o: FlashDisplayObject, with_children := false) -> int:
+	var i: int
+	if _cont.has(o):
+		i = _cont[o]
+	else:
+		i = _sys.add_container(o)
+		_cont[o] = i
+		_cont_objs.append(o)
+	if with_children and o is FlashSprite:
+		var kids := PackedInt32Array()
+		for c in o._children:
+			if c is FlashSprite and not (c is Sweat) and not (c is SweatBatch):
+				kids.append(_index(c))
+		var p: FlashDisplayObject = o._flash_parent
+		_sys.set_children(i, kids, p.get_instance_id() if p != null else 0, p.getChildIndex(o) if p != null else 0)
+	return i
+
+
+## Stage transforms and summed rotations of the body parts.
+static func _push() -> void:
+	var xf: Array = []
+	var rot := PackedFloat32Array()
+	var own := PackedFloat32Array()
+	xf.resize(_cont_objs.size())
+	rot.resize(_cont_objs.size())
+	own.resize(_cont_objs.size())
+	for i in _cont_objs.size():
+		var o = _cont_objs[i]
+		if not is_instance_valid(o):
+			xf[i] = Transform2D()
+			continue
+		xf[i] = o.flash_global_transform()
+		own[i] = o.rotation_degrees
+		var r := 0.0
+		var a: FlashDisplayObject = o
+		while a != null and a != Flash.stage:
+			r += a.rotation_degrees
+			a = a._flash_parent
+		rot[i] = r
+	_sys.set_transforms(xf, rot, own)
+
+
+static func _native_tick() -> void:
+	if g.gamePaused:
+		return
+	_push()
+	_sys.tick(Flash.tick_count)
+	var used := {}
+	for c in _sys.parents_in_use():
+		used[c] = true
+		var b: SweatBatch = _batches.get(c)
+		var part = _cont_objs[c]
+		if b == null:
+			b = SweatBatch.new()
+			_batches[c] = b
+		if is_instance_valid(part) and (b._flash_parent != part or part._children.back() != b):
+			part.addChild(b)   # on top of the part, as the droplets re-added themselves
+		b.set_drops(_sys.get_draw(c))
+	for c in _batches:
+		if not used.has(c):
+			_batches[c].set_drops(PackedFloat32Array())
 
 
 static func staticTick() -> void:

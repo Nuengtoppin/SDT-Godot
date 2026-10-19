@@ -82,11 +82,6 @@ struct Gradient {
 	}
 };
 
-struct StrandMesh {
-	std::vector<Vector2> points;
-	std::vector<Color> colors;
-	std::vector<int32_t> indices;
-};
 
 // Copies a std::vector into a packed array in one resize + memcpy (element-wise push_back goes through the
 // engine API and is slow).
@@ -165,23 +160,12 @@ void emit_triangle(StrandMesh &m, const Gradient &g, Vector2 a, Vector2 b, Vecto
 
 } // namespace
 
-Array SDTNative::build_strand(const PackedVector2Array &p_pos, const PackedFloat32Array &p_thickness,
-		const PackedFloat32Array &p_density, const PackedByteArray &p_has_stored, const PackedVector2Array &p_stored,
-		const Color &p_rgb, double p_alpha, double p_max_interp_dist) {
-	StrandMesh mesh;
-	const int n = (int)p_pos.size();
-	Array result;
+void sdt_append_strand_mesh(StrandMesh &mesh, const Vector2 *pos, const float *thick, const float *dens,
+		const uint8_t *has_stored, const Vector2 *stored, int n, const Color &p_rgb, double p_alpha,
+		double p_max_interp_dist) {
 	if (n < 2) {
-		result.push_back(PackedVector2Array());
-		result.push_back(PackedColorArray());
-		result.push_back(PackedInt32Array());
-		return result;
+		return;
 	}
-	const Vector2 *pos = p_pos.ptr();
-	const float *thick = p_thickness.ptr();
-	const float *dens = p_density.ptr();
-	const uint8_t *has_stored = p_has_stored.size() >= n ? p_has_stored.ptr() : nullptr;
-	const Vector2 *stored = p_stored.size() >= n * 2 ? p_stored.ptr() : nullptr;
 
 	// --- Strand.generateInterpolationPoints
 	std::vector<Vector2> dirs(std::max(n + 1, 2));
@@ -304,6 +288,22 @@ Array SDTNative::build_strand(const PackedVector2Array &p_pos, const PackedFloat
 			cap(g, b0, top_cap, a0);
 		}
 	}
+}
+
+namespace {
+} // namespace
+
+Array SDTNative::build_strand(const PackedVector2Array &p_pos, const PackedFloat32Array &p_thickness,
+		const PackedFloat32Array &p_density, const PackedByteArray &p_has_stored, const PackedVector2Array &p_stored,
+		const Color &p_rgb, double p_alpha, double p_max_interp_dist) {
+	StrandMesh mesh;
+	const int n = (int)p_pos.size();
+	if (n >= 2) {
+		sdt_append_strand_mesh(mesh, p_pos.ptr(), p_thickness.ptr(), p_density.ptr(),
+				p_has_stored.size() >= n ? p_has_stored.ptr() : nullptr, p_stored.size() >= n * 2 ? p_stored.ptr() : nullptr,
+				n, p_rgb, p_alpha, p_max_interp_dist);
+	}
+	Array result;
 	result.push_back(to_packed<PackedVector2Array>(mesh.points));
 	result.push_back(to_packed<PackedColorArray>(mesh.colors));
 	result.push_back(to_packed<PackedInt32Array>(mesh.indices));
@@ -493,6 +493,8 @@ struct FlatLeaf {
 
 struct FlatRoot {
 	int64_t tick = -1;
+	Rect2 bounds;
+	bool bounds_ok = false;
 	std::vector<FlatLeaf> leaves;
 	std::vector<std::vector<FlatLeaf>> groups; // clip mask contents
 };
@@ -673,6 +675,44 @@ bool SDTNative::hit_shape(Object *p_obj, const Vector2 &p_point, int64_t p_hb_ge
 }
 
 bool SDTNative::hit_flat(Object *p_obj, const Vector2 &p_point, int64_t p_tick) {
+	return sdt_hit_flat(p_obj, p_point, p_tick);
+}
+
+// The flattened root for obj in this tick (built on first use).
+static FlatRoot &flat_root(Object *p_obj, int64_t p_tick) {
+	FlatRoot &root = g_flat[p_obj->get_instance_id()];
+	if (root.tick != p_tick) {
+		root.tick = p_tick;
+		root.leaves.clear();
+		root.groups.clear();
+		root.bounds_ok = false;
+		flatten(root, root.leaves, p_obj, Transform2D(), {});
+	}
+	return root;
+}
+
+Rect2 sdt_flat_bounds(Object *p_obj, int64_t p_tick) {
+	if (p_obj == nullptr) {
+		return Rect2();
+	}
+	FlatRoot &root = flat_root(p_obj, p_tick);
+	if (!root.bounds_ok) {
+		bool first = true;
+		Rect2 r;
+		for (const FlatLeaf &l : root.leaves) {
+			if (l.call) {
+				continue; // unbounded entries (graphics, text) do not count
+			}
+			r = first ? l.bounds : r.merge(l.bounds);
+			first = false;
+		}
+		root.bounds = r;
+		root.bounds_ok = true;
+	}
+	return root.bounds;
+}
+
+bool sdt_hit_flat(Object *p_obj, const Vector2 &p_point, int64_t p_tick) {
 	if (p_obj == nullptr) {
 		return false;
 	}
@@ -681,6 +721,7 @@ bool SDTNative::hit_flat(Object *p_obj, const Vector2 &p_point, int64_t p_tick) 
 		root.tick = p_tick;
 		root.leaves.clear();
 		root.groups.clear();
+		root.bounds_ok = false;
 		flatten(root, root.leaves, p_obj, Transform2D(), {});
 	}
 	if (g_flat.size() > 256) { // forget roots not tested lately
@@ -691,7 +732,7 @@ bool SDTNative::hit_flat(Object *p_obj, const Vector2 &p_point, int64_t p_tick) 
 				++it;
 			}
 		}
-		return hit_flat(p_obj, p_point, p_tick);
+		return sdt_hit_flat(p_obj, p_point, p_tick);
 	}
 	return leaves_hit(root, root.leaves, p_point);
 }

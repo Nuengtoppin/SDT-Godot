@@ -31,3 +31,4 @@ __pycache__/
 /notes/
 /user/
 /run_debug.local.bat
+/native/build/
