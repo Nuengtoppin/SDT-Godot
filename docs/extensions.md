@@ -17,8 +17,8 @@ triggers / variables and plugin loading exist.
 Built in, each a reimplementation of the Loader mod of that name (id in brackets), written from its documentation
 and behaviour: DialogueActions (`dialogueactions`), moremoods (`moremoods`), MoreTriggers (`moretriggers`),
 DA_sbyAddons (`dasbyaddons`), dialogpatch (`dialogpatch`), dialogdisplayedit (`dialogdisplayedit`), gaggeddialog
-(`gaggeddialog`), dialogspeed (`dialogspeed`) and monitordialog (`monitordialog`). Defaults follow the settings of
-sby's Loader pack where it had some, except that dialogdisplayedit keeps the game's colours.
+(`gaggeddialog`), dialogspeed (`dialogspeed`) and monitordialog (`monitordialog`). Defaults are the original game's
+behaviour and look; the extensions add what dialogues use (triggers, styles, line types).
 
 ## Writing an extension
 

@@ -1,7 +1,7 @@
 extends SDTExtension
 ## Built-in reimplementation of the Loader mod gaggeddialog (sby, v3): she can say her spoken lines while gagged
 ## (and, as an option, with him in her mouth but not deep), garbled, with small mouth movements. Written from its
-## documentation and behaviour; the defaults are the settings of sby's Loader pack.
+## documentation and behaviour. Off by default like the game (sby's Loader pack had "Gagged + mouth full").
 ##
 ## Modes (buttons in the Options menu, Behaviour > Speech in the new menu, saved in the character code):
 ## - when gagged: off / on / on, also with him in her mouth while gagged
@@ -40,7 +40,7 @@ func _init() -> void:
 
 
 func _setup() -> void:
-	setting("defaultmodegagged", "Gagged + mouth full", {"label": "When gagged (new characters)", "options": GAGGED_MODES})
+	setting("defaultmodegagged", "Off", {"label": "When gagged (new characters)", "options": GAGGED_MODES})
 	setting("defaultmodeinmouth", false, {"label": "With him in her mouth (new characters)"})
 	setting("enablejumbleddialog", "Garbled", {"label": "Text while gagged", "options": ["As written", "Garbled", "Strongly garbled"]})
 	setting("enablesmallmouthmovement", true, {"label": "Small mouth movements while speaking gagged"})

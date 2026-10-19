@@ -589,6 +589,7 @@ func _dmod_checks() -> void:
 	var gagged: bool = her.gagged
 	her.gagged = true
 	var mode: int = gd.gagged_mode
+	_check("gaggeddialog: off by default (the game's)", mode == 0 and not gd.in_mouth)
 	gd.set_gagged_mode(0)
 	var vanilla_ok: bool = her.canSpeak()
 	gd.set_gagged_mode(1)
@@ -603,10 +604,14 @@ func _dmod_checks() -> void:
 	gd.set_in_mouth(false)
 	her.gagged = gagged
 	# dialogspeed
+	var ds = Extensions.get_extension("dialogspeed")
+	_check("dialogspeed: the game's speed by default", dc.DEFAULT_TYPING_SPEED == 55)
+	ds.set_setting("dialogspeed", 40)
 	_check("dialogspeed: text speed 40", dc.DEFAULT_TYPING_SPEED == 40)
 	Extensions.set_enabled("dialogspeed", false)
 	_check("dialogspeed off: the game's 55", dc.DEFAULT_TYPING_SPEED == 55)
 	Extensions.set_enabled("dialogspeed", true)
+	ds.set_setting("dialogspeed", 55)
 	# monitordialog, DA_sbyAddons (looked at after some ticks)
 	_monitor = Extensions.get_extension("monitordialog")
 	_monitor.set_setting("visible", true)

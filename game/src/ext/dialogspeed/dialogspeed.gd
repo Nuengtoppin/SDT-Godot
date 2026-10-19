@@ -1,6 +1,6 @@
 extends SDTExtension
-## Built-in reimplementation of the Loader mod dialogspeed (sby, v1): how fast her lines are typed out. The default
-## is the setting of sby's Loader pack (the game's own speed is 55; lower is faster).
+## Built-in reimplementation of the Loader mod dialogspeed (sby, v1): how fast her lines are typed out (lower is
+## faster; the default is the game's own 55, sby's Loader pack used 40).
 
 const GAME_SPEED := 55
 
@@ -13,7 +13,7 @@ func _init() -> void:
 
 
 func _setup() -> void:
-	setting("dialogspeed", 40, {"label": "Text speed", "min": 10, "max": 100,
+	setting("dialogspeed", GAME_SPEED, {"label": "Text speed", "min": 10, "max": 100,
 		"desc": "Time per letter; lower is faster. The game's own speed is 55. Lines with a voice clip keep its pace."})
 
 
