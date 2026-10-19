@@ -844,6 +844,9 @@ func shape_material(s: FlashShape) -> Material:
 
 ## Debug / automation: when set, used as the mouse position instead of the OS cursor.
 var mouse_override = null
+## Port addition: returns true while the mouse is over Godot UI that is not part of the stage (the new menu,
+## SDTMenu); presses and moves are then not dispatched to the display list.
+var mouse_blocker := Callable()
 
 
 ## Mouse position in stage coordinates.
@@ -901,6 +904,10 @@ static func _describe_input(event: InputEvent) -> String:
 
 
 func _handle_input(event: InputEvent) -> void:
+	# Port addition: mouse presses and moves over the new menu (SDTMenu) are not the scene's; releases always pass
+	if mouse_blocker.is_valid() and (event is InputEventMouseMotion or (event is InputEventMouseButton and event.pressed)) \
+			and mouse_blocker.call():
+		return
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
 		var target := _mouse_target_at(mouse_position())

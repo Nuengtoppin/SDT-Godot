@@ -109,6 +109,7 @@ func _enable() -> void:
 	for m in MOODS:
 		if not m in VANILLA:
 			Moods.register(m, id)
+	Moods.selectable_provider = selectable
 	face = FaceScript.new(self)
 	face.eyeroll_mode = get_setting("startingeyerollmode")
 	face.eyelid_mode = get_setting("startingeyelidmode")
@@ -145,6 +146,8 @@ func _enable() -> void:
 
 
 func _disable() -> void:
+	if Moods.selectable_provider == selectable:
+		Moods.selectable_provider = Callable()
 	if behaviour != null:
 		behaviour.remove()
 	if ui != null:
