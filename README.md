@@ -44,6 +44,15 @@ The ready-to-run setup is for **Windows** (the launcher and the prebuilt native 
 `godot --headless --path game --import` once, then `godot --path game`. There is no prebuilt native extension for
 those systems yet: Godot reports the missing library and the game uses its slower GDScript code instead.
 
+## Performance problems
+
+If the game runs slowly, please send `%APPDATA%\Godotpp_userdata\SDT Godot\logs\godot.log` right after
+playing (later runs replace it). Its `SYSTEM` line says which renderer and graphics card the game uses and whether
+the native extension loaded; a `PERF` line every 30 seconds gives the frame rate and where the time goes (game
+ticks or drawing); `HITCH` lines describe single slow frames.
+
+On weak or integrated graphics, Godot's lighter renderer can be faster: `run_debug.bat --rendering-method gl_compatibility`.
+
 ## Regenerating the assets (optional)
 
 Only needed to rebuild `game/assets/sdt/` from an original `SDT.swf`. Requirements: Python 3 with `pillow` and

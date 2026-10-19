@@ -528,6 +528,8 @@ func _setup_frame_monitor() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--hitch-ms="):
 			HITCH_MS = int(arg.substr(11))
+		elif arg.begins_with("--perf-seconds="):
+			PERF_SECONDS = float(arg.substr(15))
 	for k in ["process_first", "process_last"]:
 		var n := _PhaseNode.new()
 		n.key = k
@@ -536,6 +538,46 @@ func _setup_frame_monitor() -> void:
 		add_child(n)
 	RenderingServer.frame_pre_draw.connect(func(): _ph["pre_draw"] = Time.get_ticks_usec())
 	RenderingServer.frame_post_draw.connect(_end_frame)
+	_log_system.call_deferred()
+
+
+## One "SYSTEM" line at startup with what matters for performance reports (testers send their godot.log).
+func _log_system() -> void:
+	var v := Engine.get_version_info()
+	var vsync: String = ["off", "on", "adaptive", "mailbox"][clampi(DisplayServer.window_get_vsync_mode(), 0, 3)]
+	print("SYSTEM Godot %s (%s build) | %s | %s %s | CPU %s, %d threads | native %s | window %s on a %s screen, vsync %s, max fps %d" % [
+		v["string"], "debug" if OS.is_debug_build() else "release", RenderingServer.get_current_rendering_method(),
+		RenderingServer.get_video_adapter_vendor(), RenderingServer.get_video_adapter_name(), OS.get_processor_name(),
+		OS.get_processor_count(), "on" if ClassDB.class_exists(&"SDTNative") and not "--nonative" in OS.get_cmdline_user_args() else "OFF",
+		DisplayServer.window_get_size(), DisplayServer.screen_get_size(), vsync, Engine.max_fps])
+
+
+# Every PERF_SECONDS of play, one "PERF" line: frame rate, slow frames, tick and render time, worst frame, so a
+# steady low frame rate (no single frame slow enough for a HITCH line) shows in the log too.
+var PERF_SECONDS := 30.0   # --perf-seconds=N to change the interval
+var _perf := {"frames": 0, "us": 0, "slow": 0, "tick_us": 0, "ticks": 0, "draw_us": 0, "worst": 0, "start": 0}
+
+
+func _perf_frame(total: int, ph: Dictionary, now: int) -> void:
+	var pf := _perf
+	if pf["start"] == 0:
+		pf["start"] = now
+	pf["frames"] += 1
+	pf["us"] += total
+	if total > 33333:
+		pf["slow"] += 1
+	if ph.has("ticks_us"):
+		pf["tick_us"] += ph["ticks_us"]
+		pf["ticks"] += ph.get("ticks", 1)
+	if ph.has("pre_draw"):
+		pf["draw_us"] += now - ph["pre_draw"]
+	pf["worst"] = maxi(pf["worst"], total)
+	if now - pf["start"] >= PERF_SECONDS * 1000000.0:
+		var n: int = pf["frames"]
+		print("PERF last %.0f s: %.1f fps (%.1f ms per frame), %d of %d frames over 33 ms, tick %.1f ms (%d ticks), render + vsync wait %.1f ms per frame, worst frame %.0f ms" % [
+			(now - pf["start"]) / 1000000.0, n / ((now - pf["start"]) / 1000000.0), pf["us"] / 1000.0 / n, pf["slow"], n,
+			pf["tick_us"] / 1000.0 / maxi(1, pf["ticks"]), pf["ticks"], pf["draw_us"] / 1000.0 / n, pf["worst"] / 1000.0])
+		_perf = {"frames": 0, "us": 0, "slow": 0, "tick_us": 0, "ticks": 0, "draw_us": 0, "worst": 0, "start": now}
 
 
 ## Records something worth knowing about if the current frame turns out to be a hitch (a load, a compile, ...).
@@ -554,6 +596,8 @@ func _end_frame() -> void:
 	if prev_end == 0 or ph.has("skip"):
 		return
 	var total := now - prev_end
+	if tick_count > 60:
+		_perf_frame(total, ph, now)
 	# phase durations in order; missing phases (no tick this frame) are skipped
 	var parts: Array = []
 	var last := prev_end
