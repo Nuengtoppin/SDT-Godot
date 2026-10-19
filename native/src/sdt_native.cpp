@@ -1,6 +1,5 @@
 #include "sdt_native.h"
 
-#include <godot_cpp/classes/geometry2d.hpp>
 #include <godot_cpp/classes/node2d.hpp>
 #include <godot_cpp/classes/script.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -58,32 +57,6 @@ Vector2 inter_point(const Line &l1, const Line &l2, Vector2 mid, Vector2 o1, Vec
 	}
 	return Vector2(ix, iy);
 }
-
-// FlashGraphics path building (moveTo / lineTo / curveTo with the same flattening).
-struct Path {
-	std::vector<Vector2> pts;
-	Vector2 pen;
-	void move_to(Vector2 p) {
-		pts.clear();
-		pts.push_back(p);
-		pen = p;
-	}
-	void line_to(Vector2 p) {
-		pts.push_back(p);
-		pen = p;
-	}
-	void curve_to(Vector2 c, Vector2 p1) {
-		Vector2 p0 = pen;
-		int n = std::clamp((int)((p0.distance_to(c) + c.distance_to(p1)) / 3.0f), 2, 24);
-		float inv = 1.0f / n;
-		for (int i = 0; i < n; i++) {
-			float t = (i + 1) * inv;
-			float u = 1.0f - t;
-			pts.push_back(p0 * (u * u) + c * (2.0f * u * t) + p1 * (t * t));
-		}
-		pen = p1;
-	}
-};
 
 // Two-stop linear gradient ("pad" spread) as FlashGraphics.beginGradientFill + graphics_fill.gdshader evaluate it.
 struct Gradient {
@@ -262,15 +235,33 @@ Array SDTNative::build_strand(const PackedVector2Array &p_pos, const PackedFloat
 		}
 	}
 
-	// --- Strand.renderStrand: one gradient-filled outline per segment
-	Geometry2D *geo = Geometry2D::get_singleton();
+	// --- Strand.renderStrand. Flash draws each segment as a gradient-filled outline (inside curve, line, outside
+	// curve back, plus the rounded caps) that has to be triangulated. The same outline is a ribbon: both curves are
+	// sampled with the same parameter and joined as a triangle strip, and the caps are fans; no polygon
+	// triangulation needed. Triangles are still split at the gradient's stops, so the colours match exactly.
 	Color c_rgb(p_rgb.r, p_rgb.g, p_rgb.b, 1.0f);
-	Path path;
-	path.pts.reserve(256);
 	mesh.points.reserve(n * 64);
 	mesh.colors.reserve(n * 64);
 	mesh.indices.reserve(n * 128);
-	PackedVector2Array poly;
+	auto bez = [](Vector2 p0, Vector2 c, Vector2 p1, float t) {
+		float u = 1.0f - t;
+		return p0 * (u * u) + c * (2.0f * u * t) + p1 * (t * t);
+	};
+	// as many steps as FlashGraphics.curveTo would flatten the curve into
+	auto steps = [](Vector2 p0, Vector2 c, Vector2 p1) {
+		return std::clamp((int)((p0.distance_to(c) + c.distance_to(p1)) / 3.0f), 2, 24);
+	};
+	// a cap: the region between the chord a-b and the curve a -> (via c) -> b, as a fan from the chord's midpoint
+	auto cap = [&](const Gradient &g, Vector2 a, Vector2 c, Vector2 b) {
+		int k = steps(a, c, b);
+		Vector2 m = (a + b) * 0.5f;
+		Vector2 prev = a;
+		for (int j = 1; j <= k; j++) {
+			Vector2 q = bez(a, c, b, (float)j / k);
+			emit_triangle(mesh, g, m, prev, q);
+			prev = q;
+		}
+	};
 	for (int i = 1; i < n; i++) {
 		Vector2 cur = pos[i], prev = pos[i - 1];
 		Vector2 d(cur.x - prev.x, cur.y - prev.y);
@@ -292,27 +283,23 @@ Array SDTNative::build_strand(const PackedVector2Array &p_pos, const PackedFloat
 		g.c1 = c_rgb;
 		g.c1.a = std::min(1.0, (double)dens[i]) * p_alpha;
 
-		path.move_to(in_off[i - 1]);
-		path.curve_to(in_ip[i - 1], in_off[i]);
+		Vector2 a0 = in_off[i - 1], ac = in_ip[i - 1], a1 = in_off[i];
+		Vector2 b0 = out_off[i - 1], bc = out_ip[i - 1], b1 = out_off[i];
+		int k = std::max(steps(a0, ac, a1), steps(b0, bc, b1));
+		Vector2 pa = a0, pb = b0;
+		for (int j = 1; j <= k; j++) {
+			float t = (float)j / k;
+			Vector2 qa = bez(a0, ac, a1, t), qb = bez(b0, bc, b1, t);
+			emit_triangle(mesh, g, pa, pb, qa);
+			emit_triangle(mesh, g, pb, qb, qa);
+			pa = qa;
+			pb = qb;
+		}
 		if (i == n - 1) {
-			path.curve_to(bottom_cap, out_off[i]);
-		} else {
-			path.line_to(out_off[i]);
+			cap(g, a1, bottom_cap, b1);
 		}
-		path.curve_to(out_ip[i - 1], out_off[i - 1]);
 		if (i == 1) {
-			path.curve_to(top_cap, in_off[0]);
-		}
-		if (path.pts.size() < 3) {
-			continue;
-		}
-		poly = to_packed<PackedVector2Array>(path.pts);
-		PackedInt32Array tri = geo->triangulate_polygon(poly);
-		const int32_t *ti = tri.ptr();
-		const int64_t tn = tri.size();
-		const Vector2 *pp = path.pts.data();
-		for (int64_t k = 0; k + 2 < tn; k += 3) {
-			emit_triangle(mesh, g, pp[ti[k]], pp[ti[k + 1]], pp[ti[k + 2]]);
+			cap(g, b0, top_cap, a0);
 		}
 	}
 	result.push_back(to_packed<PackedVector2Array>(mesh.points));
