@@ -28,4 +28,7 @@ public:
 	static bool hit_shape(Object *p_obj, const Vector2 &p_point, int64_t p_hb_gen);
 	// hit_shape skipping one object of the tree (and its subtree).
 	static bool hit_shape_excluding(Object *p_obj, const Vector2 &p_point, int64_t p_hb_gen, Object *p_exclude);
+	// Shape hit test against obj's tree flattened once per tick (tick: the caller's tick counter), without Sweat
+	// droplets: for many tests of the same object within one tick.
+	static bool hit_flat(Object *p_obj, const Vector2 &p_point, int64_t p_tick);
 };

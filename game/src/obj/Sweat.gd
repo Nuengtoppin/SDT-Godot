@@ -76,6 +76,19 @@ func _init(container: FlashSprite = null, p: Vector2 = Vector2.ZERO, spread: Vec
 		queue_free()
 
 
+## Port: a droplet's shape tests ask whether a point is on the body part's skin; many droplets ask the same body part
+## every tick, so they use the native test against the part flattened once per tick (SDTNative.hit_flat), which
+## leaves droplets out (the original left out only the testing droplet).
+static var _flat: bool = FlashDisplayObject.native and ClassDB.class_has_method(&"SDTNative", &"hit_flat")
+
+
+static func _hit(o: FlashDisplayObject, px: float, py: float) -> bool:
+	if _flat:
+		var lp := o.flash_global_transform().affine_inverse() * Vector2(px, py)
+		return ClassDB.class_call_static(&"SDTNative", &"hit_flat", o, lp, Flash.tick_count)
+	return o.hitTestPoint(px, py, true)
+
+
 static func clearDroplets() -> void:
 	for group in sweatGroups.values():
 		for s in group.duplicate():
@@ -126,7 +139,7 @@ func jumpToChild() -> void:
 	var ahead: Vector2 = onChild.localToGlobal(localPoint + speed)
 	for c in parentChildren:
 		if c.hitTestPoint(globalPoint.x, globalPoint.y, false):
-			if c.hitTestPoint(globalPoint.x, globalPoint.y, true):
+			if _hit(c, globalPoint.x, globalPoint.y):
 				onChild = c
 				ahead = onChild.globalToLocal(ahead)
 				localPoint = onChild.globalToLocal(globalPoint)
@@ -197,19 +210,16 @@ func tick() -> void:
 					s.absorb(self)
 					return
 				absorb(s)
-	rotation_degrees = parentDown[sweatParent] + 180.0
+	# Port: rotation, position and scale are each set once per tick (every transform change walks up the display
+	# list to invalidate cached bounds, and the original set them field by field, up to 7 times per tick).
+	var rot_deg: float = parentDown[sweatParent] + 180.0
 	var ang: float = parentDown[onChild] * PI / 180.0
 	gVec = Vector2(sin(ang), -cos(ang))
 	localPoint += speed
 	speed *= friction
 	globalPoint = onChild.localToGlobal(localPoint)
-	if notOnParent:
-		var lp: Vector2 = sweatParent.globalToLocal(globalPoint)
-		x = lp.x
-		y = lp.y
-	else:
-		x = localPoint.x
-		y = localPoint.y
+	var newpos: Vector2 = sweatParent.globalToLocal(globalPoint) if notOnParent else localPoint
+	transform = Transform2D(deg_to_rad(rot_deg), scale, skew, newpos)
 	if globalPoint.y > 1000 or is_nan(globalPoint.x) or is_nan(globalPoint.y):   # port: NaN as a last resort
 		kill()
 		return
@@ -222,14 +232,12 @@ func tick() -> void:
 	# it off the display list (slow here), the shape tests skip it, and it only moves when something is above it.
 	FlashDisplayObject.hit_exclude = self
 	if attached:
-		scaleY = 1.0 + maxf(-0.3, minf(0.3, (velocity - lastVelocity) * 0.5))
-		scaleX = 1.0 / scaleY
-		scaleY *= mass
-		scaleX *= mass
+		var sy := 1.0 + maxf(-0.3, minf(0.3, (velocity - lastVelocity) * 0.5))
+		scale = Vector2(1.0 / sy * mass, sy * mass)
 		alpha = mass + 0.5
 		mass = minf(maxMass, mass + randf() * 0.01)
 		speed += attachedGravity * gVec * maxf(0.0, mass - 0.5)
-		if sweatParent.hitTestPoint(globalPoint.x, globalPoint.y, true):
+		if _hit(sweatParent, globalPoint.x, globalPoint.y):
 			leftPush *= 0.8
 			rightPush *= 0.8
 			if predictToggle < 1:
@@ -238,16 +246,16 @@ func tick() -> void:
 				predictToggle = 0
 				var gp := globalPoint
 				var pd := predictDist
-				if not sweatParent.hitTestPoint(gp.x - sVec.y * pd * 2, gp.y + sVec.x * pd * 2, true):
+				if not _hit(sweatParent, gp.x - sVec.y * pd * 2, gp.y + sVec.x * pd * 2):
 					rightPush = minf(velocity * 0.4, leftPush + 0.08)
-				if not sweatParent.hitTestPoint(gp.x + sVec.y * pd * 2, gp.y - sVec.x * pd * 2, true):
+				if not _hit(sweatParent, gp.x + sVec.y * pd * 2, gp.y - sVec.x * pd * 2):
 					leftPush = minf(velocity * 0.4, rightPush + 0.08)
-				if not sweatParent.hitTestPoint(gp.x + sVec.x * 8 * pd - sVec.y * pd, gp.y + sVec.y * 8 * pd + sVec.x * pd, true):
+				if not _hit(sweatParent, gp.x + sVec.x * 8 * pd - sVec.y * pd, gp.y + sVec.y * 8 * pd + sVec.x * pd):
 					leftPush = minf(velocity * 0.2, leftPush + 0.08)
-				if not sweatParent.hitTestPoint(gp.x + sVec.x * 8 * pd + sVec.y * pd, gp.y + sVec.y * 8 * pd - sVec.x * pd, true):
+				if not _hit(sweatParent, gp.x + sVec.x * 8 * pd + sVec.y * pd, gp.y + sVec.y * 8 * pd - sVec.x * pd):
 					rightPush = minf(velocity * 0.2, rightPush + 0.08)
 				if notOnParent:
-					if not onChild.hitTestPoint(gp.x, gp.y, true):
+					if not _hit(onChild, gp.x, gp.y):
 						jumpToChild()
 				else:
 					jumpToChild()
@@ -266,7 +274,7 @@ func tick() -> void:
 					notOnParent = true
 					justDetached = true
 				else:
-					if sweatParent.hitTestPoint(globalPoint.x + gVec.y * probe, globalPoint.y + gVec.x * probe, true):
+					if _hit(sweatParent, globalPoint.x + gVec.y * probe, globalPoint.y + gVec.x * probe):
 						speed.x += gVec.y * probe * 0.8
 						speed.y += gVec.x * probe * 0.8
 						var l := sqrt(speed.x * speed.x + speed.y * speed.y)
@@ -279,12 +287,12 @@ func tick() -> void:
 						probe = -probe + 1.0
 	else:
 		speed += freeGravity * gVec
-		if sweatParent.hitTestPoint(globalPoint.x, globalPoint.y, true):
+		if _hit(sweatParent, globalPoint.x, globalPoint.y):
 			attached = true
 			speed *= 0.4
 		else:
 			for c in parentsToCheck.duplicate():
-				if c.hitTestPoint(globalPoint.x, globalPoint.y, true):
+				if _hit(c, globalPoint.x, globalPoint.y):
 					if not justDetached:
 						var ahead: Vector2 = onChild.localToGlobal(localPoint + speed)
 						ahead = c.globalToLocal(ahead)
