@@ -437,6 +437,8 @@ func _physics_process(_delta: float) -> void:
 			else:
 				cb.call(FlashEvent.new(FlashEvent.ENTER_FRAME))
 			var dt := Time.get_ticks_usec() - ts
+			var scr = e[0].get_script()   # per script totals for the PERF line
+			_perf_listeners[scr] = _perf_listeners.get(scr, 0) + dt
 			if prof or dt > _slowest_listener_us:
 				var obj = e[0]
 				var key := "%s.%s" % [obj.get_script().get_global_name() if obj.get_script() else obj.get_class(), cb.get_method()] 					if is_instance_valid(obj) else "(freed)." + str(cb.get_method())
@@ -556,6 +558,18 @@ func _log_system() -> void:
 # steady low frame rate (no single frame slow enough for a HITCH line) shows in the log too.
 var PERF_SECONDS := 30.0   # --perf-seconds=N to change the interval
 var _perf := {"frames": 0, "us": 0, "slow": 0, "tick_us": 0, "ticks": 0, "draw_us": 0, "worst": 0, "start": 0}
+var _perf_listeners: Dictionary = {}   # script (or "ext:<id>.tick") -> usec in the current PERF window
+
+
+## The three listeners that took the most time in the PERF window, as "Name 1.2 ms" (per tick).
+func _perf_top(ticks: int) -> String:
+	var keys := _perf_listeners.keys()
+	keys.sort_custom(func(a, b): return _perf_listeners[a] > _perf_listeners[b])
+	var parts := PackedStringArray()
+	for k in keys.slice(0, 3):
+		var name: String = k if k is String else (k.get_global_name() if k is Script and k.get_global_name() != &"" 			else (k.resource_path.get_file() if k is Resource else "?"))
+		parts.append("%s %.1f ms" % [name, _perf_listeners[k] / 1000.0 / maxi(1, ticks)])
+	return ", ".join(parts)
 
 
 func _perf_frame(total: int, ph: Dictionary, now: int) -> void:
@@ -576,8 +590,10 @@ func _perf_frame(total: int, ph: Dictionary, now: int) -> void:
 		var n: int = pf["frames"]
 		print("PERF last %.0f s: %.1f fps (%.1f ms per frame), %d of %d frames over 33 ms, tick %.1f ms (%d ticks), render + vsync wait %.1f ms per frame, worst frame %.0f ms" % [
 			(now - pf["start"]) / 1000000.0, n / ((now - pf["start"]) / 1000000.0), pf["us"] / 1000.0 / n, pf["slow"], n,
-			pf["tick_us"] / 1000.0 / maxi(1, pf["ticks"]), pf["ticks"], pf["draw_us"] / 1000.0 / n, pf["worst"] / 1000.0])
+			pf["tick_us"] / 1000.0 / maxi(1, pf["ticks"]), pf["ticks"], pf["draw_us"] / 1000.0 / n, pf["worst"] / 1000.0]
+			+ "; per tick: " + _perf_top(pf["ticks"]))
 		_perf = {"frames": 0, "us": 0, "slow": 0, "tick_us": 0, "ticks": 0, "draw_us": 0, "worst": 0, "start": now}
+		_perf_listeners = {}
 
 
 ## Records something worth knowing about if the current frame turns out to be a hitch (a load, a compile, ...).
@@ -718,6 +734,8 @@ var tick_after: Array[Callable] = []
 ## Records the time a tick callback took under `key`: shows in --profile buckets and as the slowest listener in
 ## HITCH lines.
 func account_listener(key: String, dt: int) -> void:
+	if key.begins_with("ext:"):   # extension ticks (the game's listeners are counted per script in the tick loop)
+		_perf_listeners[key] = _perf_listeners.get(key, 0) + dt
 	if dt > _slowest_listener_us:
 		_slowest_listener_us = dt
 		_slowest_listener = key
