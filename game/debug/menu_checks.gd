@@ -227,6 +227,30 @@ func _extension_checks() -> void:
 	_check("setting slider", is_equal_approx(float(mm.get_setting("biteoccurancedivisor")), 500.0))
 	sl["set"].call(float(mm._settings["biteoccurancedivisor"]["default"]))
 
+	# moremoods' modes in Her > Face and Behaviour > Biting (the classic menu's u / eyelid / bite buttons)
+	var roll := _spec("her", "Eye roll")
+	_check("eye roll control in Her", roll.get("group", "") == "Face" and roll.get("owner", "") == "moremoods")
+	var roll_before: int = mm.face.eyeroll_mode
+	roll["set"].call("Roll")
+	_check("eye roll control sets the mode", mm.face.eyeroll_mode == 1 and roll["get"].call() == "Roll")
+	mm.ui.set_eyeroll(roll_before)
+	var lid_before: int = mm.face.eyelid_mode
+	_spec("her", "Upper eyelids")["set"].call("Normal")
+	var limit := _spec("her", "Eyelid limit")
+	_check("eyelid limit hidden unless limited", not limit["visible"].call())
+	_spec("her", "Upper eyelids")["set"].call("Both")
+	_check("eyelid limit shown with Both", mm.face.eyelid_mode == 3 and limit["visible"].call())
+	mm.ui.set_eyelid(lid_before)
+	var bite := _spec("behaviour", "Biting")
+	var bite_before: int = mm.behaviour.bite_mode
+	bite["set"].call("By slider")
+	_check("biting control sets the mode", mm.behaviour.bite_mode == 2 and _spec("behaviour", "Bite chance")["visible"].call())
+	mm.ui.set_bite(bite_before)
+	Extensions.set_enabled("moremoods", false)
+	_check("moremoods off removes its controls", _spec("her", "Eye roll").is_empty())
+	Extensions.set_enabled("moremoods", true)
+	_check("moremoods on adds them once", menu._groups_of(menu._find_section("her")).filter(func(gr): return gr["title"] == "Face")[0]["controls"].filter(func(c): return c.get("label", "") == "Eye roll").size() == 1)
+
 	SDTMenu.add_control({"type": "toggle", "label": "Test toggle", "owner": "moremoods", "section": "her",
 		"group": "Face", "get": func(): return true, "set": func(_v): pass})
 	menu.show_section("her")

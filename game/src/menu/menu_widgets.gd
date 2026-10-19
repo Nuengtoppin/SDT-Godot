@@ -113,7 +113,7 @@ static func _label_row(spec: Dictionary, expand: bool) -> Control:
 	l.text = spec.get("label", "")
 	l.clip_text = true
 	l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL if expand else Control.SIZE_FILL
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # clip_text: without expanding it would get no width
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(l)
 	if spec.get("owner", "") != "":

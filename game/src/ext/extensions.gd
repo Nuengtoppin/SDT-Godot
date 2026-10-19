@@ -149,6 +149,7 @@ static func _disable(ext: SDTExtension) -> void:
 	Hooks.remove_owner(ext.id)
 	CharCode.remove_owner(ext.id)
 	Moods.unregister_owner(ext.id)
+	SDTMenu.remove_owner(ext.id)
 	for w in _widgets.filter(func(x): return x[0] == ext):
 		if is_instance_valid(w[1]) and w[1]._flash_parent != null:
 			w[1]._flash_parent.removeChild(w[1])
