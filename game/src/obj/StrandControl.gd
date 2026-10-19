@@ -165,8 +165,23 @@ func _native() -> bool:
 	var scene := container_index(g.sceneLayer)
 	fluids.set_special(container_index(h.head.face), container_index(h.head.jaw), container_index(h.eye.hitBox), scene)
 	_set_params()
-	Flash.add_enter_frame(_meshes[0], _tick)   # after the game's own listeners, like the strands' listeners
+	# after all of the tick's game logic (her movement), whenever this is first used; drawn every frame
+	Flash.tick_after.append(_tick)
+	var drawer := _Drawer.new()
+	drawer.control = self
+	drawer.name = "FluidDrawer"
+	Flash.add_child(drawer)
 	return true
+
+
+## Redraws the strands every rendered frame, interpolated between ticks like the body they stick to (physics
+## interpolation draws the body between its last two tick poses).
+class _Drawer:
+	extends Node
+	var control
+
+	func _process(_delta: float) -> void:
+		control._draw()
 
 
 func _layer_index(layer: FlashSprite) -> int:
@@ -271,12 +286,12 @@ func _tick() -> void:
 	fluids.set_targets(_targets(g.sceneLayer.flash_global_transform().affine_inverse()))
 	_set_params()
 	_apply_events(fluids.tick())
-	_draw()
 
 
 func _draw() -> void:
+	var f := 1.0 if g.gamePaused else Engine.get_physics_interpolation_fraction()
 	for i in _meshes.size():
-		var m: Array = fluids.get_mesh(i)
+		var m: Array = fluids.get_mesh(i, f)
 		var gr: FlashGraphics = _meshes[i].graphics
 		gr.clear()
 		if not (m[0] as PackedVector2Array).is_empty():

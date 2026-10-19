@@ -110,7 +110,6 @@ static var _sys = null                 # SDTSweat
 static var _cont: Dictionary = {}      # display object -> container index
 static var _cont_objs: Array = []
 static var _batches: Dictionary = {}   # container index -> SweatBatch
-static var _ticker: FlashSprite = null
 
 
 ## A new droplet on `container` near p (its space), spread at random, that may land on `others` when it falls
@@ -123,8 +122,7 @@ static func spawn(container: FlashSprite, p: Vector2, spread: Vector2, others: A
 		return
 	if _sys == null:
 		_sys = ClassDB.instantiate(&"SDTSweat")
-		_ticker = FlashSprite.new()
-		Flash.add_enter_frame(_ticker, _native_tick)   # after the game's own listeners, like the droplets'
+		Flash.tick_after.append(_native_tick)   # after all of the tick's game logic (her movement)
 	var parent := _index(container, true)
 	var o := PackedInt32Array()
 	for c in others:

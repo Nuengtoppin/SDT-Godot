@@ -198,7 +198,7 @@ alpha=1.000
 _had_offsets=false
 blendMode=normal
 _mask_hidden=false
-_gxf_epoch=67935
+_gxf_epoch=67939
 mouseX=218.625
 mouseY=-12.013
 _gclean=false
@@ -300,7 +300,7 @@ alpha=1.000
 _had_offsets=false
 blendMode=layer
 _mask_hidden=false
-_gxf_epoch=67935
+_gxf_epoch=67939
 mouseX=-16.606
 mouseY=88.241
 _gclean=false
@@ -636,6 +636,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1060] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashMovieClip#1062] f=1/1 pos=(137.6,53.8) sc=(1.00,1.00) rot=0.0 blend=add
                    [FlashShape#1061] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+             [SweatBatch#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
           bottomLipstick [FlashMovieClip#1128] f=13/81 a=0.00 pos=(-29.1,-71.3) sc=(1.00,1.00) rot=4.1 blend=hardlight
              [FlashShape#1125] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [FlashMovieClip#1062] f=1/1 pos=(137.6,53.8) sc=(1.00,1.00) rot=0.0 blend=add

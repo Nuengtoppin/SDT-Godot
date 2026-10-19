@@ -31,6 +31,8 @@ public:
 
 	struct Link {
 		Vector2 p, speed;
+		Vector2 prev;            // position at the start of the tick (drawing interpolates prev -> p like the body)
+		bool prev_valid = false;
 		float mass = 0.01f, density = 1.0f;
 		float min_mass = 0.01f, min_density = 0.2f;
 		int anchor_age = 0, collision_free = 0, anchor_delay = 0;
@@ -142,7 +144,8 @@ public:
 
 	Array tick();                       // events of this tick (and of smear / clear since the last call)
 	Array take_events();
-	Array get_mesh(int layer) const;    // [points, colors, indices] of all strands in that layer
+	Array get_mesh(int layer, double fraction) const; // [points, colors, indices] of all strands in that layer,
+	                                                   // links at prev + (p - prev) * fraction
 	void smear(const Vector2 &p, double radius);
 	void detach_container(int container);
 	void clear(bool cum);

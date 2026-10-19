@@ -58,7 +58,7 @@ void SDTFluids::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_alive", "id"), &SDTFluids::is_alive);
 	ClassDB::bind_method(D_METHOD("tick"), &SDTFluids::tick);
 	ClassDB::bind_method(D_METHOD("take_events"), &SDTFluids::take_events);
-	ClassDB::bind_method(D_METHOD("get_mesh", "layer"), &SDTFluids::get_mesh);
+	ClassDB::bind_method(D_METHOD("get_mesh", "layer", "fraction"), &SDTFluids::get_mesh);
 	ClassDB::bind_method(D_METHOD("smear", "p", "radius"), &SDTFluids::smear);
 	ClassDB::bind_method(D_METHOD("detach_container", "container"), &SDTFluids::detach_container);
 	ClassDB::bind_method(D_METHOD("clear", "cum"), &SDTFluids::clear);
@@ -821,6 +821,12 @@ bool SDTFluids::is_alive(int id) const {
 Array SDTFluids::tick() {
 	std::vector<int> ids = order; // strands made this tick (splits) start next tick
 	for (int id : ids) {
+		for (Link &l : strands[id].links) {
+			l.prev = l.p;
+			l.prev_valid = true;
+		}
+	}
+	for (int id : ids) {
 		if (strands[id].alive) {
 			update(id);
 		}
@@ -835,7 +841,8 @@ Array SDTFluids::take_events() {
 	return e;
 }
 
-Array SDTFluids::get_mesh(int layer) const {
+Array SDTFluids::get_mesh(int layer, double fraction) const {
+	float f = (float)std::clamp(fraction, 0.0, 1.0);
 	StrandMesh mesh;
 	std::vector<Vector2> pos;
 	std::vector<float> thick, dens;
@@ -850,7 +857,8 @@ Array SDTFluids::get_mesh(int layer) const {
 		thick.resize(n);
 		dens.resize(n);
 		for (int i = 0; i < n; i++) {
-			pos[i] = s.links[i].p;
+			const Link &l = s.links[i];
+			pos[i] = l.prev_valid ? l.prev + (l.p - l.prev) * f : l.p;
 			thick[i] = thickness(s, i);
 			dens[i] = s.links[i].density;
 		}
