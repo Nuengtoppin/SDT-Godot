@@ -64,6 +64,19 @@ func _open_checks() -> void:
 	_check("the menu pauses the game", g.gamePaused)
 	g.inGameMenu.toggleMenu(true, 1)
 	_check("Y again closes it", not menu.is_open and not g.gamePaused)
+	g.inGameMenu.toggleMenu(true, 1)
+	var press := func(p: Vector2, b := MOUSE_BUTTON_LEFT) -> InputEventMouseButton:
+		var e := InputEventMouseButton.new()
+		e.button_index = b
+		e.pressed = true
+		e.position = p
+		return e
+	var inside: Vector2 = menu._dock.get_global_rect().get_center()
+	var outside := Vector2(inside.x - menu._dock.size.x if not SDTMenu.on_left() else inside.x + menu._dock.size.x, inside.y)
+	_check("a click on the dock keeps it open", not menu.outside_click(press.call(inside)))
+	_check("the wheel outside keeps it open", not menu.outside_click(press.call(outside, MOUSE_BUTTON_WHEEL_UP)))
+	_check("a click outside the dock closes it", menu.outside_click(press.call(outside)))
+	menu.close_menu()
 	g.inGameMenu.toggleMenu(true, 4)
 	_check("O opens Settings", menu.is_open and menu.section == "settings")
 

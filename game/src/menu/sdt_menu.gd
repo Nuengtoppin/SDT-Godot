@@ -12,7 +12,6 @@ extends CanvasLayer
 const WIDTH := 290.0
 const NAV_W := 64.0
 const EDGE_ZONE := 60.0       # how close (stage pixels) the mouse must come to the edge to show the MENU tab
-const HOVER_OPEN := 0.5       # seconds over the tab before it opens the menu with "Open on hover"
 const TAB_SECTIONS := {1: "her", 2: "clothes", 3: "mods", 4: "settings", 5: "help"}   # Y U I O P
 
 static var instance: SDTMenu = null
@@ -42,7 +41,6 @@ var _search_view: Control = null
 static var _controls_version := 0
 var _nav_buttons: Dictionary = {}
 var _tab_t := 0.0             # 0 hidden .. 1 shown
-var _tab_hover := 0.0
 var _frame := 0
 var _paused_by_menu := false
 var classic_button   # the classic menu's "New menu" button
@@ -639,16 +637,13 @@ func _process(delta: float) -> void:
 	_tab_t = move_toward(_tab_t, 1.0 if near else 0.0, delta * 8.0)
 	_tab.visible = _tab_t > 0.0
 	_place_tab()
-	if g.hoverOptions and near and _tab.get_global_rect().has_point(_root.get_global_mouse_position()):
-		_tab_hover += delta
-		if _tab_hover >= HOVER_OPEN:
-			_tab_hover = 0.0
-			open_menu()
-	else:
-		_tab_hover = 0.0
 
 
 func _input(event: InputEvent) -> void:
+	if outside_click(event):
+		close_menu()
+		get_viewport().set_input_as_handled()   # the click only closes the menu, it does not reach the scene
+		return
 	if is_open and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		if _search.has_focus() and _search.text != "":
 			_search.text = ""
@@ -657,6 +652,16 @@ func _input(event: InputEvent) -> void:
 		else:
 			close_menu()
 		get_viewport().set_input_as_handled()
+
+
+## True for a mouse press outside the open dock (no colour picker / dropdown open): it closes the menu.
+func outside_click(event: InputEvent) -> bool:
+	if not is_open or open_popups > 0 or not (event is InputEventMouseButton and event.pressed):
+		return false
+	var b: MouseButton = event.button_index
+	if b == MOUSE_BUTTON_WHEEL_UP or b == MOUSE_BUTTON_WHEEL_DOWN or b == MOUSE_BUTTON_WHEEL_LEFT 			or b == MOUSE_BUTTON_WHEEL_RIGHT:
+		return false
+	return not _dock.get_global_rect().has_point(event.position)
 
 
 ## Flash input skips mouse presses and moves over the dock and the tab (Flash.mouse_blocker), so clicking the menu

@@ -413,8 +413,6 @@ static func _settings() -> Dictionary:
 				func(on: bool):
 					PortSettings.set_value("menu", "pause", on)
 					SDTMenu.instance.pause_setting_changed()),
-			check("Open on hover", "Pointing at the MENU tab opens the menu without clicking.",
-				func(): return om.call().cbHoverOptions, _m().cbHoverOptionsClicked),
 			toggle("Classic menu", "Use the original game's menu instead of this one (switch back in its Options tab).",
 				func(): return SDTMenu.classic(),
 				func(on: bool):
