@@ -35,6 +35,8 @@ var base_library: FlashLibrary
 ## Frames per second of the logic tick (Flash frame rate).
 var frame_rate: float = 30.0
 var tick_count: int = 0
+## Ticks between mouse-over checks while the mouse is still (see the tick).
+const MOUSE_OVER_TICKS := 3
 ## When true, timelines and ENTER_FRAME listeners are not ticked (debug tools / pause screens).
 var paused := false
 
@@ -406,7 +408,7 @@ func _physics_process(_delta: float) -> void:
 	if tick_count % 15 == 0:
 		FlashDisplayObject.hb_gen += 1   # periodically rebuild loose hit-test bounds tight
 	var prof := profiling
-	var t0 := Time.get_ticks_usec() if prof else 0
+	var t0 := Time.get_ticks_usec()
 	var snap: Dictionary = _prof.duplicate() if prof else {}
 	FlashLibrary.poll_streaming()
 	if _deterministic:
@@ -422,7 +424,8 @@ func _physics_process(_delta: float) -> void:
 			mc._advance()
 		else:
 			_playing.erase(mc)
-	var t1 := Time.get_ticks_usec() if prof else 0
+	var t1 := Time.get_ticks_usec()
+	_perf_add("#timelines", t1 - t0)
 	# 2. ENTER_FRAME listeners (game logic).
 	var stale := false
 	for e in _enter_frame.duplicate():
@@ -448,22 +451,29 @@ func _physics_process(_delta: float) -> void:
 		_enter_frame = _enter_frame.filter(func(e): return is_instance_valid(e[0]))
 	# 2b. Callbacks that run after the game's tick, before masks follow the moved objects (see tick_after).
 	for cb in tick_after:
+		var ts := Time.get_ticks_usec()
 		cb.call()
-	var t2 := Time.get_ticks_usec() if prof else 0
+		_perf_add("after:" + cb.get_method(), Time.get_ticks_usec() - ts)
+	var t2 := Time.get_ticks_usec()
 	# 3. Masks follow the (possibly moved) objects.
 	for p in _mask_proxies.keys():
 		if is_instance_valid(p):
 			p.refresh()
 		else:
 			_mask_proxies.erase(p)
-	var t3 := Time.get_ticks_usec() if prof else 0
+	var t3 := Time.get_ticks_usec()
 	for g in _groups.keys():
 		if is_instance_valid(g):
 			g.update_layout()
 		else:
 			_groups.erase(g)
-	var t4 := Time.get_ticks_usec() if prof else 0
-	_update_mouse_over()
+	var t4 := Time.get_ticks_usec()
+	_perf_add("#masks", t3 - t2)
+	_perf_add("#groups", t4 - t3)
+	# objects moving under a still mouse: a hit search costs up to ~0.2 ms, so look every few ticks (mouse motion
+	# updates it at once, see _handle_input)
+	if tick_count % MOUSE_OVER_TICKS == 0:
+		_update_mouse_over()
 	_finish_lazy_detach()
 	in_tick = false
 	_free_orphans()
@@ -561,12 +571,17 @@ var _perf := {"frames": 0, "us": 0, "slow": 0, "tick_us": 0, "ticks": 0, "draw_u
 var _perf_listeners: Dictionary = {}   # script (or "ext:<id>.tick") -> usec in the current PERF window
 
 
-## The three listeners that took the most time in the PERF window, as "Name 1.2 ms" (per tick).
+func _perf_add(key: String, dt: int) -> void:
+	_perf_listeners[key] = _perf_listeners.get(key, 0) + dt
+
+
+## The listeners / phases ("after:" tick_after callbacks, "#" runtime phases) that took the most time in the PERF
+## window, as "Name 1.2 ms" (per tick).
 func _perf_top(ticks: int) -> String:
 	var keys := _perf_listeners.keys()
 	keys.sort_custom(func(a, b): return _perf_listeners[a] > _perf_listeners[b])
 	var parts := PackedStringArray()
-	for k in keys.slice(0, 3):
+	for k in keys.slice(0, 6):
 		var name: String = k if k is String else (k.get_global_name() if k is Script and k.get_global_name() != &"" 			else (k.resource_path.get_file() if k is Resource else "?"))
 		parts.append("%s %.1f ms" % [name, _perf_listeners[k] / 1000.0 / maxi(1, ticks)])
 	return ", ".join(parts)
@@ -1000,7 +1015,7 @@ func _handle_input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion:
 		var target := _mouse_target_at(mouse_position())
 		_dispatch_mouse(target, FlashEvent.MOUSE_MOVE)
-		_update_mouse_over()
+		_update_mouse_over(target, true)
 	elif event is InputEventKey:
 		var k := event as InputEventKey
 		if k.echo and not k.pressed:
@@ -1092,10 +1107,11 @@ func _dispatch_mouse(target: FlashDisplayObject, type: String) -> void:
 	target.dispatchEvent(e)
 
 
-func _update_mouse_over() -> void:
+func _update_mouse_over(target: FlashDisplayObject = null, searched := false) -> void:
 	if stage == null or not stage.is_inside_tree():
 		return
-	var target := _mouse_target_at(mouse_position())
+	if not searched:
+		target = _mouse_target_at(mouse_position())
 	if target == _mouse_over:
 		return
 	var old := _mouse_over
