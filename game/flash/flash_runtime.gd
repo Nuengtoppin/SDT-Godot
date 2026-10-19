@@ -767,24 +767,33 @@ func release_if_orphaned(o: FlashDisplayObject) -> void:
 
 ## Port of Flash's garbage collection for objects the game is done with (e.g. a killed costume element): freed
 ## DISPOSE_DELAY ticks later if still off the display list then, along with its whole subtree (and its filter /
-## mask proxy), unless its class says it is still referenced (a _can_dispose() method returning false). Mod
+## mask proxy), unless its class says it is still referenced (a _can_dispose() method returning false: it is
+## looked at again every DISPOSE_DELAY ticks until it can go, or is back on the display list). Mod
 ## ActionScript that still holds one of them sees it as null (FlashAbc), like a detached object that does
 ## nothing.
 const DISPOSE_DELAY := 60
-var _disposals: Array = []
+var _disposals: Array = []   # [object, tick], in tick order
+var _disposing: Dictionary = {}   # objects in _disposals
 
 
 func dispose_later(o: FlashDisplayObject) -> void:
+	if _disposing.has(o):
+		return
+	_disposing[o] = true
 	_disposals.append([o, tick_count + DISPOSE_DELAY])
 
 
 func _free_disposals() -> void:
 	while not _disposals.is_empty() and _disposals[0][1] <= tick_count:
 		var o = _disposals.pop_front()[0]
+		_disposing.erase(o)
 		if not is_instance_valid(o) or o._flash_parent != null or o.is_inside_tree() or o.is_queued_for_deletion():
 			continue
 		var top: CanvasItem = o._tree_node()
-		if top.get_parent() != null or (o.has_method(&"_can_dispose") and not o._can_dispose()):
+		if top.get_parent() != null:
+			continue
+		if o.has_method(&"_can_dispose") and not o._can_dispose():
+			dispose_later(o)   # still referenced: look again later
 			continue
 		if _focus != null and is_instance_valid(_focus) and (o == _focus or o.is_ancestor_of(_focus)):
 			_focus = null
