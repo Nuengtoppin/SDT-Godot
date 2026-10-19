@@ -220,17 +220,15 @@ func _load_code_mood(v: String) -> void:
 		g.her.setMood(m)
 
 
+## [<MOOD>_MOOD] for the added moods (with DialogueActions).
 func _register_triggers() -> void:
-	var da = Extensions.get_extension("dialogueactions")
-	if da == null or not da.enabled:
-		push_warning("moremoods: DialogueActions is off, the [<MOOD>_MOOD] triggers are not available")
-		return
-	for m in MOODS:
-		if m in VANILLA:
-			continue
-		var name: String = m
-		if not da.has_trigger(name.to_upper() + "_MOOD", 0):
-			da.register_trigger(name.to_upper() + "_MOOD", 0, func(_a): g.her.setMood(name))
+	on_dialogueactions(func(da):
+		for m in MOODS:
+			if m in VANILLA:
+				continue
+			var name: String = m
+			if not da.has_trigger(name.to_upper() + "_MOOD", 0):
+				da.register_trigger(name.to_upper() + "_MOOD", 0, func(_a): g.her.setMood(name)))
 
 
 # ---------------------------------------------------------------- selector

@@ -103,6 +103,14 @@ func charcode_field(key: String, getter: Callable, setter: Callable, reset := Ca
 	CharCode.add_field(key, id, getter, setter, reset, after_mods)
 
 
+## Adds triggers and variables to DialogueActions: `setup(da)` runs now if DialogueActions is on, and again each time
+## it is switched on. What it registers (da.register_trigger, da.vars.register / register_read / register_write /
+## add_listener) is removed when this extension is disabled. To register more later (e.g. from a trigger), wrap it in
+## `da.run_addon(id, func(d): ...)`.
+func on_dialogueactions(setup: Callable) -> void:
+	Extensions._add_da_addon(self, setup)
+
+
 ## Adds a small button (ExtButton) to a game menu at (x, y): `menu` is the name of an InGameMenu member such as
 ## "optionsMenu", "sceneMenu", "costumeMenu". `on_click()` runs when it is clicked. Removed when disabled.
 func menu_button(menu: String, x: float, y: float, text: String, on_click: Callable, w := 16.0, h := 16.0) -> ExtButton:
