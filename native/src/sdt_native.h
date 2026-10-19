@@ -26,4 +26,6 @@ public:
 	// space, hb_gen the current FlashDisplayObject.hb_gen. Mirrors FlashSprite / FlashShape; other object types
 	// (Graphics, text fields, bitmaps) call back into their GDScript _hit_shape.
 	static bool hit_shape(Object *p_obj, const Vector2 &p_point, int64_t p_hb_gen);
+	// hit_shape skipping one object of the tree (and its subtree).
+	static bool hit_shape_excluding(Object *p_obj, const Vector2 &p_point, int64_t p_hb_gen, Object *p_exclude);
 };

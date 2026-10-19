@@ -20,6 +20,8 @@ void SDTNative::_bind_methods() {
 					"max_interp_dist"),
 			&SDTNative::build_strand);
 	ClassDB::bind_static_method("SDTNative", D_METHOD("hit_shape", "obj", "point", "hb_gen"), &SDTNative::hit_shape);
+	ClassDB::bind_static_method("SDTNative", D_METHOD("hit_shape_excluding", "obj", "point", "hb_gen", "exclude"),
+			&SDTNative::hit_shape_excluding);
 }
 
 namespace {
@@ -370,6 +372,9 @@ Kind kind_of(Object *o) {
 
 bool hit_shape_rec(Object *o, Vector2 p, int64_t hb_gen);
 
+// The object a hit test skips (hit_shape_excluding: a sweat droplet testing the body part it sits on).
+Object *g_hit_exclude = nullptr;
+
 // FlashSprite._clip_allows: children under a timeline clip mask only hit inside the mask.
 bool clip_allows(Object *c, Vector2 p, const Dictionary &clips, int64_t hb_gen) {
 	Names &N = names();
@@ -443,7 +448,7 @@ bool hit_shape_rec(Object *o, Vector2 p, int64_t hb_gen) {
 			bool clips_read = false;
 			for (int64_t i = children.size() - 1; i >= 0; i--) {
 				Object *c = children[i];
-				if (c == nullptr) {
+				if (c == nullptr || c == g_hit_exclude) {
 					continue;
 				}
 				// Test the child first (it rejects cheaply on its cached bounds); the mask / clip checks, which do
@@ -481,4 +486,14 @@ bool SDTNative::hit_shape(Object *p_obj, const Vector2 &p_point, int64_t p_hb_ge
 		return false;
 	}
 	return hit_shape_rec(p_obj, p_point, p_hb_gen);
+}
+
+bool SDTNative::hit_shape_excluding(Object *p_obj, const Vector2 &p_point, int64_t p_hb_gen, Object *p_exclude) {
+	if (p_obj == nullptr) {
+		return false;
+	}
+	g_hit_exclude = p_exclude;
+	bool hit = hit_shape_rec(p_obj, p_point, p_hb_gen);
+	g_hit_exclude = nullptr;
+	return hit;
 }

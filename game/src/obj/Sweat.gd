@@ -180,8 +180,18 @@ func tick() -> void:
 			parentDown[onChild] = 180.0
 		else:
 			parentDown[onChild] = parentDown[sweatParent] - onChild.rotation_degrees
-	for s in sweatGroups[sweatParent].duplicate():
-		if s != self and is_instance_valid(s):
+	# Port: droplets that cannot be near even at full mass are skipped up front (the same result as testing every
+	# droplet with isNear, which cost most of the tick with many droplets).
+	var near: Array = []
+	var p := position
+	var r := nearDist * maxf(mass, maxMass)
+	for s in sweatGroups[sweatParent]:
+		if s != self:
+			var q: Vector2 = s.position
+			if q.x >= p.x - r and q.x <= p.x + r and q.y >= p.y - r and q.y <= p.y + r:
+				near.append(s)
+	for s in near:
+		if is_instance_valid(s):
 			if isNear(s):
 				if s.currentMass > mass:
 					s.absorb(self)
@@ -200,15 +210,17 @@ func tick() -> void:
 	else:
 		x = localPoint.x
 		y = localPoint.y
-	if globalPoint.y > 1000:
+	if globalPoint.y > 1000 or is_nan(globalPoint.x) or is_nan(globalPoint.y):   # port: NaN as a last resort
 		kill()
 		return
 	lastVelocity = velocity
 	velocity = sqrt(speed.x * speed.x + speed.y * speed.y)
-	sVec = Vector2(speed.x / velocity, speed.y / velocity)
-	# The droplet leaves its parent while testing the parent's shape, then rejoins on top.
-	if parent:
-		parent.removeChild(self)
+	# Port fix: a droplet at rest has no direction (the original divided by 0 here; the NaN then spread to its
+	# speed and position, and the probe loop below never ended, freezing the game).
+	sVec = Vector2(speed.x / velocity, speed.y / velocity) if velocity > 0 else Vector2.ZERO
+	# The droplet leaves its parent while testing the parent's shape, then rejoins on top. Port: instead of taking
+	# it off the display list (slow here), the shape tests skip it, and it only moves when something is above it.
+	FlashDisplayObject.hit_exclude = self
 	if attached:
 		scaleY = 1.0 + maxf(-0.3, minf(0.3, (velocity - lastVelocity) * 0.5))
 		scaleX = 1.0 / scaleY
@@ -258,7 +270,8 @@ func tick() -> void:
 						speed.x += gVec.y * probe * 0.8
 						speed.y += gVec.x * probe * 0.8
 						var l := sqrt(speed.x * speed.x + speed.y * speed.y)
-						speed *= velocity / l
+						if l > 0:   # port fix: see sVec above
+							speed *= velocity / l
 						break
 					if probe > 0:
 						probe = -probe
@@ -287,4 +300,18 @@ func tick() -> void:
 					if sweatParent.parent == c.parent and sweatParent.parent.getChildIndex(sweatParent) < sweatParent.parent.getChildIndex(c):
 						parentsToCheck.erase(c)
 		justDetached = false
-	sweatParent.addChild(self)
+	FlashDisplayObject.hit_exclude = null
+	if parent != sweatParent or not _on_top():
+		sweatParent.addChild(self)
+
+
+## True if only other droplets are above this one in its parent (re-adding it would only reorder droplets).
+func _on_top() -> bool:
+	var kids: Array = sweatParent._children
+	for i in range(kids.size() - 1, -1, -1):
+		var c = kids[i]
+		if c == self:
+			return true
+		if not c is Sweat:
+			return false
+	return false
