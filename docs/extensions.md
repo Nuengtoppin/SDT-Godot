@@ -18,7 +18,7 @@ Built in, each a reimplementation of the Loader mod of that name (id in brackets
 and behaviour: DialogueActions (`dialogueactions`), moremoods (`moremoods`), MoreTriggers (`moretriggers`),
 DA_sbyAddons (`dasbyaddons`), dialogpatch (`dialogpatch`), dialogdisplayedit (`dialogdisplayedit`), gaggeddialog
 (`gaggeddialog`), dialogspeed (`dialogspeed`) and monitordialog (`monitordialog`). Defaults follow the settings of
-sby's Loader pack where it had some.
+sby's Loader pack where it had some, except that dialogdisplayedit keeps the game's colours.
 
 ## Writing an extension
 

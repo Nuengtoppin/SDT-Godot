@@ -569,7 +569,12 @@ func _dmod_checks() -> void:
 	_check("dialogdisplayedit: [dialogdisplayedit_speak_red]", ct.redOffset == 255.0 and ct.greenOffset == 50.0
 		and not dc.words.any(func(w): return w.word.begins_with("[dialogdisplayedit")))
 	_say("back [dialogdisplayedit_speak_initialsettings]", {"style": "Speak"})
-	_check("dialogdisplayedit: initialsettings", dc.getChildAt(0).colorTransform.greenOffset == 230.0)
+	ct = dc.getChildAt(0).colorTransform
+	_check("dialogdisplayedit: initialsettings (the game's colours)", ct.redMultiplier == 1.0 and ct.greenOffset == 0.0)
+	_say("plain", {"style": "Speak"})
+	var bg = dc.getChildAt(0)
+	_check("dialogdisplayedit: default box is the game's", bg.colorTransform.redMultiplier == 1.0
+		and is_equal_approx(bg.alpha, Dialogue.BOX_ALPHA / Dialogue.BOX_FILL_ALPHA.get(bg._char_id, Dialogue.BOX_ALPHA)))
 	_say("custom [dialogdisplayedit_setspeakcustomstyle_ff5050_50ff50]", {"style": "SpeakCustom"})
 	ct = dc.getChildAt(0).colorTransform
 	var tct: FlashColorTransform = dc.tfContainer.colorTransform

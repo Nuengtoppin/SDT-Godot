@@ -1,7 +1,8 @@
 extends SDTExtension
 ## Built-in reimplementation of the Loader mod dialogdisplayedit (sby, v7): colours and opacity of the dialogue box
 ## and its text per line style, extra styles, and colour changes from dialogue lines. Written from its documentation
-## and behaviour; the defaults are the settings of sby's Loader pack.
+## and behaviour. Speak, Thought and Him keep the game's colours until recoloured (the colours offered are those of
+## sby's Loader pack); the Alt styles use the pack's colours.
 ##
 ## - Styles Speak / Thought / Him get their own box and text colours and opacity (settings).
 ## - {"style":"SpeakAlt1"} ... "ThoughtAlt3", "HimAlt3": the Alt 1-3 colours, spoken / thought / his box as named.
@@ -11,20 +12,20 @@ extends SDTExtension
 ##   aquamarine, cyan, skyblue, blue, purple, magenta, pink) until the dialogue changes it again; "initialsettings"
 ##   goes back to the settings' colours, "default" to the game's.
 ## - A line with only actions (no words) does not show an empty box.
-## Opacity multiplies the box picture's own (0..3; Flash semantics: above 1 makes a see-through box more solid).
+## Opacity multiplies the game's (0..3; above 1 makes the see-through box more solid).
 
 const NAMED := {"red": Color8(255, 50, 50), "orange": Color8(255, 128, 50), "yellow": Color8(255, 255, 50),
 	"limegreen": Color8(128, 255, 50), "green": Color8(50, 255, 50), "aquamarine": Color8(50, 255, 128),
 	"cyan": Color8(50, 255, 255), "skyblue": Color8(50, 128, 255), "blue": Color8(50, 50, 255),
 	"purple": Color8(128, 50, 255), "magenta": Color8(255, 50, 255), "pink": Color8(255, 50, 128)}
-## Style -> [label, recolour box, box colour, box opacity, recolour text, text colour, text opacity] (pack values)
+## Style -> [label, recolour box, box colour, box opacity, recolour text, text colour, text opacity]
 const STYLES := {
-	"speak": ["Her (Speak)", true, Color8(255, 230, 230), 1.5, false, Color8(0, 0, 0), 2.0],
-	"thought": ["Thought", true, Color8(250, 250, 250), 1.4, false, Color8(0, 0, 0), 2.0],
-	"him": ["Him", true, Color8(160, 165, 185), 1.5, true, Color8(20, 20, 20), 2.0],
-	"alt1": ["Alt 1", true, Color8(0, 250, 0), 1.5, true, Color8(0, 0, 0), 2.0],
-	"alt2": ["Alt 2", true, Color8(150, 150, 0), 1.5, true, Color8(0, 0, 0), 2.0],
-	"alt3": ["Alt 3", true, Color8(150, 0, 200), 1.5, true, Color8(0, 0, 0), 2.0],
+	"speak": ["Her (Speak)", false, Color8(255, 230, 230), 1.0, false, Color8(0, 0, 0), 1.0],
+	"thought": ["Thought", false, Color8(250, 250, 250), 1.0, false, Color8(0, 0, 0), 1.0],
+	"him": ["Him", false, Color8(160, 165, 185), 1.0, false, Color8(20, 20, 20), 1.0],
+	"alt1": ["Alt 1", true, Color8(0, 250, 0), 1.0, true, Color8(0, 0, 0), 1.0],
+	"alt2": ["Alt 2", true, Color8(150, 150, 0), 1.0, true, Color8(0, 0, 0), 1.0],
+	"alt3": ["Alt 3", true, Color8(150, 0, 200), 1.0, true, Color8(0, 0, 0), 1.0],
 }
 const FRAME_STYLE := {1: "speak", 2: "thought", 3: "him"}
 
@@ -154,7 +155,9 @@ func _apply(dc: Dialogue, base: String, alt: int) -> void:
 		box = get_setting(st + "_box") if get_setting(st + "_box_recolour") else null
 		text = get_setting(st + "_text") if get_setting(st + "_text_recolour") else null
 	var alpha_st := st if alt >= 1 and alt <= 3 else base
-	dc.getChildAt(0).colorTransform = _transform(box, get_setting(alpha_st + "_box_alpha"))
+	var bg = dc.getChildAt(0)
+	var game_alpha: float = Dialogue.BOX_ALPHA / Dialogue.BOX_FILL_ALPHA[bg._char_id] 		if bg is FlashShape and Dialogue.BOX_FILL_ALPHA.has(bg._char_id) else 1.0   # as Dialogue._gotoStyle sets it
+	bg.colorTransform = _transform(box, game_alpha * get_setting(alpha_st + "_box_alpha"))
 	dc.tfContainer.colorTransform = _transform(text, get_setting(alpha_st + "_text_alpha"))
 
 
