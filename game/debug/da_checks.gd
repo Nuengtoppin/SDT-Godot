@@ -440,6 +440,8 @@ func _mt_checks() -> void:
 	_check("SHOCK with the default power", da.recognises("[SHOCK_2500]") == "SHOCK")
 	_check("LOOK at a point", da.run_code("[LOOK_10_20_100000]"))
 	_check("LOOK_UP", da.recognises("[LOOK_UP_2000]") == "LOOK")
+	_check("vanilla [SHOCK] [WINCE] [LOOK_UP] stay the game's", da.recognises("[SHOCK]") == ""
+		and da.recognises("[WINCE]") == "" and da.recognises("[LOOK_UP]") == "" and da.recognises("[LOOK_DOWN]") == "")
 	_check("CLOSE_MOUTH", da.run_code("[CLOSE_MOUTH]"))
 	_mt_breasts = g.characterControl.breastSize
 	_mt_body = her.bodyScale
