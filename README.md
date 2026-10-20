@@ -21,7 +21,9 @@ license. If you are a rights holder and want something removed, please open an i
 - `native/`: source of the C++ GDExtension for hot paths (see [native/README.md](native/README.md)).
 - `game/assets/sdt/`: the converted game assets (shapes, sounds, fonts, timelines in `library.json`).
 - `game/assets/mods/`: art and sounds from community mods whose features the port reimplements.
-- `game/bin/`: the native extension, prebuilt for Windows (debug and release DLLs).
+- `game/bin/`: the native extension, prebuilt for Windows (debug and release DLLs) and Linux (debug and release
+  `.so`, built by GitHub Actions).
+- `.github/workflows/native-linux.yml`: builds the Linux libraries when `native/` changes and commits them.
 - `tools/swfconv/`: converts `SDT.swf` into the asset library (only needed to regenerate `game/assets/sdt/`).
 - `tools/porting/`: one-off scripts used while porting the ActionScript (kept for reference).
 - `Mods/`: created on first run in the repository root (next to `run_debug.bat`; next to the executable in an
@@ -40,9 +42,9 @@ license. If you are a rights holder and want something removed, please open an i
 
 You can also open `game/` in the Godot editor and press F5.
 
-The ready-to-run setup is for **Windows** (the launcher and the prebuilt native extension). On Linux or macOS, run
-`godot --headless --path game --import` once, then `godot --path game`. There is no prebuilt native extension for
-those systems yet: Godot reports the missing library and the game uses its slower GDScript code instead.
+The launcher is for **Windows**. On **Linux**, run `godot --headless --path game --import` once, then
+`godot --path game`; the native extension is prebuilt for Linux x86_64 too. On **macOS** there is no prebuilt native
+extension yet: Godot reports the missing library and the game uses its slower GDScript code instead.
 
 ## Performance problems
 
@@ -64,8 +66,16 @@ python tools/swfconv/fix_hitmasks.py original/SDT.swf game/assets/sdt
 python tools/swfconv/supersample.py original/SDT.swf game/assets/sdt
 ```
 
-The native extension can be rebuilt from source too, see `native/README.md`. Without it the game falls back to
-slower GDScript code.
+The native extension can be rebuilt from source too, see `native/README.md`: the Windows DLLs are built locally
+(MinGW), the Linux libraries by GitHub Actions on every change to `native/` (the github-actions bot commits them to
+`game/bin/`, so pull after pushing a native change). Without the extension the game falls back to slower GDScript
+code.
+
+## Release builds
+
+`GODOT=<Godot 4.7.2 editor> bash tools/make_release.sh` exports a Windows build (Godot's 4.7.2 export templates
+needed) into `release/SDT-Godot-<date>-<commit>-windows/`, with the `Mods` folders, the shipped plugins and a
+readme for players, and zips it.
 
 ## Testing
 
