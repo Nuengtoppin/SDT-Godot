@@ -10,7 +10,8 @@ extends SDTExtension
 ##
 ## Port: over-tops (a shibari top) have a slot of their own, "Over top" in the new menu's Clothes, with
 ## their own colour (saved in the character code), so they go over her top instead of replacing it (the original
-## used the top's slot and colour).
+## used the top's slot and colour). Over-top layers with erase parts are groups, so those cut only the over-top's own
+## art (the shibari's ropes go behind her breast, as in the Loader).
 
 ## Mod type -> {part name in the mod -> path from her} (paths are tried when the extension is switched on)
 const TYPES := {
@@ -86,6 +87,7 @@ func _enable() -> void:
 	_make_over_top()
 	_make_hair_layer()
 	hook_after(&"CustomElementLoader.addStaticModElement", func(c): _mod_added(c.args[0]))
+	hook_after(&"CustomElementLoader.updateInstancedModElements", func(_c): _group_layers())
 	hook_after(&"Her.updateHandJobMode", func(_c): update_gloves())
 	hook_after(&"CharacterControl.setArmwearFill", func(c): _armwear_fill(c.args[0], c.args[1]))
 	hook_after(&"CharacterControl.setBreastCostumeSize", func(_c): _over_top_size())
@@ -167,6 +169,26 @@ func _make_hair_layer() -> void:
 func _hair_filters() -> void:
 	if hair_over_extended != null:
 		hair_over_extended.filters = g.hairBetweenLayer.filters
+
+
+## Over-top layers holding ERASE / ALPHA parts are LAYER groups, so those parts cut only the over-top's own art (the
+## shibari's ropes behind her breast, as in the Loader); the others stay plain (no offscreen group).
+func _group_layers() -> void:
+	for p in _layers:
+		var l: FlashSprite = _layers[p]
+		var want := "layer" if _has_cutout(l) else "normal"
+		if l.blendMode != want:
+			l.blendMode = want
+
+
+static func _has_cutout(o) -> bool:
+	if o.blendMode == "erase" or o.blendMode == "alpha":
+		return true
+	if o is FlashSprite:
+		for i in o.numChildren:
+			if _has_cutout(o.getChildAt(i)):
+				return true
+	return false
 
 
 func _mod_added(m) -> void:

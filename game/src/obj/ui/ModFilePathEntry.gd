@@ -148,7 +148,7 @@ func errorHandler(_e = null) -> void:
 func successHandler(_e = null) -> void:
 	if modPackage == null:
 		return
-	if checkDefaultFolders:
+	if checkDefaultFolders and defaultFolder < g.defaultModFolders.size():   # port fix: no folders set (as recheck)
 		pathTF.text = g.defaultModFolders[defaultFolder] + enteredPath
 	else:
 		pathTF.text = enteredPath

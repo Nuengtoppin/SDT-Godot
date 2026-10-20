@@ -333,6 +333,8 @@ func updateInstancedModElements() -> void:
 		bodyOrTop = bodyOrTop or m.modType == ModTypes.TOP or m.modType == ModTypes.BODY
 		i += 1
 	g.her.rightArmContainer.upperArmMask.visible = not bodyOrTop
+	if Hooks.has(&"CustomElementLoader.updateInstancedModElements"):   # HOOK
+		Hooks.after(&"CustomElementLoader.updateInstancedModElements", self, [])
 
 
 func getResetFunction(modType: String) -> Callable:

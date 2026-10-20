@@ -2,7 +2,8 @@ class_name ModCatalog
 extends RefCounted
 ## Port extension (not in the original game): mods in Mods/Clothing and Mods/Hair are found automatically and each
 ## item they register becomes an option in its costume picker (or the hair picker), after the built-in options.
-## Items of one mod that go to the same picker form one option (a hairstyle's parts, a gag's front and back).
+## Items of one mod that go to the same picker form one option (a hairstyle's parts, a gag's front and back); a
+## mod's items for several costume pickers are one option too, in one of them (SLOT_ORDER).
 ## Choosing one applies those items exactly like loading the mod does (CustomElementLoader.parseMod), with the
 ## package saved as "<path>|<item>+<item>..." so saved characters restore just them. A pack's character preset
 ## (charData) and dialogue are not applied.
@@ -14,6 +15,11 @@ const SCAN_FOLDERS := ["Clothing", "Hair", "Backgrounds"]
 const IMAGE_EXTENSIONS := ["png", "jpg", "jpeg", "gif", "bmp"]
 const CATALOG_VERSION := 1
 const HAIR_TYPES := [ModTypes.HAIR, ModTypes.DYNAMIC_HAIR]
+## A mod with pieces for several costume slots (a vest with its shirt, sleeves and collar) is one option, in the
+## first of these slots it has a piece for; its other pieces go on and off with it.
+const SLOT_ORDER := ["costumeovertop", "costumetop", "costumebottoms", "costumebra", "costumepanties",
+	"costumelegwear", "costumelegwearb", "costumearmwear", "costumefootwear", "costumeheadwear", "haircostume",
+	"costumecollar", "costumecuffs", "costumeanklecuffs", "costumegag", "costumeeyewear"]
 
 ## Entries: {path, items: Array[int], title, modTypes: Array[String], helper (costume pickers only)}
 var entries: Array = []
@@ -191,6 +197,7 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 		e["items"].append(int(it["item"]))
 		if not e["modTypes"].has(it["modType"]):
 			e["modTypes"].append(it["modType"])
+	groups = _merge_costume_groups(groups)
 	for gr in groups:
 		var key = gr[0]
 		var e: Dictionary = gr[1]
@@ -207,6 +214,38 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 			list = key.modEntries
 		list.append(e)
 		_dedupe(list, e)
+
+
+## A mod's costume options (pickers that are element helpers) become one, in the first slot of SLOT_ORDER; the
+## others' items are its companions.
+static func _merge_costume_groups(groups: Array) -> Array:
+	var costume := groups.filter(func(gr): return not gr[0] is String)
+	if costume.size() < 2:
+		return groups
+	var main = costume[0]
+	for gr in costume:
+		if _slot_rank(gr[1]) < _slot_rank(main[1]):
+			main = gr
+	var e: Dictionary = main[1]
+	e["companions"] = e["companions"].duplicate()
+	e["companionTypes"] = e["companionTypes"].duplicate()
+	for gr in costume:
+		if gr == main:
+			continue
+		e["companions"].append_array(gr[1]["items"])
+		for t in gr[1]["modTypes"]:
+			if not e["companionTypes"].has(t):
+				e["companionTypes"].append(t)
+	return groups.filter(func(gr): return gr == main or gr[0] is String)
+
+
+static func _slot_rank(e: Dictionary) -> int:
+	var best := SLOT_ORDER.size()
+	for t in e["modTypes"]:
+		var i := SLOT_ORDER.find(str(t).to_lower())
+		if i >= 0 and i < best:
+			best = i
+	return best
 
 
 ## Mods of a set often share their name (ThickerThighs' variants are all "Thicker Thighs"): in one list, those show
