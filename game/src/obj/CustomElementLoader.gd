@@ -420,6 +420,8 @@ func addStaticModElement(m) -> void:
 			g.characterControl.prepForBodyMod()
 	if helper.hasCostumeHelper:
 		helper.characterElementHelper.resetFills()
+	if Hooks.has(&"CustomElementLoader.addStaticModElement"):   # HOOK
+		Hooks.after(&"CustomElementLoader.addStaticModElement", self, [m])
 
 
 func _clearTarget(target) -> void:

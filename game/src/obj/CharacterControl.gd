@@ -397,8 +397,9 @@ func prepForBodyMod() -> void:
 	g.her.torso.backHighlight.visible = false
 	g.her.torso.backside.visible = false
 	g.her.rightArmContainer.upperArmMask.visible = false
-	if g.her.rightForeArmContainer.upperArm.foreArm.hand.grip:
-		g.her.rightForeArmContainer.upperArm.foreArm.hand.grip.visible = false
+	var grip = g.her.rightForeArmContainer.upperArm.foreArm.hand.get("grip")   # not every hand frame has one
+	if grip:
+		grip.visible = false
 	g.her.tan.hideForMods()
 
 
@@ -680,6 +681,8 @@ func setBreastCostumeSize() -> void:
 	for c in [h.torso.breastCostume.bra, h.torso.braStrap, h.torso.upperChestCostume.bra, h.torsoBackCostume.breastCostume.bra,
 			h.torso.topContainer.breastTop, h.torso.topContainer.chestTop, h.torsoBackCostume.breastCostume.top]:
 		setChildrenFrame(c, 2 + breastSize)
+	if Hooks.has(&"CharacterControl.setBreastCostumeSize"):   # HOOK
+		Hooks.after(&"CharacterControl.setBreastCostumeSize", self, [])
 
 
 func setChildrenFrame(target, frame: int) -> void:
@@ -847,6 +850,8 @@ func setTopFill(c, n: String = "rgbFill") -> void:
 	var outline := FlashColorTransform.new(1, 1, 1, 1, c.r * 0.5, c.g * 0.5, c.b * 0.5)
 	tryToSetFill(h.torso.topContainer.breastTop, "outline", outline)
 	tryToSetFill(h.torsoBackCostume.breastCostume.top, "outline", outline)
+	if Hooks.has(&"CharacterControl.setTopFill"):   # HOOK
+		Hooks.after(&"CharacterControl.setTopFill", self, [c, n])
 
 
 func setBraFill(c, n: String = "rgbFill") -> void:
@@ -885,6 +890,8 @@ func setArmwearFill(c, n: String = "rgbFill") -> void:
 			h.leftArmContainer.upperArmCostume.foreArmCostume.handCostume.glove, h.rightArmContainer.upperArmCostume.glove,
 			h.leftArmContainer.upperArmCostume.glove, h.leftHandOver.hand.glove]:
 		tryToSetFill(p, n, ct)
+	if Hooks.has(&"CharacterControl.setArmwearFill"):   # HOOK
+		Hooks.after(&"CharacterControl.setArmwearFill", self, [c, n])
 
 
 func _bottomsParts() -> Array:
@@ -1020,6 +1027,8 @@ func applyHairHSL(hsl: Dictionary) -> void:
 	g.hairOverContainer.filters = [f]
 	g.hairBetweenLayer.filters = [f]
 	hairHSL = hsl
+	if Hooks.has(&"CharacterControl.applyHairHSL"):   # HOOK
+		Hooks.after(&"CharacterControl.applyHairHSL", self, [hsl])
 
 
 func removeHairHSL() -> void:
@@ -1028,6 +1037,8 @@ func removeHairHSL() -> void:
 	g.hairOverContainer.filters = []
 	g.hairBetweenLayer.filters = []
 	hairHSL = blankHSL
+	if Hooks.has(&"CharacterControl.removeHairHSL"):   # HOOK
+		Hooks.after(&"CharacterControl.removeHairHSL", self, [])
 
 
 func _skinHSLTargets() -> Array:

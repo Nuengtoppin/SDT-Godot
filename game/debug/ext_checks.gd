@@ -115,11 +115,42 @@ func step(_frame: int) -> void:
 				_settings_checks()
 				_charcode_checks()
 				_mood_checks()
+				_template_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
 				Flash.get_tree().quit(1 if _fail > 0 else 0)
 				_phase = 4
+
+
+## TemplateExtension: the alternate loader template's mod types, its over-top layer and extra hair layer.
+func _template_checks() -> void:
+	var te: SDTExtension = Extensions.get_extension("templateextension")
+	_check("TemplateExtension on by default", te != null and te.enabled)
+	if te == null or not te.enabled:
+		return
+	var helpers: Dictionary = g.customElementLoader.modTargetHelpers
+	var missing: Array = []
+	for t in te.TYPES:
+		if not helpers.has(t) or helpers[t].targetDictionary.size() != te.TYPES[t].size():
+			missing.append(t)
+	_check("mod types registered with all their parts", missing.is_empty(), str(missing))
+	_check("over-top layer: 8 parts above the top's", te._layers.size() == 8 and helpers.has("CostumeOverTop")
+		and helpers.has("costumeovertop") and te._layers.values().all(func(l): return l._flash_parent != null))
+	_check("over-top breast moves with her breast", g.her.rightBreastController._costumeLayers.has(te._layers["rightBreast"]))
+	var hl: FlashSprite = te.hair_over_extended
+	_check("extra hair layer under his arm", hl != null and hl._flash_parent == g.frontLayer
+		and g.frontLayer.getChildIndex(hl) < g.frontLayer.getChildIndex(g.himOverLayer))
+	g.characterControl.applyHairHSL({"h": 30, "s": 0, "l": 0, "c": 0})
+	_check("extra hair layer takes the hair colour", hl.filters.size() == g.hairBetweenLayer.filters.size()
+		and hl.filters.size() > 0)
+	g.characterControl.removeHairHSL()
+	Extensions.set_enabled("templateextension", false)
+	var layers_left: bool = g.her.rightBreastController._costumeLayers.any(func(l): return l.flash_name.ends_with("OverTop"))
+	_check("TemplateExtension off: types and layers gone", not helpers.has("CostumeArmwear") and not helpers.has("CostumeBra")
+		and hl._flash_parent == null and not layers_left)
+	Extensions.set_enabled("templateextension", true)
+	_check("TemplateExtension on again", helpers.has("CostumeArmwear") and te._layers.size() == 8)
 
 
 func _hook_checks() -> void:

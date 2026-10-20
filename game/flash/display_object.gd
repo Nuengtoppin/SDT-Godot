@@ -129,6 +129,8 @@ var colorTransform: FlashColorTransform:
 	get:
 		return _color_transform.clone()
 	set(value):
+		if value == null:   # Flash throws a TypeError, which the release player ignores (mod frame scripts do this)
+			return
 		_color_transform = value.clone()
 		_apply_color_transform()
 

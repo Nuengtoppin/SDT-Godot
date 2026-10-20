@@ -1662,6 +1662,8 @@ func updateBreathingScaledElements() -> void:
 	torso.rightThighStocking.stocking2.hipLayer.chestStocking.scaleX = s
 	torso.rightThighStocking.stocking.hipLayer.chestStocking.penisCostumeContainer.scaleX = inv
 	torso.chestCostume.bottoms.penisCostumeContainer.scaleX = inv
+	if Hooks.has(&"Her.updateBreathingScaledElements"):   # HOOK
+		Hooks.after(&"Her.updateBreathingScaledElements", self, [])
 
 
 func updateEyes() -> void:
@@ -2004,6 +2006,8 @@ func updateHandJobMode() -> void:
 		rightForeArmContainer.upperArm.foreArm.hand.tan.grip.scaleY = grip
 	if leftHandOver.hand.grip:
 		leftHandOver.hand.scaleY = 0.8 + (1.0 - grip) * 0.3
+	if Hooks.has(&"Her.updateHandJobMode"):   # HOOK
+		Hooks.after(&"Her.updateHandJobMode", self, [])
 
 
 func slipHands() -> void:

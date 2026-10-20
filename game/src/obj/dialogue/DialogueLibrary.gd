@@ -147,6 +147,10 @@ func setupDialogueMod(n: String, clearAll: bool) -> void:
 
 ## A dialogue element from a mod: {lineType, dialogueLine, [audio: FlashSound, volume]}.
 func loadDialogueMod(m) -> void:
+	if Hooks.has(&"DialogueLibrary.loadDialogueMod"):   # HOOK
+		var h := Hooks.before(&"DialogueLibrary.loadDialogueMod", self, [m])
+		if h.cancelled:
+			return
 	if m.has("lineType") and m.has("dialogueLine"):
 		var t := str(m["lineType"])
 		var line := str(m["dialogueLine"])
