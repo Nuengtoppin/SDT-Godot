@@ -5,7 +5,8 @@ The game code in `game/src` is a 1:1 port of the original ActionScript. Features
 
 - **Built-in extensions**: `game/src/ext/<name>/`, shipped with the game, each switched on or off in the options.
 - **Plugins**: `Mods/Plugins/<name>/`, installed by the player; loaded automatically at startup, each can be
-  switched off.
+  switched off. The repo ships the plugins made for the port there (ports of Loader mods: autoclosemouth,
+  darkenpassout); the rest of `Mods/` is the player's own and not tracked.
 
 Both use the same API (`SDTExtension`). One switch, **Vanilla mode** (`--vanilla` on the command line), turns every
 extension off and gives the original game.

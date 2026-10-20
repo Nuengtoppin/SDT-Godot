@@ -25,7 +25,9 @@ __pycache__/
 /game/bin/*.so
 
 # Mods folder used when running from the repo (Flash.mods_dir)
-/Mods/
+/Mods/*
+# plugins made for the port ship with it (Mods/Plugins); the player's other mods stay local
+!/Mods/Plugins/
 
 # Local, machine-specific files and private working notes
 /notes/
