@@ -177,6 +177,15 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 		title = path.get_file().get_basename().replace("_", " ").strip_edges()
 	# one option per picker: the mod's items for that picker are applied together
 	var groups: Array = []   # [picker key, entry]
+	# items no picker shows (a set's body part: ThickerThighs' socks come with the thicker thighs they fit) go on and
+	# off with the mod's picker entries, as loading the whole mod in the original did
+	var companions: Array = []
+	var companion_types: Array = []
+	for it in cat.get("items", []):
+		if _picker_key(it) == null and it["modType"] != ModTypes.DIALOGUE:
+			companions.append(int(it["item"]))
+			if not companion_types.has(it["modType"]):
+				companion_types.append(it["modType"])
 	for it in cat.get("items", []):
 		var key = _picker_key(it)
 		if key == null or (only_key != null and not is_same(key, only_key)):
@@ -186,7 +195,8 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 			if is_same(gr[0], key):
 				e = gr[1]
 		if e.is_empty():
-			e = {"path": rel, "items": [], "modTypes": [], "title": title}
+			e = {"path": rel, "items": [], "modTypes": [], "title": title, "companions": companions,
+				"companionTypes": companion_types}
 			groups.append([key, e])
 		e["items"].append(int(it["item"]))
 		if not e["modTypes"].has(it["modType"]):
@@ -195,15 +205,31 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 		var key = gr[0]
 		var e: Dictionary = gr[1]
 		entries.append(e)
+		var list: Array
 		if key is String and picker_entries.has(key):
 			e["picker"] = key
-			picker_entries[key].append(e)
+			list = picker_entries[key]
 		elif key is String:
 			e["picker"] = key
-			(hair_entries if key == "hair" else bg_entries).append(e)
+			list = hair_entries if key == "hair" else bg_entries
 		else:
 			e["helper"] = key
-			key.modEntries.append(e)
+			list = key.modEntries
+		list.append(e)
+		_dedupe(list, e)
+
+
+## Mods of a set often share their name (ThickerThighs' variants are all "Thicker Thighs"): in one list, those show
+## their file names instead.
+static func _dedupe(list: Array, e: Dictionary) -> void:
+	for o in list:
+		if o != e and o["title"] == e["title"]:
+			o["title"] = _file_title(o["path"])
+			e["title"] = _file_title(e["path"])
+
+
+static func _file_title(path: String) -> String:
+	return path.get_file().get_basename().replace("_", " ").strip_edges()
 
 
 ## The picker an item goes to: a costume element helper, "hair", or null (not selectable, e.g. Loader-only types).
@@ -244,13 +270,14 @@ func apply(e: Dictionary) -> void:
 	if not mods is Array:
 		return
 	var pkg := LoadedModPackage.new("swfMod")
-	pkg.setFilePath("%s|%s" % [e["path"], "+".join(PackedStringArray(e["items"].map(func(i): return str(i))))])
+	var items := _applied_items(e)
+	pkg.setFilePath("%s|%s" % [e["path"], "+".join(PackedStringArray(items.map(func(i): return str(i))))])
 	pkg.filePathOkay = true
 	pkg.setModDetails(root.get("modName"), root.get("modCreator"))
 	cel.loadedModPackages.append(pkg)
 	cel.loadingModPackage = pkg
 	cel.blockSwfCharData = true
-	for i in e["items"]:
+	for i in items:
 		if i < mods.size():
 			cel.parseMod(mods[i])
 	cel.blockSwfCharData = false
@@ -264,9 +291,35 @@ func apply(e: Dictionary) -> void:
 	g.inGameMenu.charStoring.populateMods()
 
 
-## Removes an applied entry (its mod type's instanced elements).
+## An entry's items with its companions, in the mod's order.
+static func _applied_items(e: Dictionary) -> Array:
+	var items: Array = e["items"] + e.get("companions", [])
+	items.sort()
+	return items
+
+
+## Removes an applied entry (its mod type's instanced elements, and its own companions).
 func remove(e: Dictionary) -> void:
-	g.customElementLoader.clearModTypes(e["modTypes"])
+	var cel := g.customElementLoader
+	cel.clearModTypes(e["modTypes"])
+	var types: Array = e.get("companionTypes", [])
+	if types.is_empty():
+		return
+	for o in entries:   # another entry of the same mod still on (its top and its skirt): the companions stay
+		if o != e and o["path"] == e["path"]:
+			for lm in cel.instancedModElements:
+				if o["modTypes"].has(lm.modType) and lm.sourcePackage != null 						and _same_path(lm.sourcePackage.filePath.get_slice("|", 0), e["path"]):
+					return
+	var i := 0
+	while i < cel.instancedModElements.size():
+		var lm: LoadedMod = cel.instancedModElements[i]
+		if types.has(lm.modType) and lm.sourcePackage != null 				and _same_path(lm.sourcePackage.filePath.get_slice("|", 0), e["path"]):
+			lm.kill()
+			cel.instancedModElements.remove_at(i)
+			continue
+		i += 1
+	cel.checkLoadedModPackages()
+	cel.updateInstancedModElements()
 
 
 ## Marks items restored before the scan finished (saved character loaded at startup) as their pickers' options.
@@ -301,6 +354,6 @@ func mark_selected(path: String, items: Array) -> void:
 ## Finds the entry for a saved "<path>|<items>" (to show it as selected when a saved character restores it).
 func find(path: String, items: Array) -> Dictionary:
 	for e in entries:
-		if e["items"] == items and (e["path"] == path or Flash.resolve_content_path(e["path"]) == Flash.resolve_content_path(path)):
+		if (e["items"] == items or _applied_items(e) == items) and (e["path"] == path or Flash.resolve_content_path(e["path"]) == Flash.resolve_content_path(path)):
 			return e
 	return {}

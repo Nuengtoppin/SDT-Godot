@@ -71,6 +71,8 @@ func setTan(id: int = -1, store: bool = true) -> void:
 			CharacterControl.tryToSetFrameLabel(t, _tanNameList[_currentTanID])
 			t.visible = _currentTanID != 0
 	g.her.ear.tan.visible = _currentTanID != 0
+	for t in _modTanItems():
+		CharacterControl.tryToSetFrameLabel(t, _tanNameList[_currentTanID])
 	for item in _multiPartTanItems:
 		item.visible = _currentTanID != 0
 	g.characterControl.setBreasts()
@@ -92,6 +94,9 @@ func setTanAlpha(v: float = -1.0) -> void:
 			else:
 				t.visible = false
 	g.her.ear.tan.alpha = a
+	for t in _modTanItems():
+		t.visible = a > 0 and _currentTanID != 0
+		t.alpha = a
 	for item in _multiPartTanItems:
 		if a > 0 and _currentTanID != 0:
 			item.filters = [cmf]
@@ -99,6 +104,19 @@ func setTanAlpha(v: float = -1.0) -> void:
 		else:
 			item.filters = []
 			item.visible = false
+
+
+## Port fix (the Loader did this): body mod pieces' own "tan" children follow her tan lines like her own parts (the
+## game left them on their first frame, fully shown).
+func _modTanItems() -> Array:
+	var out: Array = []
+	for m in g.customElementLoader.instancedModElements:
+		if m.modType == ModTypes.BODY and m._mod != null and is_instance_valid(m._mod):
+			for p in [m._mod] + (range(m._mod.numChildren).map(func(i): return m._mod.getChildAt(i)) if m._mod is FlashSprite else []):
+				var t = p.getChildByName("tan") if p is FlashSprite else null
+				if t is FlashMovieClip:
+					out.append(t)
+	return out
 
 
 func tanLeftClicked(_e = null) -> void:

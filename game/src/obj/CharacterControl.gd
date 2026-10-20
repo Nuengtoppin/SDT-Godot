@@ -390,6 +390,17 @@ func resetSkin() -> void:
 	setSkin(currentSkin, false)
 
 
+## Port fix (the Loader did this): body mod pieces with a frame per skin ("light", "pale", "tan", "dark") show her
+## skin; the game left them playing through those frames.
+func setBodyModSkin() -> void:
+	for m in g.customElementLoader.instancedModElements:
+		if m.modType != ModTypes.BODY or m._mod == null or not is_instance_valid(m._mod):
+			continue
+		for p in [m._mod] + (range(m._mod.numChildren).map(func(i): return m._mod.getChildAt(i)) if m._mod is FlashSprite else []):
+			if p is FlashMovieClip and p.has_label(currentSkinType):
+				p.gotoAndStop(currentSkinType)
+
+
 func prepForBodyMod() -> void:
 	setBreasts()
 	setArmSkin()
@@ -446,6 +457,7 @@ func setSkin(id: int, clearMods: bool = true) -> void:
 	h.tan.updateSkin(skinNameList[id])
 	h.penisControl.updatePenis()
 	g.strandControl.checkElementAnchors(h.torso.midLayer.rightBreast)
+	setBodyModSkin()   # port fix, see setBodyModSkin
 	if Hooks.has(&"CharacterControl.setSkin"):   # HOOK
 		Hooks.after(&"CharacterControl.setSkin", self, [id, clearMods])
 

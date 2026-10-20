@@ -217,6 +217,9 @@ static func _pick(spec: Dictionary, refreshers: Array) -> Control:
 	var prev := _icon_button("‹", "Previous")
 	var next := _icon_button("›", "Next")
 	var ob := _dropdown(CONTROL_W - 34)
+	if spec.get("wide", false):   # label above: the list takes the row (long mod names)
+		ob.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ob.resized.connect(_fit_text.bind(ob))
 	# options are read only when needed (they can mean a folder listing): when the list opens, and when the
 	# index changes
 	var names := [[]]
@@ -231,6 +234,8 @@ static func _pick(spec: Dictionary, refreshers: Array) -> Control:
 		var t := str(names[0][i]) if i >= 0 and i < names[0].size() else ""
 		if ob.text != t:
 			ob.text = t
+			ob.tooltip_text = t   # the whole name if it is still too long
+			_fit_text(ob)
 	ob.button_down.connect(func():
 		names[0] = _options(spec)
 		ob.clear()
@@ -257,6 +262,21 @@ static func _pick(spec: Dictionary, refreshers: Array) -> Control:
 	h.add_child(next)
 	refreshers.append(show)
 	return h
+
+
+## Long names (mods: "ThickerThighs Over-Knee Socks Squish") wrap onto a second line in the list button instead of
+## being cut; shorter ones stay on one line.
+static func _fit_text(ob: OptionButton) -> void:
+	if ob.size.x <= 0:
+		return   # fitted once it has its size (resized)
+	var font := ob.get_theme_font("font")
+	var arrow: Texture2D = ob.get_theme_icon("arrow")
+	var room := ob.size.x - (arrow.get_width() if arrow else 16) - 16.0   # the arrow and the margins
+	var wrap: bool = font.get_string_size(ob.text, HORIZONTAL_ALIGNMENT_LEFT, -1, ob.get_theme_font_size("font_size")).x > room
+	var mode := TextServer.AUTOWRAP_WORD_SMART if wrap else TextServer.AUTOWRAP_OFF
+	if ob.autowrap_mode != mode:
+		ob.autowrap_mode = mode
+		ob.clip_text = not wrap
 
 
 static func _icon_button(text: String, tip: String) -> Button:

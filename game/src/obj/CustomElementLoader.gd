@@ -424,6 +424,9 @@ func addStaticModElement(m) -> void:
 			g.characterControl.setBreastCostumeSize()
 		elif _p(m, "modType") == ModTypes.BODY:
 			g.characterControl.prepForBodyMod()
+			# port fix (the Loader did this): the mod's pieces on her skin's frame, their tan on her tan lines
+			g.characterControl.setBodyModSkin()
+			g.her._tan.setTan()
 	if helper.hasCostumeHelper:
 		helper.characterElementHelper.resetFills()
 	if Hooks.has(&"CustomElementLoader.addStaticModElement"):   # HOOK
