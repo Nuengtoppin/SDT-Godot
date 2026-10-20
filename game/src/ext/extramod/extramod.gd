@@ -280,6 +280,10 @@ func _apply(r: Dictionary, first: bool) -> void:
 	else:
 		_head_placed(m, parts)
 	_update_moods()
+	# new clips play their own timelines: put them on her frames now (also while the game is paused, e.g. a mod
+	# switched on in the menu, when her eyes do not update)
+	_follow_eyes()
+	_follow_mouth()
 
 
 func _eye_placed(m: Dictionary, parts: Dictionary) -> void:
@@ -507,7 +511,8 @@ func _tick() -> void:
 		_hide_children(her.head.jaw)   # the game shows its jaw pieces again as she moves
 	if _hide.get("upperlip", false) or _hide.get("headtan", false) or _hide.get("lowerlipstick", false):
 		_hide_face()
-	if g.gamePaused:
+	if g.gamePaused:   # her own updates stop while paused; the mod parts must not play on by themselves
+		_follow_eyes()
 		_follow_mouth()
 
 
