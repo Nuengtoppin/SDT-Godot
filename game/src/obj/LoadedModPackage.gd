@@ -18,6 +18,11 @@ var loadingInitHandler: Callable
 ## Port extension: the items of the package chosen from a picker (ModCatalog); empty = the whole package. Saved
 ## as "<path>|<item>+<item>...".
 var items: Array = []
+## Port: the mod's root and its items, kept while the package is loaded so the mod's scripts keep running (the
+## Loader kept the whole mod; e.g. the shibari's rope ends follow the rope colour every frame). Freed with
+## dispose_root() when the package goes.
+var modRoot = null
+var modItems: Array = []
 
 
 func _init(pDataName: String, src: FlashFileReference = null) -> void:
@@ -54,6 +59,18 @@ func applyStatusString() -> void:
 				modElements[i].kill()
 				if modElements[i].overwrite:
 					g.customElementLoader.getResetFunction(modElements[i].modType).call()
+
+
+func dispose_root() -> void:
+	if modRoot != null and is_instance_valid(modRoot):
+		if modRoot._flash_parent != null:   # a Loader's content
+			modRoot._flash_parent.removeChild(modRoot)
+		Flash.dispose_later(modRoot)
+	for m in modItems:
+		if m is FlashDisplayObject and is_instance_valid(m) and m._flash_parent == null:
+			Flash.dispose_later(m)   # items not placed and not in the root
+	modRoot = null
+	modItems = []
 
 
 var titleString: String:

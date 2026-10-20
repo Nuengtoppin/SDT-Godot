@@ -131,6 +131,8 @@ func tryModLoadingErrorHandler(_e = null) -> void:
 
 func tryModLoadingInitHandler(e: FlashEvent) -> void:
 	var content = e.target.content
+	if content is FlashDisplayObject:
+		loadingModPackage.modRoot = content   # port: kept until the package goes (its scripts keep running)
 	if _p(content, "MOD_VERSION") and not loadingModPackage.items.is_empty():
 		# items chosen from a picker (ModCatalog)
 		var mods = _p(content, "mods")
@@ -322,6 +324,9 @@ func clearInstancedMods() -> void:
 	updateInstancedModElements()
 	for fn in resets:
 		fn.call()
+	for pkg in loadedModPackages:   # port: mods taken off stop their scripts (costume-only clears keep the others')
+		if not pkg.hasInstancedMods():
+			pkg.dispose_root()
 	loadedModPackages = []
 	if Hooks.has(&"CustomElementLoader.clearInstancedMods"):   # HOOK
 		Hooks.after(&"CustomElementLoader.clearInstancedMods", self, [])
@@ -370,6 +375,7 @@ func checkLoadedModPackages() -> void:
 	var i := 0
 	while i < loadedModPackages.size():
 		if not loadedModPackages[i].hasInstancedMods() and loadedModPackages[i] != loadingModPackage:
+			loadedModPackages[i].dispose_root()   # port: its scripts stop with it
 			loadedModPackages.remove_at(i)
 			continue
 		i += 1
