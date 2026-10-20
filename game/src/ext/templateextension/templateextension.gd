@@ -92,10 +92,6 @@ func _enable() -> void:
 	charcode_field("overtop", _over_top_code, func(v, _l): _load_over_top_code(v), func(_l): _over_top_default())
 	for spec in MenuSchema.element("Over top", "Worn over her top, e.g. shibari (over-top mods from Mods/Clothing).",
 			func(): return over_top, true):
-		if spec.get("type") == "colors":   # its colour shows while an over-top is on
-			spec["visible"] = func(): return over_top != null and over_top.modEntryIndex >= 0
-			for sub in spec["colors"]:
-				sub["visible"] = func(): return over_top != null and over_top.modEntryIndex >= 0
 		menu_control("clothes", "Upper body", spec)
 	hook_after(&"Her.updateBreathingScaledElements", func(_c): _follow_chest())
 	hook_after(&"CharacterControl.applyHairHSL", func(_c): _hair_filters())

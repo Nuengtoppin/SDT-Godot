@@ -148,8 +148,13 @@ func beingUsed() -> bool:
 	return selectedName != "None"
 
 
+## Port: a built-in item or a clothing mod is worn (a mod sets the built-in item to "None").
+func inUse() -> bool:
+	return beingUsed() or modEntryIndex >= 0
+
+
 func getOptionalDataString(key: String) -> String:
-	if beingUsed():
+	if inUse():   # port fix: a mod's colours are saved too
 		return ";" + key + ":" + getDataString()
 	return ""
 

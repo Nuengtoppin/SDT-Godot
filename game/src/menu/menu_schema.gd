@@ -103,8 +103,8 @@ static func element(label: String, tip: String, helper: Callable, alpha := false
 			var h: CharacterElementHelper = helper.call()
 			var cur: int = h.elementNameList.size() + h.modEntryIndex if h.modEntryIndex >= 0 else h.selection
 			h._step(i - cur), {"keywords": "clothes costume", "wide": true}))
-	var vis1 := func(): return helper.call().haveRGBFill and helper.call().beingUsed()
-	var vis2 := func(): return helper.call().haveRGBFill2 and helper.call().beingUsed()
+	var vis1 := func(): return helper.call().haveRGBFill and helper.call().inUse()
+	var vis2 := func(): return helper.call().haveRGBFill2 and helper.call().inUse()
 	out.append({"type": "colors", "label": label + " colours", "tip": "", "keywords": "clothes costume colour",
 		"visible": func(): return vis1.call() or vis2.call(), "colors": [
 			colour(label + " colour", "", func(): return helper.call().rgb1, func(c, f): helper.call().setFill(c, f),
