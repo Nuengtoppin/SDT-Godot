@@ -118,6 +118,7 @@ func step(_frame: int) -> void:
 				_template_checks()
 				_extramod_checks()
 				_extramodhim_checks()
+				_leglayer_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -204,6 +205,19 @@ func _extramodhim_checks() -> void:
 	_check("ExtraModHim off: types gone", not helpers.has("HimBody"))
 	Extensions.set_enabled("extramodhim", true)
 	_check("ExtraModHim on again", helpers.has("HimBody"))
+
+
+## leglayermove: her left leg's calf pieces under its thigh pieces; switched off, the game's order again.
+func _leglayer_checks() -> void:
+	var leg = g.her.leftLegContainer.leg
+	var order := func(): return range(leg.numChildren).map(func(i): return str(leg.getChildAt(i).flash_name))
+	var on: Array = order.call()
+	_check("leglayermove: calf pieces under the thigh", on.find("cuffs") < on.find("thigh") and on.find("leftCalfBottoms") < on.find("thigh")
+		and on.find("thigh") < on.find("leftThighCostume"), str(on))
+	Extensions.set_enabled("leglayermove", false)
+	var off: Array = order.call()
+	_check("leglayermove off: the game's order", off.find("thigh") < off.find("calfStocking"), str(off))
+	Extensions.set_enabled("leglayermove", true)
 
 
 func _hook_checks() -> void:
