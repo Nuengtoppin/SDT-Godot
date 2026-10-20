@@ -22,6 +22,7 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/dialogspeed/dialogspeed.gd",
 	"res://src/ext/monitordialog/monitordialog.gd",
 	"res://src/ext/templateextension/templateextension.gd",
+	"res://src/ext/extramod/extramod.gd",
 ]
 
 const CONFIG_FILE := "extensions.cfg"

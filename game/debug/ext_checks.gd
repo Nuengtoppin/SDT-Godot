@@ -116,6 +116,7 @@ func step(_frame: int) -> void:
 				_charcode_checks()
 				_mood_checks()
 				_template_checks()
+				_extramod_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -151,6 +152,31 @@ func _template_checks() -> void:
 		and hl._flash_parent == null and not layers_left)
 	Extensions.set_enabled("templateextension", true)
 	_check("TemplateExtension on again", helpers.has("CostumeArmwear") and te._layers.size() == 8)
+
+
+## ExtraMod (stage 1: her head and eyes): types, containers next to her parts, a clear that changes nothing.
+func _extramod_checks() -> void:
+	var em: SDTExtension = Extensions.get_extension("extramod")
+	_check("ExtraMod on by default", em != null and em.enabled)
+	if em == null or not em.enabled:
+		return
+	var helpers: Dictionary = g.customElementLoader.modTargetHelpers
+	_check("ExtraMod head and eye types", helpers.has("BodyHead") and helpers.has("BodyEye")
+		and helpers["BodyHead"].targetDictionary.size() == em.HEAD_PARTS.size()
+		and helpers["BodyEye"].targetDictionary.size() == em.EYE_PARTS.size(),
+		"%d %d" % [helpers["BodyHead"].targetDictionary.size(), helpers["BodyEye"].targetDictionary.size()])
+	var her = g.her
+	_check("ExtraMod containers beside her parts", em.c.size() == em.CONTAINERS.size()
+		and em.c["uppereyelid"]._flash_parent == her.eye.upperEyelid._flash_parent
+		and em.c["uppereyelidmask"].blendMode == "erase")
+	var skull_vis: bool = her.head.face.skull.getChildAt(0).visible
+	g.customElementLoader.clearInstancedMods()
+	_check("ExtraMod: clearing without its mods changes nothing", her.head.face.skull.getChildAt(0).visible == skull_vis
+		and her.eye.ball.upperEyelidMask.visible)
+	Extensions.set_enabled("extramod", false)
+	_check("ExtraMod off: types and containers gone", not helpers.has("BodyHead") and em.c.is_empty())
+	Extensions.set_enabled("extramod", true)
+	_check("ExtraMod on again", helpers.has("BodyEye") and em.c.size() == em.CONTAINERS.size())
 
 
 func _hook_checks() -> void:

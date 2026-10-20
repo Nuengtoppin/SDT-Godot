@@ -318,6 +318,8 @@ func clearInstancedMods() -> void:
 	for fn in resets:
 		fn.call()
 	loadedModPackages = []
+	if Hooks.has(&"CustomElementLoader.clearInstancedMods"):   # HOOK
+		Hooks.after(&"CustomElementLoader.clearInstancedMods", self, [])
 
 
 func updateInstancedModElements() -> void:
@@ -390,6 +392,10 @@ func removeModElement(element) -> void:
 
 
 func addStaticModElement(m) -> void:
+	if Hooks.has(&"CustomElementLoader.addStaticModElement"):   # HOOK
+		var h := Hooks.before(&"CustomElementLoader.addStaticModElement", self, [m])
+		if h.cancelled:
+			return
 	var key = _p(m, "targetElement")
 	if not key:
 		key = _p(m, "modType")

@@ -446,6 +446,8 @@ func setSkin(id: int, clearMods: bool = true) -> void:
 	h.tan.updateSkin(skinNameList[id])
 	h.penisControl.updatePenis()
 	g.strandControl.checkElementAnchors(h.torso.midLayer.rightBreast)
+	if Hooks.has(&"CharacterControl.setSkin"):   # HOOK
+		Hooks.after(&"CharacterControl.setSkin", self, [id, clearMods])
 
 
 func setLipFills() -> void:
@@ -544,6 +546,8 @@ func setEyebrowFill(c, _n: String = "rgbFill") -> void:
 	g.her.rightEyebrow.rightEyebrowFill.colorTransform = ct
 	g.her.leftEyebrow.leftEyebrowFill.colorTransform = ct
 	eyebrowFillRGB = c
+	if Hooks.has(&"CharacterControl.setEyebrowFill"):   # HOOK
+		Hooks.after(&"CharacterControl.setEyebrowFill", self, [c, _n])
 
 
 func setEyebrowLine(c, _n: String = "rgbFill") -> void:
@@ -551,6 +555,8 @@ func setEyebrowLine(c, _n: String = "rgbFill") -> void:
 	g.her.rightEyebrow.rightEyebrowLine.colorTransform = ct
 	g.her.leftEyebrow.leftEyebrowLine.colorTransform = ct
 	eyebrowLineRGB = c
+	if Hooks.has(&"CharacterControl.setEyebrowLine"):   # HOOK
+		Hooks.after(&"CharacterControl.setEyebrowLine", self, [c, _n])
 
 
 func findNose(n: String) -> void:

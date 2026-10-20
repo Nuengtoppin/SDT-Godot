@@ -77,6 +77,9 @@ func get_texture(img: String) -> Texture2D:
 		# Mods converted at runtime / outside the project are plain PNG files.
 		var image := Image.load_from_file(p)
 		if image != null:
+			# what Godot's importer does for the game's own art: transparent pixels take their neighbours' colour,
+			# so filtering does not draw dark seams where two mod pieces meet
+			image.fix_alpha_edges()
 			image.generate_mipmaps()
 			t = ImageTexture.create_from_image(image)
 	_cache(img, t)
