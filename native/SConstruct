@@ -12,6 +12,7 @@ env.Append(CPPPATH=["src/"])
 # objects per target (build/template_debug, build/template_release): a release build must not reuse debug objects
 VariantDir("build/" + env["target"], "src", duplicate=0)
 sources = Glob("build/" + env["target"] + "/*.cpp")
+env["SHLIBPREFIX"] = ""   # sdt_native.<platform>... on every platform (Linux would add "lib")
 library = env.SharedLibrary("../game/bin/sdt_native{}{}".format(env["suffix"], env["SHLIBSUFFIX"]), source=sources)
 env.NoCache(library)
 Default(library)
