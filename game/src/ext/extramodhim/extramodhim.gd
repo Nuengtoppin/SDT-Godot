@@ -21,6 +21,7 @@ const BODY_PARTS := {"hisTorso": "torsoLayer.torso", "hisRightThigh": "rightLeg"
 	"hisLeftBreast": "torsoLayer.leftBreastContainer"}
 const PENIS_PARTS := {"hisPenisMod": "penis", "penisWetMod": "penis.wet", "ballsMod": "balls"}
 const BREASTS := ["hisRightBreast", "hisLeftBreast"]
+const LIST := "extramodhim"   # the mod catalog's list of his mods (Him > Body in the new menu)
 
 ## HimBody / HimPenis mods placed: {"pkg", "overwrite": bodyOverwrite}
 var _records: Array = []
@@ -41,9 +42,16 @@ func _enable() -> void:
 	hook_after(&"CustomElementLoader.clearInstancedMods", func(_h): _reset())
 	hook_after(&"Him.setBody", func(_h): _body_changed())
 	on_late_tick(_tick)
+	if g.modCatalog != null:
+		g.modCatalog.add_picker(LIST, ["HimBody", "HimPenis"])
+	menu_control("him", "Body", {"type": "custom", "label": "ExtraModHim body mods", "wide": true,
+		"tip": "His body and penis mods made with ExtraModHim, from Mods/Clothing. Several can be on.",
+		"build": func(): return ModSwitchList.build(LIST, _toggle), "keywords": "extramodhim body penis athletic"})
 
 
 func _disable() -> void:
+	if g.modCatalog != null:
+		g.modCatalog.remove_picker(LIST)
 	var cel = g.customElementLoader
 	if cel != null:
 		cel.clearModTypes(["HimBody", "HimPenis"])
@@ -182,6 +190,21 @@ func _tick() -> void:
 	if _records.is_empty():
 		return
 	if str(g.himSkinType) != _skin:
+		_update()
+
+
+func _toggle(on: bool, e: Dictionary) -> void:
+	if on:
+		g.modCatalog.apply(e)
+		return
+	g.modCatalog.remove_entry(e)
+	# the mods still on: his own pieces back, then what they hide again
+	var live := {}
+	for lm in g.customElementLoader.instancedModElements:
+		live[lm.sourcePackage] = true
+	_records = _records.filter(func(r): return live.has(r["pkg"]))
+	_show_hidden()
+	if not _records.is_empty():
 		_update()
 
 
