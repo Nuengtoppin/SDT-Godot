@@ -467,21 +467,21 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                    [FlashShape#197] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#599] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 tan [FlashMovieClip#601] f=2/6 'None' HIDDEN pos=(-328.8,30.0) sc=(1.00,1.00) rot=0.0 blend=overlay
-              thigh [FlashMovieClip#613] f=1/5 'light' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                 [FlashShape#606] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                 [FlashShape#607] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                tan [FlashMovieClip#609] f=2/6 'None' HIDDEN pos=(150.3,113.3) sc=(1.00,1.00) rot=0.0 blend=overlay
-               [FlashShape#614] pos=(118.8,51.0) sc=(1.00,1.00) rot=0.0
               calfStocking [FlashMovieClip#643] f=15/17 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=0.2
               calfStockingB [FlashMovieClip#643] f=15/17 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=0.2
               footwear [FlashMovieClip#655] f=2/4 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=0.2
               cuffs [FlashMovieClip#666] f=2/7 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=0.2
               leftCalfBottoms [FlashMovieClip#671] f=2/11 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=0.2
+              thigh [FlashMovieClip#613] f=1/5 'light' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+                 [FlashShape#606] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+                 [FlashShape#607] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+                tan [FlashMovieClip#609] f=2/6 'None' HIDDEN pos=(150.3,113.3) sc=(1.00,1.00) rot=0.0 blend=overlay
+               [FlashShape#614] pos=(118.8,51.0) sc=(1.00,1.00) rot=0.0
+              stocking [FlashMovieClip#708] f=15/18 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+              stockingB [FlashMovieClip#708] f=15/18 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               leftThighCostume [FlashMovieClip#685] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 panties [FlashMovieClip#684] f=2/12 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                   rgbFill [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|255,255,255)
-              stocking [FlashMovieClip#708] f=15/18 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              stockingB [FlashMovieClip#708] f=15/18 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               leftThighBottoms [FlashMovieClip#731] f=2/11 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           torsoUnderCostume [FlashMovieClip#741] f=1/1 pos=(-50.9,113.9) sc=(1.03,1.03) rot=-9.9
             top [FlashMovieClip#740] f=3/9 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -928,13 +928,6 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             top [FlashMovieClip#96] f=4/16 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=layer
           upperArmMask [FlashMovieClip#1997] f=1/1 pos=(-3.7,-9.4) sc=(1.00,1.00) rot=53.0 blend=alpha
              [FlashShape#1996] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-         [FlashSprite#-1] pos=(-83.7,255.3) sc=(1.00,1.00) rot=-14.3
-         [FlashSprite#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          hairTop [FlashMovieClip#1981] f=16/41 'Peach' pos=(-83.7,255.3) sc=(1.00,1.00) rot=-14.3
-             [FlashShape#1977] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-           [FlashSprite#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-         [FlashMovieClip#2455] f=1/1 pos=(-83.7,255.3) sc=(1.00,1.00) rot=-14.3
-          headwear [FlashMovieClip#2454] f=4/10 'Peach's Crown' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
          [FlashMovieClip#2036] f=1/1 pos=(-105.0,378.2) sc=(1.03,1.03) rot=-24.1
           upperArm [FlashMovieClip#2023] f=2/8 'pale' pos=(-3.7,-9.4) sc=(1.00,1.00) rot=-31.8
             foreArm [FlashMovieClip#2022] f=1/10 'light' HIDDEN pos=(10.5,386.5) sc=(1.00,1.00) rot=-45.0
@@ -954,6 +947,13 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 rgbFill [FlashMovieClip#569] f=1/1 pos=(-1.6,0.3) sc=(1.00,1.00) rot=0.0
                    [FlashShape#568] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#570] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+         [FlashSprite#-1] pos=(-83.7,255.3) sc=(1.00,1.00) rot=-14.3
+         [FlashSprite#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+          hairTop [FlashMovieClip#1981] f=16/41 'Peach' pos=(-83.7,255.3) sc=(1.00,1.00) rot=-14.3
+             [FlashShape#1977] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+           [FlashSprite#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+         [FlashMovieClip#2455] f=1/1 pos=(-83.7,255.3) sc=(1.00,1.00) rot=-14.3
+          headwear [FlashMovieClip#2454] f=4/10 'Peach's Crown' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
          [FlashMovieClip#2051] f=1/1 HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           hand [FlashMovieClip#2050] f=1/1 pos=(9.3,140.0) sc=(1.00,1.00) rot=0.0
             grip [FlashMovieClip#2043] f=1/5 'lightGrip' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0

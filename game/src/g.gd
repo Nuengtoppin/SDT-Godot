@@ -126,7 +126,31 @@ var leftHandJobMode := false
 var rightHandJobMode := false
 var currentModeID: int = 1
 var gameRunning := false
-var gamePaused := false
+var gamePaused := false:
+	set(v):
+		if v != gamePaused:
+			gamePaused = v
+			_pause_changed()
+
+
+var _held_before_pause := false
+
+
+## Port fix (sby's vanillapausedbreathpatch): no breathing or breath / throat sounds while the game is paused,
+## whatever paused it; they come back when it goes on.
+func _pause_changed() -> void:
+	if her == null or soundControl == null:
+		return
+	if gamePaused:
+		her.breathing = soundControl.stopBreathing()
+		_held_before_pause = soundControl.beingHeld
+		if _held_before_pause:
+			soundControl.stopHolding()
+	else:
+		her.checkBreathing()
+		if _held_before_pause:
+			_held_before_pause = false
+			soundControl.startHolding()
 var controlLocked := false
 var inTextField := false
 var overScrollArea = null
@@ -228,7 +252,8 @@ func clearSmudgeCache() -> void:
 
 func setPenisOut(out: bool = true) -> void:
 	if out and not penisOut:
-		frontLayer.addChildAt(sceneLayer.removeChild(him), frontLayer.getChildIndex(her.rightForeArmContainer))
+		# port fix (sby's hairlayerpatch): him under the hair costume layer (her forearm is under the hair now)
+		frontLayer.addChildAt(sceneLayer.removeChild(him), frontLayer.getChildIndex(hairCostumeOver))
 		frontLayer.addChildAt(her.leftHandOver, frontLayer.getChildIndex(himOverLayer))
 		penisOut = true
 	elif penisOut:

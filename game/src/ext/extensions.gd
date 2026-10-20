@@ -24,7 +24,6 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/templateextension/templateextension.gd",
 	"res://src/ext/extramod/extramod.gd",
 	"res://src/ext/extramodhim/extramodhim.gd",
-	"res://src/ext/leglayermove/leglayermove.gd",
 ]
 
 const CONFIG_FILE := "extensions.cfg"

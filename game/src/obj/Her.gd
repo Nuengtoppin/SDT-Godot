@@ -1344,7 +1344,8 @@ func updateNoseSquash() -> void:
 
 
 func checkBreathing(force: bool = false) -> void:
-	if not mouthFull and not breathing and not swallowing:
+	# port fix (sby's vanillapausedbreathpatch): she does not build up breath while the game is paused
+	if not mouthFull and not breathing and not swallowing and not g.gamePaused:
 		breatheDelay += 1
 		if (force or breatheDelay >= breatheDelayTime) and g.breathing:
 			breathing = g.soundControl.startBreathing()

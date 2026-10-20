@@ -675,12 +675,21 @@ func setBreasts(size: int = -1) -> void:
 func setBreastFrame(mc) -> void:
 	var inner = mc.getChildByName(mc.flash_name)
 	if inner:
-		mc.gotoAndStop(breastOffset[4])
+		# port fix (sby's bodymodpatch): only a body mod that overwrites hides her own breast / chest (the game
+		# hid it for any body mod piece placed there)
+		mc.gotoAndStop(breastOffset[4] if _bodyModOverwrites(mc) else int(currentBreastOffset + breastSize))
 		if inner is FlashMovieClip:
 			setChildrenFrame(inner, 2 + breastSize)
 	else:
 		setChildrenFrame(mc, 2 + breastSize)
 		mc.gotoAndStop(int(currentBreastOffset + breastSize))
+
+
+func _bodyModOverwrites(target) -> bool:
+	for m in g.customElementLoader.instancedModElements:
+		if m.overwrite and m.modType == ModTypes.BODY and m._mod != null and is_instance_valid(m._mod) 				and m._mod._flash_parent == target:
+			return true
+	return false
 
 
 func setBreastCostumeSize() -> void:

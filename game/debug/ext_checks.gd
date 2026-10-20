@@ -207,17 +207,18 @@ func _extramodhim_checks() -> void:
 	_check("ExtraModHim on again", helpers.has("HimBody"))
 
 
-## leglayermove: her left leg's calf pieces under its thigh pieces; switched off, the game's order again.
+## Port fixes from sby's Loader patches (in the game code).
 func _leglayer_checks() -> void:
 	var leg = g.her.leftLegContainer.leg
-	var order := func(): return range(leg.numChildren).map(func(i): return str(leg.getChildAt(i).flash_name))
-	var on: Array = order.call()
+	var on: Array = range(leg.numChildren).map(func(i): return str(leg.getChildAt(i).flash_name))
 	_check("leglayermove: calf pieces under the thigh", on.find("cuffs") < on.find("thigh") and on.find("leftCalfBottoms") < on.find("thigh")
 		and on.find("thigh") < on.find("leftThighCostume"), str(on))
-	Extensions.set_enabled("leglayermove", false)
-	var off: Array = order.call()
-	_check("leglayermove off: the game's order", off.find("thigh") < off.find("calfStocking"), str(off))
-	Extensions.set_enabled("leglayermove", true)
+	var fl: FlashSprite = g.frontLayer
+	_check("hairlayerpatch: her forearm under the hair", fl.getChildIndex(g.her.rightForeArmContainer) < fl.getChildIndex(g.hairOverContainer))
+	g.gamePaused = true
+	var breathing: bool = g.her.breathing
+	g.gamePaused = false
+	_check("pausedbreathpatch: no breathing while paused", not breathing)
 
 
 func _hook_checks() -> void:

@@ -159,12 +159,15 @@ func initGame() -> void:
 	g.hairTop = her.hairTop
 	her.removeChild(g.hairTop)
 	g.frontLayer.addChild(herRightArm)
+	# port fix (sby's hairlayerpatch): her right forearm under the hair layers, so big hair does not pass
+	# through her elbow (the game put it above them)
+	g.frontLayer.addChild(herRightForeArm)
+	_orderLeftLeg(her.leftLegContainer.leg)
 	g.hairOverContainer.addChild(g.hairTop)
 	g.hairOverContainer.addChild(g.hairOverLayer)
 	g.frontLayer.addChild(g.hairCostumeUnderOver)
 	g.frontLayer.addChild(g.hairOverContainer)
 	g.frontLayer.addChild(g.hairCostumeOver)
-	g.frontLayer.addChild(herRightForeArm)
 	g.frontLayer.addChild(leftHandOver)
 	g.frontLayer.addChild(g.himOverLayer)
 	g.him.addChild(herRightArmErase)
@@ -423,3 +426,16 @@ func completePreloader() -> void:
 
 func loadDelayDone() -> void:
 	saveData.loadCustomChars()
+
+
+## Port fix (sby's leglayermove): her left leg's calf pieces all under its thigh pieces (the game interleaved them);
+## only visible where calf and thigh overlap, with leg angles the game's own poses do not use.
+static func _orderLeftLeg(leg) -> void:
+	var shape = leg.getChildAt(2) if leg.numChildren > 2 else null   # the unnamed shading over the thigh
+	var index := 0
+	for n in ["calf", "calfStocking", "calfStockingB", "footwear", "cuffs", "leftCalfBottoms", "thigh", "#shape",
+			"stocking", "stockingB", "leftThighCostume", "leftThighBottoms"]:
+		var o = shape if n == "#shape" else leg.get(n)
+		if o is FlashDisplayObject and o._flash_parent == leg:
+			leg.setChildIndex(o, index)
+			index += 1
