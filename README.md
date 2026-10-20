@@ -42,13 +42,11 @@ license. If you are a rights holder and want something removed, please open an i
 
 You can also open `game/` in the Godot editor and press F5.
 
-The launcher is for **Windows**. On **Linux** (x86_64; not tested yet), from the repository root, with `godot`
-standing for the Godot 4.7.2 binary (`Godot_v4.7.2-stable_linux.x86_64`, made executable):
-
-```
-godot --headless --path game --import   # once, and again after updating (new scripts are registered by an import)
-godot --path game
-```
+On **Linux** (x86_64; not tested yet), `run_debug.sh` does the same as `run_debug.bat`: point it at the Godot 4.7.2
+binary (`Godot_v4.7.2-stable_linux.x86_64`, made executable) with the `GODOT` environment variable, a
+`run_debug.local.sh` next to it containing `GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64`, or `godot` on PATH,
+then run `./run_debug.sh`. It imports the assets on the first run and again after updates. By hand, the same is
+`godot --headless --path game --import` (first run and after updating), then `godot --path game`.
 
 The native extension is prebuilt for Linux too. Linux file names are case-sensitive: a character code that names a
 mod file with other capital letters than the file has will not find it there. On **macOS** there is no prebuilt

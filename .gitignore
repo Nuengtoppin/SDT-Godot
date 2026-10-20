@@ -35,6 +35,7 @@ __pycache__/
 /notes/
 /user/
 /run_debug.local.bat
+/run_debug.local.sh
 /native/build/
 # release builds (tools/make_release.sh)
 /release/
