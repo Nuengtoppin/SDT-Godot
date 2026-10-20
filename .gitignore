@@ -23,6 +23,8 @@ __pycache__/
 !/game/bin/sdt_native.windows.template_release.x86_64.dll
 /game/bin/*.a
 /game/bin/*.so
+!/game/bin/sdt_native.linux.template_debug.x86_64.so
+!/game/bin/sdt_native.linux.template_release.x86_64.so
 
 # Mods folder used when running from the repo (Flash.mods_dir)
 /Mods/*

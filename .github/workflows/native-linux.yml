@@ -1,0 +1,56 @@
+# Builds the native extension for Linux (game/bin/sdt_native.linux.*.so) and commits the libraries back, so the
+# repository runs on Linux with the native code, as on Windows (whose DLLs are built locally, see native/README.md).
+# Runs when native/ changes, or by hand (Actions > Native (Linux) > Run workflow).
+name: Native (Linux)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "native/**"
+      - ".github/workflows/native-linux.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: native-linux
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # an older Ubuntu: its older glibc lets the libraries load on more distributions
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install SCons
+        run: pip install scons
+
+      - name: Build (debug and release)
+        working-directory: native
+        run: |
+          scons platform=linux target=template_debug -j"$(nproc)"
+          scons platform=linux target=template_release -j"$(nproc)"
+          ls -la ../game/bin/*.so
+
+      - name: Commit the libraries
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+          git add game/bin/sdt_native.linux.template_debug.x86_64.so game/bin/sdt_native.linux.template_release.x86_64.so
+          if git diff --cached --quiet; then
+            echo "Libraries unchanged."
+            exit 0
+          fi
+          git commit -m "Linux native libraries built from ${GITHUB_SHA::7}"
+          # a push made while this ran: put the libraries on top of it
+          git pull --rebase origin main
+          git push origin HEAD:main

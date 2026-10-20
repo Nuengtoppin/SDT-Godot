@@ -30,3 +30,16 @@ cd native
 The first build compiles godot-cpp (several minutes). `extension_api.json` is dumped from the engine binary the game
 uses (`godot --headless --dump-extension-api`); regenerate it when updating Godot. After the first build, run the
 editor or `godot --headless --path game --import` once so Godot registers the extension (.godot/extension_list.cfg).
+
+## Linux
+
+The Linux libraries (`game/bin/sdt_native.linux.template_*.x86_64.so`) are built by GitHub Actions
+(`.github/workflows/native-linux.yml`, on Ubuntu 22.04) whenever `native/` changes on main, and committed back by
+the github-actions bot: pull after pushing a native change. It can also be run by hand from the Actions tab. To build
+on a Linux machine instead (g++ and SCons):
+
+```
+cd native
+scons platform=linux target=template_debug -j8
+scons platform=linux target=template_release -j8
+```
