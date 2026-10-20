@@ -5,8 +5,12 @@ extends SDTExtension
 ##   CostumeAnkleCuffs, the hair layer dynamicHairOverExtended (over the other hair, under his arm) and more parts
 ##   for CostumeBra (chest, back strap, shoulder strap).
 ## Plus its fixes: armwear gloves follow her hands (grip / free) and take the armwear colour on the hands too; the
-## over-top layer takes the top's colour and breast size and moves with her right breast; dialogue mods with line
-## settings. Written from its behaviour (the game already has the parts these types go on).
+## over-top layer takes her breast size and moves with her right breast; dialogue mods with line settings. Written
+## from its behaviour (the game already has the parts these types go on).
+##
+## Port: over-tops (a shibari top) have a slot of their own, "Over top" in the new menu's Clothes, with
+## their own colour (saved in the character code), so they go over her top instead of replacing it (the original
+## used the top's slot and colour).
 
 ## Mod type -> {part name in the mod -> path from her} (paths are tried when the extension is switched on)
 const TYPES := {
@@ -43,7 +47,7 @@ const TYPES := {
 ## Mod type -> CharacterControl element helper (its menu list, colours)
 const CONTROLS := {"CostumeCuffs": "cuffsControl", "CostumeAnkleCuffs": "ankleCuffsControl",
 	"CostumeLegwear": "legwearControl", "CostumeLegwearB": "legwearBControl", "CostumeArmwear": "armwearControl",
-	"CostumePanties": "pantiesControl", "CostumeBra": "braControl", "CostumeOverTop": "topControl"}
+	"CostumePanties": "pantiesControl", "CostumeBra": "braControl"}
 ## Over-top layer: part name -> the top part it sits over (a new layer above it, same place)
 const OVER_TOP := {"rightBreast": "torso.topContainer.breastTop", "chest": "torso.topContainer.chestTop",
 	"back": "torso.topContainer.backTop", "strap": "torso.topContainer.topStrap",
@@ -52,6 +56,8 @@ const OVER_TOP := {"rightBreast": "torso.topContainer.breastTop", "chest": "tors
 const HAIR_OVER_EXTENDED := "dynamicHairOverExtended"
 
 var _saved: Dictionary = {}     # mod type -> the helper it replaced (CostumeBra), restored when switched off
+## The over-top slot: no built-in options ("None"), the over-top mods from Mods/Clothing after it
+var over_top: CharacterElementHelper = null
 var _layers: Dictionary = {}    # over-top part -> its layer
 var hair_over_extended: FlashSprite = null
 
@@ -83,7 +89,14 @@ func _enable() -> void:
 	hook_after(&"Her.updateHandJobMode", func(_c): update_gloves())
 	hook_after(&"CharacterControl.setArmwearFill", func(c): _armwear_fill(c.args[0], c.args[1]))
 	hook_after(&"CharacterControl.setBreastCostumeSize", func(_c): _over_top_size())
-	hook_after(&"CharacterControl.setTopFill", func(c): _over_top_fill(c.args[0], c.args[1]))
+	charcode_field("overtop", _over_top_code, func(v, _l): _load_over_top_code(v), func(_l): _over_top_default())
+	for spec in MenuSchema.element("Over top", "Worn over her top, e.g. shibari (over-top mods from Mods/Clothing).",
+			func(): return over_top, true):
+		if spec.get("type") == "colors":   # its colour shows while an over-top is on
+			spec["visible"] = func(): return over_top != null and over_top.modEntryIndex >= 0
+			for sub in spec["colors"]:
+				sub["visible"] = func(): return over_top != null and over_top.modEntryIndex >= 0
+		menu_control("clothes", "Upper body", spec)
 	hook_after(&"Her.updateBreathingScaledElements", func(_c): _follow_chest())
 	hook_after(&"CharacterControl.applyHairHSL", func(_c): _hair_filters())
 	hook_after(&"CharacterControl.removeHairHSL", func(_c): _hair_filters())
@@ -137,7 +150,11 @@ func _make_over_top() -> void:
 		parts[p] = l
 	if _layers.has("rightBreast"):
 		g.her.rightBreastController._costumeLayers.append(_layers["rightBreast"])   # moves with her breast
-	var helper := CustomElementHelper.new(parts, g.characterControl.topControl)
+	over_top = CharacterElementHelper.new(["None"], func(_i): pass, _over_top_fill)
+	over_top.haveRGBFill = true
+	over_top.associatedModType = "CostumeOverTop"
+	over_top.rgb1 = {"r": 0, "g": 0, "b": 0, "a": 1}
+	var helper := CustomElementHelper.new(parts, over_top)
 	g.customElementLoader.modTargetHelpers["CostumeOverTop"] = helper
 	g.customElementLoader.modTargetHelpers["costumeovertop"] = helper   # some mods write "CostumeOvertop"
 
@@ -241,6 +258,21 @@ func _over_top_size() -> void:
 	for p in ["rightBreast", "chest", "leftBreast"]:
 		if _layers.has(p):
 			cc.setChildrenFrame(_layers[p], 2 + cc.breastSize)
+
+
+func _over_top_code() -> String:
+	var c = over_top.rgb1
+	return "%d,%d,%d,%s" % [c["r"], c["g"], c["b"], c["a"]]
+
+
+func _load_over_top_code(v: String) -> void:
+	var p := v.split(",")
+	if p.size() >= 4:
+		over_top.setFill({"r": int(p[0]), "g": int(p[1]), "b": int(p[2]), "a": float(p[3])}, "rgbFill")
+
+
+func _over_top_default() -> void:
+	over_top.setFill({"r": 0, "g": 0, "b": 0, "a": 1}, "rgbFill")
 
 
 func _over_top_fill(c, n: String) -> void:
