@@ -185,7 +185,7 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 			if is_same(gr[0], key):
 				e = gr[1]
 		if e.is_empty():
-			e = {"path": rel, "items": [], "modTypes": [], "title": title, "companions": companions,
+			e = {"path": rel, "items": [], "modTypes": [], "title": title, "modName": title, "companions": companions,
 				"companionTypes": companion_types}
 			groups.append([key, e])
 		e["items"].append(int(it["item"]))
@@ -212,8 +212,9 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 ## Mods of a set often share their name (ThickerThighs' variants are all "Thicker Thighs"): in one list, those show
 ## their file names instead.
 static func _dedupe(list: Array, e: Dictionary) -> void:
+	var name: String = e.get("modName", e["title"])
 	for o in list:
-		if o != e and o["title"] == e["title"]:
+		if o != e and o.get("modName", o["title"]) == name:   # the mod's own name, not a title changed already
 			o["title"] = _file_title(o["path"])
 			e["title"] = _file_title(e["path"])
 

@@ -208,7 +208,20 @@ static func _dropdown(w: float) -> OptionButton:
 	ob.fit_to_longest_item = false
 	ob.clip_text = true
 	ob.focus_mode = Control.FOCUS_NONE
+	var pop := ob.get_popup()
+	pop.about_to_popup.connect(func(): _keep_on_screen.call_deferred(pop))
 	return ob
+
+
+## The dock is at the window's edge: a list wider than the room to its right opens shifted left, whole names visible.
+static func _keep_on_screen(pop: Window) -> void:
+	var room: Vector2 = pop.get_parent().get_viewport().get_visible_rect().size if pop.get_parent() else Vector2()
+	if room.x <= 0:
+		return
+	var p := pop.position
+	p.x = clampi(p.x, 0, maxi(0, int(room.x) - pop.size.x))
+	p.y = clampi(p.y, 0, maxi(0, int(room.y) - pop.size.y))
+	pop.position = p
 
 
 static func _pick(spec: Dictionary, refreshers: Array) -> Control:
