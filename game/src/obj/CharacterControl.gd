@@ -408,8 +408,11 @@ func prepForBodyMod() -> void:
 	g.her.torso.backHighlight.visible = false
 	g.her.torso.backside.visible = false
 	g.her.rightArmContainer.upperArmMask.visible = false
-	var grip = g.her.rightForeArmContainer.upperArm.foreArm.hand.get("grip")   # not every hand frame has one
-	if grip:
+	var hand = g.her.rightForeArmContainer.upperArm.foreArm.hand
+	var grip = hand.get("grip")   # not every hand frame has one
+	# port fix: only a body mod with its own right hand hides her fingers around him (the game hid them for any body
+	# mod, e.g. thighs, until her arm moved)
+	if grip and g.customElementLoader.instancedModElements.any(func(m): return m.modType == ModTypes.BODY 			and m._mod != null and is_instance_valid(m._mod) and m._mod._flash_parent == hand):
 		grip.visible = false
 	g.her.tan.hideForMods()
 
