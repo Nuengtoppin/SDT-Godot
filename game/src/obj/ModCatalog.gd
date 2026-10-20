@@ -153,17 +153,7 @@ static func _same_path(a: String, b: String) -> bool:
 
 ## Takes off one entry's mod (its own items only, other mods of the same types stay).
 func remove_entry(e: Dictionary) -> void:
-	var cel := g.customElementLoader
-	var i := 0
-	while i < cel.instancedModElements.size():
-		var lm: LoadedMod = cel.instancedModElements[i]
-		if lm.sourcePackage != null and _same_path(lm.sourcePackage.filePath.get_slice("|", 0), e["path"]):
-			lm.kill()
-			cel.instancedModElements.remove_at(i)
-			continue
-		i += 1
-	cel.checkLoadedModPackages()
-	cel.updateInstancedModElements()
+	_kill_from(e["path"], [])
 	g.inGameMenu.charStoring.populateMods()
 
 
@@ -310,16 +300,27 @@ func remove(e: Dictionary) -> void:
 			for lm in cel.instancedModElements:
 				if o["modTypes"].has(lm.modType) and lm.sourcePackage != null 						and _same_path(lm.sourcePackage.filePath.get_slice("|", 0), e["path"]):
 					return
+	_kill_from(e["path"], types)
+
+
+## Takes off the placed items of `types` (all types if empty) that came from the mod at `path`, then puts back what
+## those mods replaced (as clearing mods does: her own skin parts after a body mod).
+func _kill_from(path: String, types: Array) -> void:
+	var cel := g.customElementLoader
+	var resets: Dictionary = {}
 	var i := 0
 	while i < cel.instancedModElements.size():
 		var lm: LoadedMod = cel.instancedModElements[i]
-		if types.has(lm.modType) and lm.sourcePackage != null 				and _same_path(lm.sourcePackage.filePath.get_slice("|", 0), e["path"]):
+		if (types.is_empty() or types.has(lm.modType)) and lm.sourcePackage != null 				and _same_path(lm.sourcePackage.filePath.get_slice("|", 0), path):
+			resets[cel.getResetFunction(lm.modType)] = true
 			lm.kill()
 			cel.instancedModElements.remove_at(i)
 			continue
 		i += 1
 	cel.checkLoadedModPackages()
 	cel.updateInstancedModElements()
+	for fn in resets:
+		fn.call()
 
 
 ## Marks items restored before the scan finished (saved character loaded at startup) as their pickers' options.
