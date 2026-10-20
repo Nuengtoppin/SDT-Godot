@@ -421,7 +421,8 @@ func setSkin(id: int, clearMods: bool = true) -> void:
 	setArmSkin(clearMods)
 	h.torso.midLayer.leftArm.gotoAndStop(currentSkinType)
 	h.torso.behindBackRightArm.gotoAndStop(currentSkinType)
-	h.leftHandOver.hand.grip.gotoAndStop(currentSkinType + "Grip")
+	if h.leftHandOver.hand.get("grip"):
+		h.leftHandOver.hand.grip.gotoAndStop(currentSkinType + "Grip")
 	h.torso.back.gotoAndStop(currentSkinType)
 	h.torsoBack.chestBack.gotoAndStop(currentSkinType)
 	h.torsoBack.leftShoulder.gotoAndStop(currentSkinType)

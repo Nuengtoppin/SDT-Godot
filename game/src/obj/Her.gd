@@ -1998,13 +1998,14 @@ func updateHandJobMode() -> void:
 	var grip: float = 0.5 - 0.5 * g.him.getPenisMinRatio() + 0.5 * handJobPenisWidth / 65.0
 	grip += absf(tan(rightHandAngleOffset / 180.0 * PI) * 0.4)
 	grip = minf(1.1, grip)
-	if rightForeArmContainer.upperArm.foreArm.hand.grip:
-		rightForeArmContainer.upperArm.foreArm.hand.grip.scaleY = grip
-	if rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.glove.grip:
-		rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.glove.grip.scaleY = grip
-	if rightForeArmContainer.upperArm.foreArm.hand.tan.grip:
-		rightForeArmContainer.upperArm.foreArm.hand.tan.grip.scaleY = grip
-	if leftHandOver.hand.grip:
+	# the grip pieces exist only on some frames (skin, glove, tan); a missing one was undefined in Flash
+	var hand = rightForeArmContainer.upperArm.foreArm.hand
+	var glove = rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.get("glove")
+	var hand_tan = hand.get("tan")
+	for part in [hand.get("grip"), glove.get("grip") if glove else null, hand_tan.get("grip") if hand_tan else null]:
+		if part:
+			part.scaleY = grip
+	if leftHandOver.hand.get("grip"):
 		leftHandOver.hand.scaleY = 0.8 + (1.0 - grip) * 0.3
 	if Hooks.has(&"Her.updateHandJobMode"):   # HOOK
 		Hooks.after(&"Her.updateHandJobMode", self, [])
