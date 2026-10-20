@@ -207,6 +207,8 @@ func setBody(id: int) -> void:
 	g.inGameMenu.updateHisBodyList()
 	g.inGameMenu.updateHimMenuContent()
 	g.her.setArmPosition()
+	if Hooks.has(&"Him.setBody"):   # HOOK
+		Hooks.after(&"Him.setBody", self, [id])
 
 
 func animationChanged() -> void:

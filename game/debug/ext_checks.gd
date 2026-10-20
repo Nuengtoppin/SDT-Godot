@@ -117,6 +117,7 @@ func step(_frame: int) -> void:
 				_mood_checks()
 				_template_checks()
 				_extramod_checks()
+				_extramodhim_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -182,6 +183,27 @@ func _extramod_checks() -> void:
 	Extensions.set_enabled("extramod", true)
 	_check("ExtraMod on again", helpers.has("BodyEye") and em.c.size() == em.CONTAINERS.size()
 		and cat.picker_entries.has("extramod"))
+
+
+## ExtraModHim (his body and penis so far): types registered, follow his body change, off removes them.
+func _extramodhim_checks() -> void:
+	var emh: SDTExtension = Extensions.get_extension("extramodhim")
+	_check("ExtraModHim on by default", emh != null and emh.enabled)
+	if emh == null or not emh.enabled:
+		return
+	var helpers: Dictionary = g.customElementLoader.modTargetHelpers
+	# his breast containers exist on his futa body only
+	var expected: int = emh.BODY_PARTS.size() - (emh.BREASTS.size() if g.him.currentBodyID == 0 else 0)
+	_check("ExtraModHim body and penis types", helpers.has("HimBody") and helpers.has("HimPenis")
+		and helpers["HimBody"].targetDictionary.size() == expected, str(helpers["HimBody"].targetDictionary.size()))
+	var body: int = g.him.currentBodyID
+	g.him.setBody(1 - body)
+	_check("ExtraModHim targets follow his body change", helpers["HimBody"].targetDictionary["hisTorso"] == g.him.torsoLayer.torso)
+	g.him.setBody(body)
+	Extensions.set_enabled("extramodhim", false)
+	_check("ExtraModHim off: types gone", not helpers.has("HimBody"))
+	Extensions.set_enabled("extramodhim", true)
+	_check("ExtraModHim on again", helpers.has("HimBody"))
 
 
 func _hook_checks() -> void:
