@@ -82,7 +82,7 @@ func _register(p_da) -> void:
 	t.call("UPDATE_RESISTANCE", 1, func(a): _resistance(a[0]))
 	t.call("HIDE_HIS_LEFT_ARM", 0, func(_a): _his_arm(false))
 	t.call("SHOW_HIS_LEFT_ARM", 0, func(_a): _his_arm(true))
-	t.call("TOGGLE_LOADER_ARM", 1, func(_a): _log("[TOGGLE_LOADER_ARM]: the Loader's extra arm is not in the port yet"))
+	t.call("TOGGLE_LOADER_ARM", 1, func(a): _loader_arm(str(a[0])))
 	t.call("TOGGLE_NIPPLES", 1, func(a): _nipples(a[0]))
 	t.call("CLEAR_HAIR", 0, func(_a): g.customElementLoader.clearCustomHair())
 	t.call("SHOW_HER", 0, func(_a): _show_her(true))
@@ -138,6 +138,16 @@ func _tongue(on: bool) -> void:
 func _resistance(v) -> void:
 	g.her.setIntroResistance(clampf(AS3.Number(v), 0.0, 100.0))
 	g.inGameMenu.updateResistanceSlider(false)
+
+
+## [TOGGLE_LOADER_ARM_ON] / [TOGGLE_LOADER_ARM_OFF]: the Loader's extra arm (extension loaderarm).
+func _loader_arm(state: String) -> void:
+	var la = Extensions.get_extension("loaderarm")
+	if la == null or not la.enabled:
+		_log("[TOGGLE_LOADER_ARM]: the Loader arm extension is off")
+		return
+	if state == "ON" or state == "OFF":
+		la.show_arm(state == "ON")
 
 
 func _his_arm(on: bool) -> void:

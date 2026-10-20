@@ -71,6 +71,44 @@ static func load_mod(bytes: PackedByteArray, source_path: String = "") -> FlashS
 	return mod
 
 
+## A converted library shipped with the game (art of a Loader mod, without its code): its symbols are created with
+## create(class name). Loaded once.
+static func load_art(dir: String) -> FlashSwfMod:
+	if _loaded.has(dir):
+		return _loaded[dir]
+	var lib := Flash.load_library(dir)
+	if lib == null:
+		push_error("SWF art not found: %s" % dir)
+		return null
+	var mod := FlashSwfMod.new()
+	_loaded[dir] = mod
+	mod.library = lib
+	lib.is_mod = true
+	lib.mod = mod
+	return mod
+
+
+## A new instance of the library class `cls` ("headorigin"), every clip in it stopped on its first frame (the
+## clips' own frame scripts only stopped them); null if there is no such class.
+func create(cls: String) -> FlashDisplayObject:
+	var id := _class_id(cls)
+	if id < 0:
+		return null
+	var o = create_class_instance(id)
+	if o is FlashDisplayObject:
+		_stop_all(o)
+		return o
+	return null
+
+
+static func _stop_all(o) -> void:
+	if o is FlashMovieClip:
+		o.stop()
+	if o is FlashSprite:
+		for i in o.numChildren:
+			_stop_all(o.getChildAt(i))
+
+
 static func _sha256(bytes: PackedByteArray) -> String:
 	var ctx := HashingContext.new()
 	ctx.start(HashingContext.HASH_SHA256)

@@ -64,6 +64,11 @@ static func _p(o, n: String):
 	return o.get(n)
 
 
+## AS3 Boolean(): a flag the mod does not have is false (bool(null) is an error in GDScript).
+static func _b(v) -> bool:
+	return v != null and FlashAbc._truthy(v)
+
+
 func addListeners() -> void:
 	var mm = g.inGameMenu.moddingMenu
 	mm.mbImportHair.addEventListener(FlashEvent.CLICK, browseCustomHairClicked)
@@ -211,7 +216,7 @@ func parseMod(m) -> void:
 				g.inGameMenu.loadData(m.charData)
 				CharCode.loading_mod_chardata = false
 			if m.hasOwnProperty("dialogueName"):
-				g.dialogueControl.setupDialogueMod(str(m.dialogueName), bool(_p(m, "clearAllDialogue")))
+				g.dialogueControl.setupDialogueMod(str(m.dialogueName), _b(_p(m, "clearAllDialogue")))
 			var children = _p(m, "mods")
 			if children != null:
 				for c in children:
@@ -250,7 +255,7 @@ func parseMod(m) -> void:
 
 
 func _settings(m) -> Dictionary:
-	return {"modType": str(_p(m, "modType")), "overwrite": bool(_p(m, "overwrite"))}
+	return {"modType": str(_p(m, "modType")), "overwrite": _b(_p(m, "overwrite"))}
 
 
 func placeElements(container, targets: Dictionary, setTargetFrame: bool = false) -> void:
@@ -406,7 +411,7 @@ func addStaticModElement(m) -> void:
 		push_warning("Mod target not found: %s" % key)
 		return
 	if helper.hasCostumeHelper:
-		helper.characterElementHelper.prepForMod(loadingModPackage.titleString, bool(_p(m, "overwrite")))
+		helper.characterElementHelper.prepForMod(loadingModPackage.titleString, _b(_p(m, "overwrite")))
 	if helper.singleElement:
 		var target = helper.targetDictionary["target"]
 		if _p(m, "overwrite"):
@@ -420,7 +425,7 @@ func addStaticModElement(m) -> void:
 	else:
 		var setFrame := false
 		if _p(m, "modType") == ModTypes.BODY:
-			setFrame = bool(_p(m, "overwrite"))
+			setFrame = _b(_p(m, "overwrite"))
 		placeElements(m, helper.targetDictionary, setFrame)
 		if _p(m, "modType") == ModTypes.TOP or _p(m, "modType") == ModTypes.BRA:
 			g.characterControl.setBreastCostumeSize()
