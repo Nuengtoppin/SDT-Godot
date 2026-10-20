@@ -14,8 +14,12 @@ extends SDTExtension
 ## Parts have a frame per body ("him", "futa"; "heel" for feet and shoes with high heels on), "skin" children the
 ## frame named after his skin, right hands "himopen" / "himclosed" / "futaopen" / "futaclosed".
 ##
-## Port: his head shows only while a head, hair or eye mod is on (ExtraModHim always gave him one; the original game
-## never draws his head). Taking a clothing mod off puts his own top / bottoms / shoes back.
+## Settings (its ExtraModHimSettings file, with its defaults): his head (with head mods / always / never), head type
+## (standard, anime, faceless), head movement, head size, always take off his own clothes, futa heels, hide his left
+## arm while the extra arm shows. In the new menu's Him > ExtraModHim.
+##
+## Port: by default his head shows only while a head, hair or eye mod is on (ExtraModHim always gave him one; the
+## original game never draws his head). Taking a clothing mod off puts his own top / bottoms / shoes back.
 
 const ART := "res://assets/mods/extramodhim"
 const LIST := "extramodhim"   # the mod catalog's list of his mods (Him > Body in the new menu)
@@ -53,6 +57,9 @@ const EYE_PARTS := {"eyeball": "headoriginpt.himEyeContainer.eyeball", "hisIris"
 	"upperEyeLid": "headoriginpt.himEyeContainer.upperEyeLid",
 	"lowerEyeLid": "headoriginpt.himEyeContainer.lowerEyeLid", "staticEye": "headoriginpt.himEyeContainer"}
 const BREASTS := ["hisRightBreast", "hisLeftBreast"]
+const HEAD_SHOW := ["With head mods", "Always", "Never"]
+const HEAD_LABELS := {"Standard": "him", "Anime": "him1", "Faceless": "him2"}
+const HEELS := ["As the mods say", "Always take off", "Keep"]
 
 var _art: FlashSwfMod = null
 var head: FlashMovieClip = null          # ExtraModHim's head for him (shown with head / hair / eye mods)
@@ -73,6 +80,7 @@ var _footwear := ""
 var _p_adj := 0.0
 var _blink_tension := 0
 var _blink_until := -1
+var _arm_hidden := false                 # hide_left_arm: his left arm was put away for the extra arm
 
 
 func _init() -> void:
@@ -80,6 +88,27 @@ func _init() -> void:
 	title = "ExtraModHim"
 	description = "ExtraModHim Core (SClover13): mod types for his body, penis, clothes, head, hair, eyes and the Loader arm, for mods made with the ExtraModHim template. Needs TemplateExtension."
 	default_enabled = true
+
+
+func _setup() -> void:
+	setting("head", HEAD_SHOW[0], {"label": "His head", "options": HEAD_SHOW,
+		"desc": "ExtraModHim's head for him: with head, hair or eye mods, always, or never."})
+	setting("head_type", "Standard", {"label": "Style", "options": HEAD_LABELS.keys(),
+		"desc": "His head's style: standard, anime or faceless."})
+	setting("head_moves", true, {"label": "Head moves",
+		"desc": "His head turns towards her, blinks and shuts its brows near the end; off: it stays still."})
+	setting("head_scale", 1.0, {"label": "Head size", "min": 0.5, "max": 1.5, "step": 0.01})
+	setting("clear_clothes", false, {"label": "Always take off his own clothes",
+		"desc": "His shirt, slacks and loafers stay off on his male body (for mods drawn without them)."})
+	setting("futa_heels", HEELS[0], {"label": "Futa heels", "options": HEELS,
+		"desc": "His high heels on the futa body: off where a mod asks, always off, or always kept."})
+	setting("hide_left_arm", false, {"label": "Hide his left arm",
+		"desc": "While the Loader's extra arm shows, his own left arm is put away."})
+
+
+func _setting_changed(_key: String, _value) -> void:
+	if head != null:
+		_update()
 
 
 func _enable() -> void:
@@ -97,6 +126,12 @@ func _enable() -> void:
 	menu_control("him", "Body", {"type": "custom", "label": "ExtraModHim mods", "wide": true,
 		"tip": "His body, clothes, head, hair and eye mods made with ExtraModHim, from Mods/Clothing. Several can be on.",
 		"build": func(): return ModSwitchList.build(LIST, _toggle), "keywords": "extramodhim body penis head hair clothes athletic"})
+	for k in ["head", "head_type", "head_moves", "head_scale", "clear_clothes", "futa_heels", "hide_left_arm"]:
+		var extra := {}
+		if k in ["head_type", "head_moves", "head_scale"]:
+			extra["visible"] = func(): return get_setting("head") != "Never"
+		menu_control("him", "ExtraModHim", MenuSchema.setting_control(self, k, extra))
+	_update()
 
 
 func _disable() -> void:
@@ -260,7 +295,7 @@ func _update() -> void:
 	_attach_layers()
 	var futa: bool = him.currentBodyID == 1
 	var body := "futa" if futa else "him"
-	_footwear = str(him.currentBody.footwearControl.selectedName) if him.currentBody != null else ""
+	_footwear = _feet_name()
 	var heels := _footwear == "Highheel"
 	# body and penis parts follow his rebuilt pieces
 	var covered := {}
@@ -336,25 +371,38 @@ func _clothes() -> void:
 	var him = g.him
 	var male = him.bodies[0]
 	var want := {}
-	if _has("HimTop"):
+	var all_off: bool = get_setting("clear_clothes") and him.currentBodyID == 0
+	if _has("HimTop") or all_off:
 		want[male.topControl] = ["topBack", "overLayer.torso.costume"]
-	if _has("HimBottoms"):
+	if all_off:
+		want[male.footwearControl] = ["rightLegCostume.calf.foot", "leftLegCostume.calf.foot"]
+	if _has("HimBottoms") or all_off:
 		want[male.bottomsControl] = ["rightLegCostume", "rightLegCostume.calf", "leftLegCostume", "leftLegCostume.calf",
 			"midLayer.hips"]
 	if _has("HimFootwear"):
-		want[him.currentBody.footwearControl] = ["rightLegCostume.calf.foot", "leftLegCostume.calf.foot"]
+		want[Him.feet_control(him.currentBody)] = ["rightLegCostume.calf.foot", "leftLegCostume.calf.foot"]
 	for c in _cleared.keys():
 		if not want.has(c):
-			c.select(c.selection)   # his own back
+			_put_back(c)
 			_cleared.erase(c)
 	for c in want:
 		for path in want[c]:
 			_label(_node(path), "None")
 		_cleared[c] = true
-	# hideFutaHeels: no high heels under the mod's feet
-	if _flag("hideFutaHeels", ["HimBody", "HimFootwear"]) and _footwear == "Highheel":
+	# hideFutaHeels: no high heels under the mod's feet (or always / never, by the setting)
+	var heels: String = get_setting("futa_heels")
+	var off := heels == HEELS[1] or (heels == HEELS[0] and _flag("hideFutaHeels", ["HimBody", "HimFootwear"]))
+	if off and _footwear == "Highheel":
 		for path in ["leftLegCostume.calf.foot", "rightLegCostume.calf.foot"]:
 			_label(_node(path), "None")
+
+
+## His own clothing of that control back on (the male body's only while he has it: the futa body dresses itself).
+func _put_back(c) -> void:
+	var male = g.him.bodies[0]
+	if c in [male.topControl, male.bottomsControl, male.footwearControl] and g.him.currentBodyID != 0:
+		return
+	c.select(c.selection)
 
 
 ## The left forearm, hand (and foot, unless a mod says layerFootUnder) above the mod parts on their pieces.
@@ -381,7 +429,7 @@ func _apply_fills() -> void:
 	var him = g.him
 	var male = him.bodies[0]
 	var sets := [[male.topControl, _parts(["HimTop"]) + _parts(["HimLoaderArm"]).filter(func(p): return _arm_costume(p))],
-		[male.bottomsControl, _parts(["HimBottoms"])], [him.currentBody.footwearControl, _parts(["HimFootwear"])]]
+		[male.bottomsControl, _parts(["HimBottoms"])], [Him.feet_control(him.currentBody), _parts(["HimFootwear"])]]
 	for s in sets:
 		var c = s[0]
 		var key := _rgb_key(c.rgb1)
@@ -451,8 +499,15 @@ func _hands() -> void:
 
 # ---------------------------------------------------------------- the head
 
+## The name of his current footwear ("Highheel", "Loafers", "None").
+func _feet_name() -> String:
+	var f = Him.feet_control(g.him.currentBody) if g.him != null else null
+	return str(f.selectedName) if f != null else ""
+
+
 func _update_head() -> void:
-	var on := HEAD_TYPES.any(func(t): return _has(t))
+	var show: String = get_setting("head")
+	var on := show == "Always" or (show == HEAD_SHOW[0] and HEAD_TYPES.any(func(t): return _has(t)))
 	head.visible = on
 	if not on:
 		return
@@ -467,7 +522,14 @@ func _update_head() -> void:
 	else:
 		head.scaleX = 1.0
 		head.scaleY = 1.0
-		_label(head, "him")
+		_label(head, HEAD_LABELS.get(get_setting("head_type"), "him"))
+	var k := float(get_setting("head_scale"))
+	if k > 0.01 and k != 1.0:   # around the points ExtraModHim scaled from
+		head.scaleX *= k
+		head.scaleY *= k
+		var o := Vector2(50.65, -577.9) if k < 1.0 else Vector2(455, -275)
+		head.x = (head.x - o.x) * k + o.x
+		head.y = (head.y - o.y) * k + o.y
 	# its own parts back, then what the mods replace
 	var hp = head.headoriginpt
 	var ec = hp.himEyeContainer
@@ -653,20 +715,37 @@ func _tick() -> void:
 	var la = Extensions.get_extension("loaderarm")
 	if la != null and la.enabled and la.arm != null and la.hand != _la[2]:   # the extra arm was switched on later
 		la.set_art(_la[0], _la[1], _la[2])
-	if _records.is_empty():
+	_left_arm(la)
+	if _records.is_empty() and not head.visible:
 		return
 	_follow_layers()
 	var him = g.him
 	if him.currentBodyID == 1:
 		_breasts()
-	if str(g.himSkinType) != _skin or (him.currentBody != null and str(him.currentBody.footwearControl.selectedName) != _footwear):
+	if str(g.himSkinType) != _skin or _feet_name() != _footwear:
 		_update()
 		return
 	_apply_fills()
 	_hands()
 	if head.visible:
 		_head_hsl()
-		_head_tick()
+		if get_setting("head_moves"):
+			_head_tick()
+		else:
+			head.headoriginpt.rotation = 0
+			head.hairbackorigin.rotation = 0
+
+
+## hide_left_arm: his left arm away while the extra arm shows, back when it goes.
+func _left_arm(la) -> void:
+	var shown: bool = la != null and la.enabled and la.shown()
+	var him = g.him
+	if shown and get_setting("hide_left_arm") and not _arm_hidden and him.currentLeftArmPosition == 1:
+		him.setLeftArmPosition(0)
+		_arm_hidden = true
+	elif _arm_hidden and not (shown and get_setting("hide_left_arm")):
+		him.setLeftArmPosition(1)
+		_arm_hidden = false
 
 
 func _body_changed() -> void:
@@ -674,15 +753,14 @@ func _body_changed() -> void:
 		return
 	_attach_layers()
 	_register()   # his pieces are new
-	if not _records.is_empty():
-		_update()
+	_update()
 
 
 func _reset() -> void:
 	_show_hidden()
 	_records.clear()
 	for c in _cleared.keys():
-		c.select(c.selection)
+		_put_back(c)
 	_cleared.clear()
 	_fills.clear()
 	_skin = ""

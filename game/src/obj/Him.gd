@@ -99,6 +99,14 @@ var tipB := Vector2(-310, -27)
 var tipMid := Vector2(-324, -11)
 
 
+## Port: a body's footwear control (the futa body has its own, femaleFootwearControl; its footwearControl is unset).
+static func feet_control(body) -> CharacterElementHelper:
+	if body == null:
+		return null
+	var f = body.get("femaleFootwearControl")
+	return f if f != null else body.get("footwearControl")
+
+
 func _init() -> void:
 	super()
 	x = 420

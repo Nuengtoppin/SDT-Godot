@@ -116,7 +116,7 @@ static func _label_row(spec: Dictionary, expand: bool) -> Control:
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # clip_text: without expanding it would get no width
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(l)
-	if spec.get("owner", "") != "":
+	if spec.get("owner", "") != "" and not spec.get("tagless", false):
 		h.add_child(tag(spec["owner"]))
 	return h
 

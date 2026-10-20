@@ -421,9 +421,12 @@ func _groups_of(s: Dictionary) -> Array:
 			if grp["title"] == spec.get("group", ""):
 				target = grp
 				break
-		if target == null:
-			target = {"title": spec.get("group", spec.get("owner", "")), "owner": "", "controls": []}
+		if target == null:   # a group of the extension's own: its tag on the heading, not on every row
+			target = {"title": spec.get("group", spec.get("owner", "")), "owner": spec.get("owner", ""), "controls": []}
 			out.append(target)
+		if target["owner"] != "" and target["owner"] == spec.get("owner", ""):
+			spec = spec.duplicate()
+			spec["tagless"] = true
 		target["controls"].append(spec)
 	return out
 

@@ -245,10 +245,23 @@ static func _him() -> Dictionary:
 		_m().penisLengthSliderReleased, _m().mbDefaultPenisLengthClicked))
 	penis.append(slider("Width", "", func(): return _m().himMenu.penisWidthSlider, _m().penisWidthSliderChanged,
 		_m().penisWidthSliderReleased, _m().mbDefaultPenisWidthClicked))
+	# his clothes (the classic menu's body page): top and bottoms on the male body, footwear on both
+	var male := func(): return g.him.currentBodyID == 0
+	var clothes: Array = []
+	for e in [["Top", "topControl"], ["Bottoms", "bottomsControl"]]:
+		for spec in element(e[0], "", func(): return g.him.bodies[0].get(e[1])):
+			var vis = spec.get("visible")
+			spec["visible"] = (func(): return male.call() and vis.call()) if vis is Callable else male
+			clothes.append(spec)
+	clothes.append_array(element("Footwear", "Loafers on his male body, heels on the futa body.",
+		func(): return Him.feet_control(g.him.currentBody)))
 	return {"id": "him", "name": "Him", "groups": [
 		{"title": "Body", "controls": [
 			arrows("Body", "", func(): return Him.bodyNameList, func(): return him.call().currentBodyID,
 				_m().hisBodyLeftClicked, _m().hisBodyRightClicked),
+			arrows("Skin", "", func(): return him.call().currentBody.skinNameList,
+				func(): return him.call().currentBody.currentSkinID, func(): him.call().currentBody.hisSkinLeftClicked(),
+				func(): him.call().currentBody.hisSkinRightClicked()),
 			hsl("Skin tint", "Shifts his skin's hue, saturation, lightness and contrast.",
 				func(): return g.characterControl.hisSkinHSL, func(c): g.characterControl.applyHisSkinHSL(c),
 				func(): g.characterControl.removeHisSkinHSL()),
@@ -257,6 +270,7 @@ static func _him() -> Dictionary:
 					if on != g.him.visible:
 						g.characterControl.toggleHim()),
 		]},
+		{"title": "Clothes", "controls": clothes},
 		{"title": "Arms", "controls": [
 			arrows("Right arm", "Holding: his hand is on her head. Free: he lets go.", func(): return Him.armPositions,
 				func(): return him.call().currentArmPosition, _m().hisArmLeftClicked, _m().hisArmRightClicked),
