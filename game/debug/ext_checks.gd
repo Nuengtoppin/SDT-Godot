@@ -173,10 +173,15 @@ func _extramod_checks() -> void:
 	g.customElementLoader.clearInstancedMods()
 	_check("ExtraMod: clearing without its mods changes nothing", her.head.face.skull.getChildAt(0).visible == skull_vis
 		and her.eye.ball.upperEyelidMask.visible)
+	var cat = g.modCatalog
+	_check("ExtraMod's list of mods in the catalog", cat.picker_entries.has("extramod")
+		and cat.picker_types.get("BodyHead") == "extramod")
 	Extensions.set_enabled("extramod", false)
-	_check("ExtraMod off: types and containers gone", not helpers.has("BodyHead") and em.c.is_empty())
+	_check("ExtraMod off: types, containers and list gone", not helpers.has("BodyHead") and em.c.is_empty()
+		and not cat.picker_entries.has("extramod"))
 	Extensions.set_enabled("extramod", true)
-	_check("ExtraMod on again", helpers.has("BodyEye") and em.c.size() == em.CONTAINERS.size())
+	_check("ExtraMod on again", helpers.has("BodyEye") and em.c.size() == em.CONTAINERS.size()
+		and cat.picker_entries.has("extramod"))
 
 
 func _hook_checks() -> void:

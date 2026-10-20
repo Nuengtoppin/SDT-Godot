@@ -19,6 +19,11 @@ const HAIR_TYPES := [ModTypes.HAIR, ModTypes.DYNAMIC_HAIR]
 var entries: Array = []
 var hair_entries: Array = []
 var bg_entries: Array = []
+## Lists extensions add for their mod types (add_picker): mod type -> list key; key -> entries (one per mod, all its
+## items of those types). Shown as on / off switches, so several can be on (ExtraMod's face and eye mods stack).
+var picker_types: Dictionary = {}
+var picker_entries: Dictionary = {}
+var _seen: Array = []         # [path, catalog] of every mod looked at, for lists added later
 var _queue: Array = []        # paths still to inspect
 var _converting: Dictionary = {}  # task id -> [path, bytes, dir]
 var _busy := false
@@ -116,8 +121,56 @@ func _inspect(path: String, bytes: PackedByteArray) -> void:
 	_add(path, cat)
 
 
-## Adds a mod's items to the pickers they belong to.
-func _add(path: String, cat: Dictionary) -> void:
+## Adds a list for mods with items of `mod_types` (see picker_types), including mods already scanned.
+func add_picker(key: String, mod_types: Array) -> void:
+	for t in mod_types:
+		picker_types[t] = key
+	picker_entries[key] = []
+	for s in _seen:
+		_add(s[0], s[1], key)
+
+
+func remove_picker(key: String) -> void:
+	for t in picker_types.keys():
+		if picker_types[t] == key:
+			picker_types.erase(t)
+	var gone: Array = picker_entries.get(key, [])
+	entries = entries.filter(func(e): return not e in gone)
+	picker_entries.erase(key)
+
+
+## Whether the entry's mod is on (some of its items are placed).
+func is_applied(e: Dictionary) -> bool:
+	for lm in g.customElementLoader.instancedModElements:
+		if lm.sourcePackage != null and _same_path(lm.sourcePackage.filePath.get_slice("|", 0), e["path"]):
+			return true
+	return false
+
+
+static func _same_path(a: String, b: String) -> bool:
+	return a == b or Flash.resolve_content_path(a) == Flash.resolve_content_path(b)
+
+
+## Takes off one entry's mod (its own items only, other mods of the same types stay).
+func remove_entry(e: Dictionary) -> void:
+	var cel := g.customElementLoader
+	var i := 0
+	while i < cel.instancedModElements.size():
+		var lm: LoadedMod = cel.instancedModElements[i]
+		if lm.sourcePackage != null and _same_path(lm.sourcePackage.filePath.get_slice("|", 0), e["path"]):
+			lm.kill()
+			cel.instancedModElements.remove_at(i)
+			continue
+		i += 1
+	cel.checkLoadedModPackages()
+	cel.updateInstancedModElements()
+	g.inGameMenu.charStoring.populateMods()
+
+
+## Adds a mod's items to the pickers they belong to (only_key: just to that extension list).
+func _add(path: String, cat: Dictionary, only_key = null) -> void:
+	if only_key == null:
+		_seen.append([path, cat])
 	var rel := _relative(path)
 	var title: String = cat.get("modName", "")
 	if title == "":
@@ -126,7 +179,7 @@ func _add(path: String, cat: Dictionary) -> void:
 	var groups: Array = []   # [picker key, entry]
 	for it in cat.get("items", []):
 		var key = _picker_key(it)
-		if key == null:
+		if key == null or (only_key != null and not is_same(key, only_key)):
 			continue
 		var e := {}
 		for gr in groups:
@@ -142,7 +195,10 @@ func _add(path: String, cat: Dictionary) -> void:
 		var key = gr[0]
 		var e: Dictionary = gr[1]
 		entries.append(e)
-		if key is String:
+		if key is String and picker_entries.has(key):
+			e["picker"] = key
+			picker_entries[key].append(e)
+		elif key is String:
 			e["picker"] = key
 			(hair_entries if key == "hair" else bg_entries).append(e)
 		else:
@@ -152,6 +208,8 @@ func _add(path: String, cat: Dictionary) -> void:
 
 ## The picker an item goes to: a costume element helper, "hair", or null (not selectable, e.g. Loader-only types).
 func _picker_key(it: Dictionary):
+	if picker_types.has(it["modType"]):
+		return picker_types[it["modType"]]
 	if it["modType"] in HAIR_TYPES:
 		return "hair"
 	if it["modType"] == ModTypes.BACKGROUND:
@@ -230,6 +288,8 @@ func mark_selected(path: String, items: Array) -> void:
 		var h: CharacterElementHelper = e["helper"]
 		h.modEntryIndex = h.modEntries.find(e)
 		h.updateMenuList.call(e["title"])
+	elif picker_entries.has(e.get("picker", "")):
+		pass   # on / off lists read is_applied()
 	elif e.get("picker") == "bg":
 		g.inGameMenu.bgModIndex = bg_entries.find(e)
 		g.inGameMenu.updateBGPicker()

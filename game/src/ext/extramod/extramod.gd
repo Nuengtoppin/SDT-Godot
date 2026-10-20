@@ -42,6 +42,8 @@ const MOOD_GROUPS := {"happy": ["happy", "elated", "excited", "smug", "tease"],
 	"angry": ["angry", "upset", "frightened", "aggressive", "worried", "disgusted"],
 	"ahegao": ["ahegao", "horny", "overwhelmed", "devoted", "broken", "drugged"]}
 
+const LIST := "extramod"   # the mod catalog's list of ExtraMod mods (Her > Face in the new menu)
+
 var c := {}               # container name -> FlashSprite
 var _mood_parts: Array = []    # parts with a "mood" child
 var _skin_parts: Array = []    # parts (useSkinPalette) shown at the frame named after her skin
@@ -51,6 +53,11 @@ var _eye_set := false
 var _hide := {}                # what is hidden: "jaw", "upperlip", "brows", "headtan", "upperlipstick", ...
 var _lower_lipsticks: Array = []
 var _lip_offset := 0           # her lip / jaw frames: 81 per skin
+## Every ExtraMod mod placed: {"pkg": its LoadedModPackage, "type", "flags": {flag: value}}, replayed when one of them
+## is taken off alone (the others keep what they need hidden)
+var _records: Array = []
+const FLAG_KEYS := ["overwrite", "hideVanillaFace", "hideVanillaEye", "hideVanillaEyebrows", "hideVanillaHeadTan",
+	"hideScalp", "hideCheekBulge", "useSkinPalette"]
 
 
 func _init() -> void:
@@ -90,10 +97,17 @@ func _enable() -> void:
 	hook_after(&"CharacterControl.setEyebrowLine", func(h): _brow_colour("line", h.args[0]))
 	on_event("mood_changed", func(_m): _update_moods())
 	on_late_tick(_tick)
+	if g.modCatalog != null:
+		g.modCatalog.add_picker(LIST, ["BodyHead", "BodyEye"])
+	menu_control("her", "Face", {"type": "custom", "label": "ExtraMod face and eye mods", "wide": true,
+		"tip": "Face, eye and eyebrow mods made with ExtraMod, from Mods/Clothing. Several can be on: they stack.",
+		"build": _list_control, "keywords": "extramod em emc face eyes eyebrows anime"})
 	her.updateEyes()
 
 
 func _disable() -> void:
+	if g.modCatalog != null:
+		g.modCatalog.remove_picker(LIST)
 	var cel = g.customElementLoader
 	if cel != null:
 		cel.clearModTypes(["BodyHead", "BodyEye"])
@@ -163,6 +177,69 @@ static func _hide_children(o, keep := 1) -> void:
 			o.getChildAt(i).visible = false
 
 
+# ---------------------------------------------------------------- the list of mods in the menu
+
+## A switch per ExtraMod mod found in Mods/Clothing (the list grows while the catalog scans).
+func _list_control() -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 2)
+	box.set_meta("refresh", _refresh_list.bind(box))
+	_refresh_list(box)
+	return box
+
+
+func _refresh_list(box: VBoxContainer) -> void:
+	var cat = g.modCatalog
+	var list: Array = cat.picker_entries.get(LIST, []) if cat != null else []
+	if box.get_meta("count", -1) != list.size():
+		box.set_meta("count", list.size())
+		for ch in box.get_children():
+			ch.queue_free()
+			box.remove_child(ch)
+		if list.is_empty():
+			var l := Label.new()
+			l.text = "None found in Mods/Clothing."
+			l.add_theme_color_override("font_color", MenuTheme.MUTED)
+			box.add_child(l)
+		for e in list:   # a row like the menu's own switches: the mod's name, then its switch
+			var row := HBoxContainer.new()
+			var l := Label.new()
+			l.text = e["title"]
+			l.clip_text = true
+			l.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var b := CheckButton.new()
+			b.focus_mode = Control.FOCUS_NONE
+			b.toggled.connect(_toggle.bind(e))
+			row.add_child(l)
+			row.add_child(b)
+			row.set_meta("switch", b)
+			box.add_child(row)
+	for i in list.size():
+		var b: CheckButton = box.get_child(i).get_meta("switch")
+		b.set_pressed_no_signal(cat.is_applied(list[i]))
+
+
+func _toggle(on: bool, e: Dictionary) -> void:
+	if on:
+		g.modCatalog.apply(e)
+	else:
+		g.modCatalog.remove_entry(e)
+		_rebuild()
+
+
+## After one mod was taken off: her own parts back, then what the remaining mods need hidden again.
+func _rebuild() -> void:
+	var live := {}
+	for lm in g.customElementLoader.instancedModElements:
+		live[lm.sourcePackage] = true
+	var keep: Array = _records.filter(func(r): return live.has(r["pkg"]))
+	_reset()
+	_records = keep
+	for r in keep:
+		_apply(r, false)
+
+
 # ---------------------------------------------------------------- a mod was placed
 
 func _placed(m) -> void:
@@ -171,7 +248,22 @@ func _placed(m) -> void:
 	var t := str(m.get("modType"))
 	if t != "BodyHead" and t != "BodyEye":
 		return
-	# the parts are placed already: look at what the mod brought
+	var r := {"pkg": g.customElementLoader.loadingModPackage, "type": t, "flags": {}}
+	for f in FLAG_KEYS:
+		r["flags"][f] = m.get(f)
+	_records.append(r)
+	_apply(r, true)
+
+
+## What a placed mod (record) needs: its flags acted on, its parts registered. `first`: the mod was just placed
+## (overwrite clears the other mods of its type).
+func _apply(r: Dictionary, first: bool) -> void:
+	var t: String = r["type"]
+	var m: Dictionary = r["flags"]
+	if first and m.get("overwrite"):
+		g.customElementLoader.clearModTypes([t])
+		_records = _records.filter(func(x): return x == r or x["type"] != t or x["pkg"] == r["pkg"])
+	# the parts are placed already: look at what the mods brought
 	var parts: Dictionary = {}
 	for p in _parts(t):
 		parts[str(p.flash_name)] = p
@@ -190,11 +282,9 @@ func _placed(m) -> void:
 	_update_moods()
 
 
-func _eye_placed(m, parts: Dictionary) -> void:
+func _eye_placed(m: Dictionary, parts: Dictionary) -> void:
 	var her = g.her
 	_eye_set = true
-	if m.get("overwrite"):
-		g.customElementLoader.clearModTypes(["BodyEye"])
 	var erase = parts.get("eyeerasemask")
 	if erase != null:
 		erase.blendMode = "erase"
@@ -213,10 +303,8 @@ func _eye_placed(m, parts: Dictionary) -> void:
 	_hide["eye"] = true
 
 
-func _head_placed(m, parts: Dictionary) -> void:
+func _head_placed(m: Dictionary, parts: Dictionary) -> void:
 	var her = g.her
-	if m.get("overwrite"):
-		g.customElementLoader.clearModTypes(["BodyHead"])
 	if m.get("hideVanillaHeadTan"):
 		_hide["headtan"] = true
 	if m.get("hideScalp"):
@@ -461,6 +549,7 @@ func _reset() -> void:
 	_mood_parts.clear()
 	_skin_parts.clear()
 	_lower_lipsticks.clear()
+	_records.clear()
 	_eye_masks = false
 	_eye_set = false
 	her._tan.updateSkin()
