@@ -137,11 +137,15 @@ func _parse() -> bool:
 		_u30()  # init scope depth
 		_u30()  # max scope depth
 		var ln := _u30()
-		bodies[m] = {"code": _d.slice(_p, _p + ln), "locals": locals}
+		bodies[m] = {"code": _d.slice(_p, _p + ln), "locals": locals, "exc": []}
 		_p += ln
 		for k in _u30():
-			for x in 5:
-				_u30()
+			var from := _u30()
+			var to := _u30()
+			var target := _u30()
+			_u30()  # exception type
+			_u30()  # variable name
+			bodies[m]["exc"].append([from, to, target])
 		_read_traits()
 	return _p <= _d.size()
 
@@ -308,10 +312,16 @@ const _GLOBAL := &"__global__"
 static var _warned: Dictionary = {}
 
 
+func _in() -> String:
+	return " (%s)" % source if source != "" else ""
+
+
 static func _warn(msg: String) -> void:
 	if not _warned.has(msg):
 		_warned[msg] = true
 		push_warning(msg)
+var source := ""         # the mod's file name, for warnings
+var _thrown := ""         # a call failed (Flash would throw a TypeError): caught by the method's try block, if any
 var host: Object = null   # resolves globals / classes: host.abc_global(name) -> value, host.abc_construct(name, args)
 
 
@@ -330,16 +340,21 @@ func run(mi: int, this_obj, args: Array = []):
 		locals[i + 1] = args[i]
 	var stack: Array = []
 	var scopes: Array = []
+	_thrown = ""
 	var pc := 0
 	var steps := 0
 	while pc < code.size():
 		steps += 1
 		if steps > 200000:
-			_warn("ABC: step limit in %s" % methods[mi]["name"])
+			_warn("ABC: step limit in %s%s" % [methods[mi]["name"], _in()])
 			return null
+		var at := pc
 		var op := code[pc]
 		pc += 1
 		match op:
+			0x5A:  # newcatch (its scope object)
+				pc = _skip_u30(code, pc)
+				stack.append({})
 			0x1D:  # popscope
 				scopes.pop_back()
 			0x02, 0x09, 0x82, 0x08, 0xF0, 0xF1:  # nop, label, coerce_a, kill(u30), debugline, debugfile
@@ -569,8 +584,23 @@ func run(mi: int, this_obj, args: Array = []):
 				if jump:
 					pc += off
 			_:
-				_warn("ABC: unsupported instruction 0x%02x in %s; script stopped" % [op, methods[mi]["name"]])
+				_warn("ABC: unsupported instruction 0x%02x in %s%s; script stopped" % [op, methods[mi]["name"], _in()])
 				return null
+		if _thrown != "":
+			# inside a try block: on to its catch, as Flash does; elsewhere the script carries on (lenient)
+			var msg := _thrown
+			_thrown = ""
+			var caught := false
+			for h in body["exc"]:
+				if at >= h[0] and at < h[1]:
+					stack.clear()
+					stack.append({"message": "TypeError"})
+					scopes.clear()
+					pc = h[2]
+					caught = true
+					break
+			if not caught:
+				_warn(msg)
 	return null
 
 
@@ -826,7 +856,11 @@ func _call(obj, n: String, args: Array):
 		var f = obj.get(n)
 		if f is Callable and f.is_valid():
 			return f.callv(args)
-	_warn("ABC: no method %s on %s" % [n, obj.get_class() if obj is Object else type_string(typeof(obj))])
+	var msg := "ABC: no method %s on %s%s" % [n, obj.get_class() if obj is Object else type_string(typeof(obj)), _in()]
+	if obj == null:
+		_thrown = msg
+	else:
+		_warn(msg)
 	return null
 
 

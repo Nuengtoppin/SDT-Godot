@@ -65,6 +65,7 @@ static func load_mod(bytes: PackedByteArray, source_path: String = "") -> FlashS
 		var a := FlashAbc.parse(FileAccess.get_file_as_bytes(dir.path_join("abc_%d.bin" % i)))
 		if a != null:
 			a.host = mod
+			a.source = source_path.get_file()
 			mod.abc.append(a)
 		i += 1
 	return mod

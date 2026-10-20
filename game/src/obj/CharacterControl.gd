@@ -527,6 +527,8 @@ func setHair(id: int, withEyebrows: bool = true) -> void:
 	updateCurrentElementsStatus()
 	waitToSetHeadwearPosition()
 	currentHair = id
+	if Hooks.has(&"CharacterControl.setHair"):   # HOOK
+		Hooks.after(&"CharacterControl.setHair", self, [id, withEyebrows])
 
 
 func currentElementToggled(_e = null) -> void:
@@ -1195,6 +1197,8 @@ func resetBackground() -> void:
 
 func setCustomHairLoaded() -> void:
 	customHairLoaded = true
+	if Hooks.has(&"CharacterControl.setCustomHairLoaded"):   # HOOK
+		Hooks.after(&"CharacterControl.setCustomHairLoaded", self, [])
 
 
 func setCustomBGLoaded() -> void:
