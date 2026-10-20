@@ -16,6 +16,7 @@ const SHAPE_SHADERS := {
 	"erase": preload("res://flash/shaders/shape_erase.gdshader"),
 	"alpha": preload("res://flash/shaders/shape_alpha.gdshader"),
 	"screen_read": preload("res://flash/shaders/shape_screen.gdshader"),
+	"none": preload("res://flash/shaders/shape_none.gdshader"),
 }
 const SCREEN_BLEND_MODES := {"overlay": 0, "hardlight": 1, "screen": 2, "lighten": 3, "darken": 4,
 	"difference": 5, "invert": 6}
@@ -889,11 +890,13 @@ func shape_material(s: FlashShape) -> Material:
 	var has_cm := false
 	var o: FlashDisplayObject = s
 	var blend_open := true
+	var grouped := false   # an offscreen group above the object the blend mode comes from
 	while o != null:
 		# An offscreen group composites its whole content with its own blend mode (group_display), so blend
 		# modes at or above a grouped ancestor do not apply to the shapes inside it.
 		if o != s and o._proxy is FlashGroupProxy:
 			blend_open = false
+			grouped = grouped or blend != "normal"
 		if blend_open and blend == "normal" and o._blend_mode != "normal" and o._blend_mode != "layer":
 			blend = o._blend_mode
 		for f in o._filters:
@@ -907,6 +910,10 @@ func shape_material(s: FlashShape) -> Material:
 		o = o._flash_parent
 	if off == Color(0, 0, 0, 0) and blend == "normal" and not has_cm:
 		return null
+	# ERASE / ALPHA need a LAYER parent; without one Flash draws nothing (a mod part with ERASE moved out of its
+	# mod onto her layers, e.g. the shibari over-top's breast, which only cut the mod's own ropes)
+	if (blend == "erase" or blend == "alpha") and not grouped:
+		blend = "none"
 	var key := "%s|%s|%s|%s" % [blend, off, cm if has_cm else "", cm_off if has_cm else ""]
 	var mat: ShaderMaterial = _material_pool.get(key)
 	if mat != null:
