@@ -410,6 +410,13 @@ static func _mods() -> Dictionary:
 			actions("", "", [["Load", func(): _m().loadClicked()], ["Generate", func(): _m().generateClicked()],
 				["Copy", func(): DisplayServer.clipboard_set(str(md.call().saveDataTF.text)), "Copies the code."]]),
 		]},
+		{"title": "Character list", "controls": [
+			actions("", "", [["Save backup…", func(): _m().saveBackupClicked(), "All stored characters in one file (CustomChars.sdt)."],
+				["Load backup…", func(): _m().loadBackupClicked(), "Characters from a backup file, or from a Flash save (ChoIrrumatio.sol)."]],
+				{"keywords": "characters backup import export sol"}),
+			check("Replace the list when loading", "Off: loaded characters are added to the list.",
+				func(): return md.call().cbOverwriteCharList, _m().cbOverwriteCharListClicked),
+		]},
 		{"title": "Extensions", "controls": [
 			{"type": "custom", "label": "", "build": MenuExtensions.build_list},
 		]},
