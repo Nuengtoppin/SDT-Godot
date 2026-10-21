@@ -51,6 +51,8 @@ func _init() -> void:
 	g.highlight = FlashFilter.shaderFilter(HIGHLIGHT_SHADER, {"trans": 0.275, "totMult": 0.2})
 	g.cumHighlight = FlashFilter.shaderFilter(HIGHLIGHT_SHADER, {"trans": 1.1, "totMult": 0.5})
 	saveData = g.newSaveData()
+	# port: the textures the last session used load on worker threads while the title screen shows
+	Flash.base_library.warm_up(FlashSharedObject.save_dir)
 	# Everything is already loaded; Flash fired the loaderInfo COMPLETE event after streaming the SWF.
 	completePreloader.call_deferred()
 

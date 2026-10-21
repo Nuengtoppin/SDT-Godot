@@ -476,6 +476,8 @@ func _physics_process(_delta: float) -> void:
 	# updates it at once, see _handle_input)
 	if tick_count % MOUSE_OVER_TICKS == 0:
 		_update_mouse_over()
+	if tick_count % 3600 == 0 and base_library != null:   # every 2 minutes: the warm-up list survives a crash
+		base_library.save_warm_list(FlashSharedObject.save_dir)
 	_finish_lazy_detach()
 	in_tick = false
 	_free_orphans()
@@ -1044,6 +1046,8 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
 		FlashSharedObject.flush_all()
 		FlashLibrary.drain_streaming()
+		if base_library != null:
+			base_library.save_warm_list(FlashSharedObject.save_dir)
 	if what == NOTIFICATION_PREDELETE:
 		free_orphans_at_exit()
 

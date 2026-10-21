@@ -64,6 +64,7 @@ func class_id(cls: String) -> int:
 
 
 func get_texture(img: String) -> Texture2D:
+	_used[img] = true
 	var t: Texture2D = _textures.get(img)
 	if t != null:
 		_touch(img)
@@ -89,6 +90,8 @@ func get_texture(img: String) -> Texture2D:
 ## Non-blocking get for morph frames: returns the texture if it is cached, otherwise starts loading it on a worker
 ## thread and returns null; 'waiter' (if any) gets _texture_ready(img, texture) once it has loaded.
 func request_texture(img: String, waiter: Object = null) -> Texture2D:
+	if not _warming:
+		_used[img] = true
 	var t: Texture2D = _textures.get(img)
 	if t != null:
 		_touch(img)
@@ -149,6 +152,57 @@ func _poll_one(img: String) -> bool:
 		if is_instance_valid(w):
 			w._texture_ready(img, t)
 	return true
+
+
+# ---------------------------------------------------------------- warm-up list (port)
+
+## The textures a session used, saved next to the save files: the next start loads them on worker threads while
+## the title screen shows, instead of one by one when the game scene first draws them (50-90 ms ticks after Play).
+const WARM_FILE := "texture_warmup.txt"
+const WARM_MORPH_BYTES := 256 * 1048576   # morph frames kept in the list: the most recent, up to this size
+var _used: Dictionary = {}      # textures the game asked for this session (not the warm-up's own loads)
+var _warming := false
+
+
+func save_warm_list(dir: String) -> void:
+	var lines := PackedStringArray()
+	for img in _used:
+		if not str(img).begins_with("m"):
+			lines.append(img)
+	var morphs := PackedStringArray()
+	var budget := WARM_MORPH_BYTES
+	var keys: Array = _lru.keys()
+	for i in range(keys.size() - 1, -1, -1):   # most recently used first
+		if not _used.has(keys[i]):
+			continue
+		budget -= int(_lru[keys[i]])
+		if budget < 0:
+			break
+		morphs.append(keys[i])
+	lines.append_array(morphs)
+	if lines.is_empty():
+		return
+	var f := FileAccess.open(dir.path_join(WARM_FILE), FileAccess.WRITE)
+	if f != null:
+		f.store_string("\n".join(lines))
+
+
+## Starts background loads of the textures in the warm-up list (only with threaded loading: headless runs load on
+## demand). Returns how many were requested.
+func warm_up(dir: String) -> int:
+	if not _threaded:
+		return 0
+	var p := dir.path_join(WARM_FILE)
+	if not FileAccess.file_exists(p):
+		return 0
+	var n := 0
+	_warming = true
+	for img in FileAccess.get_file_as_string(p).split("\n", false):
+		if _textures.get(img) == null and ResourceLoader.exists(path.path_join("shapes/%s.png" % img)):
+			request_texture(img)
+			n += 1
+	_warming = false
+	return n
 
 
 func _cache(img: String, t: Texture2D) -> void:
