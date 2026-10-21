@@ -270,10 +270,20 @@ func tick() -> void:
 					g.currentPos = automaticControl.getPos()
 				else:
 					g.currentPos = g.currentMousePos
+			var t0 := Time.get_ticks_usec() if Flash.profiling else 0   # port: --profile buckets
 			g.animationControl.stepAnimation()
+			var t1 := Time.get_ticks_usec() if Flash.profiling else 0
 			g.dialogueControl.update()
+			if Flash.profiling:
+				Flash.account_listener("DT>animation", t1 - t0)
+				Flash.account_listener("DT>dialogue", Time.get_ticks_usec() - t1)
+		var t2 := Time.get_ticks_usec() if Flash.profiling else 0
 		soundControl.tick()
+		var t3 := Time.get_ticks_usec() if Flash.profiling else 0
 		g.characterControl.tick()
+		if Flash.profiling:
+			Flash.account_listener("DT>sound", t3 - t2)
+			Flash.account_listener("DT>characterControl", Time.get_ticks_usec() - t3)
 
 
 func playClicked(_e = null) -> void:

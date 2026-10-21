@@ -59,10 +59,17 @@ func _init() -> void:
 
 
 func stepAnimation() -> void:
+	var t0 := Time.get_ticks_usec() if Flash.profiling else 0   # port: --profile buckets
 	var p: float = g.her.move(g.currentPos.x, g.currentPos.y)
+	var t1 := Time.get_ticks_usec() if Flash.profiling else 0
 	g.herCurrentPos = p
 	g.him.move(p, g.currentPos.x, g.currentPos.y)
+	var t2 := Time.get_ticks_usec() if Flash.profiling else 0
 	g.her.updateArms()
+	if Flash.profiling:
+		Flash.account_listener("anim>her.move", t1 - t0)
+		Flash.account_listener("anim>him.move", t2 - t1)
+		Flash.account_listener("anim>her.updateArms", Time.get_ticks_usec() - t2)
 
 
 func setAnimation(n: String) -> void:
