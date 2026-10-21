@@ -468,6 +468,7 @@ func _physics_process(_delta: float) -> void:
 			g.update_layout()
 		else:
 			_groups.erase(g)
+	FlashProxy.update_backdrops()
 	var t4 := Time.get_ticks_usec()
 	_perf_add("#masks", t3 - t2)
 	_perf_add("#groups", t4 - t3)

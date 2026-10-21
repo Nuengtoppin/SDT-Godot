@@ -28,7 +28,7 @@ func _init() -> void:
 	_vp.disable_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	_vp.msaa_2d = ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_2d", 0)  # polygons (Graphics fills)
+	_vp.msaa_2d = Viewport.MSAA_DISABLED   # FlashProxy.set_msaa(): only content with Graphics fills needs it
 	_vp.size = Vector2i(2, 2)
 	add_child(_vp)
 	_mat.shader = DISPLAY_SHADER
@@ -119,6 +119,15 @@ func update_layout() -> void:
 		return
 	transform = _obj.transform
 	visible = _obj.visible
+	# hidden or transparent (a closed menu dropdown at alpha 0): stop rendering the target every frame
+	var on := FlashProxy.shown(self)
+	var mode := SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+	if _vp.render_target_update_mode != mode:
+		_vp.render_target_update_mode = mode
+	if not on:
+		return
+	if (Flash.tick_count + get_instance_id()) % FlashProxy.MSAA_CHECK_TICKS == 0:
+		FlashProxy.set_msaa(_vp, FlashProxy.needs_msaa(_vp))
 	var b := _obj._local_bounds()
 	if b.size.x <= 0.0 or b.size.y <= 0.0:
 		_rect = Rect2()
@@ -126,10 +135,9 @@ func update_layout() -> void:
 		return
 	# Filters are specified in screen pixels; convert the margin into obj-local units.
 	var screen := get_viewport().get_final_transform() * get_global_transform_with_canvas()
-	var s := maxf(screen.x.length(), screen.y.length())
-	s = maxf(s, 0.01)
-	var margin := _margin / s
-	b = b.grow(margin)
+	# screen pixels per unit along each axis (a uniform max of the two made stretched groups far too big)
+	var sc := Vector2(maxf(screen.x.length(), 0.01), maxf(screen.y.length(), 0.01))
+	b = b.grow_individual(_margin / sc.x, _margin / sc.y, _margin / sc.x, _margin / sc.y)
 	# Without rotation / skew on screen, start the render target on a whole screen pixel so its texels land on
 	# pixels 1:1 (a fractional offset makes the linear filter blur everything, e.g. text).
 	if is_zero_approx(screen.x.y) and is_zero_approx(screen.y.x) and screen.x.x > 0.0 and screen.y.y > 0.0:
@@ -137,22 +145,23 @@ func update_layout() -> void:
 		var d := p0.floor() - p0
 		b.position += Vector2(d.x / screen.x.x, d.y / screen.y.y)
 		b.size -= Vector2(d.x / screen.x.x, d.y / screen.y.y)
-	var want := Vector2(ceilf(b.size.x * s), ceilf(b.size.y * s))
+	var want := (b.size * sc).ceil()
 	if want.x > MAX_SIZE or want.y > MAX_SIZE:
-		s *= minf(MAX_SIZE / want.x, MAX_SIZE / want.y)
-		want = Vector2(ceilf(b.size.x * s), ceilf(b.size.y * s))
+		sc *= minf(MAX_SIZE / want.x, MAX_SIZE / want.y)
+		want = (b.size * sc).ceil()
 	var cur := Vector2(_vp.size)
 	# Resize with hysteresis: grow with slack, shrink only when much too large.
 	if want.x > cur.x or want.y > cur.y or want.x < cur.x * 0.5 or want.y < cur.y * 0.5:
 		_vp.size = Vector2i(mini(int(want.x * 1.15) + 2, MAX_SIZE), mini(int(want.y * 1.15) + 2, MAX_SIZE))
-	_rect = Rect2(b.position, Vector2(_vp.size) / s)
+	_rect = Rect2(b.position, Vector2(_vp.size) / sc)
 	# Text inside is rasterized at the render target's scale instead of being drawn at its point size and
-	# magnified (blurry), like 2D oversampling does in the main viewport.
+	# magnified (blurry), like 2D oversampling does in the main viewport. A stretched group uses at most twice its
+	# smaller scale (a dropdown window stretched 11x tall had its text rasterized 11x too big).
 	# Quantized up to 1/8 steps so an animated scale does not re-rasterize the glyphs every tick.
-	var os := ceilf(s * 8.0) / 8.0
+	var os := ceilf(minf(maxf(sc.x, sc.y), 2.0 * minf(sc.x, sc.y)) * 8.0) / 8.0
 	if _vp.oversampling_override != os:
 		_vp.oversampling_override = os
-	_px_scale = s
+	_px_scale = maxf(sc.x, sc.y)
 	# Shadow / blur parameters are in render-target pixels (= screen pixels).
 	var stretch := Flash.screen_scale()
 	if _mat.shader != DISPLAY_SHADER:
@@ -162,7 +171,7 @@ func update_layout() -> void:
 		var a: float = deg_to_rad(_obj._filters[0].angle) if not _obj._filters.is_empty() and _obj._filters[0] is FlashFilter else 0.0
 		_mat.set_shader_parameter("offset_px", Vector2(cos(a), sin(a)) * _filter_offset * stretch)
 	# Inside the viewport the object is drawn with its own transform; cancel it and map obj-local -> pixels.
-	_vp.canvas_transform = Transform2D(0.0, Vector2(s, s), 0.0, -b.position * s) * _obj.transform.affine_inverse()
+	_vp.canvas_transform = Transform2D(0.0, sc, 0.0, -b.position * sc) * _obj.transform.affine_inverse()
 	queue_redraw()
 
 

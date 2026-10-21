@@ -58,9 +58,48 @@ static func _make_viewport() -> SubViewport:
 	vp.disable_3d = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	vp.msaa_2d = ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_2d", 0)  # polygons (Graphics fills)
+	vp.msaa_2d = Viewport.MSAA_DISABLED   # set_msaa(): only content with Graphics fills needs it
 	vp.size = Vector2i(2, 2)
 	return vp
+
+
+## Whether a canvas item is drawn at all: visible up to the root (across render targets) and not fully
+## transparent. Hidden or transparent render targets stop updating (they would redraw every frame for nothing).
+static func shown(n: Node) -> bool:
+	var a := 1.0
+	while n != null:
+		if n is CanvasItem:
+			var ci: CanvasItem = n
+			if not ci.visible:
+				return false
+			a *= ci.modulate.a * ci.self_modulate.a
+			if a < 0.004:
+				return false
+		n = n.get_parent()
+	return true
+
+
+## MSAA for a render target only while its content has Graphics fills (strands, drawn shapes): the art is
+## textures, already antialiased. Checked every MSAA_CHECK_TICKS ticks (cheap enough, a strand appears late at most
+## that much).
+const MSAA_CHECK_TICKS := 15
+
+
+static func needs_msaa(n: Node) -> bool:
+	if n is FlashSprite:
+		var sp: FlashSprite = n
+		if sp._graphics != null and sp._graphics.has_content():
+			return true
+	for c in n.get_children():
+		if c is CanvasItem and c.visible and needs_msaa(c):
+			return true
+	return false
+
+
+static func set_msaa(vp: SubViewport, on: bool) -> void:
+	var m: Viewport.MSAA = ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_2d", 0) if on else Viewport.MSAA_DISABLED
+	if vp.msaa_2d != m:
+		vp.msaa_2d = m
 
 
 ## Creates the node that clips a container's content to mask_obj (timeline clipDepth mask).
@@ -99,13 +138,17 @@ func _space_object() -> FlashDisplayObject:
 func refresh() -> void:
 	if _mask_obj == null or not is_instance_valid(_mask_obj) or not is_inside_tree():
 		return
-	var on := is_visible_in_tree()
+	var on := FlashProxy.shown(self)
 	var mode := SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
 	if _vp.render_target_update_mode != mode:
 		_vp.render_target_update_mode = mode
 		_mask_vp.render_target_update_mode = mode
 	if not on:
 		return
+	if (Flash.tick_count + get_instance_id()) % MSAA_CHECK_TICKS == 0:
+		var aa := FlashProxy.needs_msaa(_vp) or FlashProxy.needs_msaa(_mask_obj)
+		FlashProxy.set_msaa(_vp, aa)
+		FlashProxy.set_msaa(_mask_vp, aa)
 	var cont := _space_object()
 	var b: Rect2 = _mask_obj.getBounds(cont) if cont != null else _mask_obj.getBounds(null)
 	if b.size.x <= 0.0 or b.size.y <= 0.0:
@@ -113,19 +156,20 @@ func refresh() -> void:
 		queue_redraw()
 		return
 	var screen := get_viewport().get_final_transform() * get_global_transform_with_canvas()
-	var s := maxf(maxf(screen.x.length(), screen.y.length()), 0.01)
-	b = b.grow(1.0 / s)
-	var want := Vector2(ceilf(b.size.x * s), ceilf(b.size.y * s))
+	# screen pixels per unit along each axis (a uniform max of the two made stretched masks far too big)
+	var sc := Vector2(maxf(screen.x.length(), 0.01), maxf(screen.y.length(), 0.01))
+	b = b.grow_individual(1.0 / sc.x, 1.0 / sc.y, 1.0 / sc.x, 1.0 / sc.y)
+	var want := (b.size * sc).ceil()
 	if want.x > MAX_SIZE or want.y > MAX_SIZE:
-		s *= minf(MAX_SIZE / want.x, MAX_SIZE / want.y)
-		want = Vector2(ceilf(b.size.x * s), ceilf(b.size.y * s))
+		sc *= minf(MAX_SIZE / want.x, MAX_SIZE / want.y)
+		want = (b.size * sc).ceil()
 	var cur := Vector2(_vp.size)
 	if want.x > cur.x or want.y > cur.y or want.x < cur.x * 0.5 or want.y < cur.y * 0.5:
 		var sz := Vector2i(mini(int(want.x * 1.15) + 2, MAX_SIZE), mini(int(want.y * 1.15) + 2, MAX_SIZE))
 		_vp.size = sz
 		_mask_vp.size = sz
-	_rect = Rect2(b.position, Vector2(_vp.size) / s)
-	var ct := Transform2D(0.0, Vector2(s, s), 0.0, -b.position * s)
+	_rect = Rect2(b.position, Vector2(_vp.size) / sc)
+	var ct := Transform2D(0.0, sc, 0.0, -b.position * sc)
 	_vp.canvas_transform = ct
 	_mask_vp.canvas_transform = ct
 	_drawer.queue_redraw()
@@ -172,6 +216,35 @@ static func draw_mask_object(d: CanvasItem, o: FlashDisplayObject, inv: Transfor
 		if b.bitmapData != null:
 			d.draw_set_transform_matrix(inv * b.flash_global_transform())
 			d.draw_texture(b.bitmapData.get_texture(), Vector2.ZERO)
+
+
+# ---------------------------------------------------------------- backdrop copies
+
+## BackBufferCopy -> the object it is for. A copy is a sibling in front of the object, so hiding the object did not
+## hide it: hidden objects' copies (her tan lines when no tan is shown) still copied the whole screen every frame.
+static var _backdrops: Dictionary = {}
+
+
+## Called by the runtime every tick: each copy shows with its object and copies only the object's area.
+static func update_backdrops() -> void:
+	for bbc in _backdrops.keys():
+		var obj = _backdrops[bbc]
+		if not is_instance_valid(bbc) or not is_instance_valid(obj):
+			_backdrops.erase(bbc)
+			continue
+		var outer: Node = obj._tree_node()
+		var on: bool = bbc.get_parent() != null and outer.get_parent() == bbc.get_parent() and FlashProxy.shown(outer)
+		if bbc.visible != on:
+			bbc.visible = on
+		if not on:
+			continue
+		# the object's area in the copy's space (they are siblings); a wrapper that moves it (a mask) copies all
+		var b: Rect2 = obj._local_bounds() if (outer == obj or outer is FlashGroupProxy) else Rect2()
+		if b.size.x > 0.0 and b.size.y > 0.0:
+			bbc.copy_mode = BackBufferCopy.COPY_MODE_RECT
+			bbc.rect = ((outer as Node2D).transform * b).grow(4.0)
+		elif bbc.copy_mode != BackBufferCopy.COPY_MODE_VIEWPORT:
+			bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
 
 
 # ---------------------------------------------------------------- tree reconciliation
@@ -290,6 +363,7 @@ static func update_for(obj: FlashDisplayObject) -> void:
 			bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
 			old_bbc = bbc
 		outer.set_meta("bbc", old_bbc)
+		_backdrops[old_bbc] = obj
 	elif old_bbc != null:
 		if old_bbc.get_parent() != null:
 			old_bbc.get_parent().remove_child(old_bbc)
