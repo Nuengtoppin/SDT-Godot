@@ -308,7 +308,14 @@ func _init() -> void:
 	updateKneeTarget()
 	torsoIK.rescale(bodyScale)
 	leftLegStartPoint = Vector2(leftLegContainer.leg.x, leftLegContainer.leg.y)
-	tears.addLowerEyelidMascaraLayer(eye.lowerEyelid.mascaraContainer)
+	# port fix: the lower eyelid's mascara drawn under the eyeball (in Flash it is in eye.lowerEyelid.mascaraContainer,
+	# over the eyeball): the game clears what would show on the eyeball as her eye opens, but moremoods redraws it
+	# for a raised lower eyelid, and part of it then lay on the white of her eye. Same place, just below the ball.
+	var lowerMascara := FlashSprite.new()
+	lowerMascara.flash_name = "lowerEyelidMascara"
+	lowerMascara.transform = eye.lowerEyelid.transform * eye.lowerEyelid.mascaraContainer.transform
+	eye.addChildAt(lowerMascara, 0)
+	tears.addLowerEyelidMascaraLayer(lowerMascara)
 	g.hairUnderLayer = hairMidContainer.hairUnderLayer
 	g.hairBetweenLayer = hairBetweenLayer
 	g.hairUnder = hairMidContainer.hairUnder

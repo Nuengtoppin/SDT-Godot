@@ -26,7 +26,7 @@ func _enable() -> void:
 	hook_after(&"Her.passOut", func(_c):
 		if get_setting("mode") != MODES[0]:
 			g.soundControl.stopHolding())
-	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "mode"))
+	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "mode", {"wide": true}))
 	_check()
 
 

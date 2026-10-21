@@ -86,6 +86,8 @@ func _section_checks() -> void:
 		menu.show_section(s["id"])
 		menu.build_now()
 		_check("section %s builds" % s["id"], menu._rows.size() > 0, str(menu._rows.size()))
+		var w: float = menu._dock.get_combined_minimum_size().x
+		_check("section %s fits the dock" % s["id"], w <= SDTMenu.WIDTH + 0.5, "needs %.0f of %d px" % [w, SDTMenu.WIDTH])
 	menu.query = "spit"
 	menu._show()
 	menu.build_now()

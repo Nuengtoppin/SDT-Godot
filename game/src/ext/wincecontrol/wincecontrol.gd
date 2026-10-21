@@ -24,7 +24,7 @@ func _enable() -> void:
 	hook_before(&"Her.wince", func(c):
 		if not _allowed():
 			c.cancel())
-	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "mode"))
+	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "mode", {"wide": true}))
 
 
 func _allowed() -> bool:
