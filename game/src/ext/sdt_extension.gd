@@ -162,7 +162,8 @@ func menu_label(menu: String, x: float, y: float, w: float, text: String, size :
 
 ## Adds a control to the new in-game menu (SDTMenu): `spec` is a control spec (MenuWidgets: type, label, tip, get /
 ## set, ...), shown in `section` ("her", "behaviour", "effects", ...) under `group` (one of the section's groups, such
-## as "Face", or a new group). Tagged with the extension's name; removed when the extension is disabled.
+## as "Face", or a new group), at the group's end or, with "after": "<label>", after that row. Tagged with the
+## extension's name; removed when the extension is disabled.
 func menu_control(section: String, group: String, spec: Dictionary) -> void:
 	var s := spec.duplicate()
 	s["owner"] = id

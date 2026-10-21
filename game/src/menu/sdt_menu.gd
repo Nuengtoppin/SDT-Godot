@@ -431,7 +431,20 @@ func _groups_of(s: Dictionary) -> Array:
 		if target["owner"] != "" and target["owner"] == spec.get("owner", ""):
 			spec = spec.duplicate()
 			spec["tagless"] = true
-		target["controls"].append(spec)
+		# "after": the label of the row to follow (after the rows already placed there); the group's end otherwise
+		var at := -1
+		var after: String = spec.get("after", "")
+		if after != "":
+			for i in target["controls"].size():
+				var c: Dictionary = target["controls"][i]
+				if c.get("label") == after:
+					at = i + 1
+				elif at == i and c.get("after", "") == after:
+					at = i + 1
+		if at >= 0:
+			target["controls"].insert(at, spec)
+		else:
+			target["controls"].append(spec)
 	return out
 
 

@@ -38,7 +38,7 @@ func _enable() -> void:
 	var worn := func(): return g.characterControl.headwearControl.inUse()
 	var row := func(label: String, tip: String, lo: float, hi: float, step: float, get_fn: Callable, set_fn: Callable):
 		menu_control("clothes", "Head and neck", {"type": "slider", "label": label, "tip": tip, "min": lo, "max": hi,
-			"step": step, "get": get_fn, "visible": worn, "release": func(): g.saveData.saveCharData(),
+			"step": step, "get": get_fn, "visible": worn, "after": "Headwear colours", "release": func(): g.saveData.saveCharData(),
 			"set": func(v: float): _touch(); set_fn.call(v); apply(),
 			"format": func(v): return str(int(v)) if step >= 1 else str(snappedf(v, 0.01))})
 	row.call("Headwear height", "Up (−) or down (+) from where it sits.", -300, 300, 1,
@@ -48,7 +48,7 @@ func _enable() -> void:
 	row.call("Headwear width", "", 0.1, 3, 0.01, func(): return scale_x, func(v): scale_x = snappedf(v, 0.01))
 	row.call("Headwear height scale", "", 0.1, 3, 0.01, func(): return scale_y, func(v): scale_y = snappedf(v, 0.01))
 	menu_control("clothes", "Head and neck", MenuSchema.actions("", "", [["Reset headwear placement", func():
-		reset(); g.saveData.saveCharData(), "Back on the hair the game's way."]], {"visible": worn}))
+		reset(); g.saveData.saveCharData(), "Back on the hair the game's way."]], {"visible": worn, "after": "Headwear colours"}))
 
 
 func _disable() -> void:
