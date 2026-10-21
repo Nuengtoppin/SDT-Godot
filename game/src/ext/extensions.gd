@@ -28,6 +28,9 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/allalphasliders/allalphasliders.gd",
 	"res://src/ext/removedefaultrgb/removedefaultrgb.gd",
 	"res://src/ext/headwearland/headwearland.gd",
+	"res://src/ext/counters/counters.gd",
+	"res://src/ext/coughhotkey/coughhotkey.gd",
+	"res://src/ext/clearallshortcut/clearallshortcut.gd",
 	"res://src/ext/extramod/extramod.gd",
 	"res://src/ext/extramodhim/extramodhim.gd",
 ]
