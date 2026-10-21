@@ -1021,6 +1021,12 @@ func waitToSetHeadwearPosition(_n = null) -> void:
 
 ## Drops the headwear onto the hair: steps it down until its landing point first touches hair (binary search).
 func tryToLandHeadwear() -> void:
+	_landHeadwear()
+	if Hooks.has(&"CharacterControl.tryToLandHeadwear"):   # HOOK
+		Hooks.after(&"CharacterControl.tryToLandHeadwear", self, [])
+
+
+func _landHeadwear() -> void:
 	var over = g.hairCostumeOver.headwear
 	over.y = 0
 	g.hairCostumeBack.headwear.y = 0
