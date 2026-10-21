@@ -119,7 +119,7 @@ func _value(cid: String):
 		"vigour":
 			return _num(minf(100, _round(her.vigour / 1050.0 * 100))) + "%"
 		"cum_in_mouth":
-			return _num(_round(her.cumInMouth / her.maxCumInMouth * 100)) + "%"
+			return _num(_round(float(her.cumInMouth) / her.maxCumInMouth * 100)) + "%"
 		"finishes":
 			return str(g.totalFinishes)
 		"her_pleasure":
