@@ -23,6 +23,8 @@ var bulgeVec: Vector2
 var throatBulgeAmount: float = 1.0
 var _tanLayer: FlashSprite
 var tanAlpha: float = 1.0
+## Port: how far the swallow bulge pushes the neck out (x) and down (y); the throatcumbulge extension changes it.
+var swallowScale := Vector2(0.8, 0.5)
 
 
 func _init() -> void:
@@ -106,7 +108,7 @@ func render(depth: float) -> void:
 		if swallowing:
 			var sw := swallowSize * maxf(0.0, 2.0 / (2.0 + pow(8.0 * (f - swallowProgress), 2.0)) - 0.2)
 			sw *= minf(1.0, minf((swallowProgress - swallowStart) * 5.0, 2.0 - swallowProgress * 2.0))
-			pts[i] = pts[i] + Vector2(sw * 0.8, sw * 0.5)
+			pts[i] = pts[i] + sw * swallowScale
 	if swallowing:
 		swallowProgress += 0.05
 		if swallowProgress > 1:
