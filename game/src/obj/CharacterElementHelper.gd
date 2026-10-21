@@ -21,6 +21,11 @@ var rgbButton = null
 var rgbButton2 = null
 var rgb1 = {"r": 0, "g": 0, "b": 0, "a": 1}
 var rgb2 = {"r": 0, "g": 0, "b": 0, "a": 1}
+## Port: every colour picker shows its alpha (the allalphasliders extension sets this).
+static var all_alpha := false
+## Port: the second colour is for mods only (the game's items have no rgbFill2 parts): the new menu shows it only
+## while a mod is worn in this slot.
+var rgbFill2ForMods := false
 var components: Array = []
 var associatedModType := ""
 var listeners: Array = []
@@ -255,14 +260,14 @@ func registerRGBButton(button, swatch: Array, xPos: float, showAlpha: bool = tru
 	rgbButton = button
 	haveRGBFill = true
 	rgbButton.addEventListener(FlashEvent.CLICK, func(_e = null) -> void:
-		g.inGameMenu.openRGBPicker(xPos, -157, swatch, rgb1, setFill, showAlpha, "rgbFill"))
+		g.inGameMenu.openRGBPicker(xPos, -157, swatch, rgb1, setFill, showAlpha or all_alpha, "rgbFill"))
 
 
 func registerSecondaryRGBButton(button, swatch: Array, xPos: float, showAlpha: bool = true) -> void:
 	rgbButton2 = button
 	haveRGBFill2 = true
 	rgbButton2.addEventListener(FlashEvent.CLICK, func(_e = null) -> void:
-		g.inGameMenu.openRGBPicker(xPos, -157, swatch, rgb2, setFill, showAlpha, "rgbFill2"))
+		g.inGameMenu.openRGBPicker(xPos, -157, swatch, rgb2, setFill, showAlpha or all_alpha, "rgbFill2"))
 
 
 func select(i: int) -> void:

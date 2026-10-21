@@ -706,6 +706,8 @@ func breastCostumeChanged(_n: String = "") -> void:
 	torso.nipplePiercing.visible = not braOn
 	torso.leftNipplePiercing.visible = not braOn
 	updateBreastFirmness()
+	if Hooks.has(&"Her.breastCostumeChanged"):   # HOOK
+		Hooks.after(&"Her.breastCostumeChanged", self, [])
 
 
 func startIntro() -> void:

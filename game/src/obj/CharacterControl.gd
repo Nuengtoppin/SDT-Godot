@@ -869,9 +869,12 @@ func setTopFill(c, n: String = "rgbFill") -> void:
 	var h: Her = g.her
 	var ct := _ct(c)
 	var opaque := FlashColorTransform.new(1, 1, 1, 1, c.r, c.g, c.b)
-	var cmf := FlashFilter.colorMatrix([1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, c.a, 0])
-	h.torso.topContainer.filters = [cmf]
-	h.torsoBackCostume.breastCostume.top.filters = [cmf]
+	# port fix: the see-through alpha (on the containers) and the outline belong to the top's main colour; a second
+	# colour (rgbFill2, mods) only colours its own parts
+	if n == "rgbFill":
+		var cmf := FlashFilter.colorMatrix([1, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, c.a, 0])
+		h.torso.topContainer.filters = [cmf]
+		h.torsoBackCostume.breastCostume.top.filters = [cmf]
 	tryToSetFill(h.torso.topContainer.breastTop, n, opaque)
 	tryToSetFill(h.torso.topContainer.chestTop, n, opaque)
 	tryToSetFill(h.torso.topContainer.backTop, n, opaque)
@@ -880,9 +883,10 @@ func setTopFill(c, n: String = "rgbFill") -> void:
 	tryToSetFill(h.torsoUnderCostume.top, n, ct)
 	tryToSetFill(h.rightArmContainer.upperArmCostume.top, n, ct)
 	tryToSetFill(h.leftArmContainer.upperArmCostume.top, n, ct)
-	var outline := FlashColorTransform.new(1, 1, 1, 1, c.r * 0.5, c.g * 0.5, c.b * 0.5)
-	tryToSetFill(h.torso.topContainer.breastTop, "outline", outline)
-	tryToSetFill(h.torsoBackCostume.breastCostume.top, "outline", outline)
+	if n == "rgbFill":
+		var outline := FlashColorTransform.new(1, 1, 1, 1, c.r * 0.5, c.g * 0.5, c.b * 0.5)
+		tryToSetFill(h.torso.topContainer.breastTop, "outline", outline)
+		tryToSetFill(h.torsoBackCostume.breastCostume.top, "outline", outline)
 	if Hooks.has(&"CharacterControl.setTopFill"):   # HOOK
 		Hooks.after(&"CharacterControl.setTopFill", self, [c, n])
 
