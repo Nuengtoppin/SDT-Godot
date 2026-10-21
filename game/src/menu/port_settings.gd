@@ -55,8 +55,8 @@ const MSAA_LEVELS := {"Off": Viewport.MSAA_DISABLED, "2x": Viewport.MSAA_2X, "4x
 
 
 static func msaa() -> String:
-	var v := str(get_value("graphics", "msaa", "4x"))
-	return v if MSAA_LEVELS.has(v) else "4x"
+	var v := str(get_value("graphics", "msaa", "2x"))
+	return v if MSAA_LEVELS.has(v) else "2x"
 
 
 static func set_msaa(v: String) -> void:

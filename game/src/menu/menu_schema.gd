@@ -434,15 +434,7 @@ static func _settings() -> Dictionary:
 					SDTMenu.instance.apply_mode()),
 		]},
 		{"title": "Graphics", "controls": [
-			choice("Quality", "", ["Low", "Medium", "High"],
-				func(): return "Low" if om.call().cbLowQuality.on else ("Medium" if om.call().cbMedQuality.on else "High"),
-				func(v: String):
-					if v == "Low":
-						_m().cbLowQualityClicked()
-					elif v == "Medium":
-						_m().cbMedQualityClicked()
-					else:
-						_m().cbHighQualityClicked()),
+			# (the classic menu's Quality is not here: it set Flash's vector quality, which the port does not use)
 			choice("FPS limit", "Frame rate limit. Off: as many frames as the computer can draw. Monitor: your screen's refresh rate. A limit keeps the graphics card from drawing frames the screen cannot show.",
 				PortSettings.FPS_LIMITS, func(): return PortSettings.fps_limit(), func(v: String): PortSettings.set_fps_limit(v)),
 			choice("MSAA", "Edge smoothing of strands, drawn shapes and the edges of turned body parts. Off is fastest on weak graphics cards.",

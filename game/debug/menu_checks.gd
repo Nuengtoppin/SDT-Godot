@@ -157,10 +157,10 @@ func _control_checks() -> void:
 	_check("mood: Happy", Moods.current() == "Happy" and g.inGameMenu.sceneMenu.cbMoodHappy.on)
 	mood["set"].call("Normal")
 
-	var quality := _spec("settings", "Quality")
-	quality["set"].call("Low")
-	_check("choice: quality low", g.inGameMenu.optionsMenu.cbLowQuality.on and quality["get"].call() == "Low")
-	quality["set"].call("High")
+	var msaa := _spec("settings", "MSAA")
+	msaa["set"].call("Off")
+	_check("choice: MSAA off", Flash.get_tree().root.msaa_2d == Viewport.MSAA_DISABLED and msaa["get"].call() == "Off")
+	msaa["set"].call("2x")
 
 	var bg := _spec("scene", "Background")
 	bg["pick"].call(0)
