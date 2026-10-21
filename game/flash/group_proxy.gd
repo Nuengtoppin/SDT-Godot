@@ -28,7 +28,7 @@ func _init() -> void:
 	_vp.disable_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	_vp.msaa_2d = Viewport.MSAA_DISABLED   # FlashProxy.set_msaa(): only content with Graphics fills needs it
+	_vp.msaa_2d = FlashProxy.msaa_level   # the game's MSAA setting (FlashProxy.msaa_level)
 	_vp.size = Vector2i(2, 2)
 	add_child(_vp)
 	_mat.shader = DISPLAY_SHADER
@@ -126,8 +126,6 @@ func update_layout() -> void:
 		_vp.render_target_update_mode = mode
 	if not on:
 		return
-	if (Flash.tick_count + get_instance_id()) % FlashProxy.MSAA_CHECK_TICKS == 0:
-		refresh_msaa()
 	var b := _obj._local_bounds()
 	if b.size.x <= 0.0 or b.size.y <= 0.0:
 		_rect = Rect2()
@@ -175,9 +173,9 @@ func update_layout() -> void:
 	queue_redraw()
 
 
-## MSAA on the target while its content has Graphics fills.
+## The target at the current MSAA level (after the setting changed).
 func refresh_msaa() -> void:
-	FlashProxy.set_msaa(_vp, FlashProxy.needs_msaa(_vp))
+	FlashProxy.set_msaa(_vp)
 
 
 func _draw() -> void:

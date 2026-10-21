@@ -445,7 +445,7 @@ static func _settings() -> Dictionary:
 						_m().cbHighQualityClicked()),
 			choice("FPS limit", "Frame rate limit. Off: as many frames as the computer can draw. Monitor: your screen's refresh rate. A limit keeps the graphics card from drawing frames the screen cannot show.",
 				PortSettings.FPS_LIMITS, func(): return PortSettings.fps_limit(), func(v: String): PortSettings.set_fps_limit(v)),
-			choice("MSAA", "Edge smoothing of strands and drawn shapes (the art is already smooth). Off is fastest on weak graphics cards.",
+			choice("MSAA", "Edge smoothing of strands, drawn shapes and the edges of turned body parts. Off is fastest on weak graphics cards.",
 				PortSettings.MSAA_LEVELS.keys(), func(): return PortSettings.msaa(), func(v: String): PortSettings.set_msaa(v)),
 			check("Strand shading", "", func(): return om.call().cbStrandShaders, _m().cbStrandShadersClicked),
 			check("Show the mouse pointer", "", func(): return om.call().cbShowMouse, _m().cbShowMouseClicked),

@@ -58,7 +58,7 @@ static func _make_viewport() -> SubViewport:
 	vp.disable_3d = true
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	vp.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	vp.msaa_2d = Viewport.MSAA_DISABLED   # set_msaa(): only content with Graphics fills needs it
+	vp.msaa_2d = msaa_level
 	vp.size = Vector2i(2, 2)
 	return vp
 
@@ -79,32 +79,15 @@ static func shown(n: Node) -> bool:
 	return true
 
 
-## MSAA for a render target only while its content has Graphics fills (strands, drawn shapes): the art is
-## textures, already antialiased. Checked every MSAA_CHECK_TICKS ticks (cheap enough, a strand appears late at most
-## that much).
-const MSAA_CHECK_TICKS := 15
-
-
-static func needs_msaa(n: Node) -> bool:
-	if n is FlashSprite:
-		var sp: FlashSprite = n
-		if sp._graphics != null and sp._graphics.has_content():
-			return true
-	for c in n.get_children():
-		if c is CanvasItem and c.visible and needs_msaa(c):
-			return true
-	return false
-
-
-## The MSAA level for content that needs it (the main viewport and render targets with Graphics fills); the game's
-## MSAA setting changes it (PortSettings.apply_msaa).
+## The MSAA level of the screen and of every render target; the game's MSAA setting changes it
+## (PortSettings.apply_msaa). Render targets need it as much as the screen: a rotated shape whose image is cut off at
+## its border shows that border as a hard polygon edge (the end of her collar, eyeliner), which only MSAA smooths.
 static var msaa_level: Viewport.MSAA = ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_2d", 0)
 
 
-static func set_msaa(vp: SubViewport, on: bool) -> void:
-	var m: Viewport.MSAA = msaa_level if on else Viewport.MSAA_DISABLED
-	if vp.msaa_2d != m:
-		vp.msaa_2d = m
+static func set_msaa(vp: SubViewport) -> void:
+	if vp.msaa_2d != msaa_level:
+		vp.msaa_2d = msaa_level
 
 
 ## Creates the node that clips a container's content to mask_obj (timeline clipDepth mask).
@@ -150,8 +133,6 @@ func refresh() -> void:
 		_mask_vp.render_target_update_mode = mode
 	if not on:
 		return
-	if (Flash.tick_count + get_instance_id()) % MSAA_CHECK_TICKS == 0:
-		refresh_msaa()
 	var cont := _space_object()
 	var b: Rect2 = _mask_obj.getBounds(cont) if cont != null else _mask_obj.getBounds(null)
 	if b.size.x <= 0.0 or b.size.y <= 0.0:
@@ -179,13 +160,10 @@ func refresh() -> void:
 	queue_redraw()
 
 
-## MSAA on both targets while the content or the mask has Graphics fills.
+## Both targets at the current MSAA level (after the setting changed).
 func refresh_msaa() -> void:
-	if _mask_obj == null or not is_instance_valid(_mask_obj):
-		return
-	var aa := FlashProxy.needs_msaa(_vp) or FlashProxy.needs_msaa(_mask_obj)
-	FlashProxy.set_msaa(_vp, aa)
-	FlashProxy.set_msaa(_mask_vp, aa)
+	FlashProxy.set_msaa(_vp)
+	FlashProxy.set_msaa(_mask_vp)
 
 
 func _draw() -> void:

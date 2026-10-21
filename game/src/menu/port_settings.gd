@@ -49,8 +49,8 @@ static func apply_fps_limit() -> void:
 	Engine.max_fps = fps
 
 
-## MSAA (Settings > Graphics): edge smoothing of vector shapes (strands, drawn shapes); the art itself is already
-## smoothed images. Applies to the screen and to render targets holding such shapes (FlashProxy.set_msaa).
+## MSAA (Settings > Graphics): edge smoothing of strands, drawn shapes and the edges of rotated images, on the screen
+## and in every render target (FlashProxy.msaa_level).
 const MSAA_LEVELS := {"Off": Viewport.MSAA_DISABLED, "2x": Viewport.MSAA_2X, "4x": Viewport.MSAA_4X, "8x": Viewport.MSAA_8X}
 
 
@@ -70,7 +70,7 @@ static func apply_msaa() -> void:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
 		tree.root.msaa_2d = m
-	# render targets holding vector shapes switch at once
+	# the render targets switch at once
 	for p in Flash._mask_proxies.keys() + Flash._groups.keys():
 		if is_instance_valid(p) and p.has_method("refresh_msaa"):
 			p.refresh_msaa()
