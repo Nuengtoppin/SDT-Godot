@@ -26,6 +26,8 @@ static var all_alpha := false
 ## Port: the second colour is for mods only (the game's items have no rgbFill2 parts): the new menu shows it only
 ## while a mod is worn in this slot.
 var rgbFill2ForMods := false
+## Port: the items' own colours are ignored, the picked ones stay (the removedefaultrgb extension sets this).
+var ignoreDefaultRGB := false
 var components: Array = []
 var associatedModType := ""
 var listeners: Array = []
@@ -185,10 +187,14 @@ func loadDataString(s: String) -> void:
 
 
 func getDefaultRGB():
+	if ignoreDefaultRGB:
+		return null
 	return defaultRGB.get(g.dataName(elementNameList[selection]))
 
 
 func getDefaultRGB2():
+	if ignoreDefaultRGB:
+		return null
 	return defaultRGB2.get(g.dataName(elementNameList[selection]))
 
 

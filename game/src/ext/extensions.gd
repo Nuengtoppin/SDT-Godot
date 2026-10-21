@@ -26,6 +26,7 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/loaderarm/loaderarm.gd",
 	"res://src/ext/cumrgb/cumrgb.gd",
 	"res://src/ext/allalphasliders/allalphasliders.gd",
+	"res://src/ext/removedefaultrgb/removedefaultrgb.gd",
 	"res://src/ext/extramod/extramod.gd",
 	"res://src/ext/extramodhim/extramodhim.gd",
 ]
