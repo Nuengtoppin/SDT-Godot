@@ -42,6 +42,10 @@ static var _controls_version := 0
 var _nav_buttons: Dictionary = {}
 var _tab_t := 0.0             # 0 hidden .. 1 shown
 var _frame := 0
+## Open menu: every row re-reads its value this often (by time: a frame count re-read every option ~150 times a
+## second at high frame rates)
+const REFRESH_SECONDS := 0.1
+var _refresh_t := 0.0
 var _paused_by_menu := false
 var classic_button   # the classic menu's "New menu" button
 
@@ -627,7 +631,9 @@ func _process(delta: float) -> void:
 	_frame += 1
 	if is_open:
 		_pump_frame()
-		if _frame % 6 == 0:
+		_refresh_t += delta
+		if _refresh_t >= REFRESH_SECONDS:
+			_refresh_t = 0.0
 			_refresh_rows()
 		_tab_t = 0.0
 		_tab.visible = false
