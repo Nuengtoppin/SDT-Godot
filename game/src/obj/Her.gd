@@ -740,6 +740,8 @@ func setIntroResistance(v: float) -> void:
 func setThroatResistance(v: float) -> void:
 	resistance["boundary"] = maxf(0.0, minf(100.0, v)) * 0.002
 	g.throatResistance = v
+	if Hooks.has(&"Her.setThroatResistance"):   # HOOK
+		Hooks.after(&"Her.setThroatResistance", self, [v])
 
 
 func setFreckleAmount(v: float) -> void:
