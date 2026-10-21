@@ -211,6 +211,7 @@ func initGame() -> void:
 	characterControl.registerComponents()
 	g.modCatalog = ModCatalog.new()
 	g.modCatalog.start()
+	PortSettings.apply_fps_limit()   # port: Settings > Graphics > FPS limit
 	g.dialogueEditor = DialogueEditor.new()
 	g.container.addChild(g.dialogueEditor)
 	addEventListener(FlashEvent.ENTER_FRAME, tick)

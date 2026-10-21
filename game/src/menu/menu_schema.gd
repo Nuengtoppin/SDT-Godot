@@ -443,6 +443,8 @@ static func _settings() -> Dictionary:
 						_m().cbMedQualityClicked()
 					else:
 						_m().cbHighQualityClicked()),
+			choice("FPS limit", "Frame rate limit. Off: as many frames as the computer can draw. Monitor: your screen's refresh rate. A limit keeps the graphics card from drawing frames the screen cannot show.",
+				PortSettings.FPS_LIMITS, func(): return PortSettings.fps_limit(), func(v: String): PortSettings.set_fps_limit(v)),
 			check("Strand shading", "", func(): return om.call().cbStrandShaders, _m().cbStrandShadersClicked),
 			check("Show the mouse pointer", "", func(): return om.call().cbShowMouse, _m().cbShowMouseClicked),
 			check("Double-size screenshots", "Screenshots (/) at twice the size.", func(): return om.call().cbDoubleSizeScreenshot,
