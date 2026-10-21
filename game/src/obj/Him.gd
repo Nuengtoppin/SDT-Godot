@@ -445,6 +445,10 @@ func closeHand() -> void:
 
 
 func openHand() -> void:
+	if Hooks.has(&"Him.openHand"):   # HOOK
+		var h := Hooks.before(&"Him.openHand", self, [])
+		if h.cancelled:
+			return
 	if not handOpen:
 		armContainer.arm.hand.gotoAndPlay("released" + g.himSkinType)
 		handOpen = true

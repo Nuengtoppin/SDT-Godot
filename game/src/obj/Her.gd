@@ -767,6 +767,10 @@ func isActingOff() -> bool:
 
 
 func isReleased() -> bool:
+	if Hooks.has(&"Her.isReleased"):   # HOOK
+		var h := Hooks.before(&"Her.isReleased", self, [])
+		if h.cancelled:
+			return h.result
 	return pullingOff or released
 
 
