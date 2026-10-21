@@ -172,6 +172,11 @@ func startBreathing(fromInBreath: bool = false) -> bool:
 
 
 func playStartBreath(fromInBreath: bool = false) -> void:
+	if Hooks.has(&"SoundControl.playStartBreath"):   # HOOK
+		var h := Hooks.before(&"SoundControl.playStartBreath", self, [fromInBreath])
+		if h.cancelled:
+			return
+		fromInBreath = h.args[0]
 	if g.breathLevel > g.outOfBreathPoint and not g.her.passedOut:
 		newSuddenBreath()
 	elif startOnInBreath or fromInBreath:

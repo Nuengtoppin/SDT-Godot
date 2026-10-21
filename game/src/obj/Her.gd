@@ -1102,6 +1102,10 @@ func startArmsPassOut(left: bool = true, right: bool = true) -> void:
 
 
 func wakeUp() -> void:
+	if Hooks.has(&"Her.wakeUp"):   # HOOK
+		var h := Hooks.before(&"Her.wakeUp", self, [])
+		if h.cancelled:
+			return
 	shock(85)
 	eyeMotion["ang"] = 20.0
 	g.dialogueControl.clearStates()
