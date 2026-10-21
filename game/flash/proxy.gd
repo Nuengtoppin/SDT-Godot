@@ -96,8 +96,13 @@ static func needs_msaa(n: Node) -> bool:
 	return false
 
 
+## The MSAA level for content that needs it (the main viewport and render targets with Graphics fills); the game's
+## MSAA setting changes it (PortSettings.apply_msaa).
+static var msaa_level: Viewport.MSAA = ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_2d", 0)
+
+
 static func set_msaa(vp: SubViewport, on: bool) -> void:
-	var m: Viewport.MSAA = ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_2d", 0) if on else Viewport.MSAA_DISABLED
+	var m: Viewport.MSAA = msaa_level if on else Viewport.MSAA_DISABLED
 	if vp.msaa_2d != m:
 		vp.msaa_2d = m
 
@@ -146,9 +151,7 @@ func refresh() -> void:
 	if not on:
 		return
 	if (Flash.tick_count + get_instance_id()) % MSAA_CHECK_TICKS == 0:
-		var aa := FlashProxy.needs_msaa(_vp) or FlashProxy.needs_msaa(_mask_obj)
-		FlashProxy.set_msaa(_vp, aa)
-		FlashProxy.set_msaa(_mask_vp, aa)
+		refresh_msaa()
 	var cont := _space_object()
 	var b: Rect2 = _mask_obj.getBounds(cont) if cont != null else _mask_obj.getBounds(null)
 	if b.size.x <= 0.0 or b.size.y <= 0.0:
@@ -174,6 +177,15 @@ func refresh() -> void:
 	_mask_vp.canvas_transform = ct
 	_drawer.queue_redraw()
 	queue_redraw()
+
+
+## MSAA on both targets while the content or the mask has Graphics fills.
+func refresh_msaa() -> void:
+	if _mask_obj == null or not is_instance_valid(_mask_obj):
+		return
+	var aa := FlashProxy.needs_msaa(_vp) or FlashProxy.needs_msaa(_mask_obj)
+	FlashProxy.set_msaa(_vp, aa)
+	FlashProxy.set_msaa(_mask_vp, aa)
 
 
 func _draw() -> void:

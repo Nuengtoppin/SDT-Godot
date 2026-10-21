@@ -127,7 +127,7 @@ func update_layout() -> void:
 	if not on:
 		return
 	if (Flash.tick_count + get_instance_id()) % FlashProxy.MSAA_CHECK_TICKS == 0:
-		FlashProxy.set_msaa(_vp, FlashProxy.needs_msaa(_vp))
+		refresh_msaa()
 	var b := _obj._local_bounds()
 	if b.size.x <= 0.0 or b.size.y <= 0.0:
 		_rect = Rect2()
@@ -173,6 +173,11 @@ func update_layout() -> void:
 	# Inside the viewport the object is drawn with its own transform; cancel it and map obj-local -> pixels.
 	_vp.canvas_transform = Transform2D(0.0, sc, 0.0, -b.position * sc) * _obj.transform.affine_inverse()
 	queue_redraw()
+
+
+## MSAA on the target while its content has Graphics fills.
+func refresh_msaa() -> void:
+	FlashProxy.set_msaa(_vp, FlashProxy.needs_msaa(_vp))
 
 
 func _draw() -> void:

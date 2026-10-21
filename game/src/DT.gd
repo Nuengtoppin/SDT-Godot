@@ -213,7 +213,8 @@ func initGame() -> void:
 	characterControl.registerComponents()
 	g.modCatalog = ModCatalog.new()
 	g.modCatalog.start()
-	PortSettings.apply_fps_limit()   # port: Settings > Graphics > FPS limit
+	PortSettings.apply_fps_limit()   # port: Settings > Graphics > FPS limit, MSAA
+	PortSettings.apply_msaa()
 	g.dialogueEditor = DialogueEditor.new()
 	g.container.addChild(g.dialogueEditor)
 	addEventListener(FlashEvent.ENTER_FRAME, tick)
