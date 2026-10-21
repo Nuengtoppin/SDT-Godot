@@ -34,6 +34,7 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/throatsoundcontrol/throatsoundcontrol.gd",
 	"res://src/ext/wincecontrol/wincecontrol.gd",
 	"res://src/ext/himnotletgo/himnotletgo.gd",
+	"res://src/ext/menualphatoggle/menualphatoggle.gd",
 	"res://src/ext/extramod/extramod.gd",
 	"res://src/ext/extramodhim/extramodhim.gd",
 ]

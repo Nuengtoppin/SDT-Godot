@@ -160,10 +160,10 @@ func inUse() -> bool:
 	return beingUsed() or modEntryIndex >= 0
 
 
+## Port (the Loader mod nooptionalcharcodes, built in): written even when the slot is empty (the game left these
+## fields out then), so loading the code onto another character empties the slot instead of keeping hers.
 func getOptionalDataString(key: String) -> String:
-	if inUse():   # port fix: a mod's colours are saved too
-		return ";" + key + ":" + getDataString()
-	return ""
+	return ";" + key + ":" + getDataString()
 
 
 static func _rgbString(c) -> String:

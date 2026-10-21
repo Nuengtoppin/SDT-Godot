@@ -96,6 +96,22 @@ func _add_classic_button() -> void:
 
 
 ## Whether the new menu replaces the classic one right now.
+## See-through (the menualphatoggle extension): the panel's background at `bg_alpha`; the section buttons and the
+## help line get boxes of their own, so they stay readable over the game.
+func set_see_through(on: bool, bg_alpha := 0.25) -> void:
+	if _dock == null:
+		return
+	_dock.self_modulate.a = bg_alpha if on else 1.0
+	var clear := Color(0, 0, 0, 0)
+	for b in _nav.get_children():
+		if b is Button:
+			b.add_theme_stylebox_override("normal", MenuTheme.box(MenuTheme.CARD if on else clear, clear, 4, 5, 3))
+	if on:
+		_help.add_theme_stylebox_override("normal", MenuTheme.box(MenuTheme.CARD, clear, 4, 5, 3))
+	else:
+		_help.remove_theme_stylebox_override("normal")
+
+
 static func active() -> bool:
 	return instance != null and not Extensions.vanilla_mode and not classic()
 
