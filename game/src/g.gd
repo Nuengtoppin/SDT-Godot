@@ -49,7 +49,7 @@ const massGenerateSpeed := 0.001
 const massFlow := 0.005
 const maxMass := 1.1
 const maxStrandLength := 18
-const cumRGB := 16776439
+var cumRGB := 16776439   # port: a variable (the cumRGB extension changes it)
 
 var currentBreathLevel: float = 0.0
 var breathLevelMax: float = 50.0

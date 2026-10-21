@@ -24,6 +24,7 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/templateextension/templateextension.gd",
 	"res://src/ext/hairrgb/hairrgb.gd",
 	"res://src/ext/loaderarm/loaderarm.gd",
+	"res://src/ext/cumrgb/cumrgb.gd",
 	"res://src/ext/extramod/extramod.gd",
 	"res://src/ext/extramodhim/extramodhim.gd",
 ]
