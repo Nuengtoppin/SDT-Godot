@@ -225,7 +225,8 @@ static func draw_mask_object(d: CanvasItem, o: FlashDisplayObject, inv: Transfor
 static var _backdrops: Dictionary = {}
 
 
-## Called by the runtime every tick: each copy shows with its object and copies only the object's area.
+## Called by the runtime every tick: each copy shows with its object. (Copies stay whole-screen: copying only the
+## object's bounds broke the title screen's silhouette, whose blend reads outside them.)
 static func update_backdrops() -> void:
 	for bbc in _backdrops.keys():
 		var obj = _backdrops[bbc]
@@ -236,15 +237,6 @@ static func update_backdrops() -> void:
 		var on: bool = bbc.get_parent() != null and outer.get_parent() == bbc.get_parent() and FlashProxy.shown(outer)
 		if bbc.visible != on:
 			bbc.visible = on
-		if not on:
-			continue
-		# the object's area in the copy's space (they are siblings); a wrapper that moves it (a mask) copies all
-		var b: Rect2 = obj._local_bounds() if (outer == obj or outer is FlashGroupProxy) else Rect2()
-		if b.size.x > 0.0 and b.size.y > 0.0:
-			bbc.copy_mode = BackBufferCopy.COPY_MODE_RECT
-			bbc.rect = ((outer as Node2D).transform * b).grow(4.0)
-		elif bbc.copy_mode != BackBufferCopy.COPY_MODE_VIEWPORT:
-			bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
 
 
 # ---------------------------------------------------------------- tree reconciliation
