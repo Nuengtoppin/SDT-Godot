@@ -228,6 +228,10 @@ func justBreathedOut() -> bool:
 
 
 func startHolding() -> void:
+	if Hooks.has(&"SoundControl.startHolding"):   # HOOK
+		var h := Hooks.before(&"SoundControl.startHolding", self)
+		if h.cancelled:
+			return
 	if not beingHeld:
 		newRandomHoldSound()
 		beingHeld = true

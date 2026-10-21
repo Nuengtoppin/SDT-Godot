@@ -1134,6 +1134,10 @@ func blink(lookAround: bool = true) -> void:
 
 
 func wince() -> void:
+	if Hooks.has(&"Her.wince"):   # HOOK
+		var h := Hooks.before(&"Her.wince", self, [])
+		if h.cancelled:
+			return
 	winceTimer = 5
 	tears.drawLowerEyelidMascara()
 	tears.releaseTears()
