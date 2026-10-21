@@ -2,8 +2,8 @@ extends SDTExtension
 ## Built-in reimplementation of the Loader's counters (BreathCounter, CumInMouthCounter, FinishesCounter,
 ## HeldBreathCounter, PleasureCounter, VigourCounter from its Default folder, and HerPleasureCounter V1): small
 ## readouts at the top of the screen, each a white number with a dark glow beside the counter's icon (the icon itself
-## is only its glow, as in the Loader: a knockout shadow). Off by default (the original game has none); switched on
-## in Settings > Counters. Positions and the breath inversion as in the Loader's own settings files (its "x", "y",
+## is only its glow, as in the Loader: a knockout shadow). On by default; each can be switched off in
+## Settings > Counters. Positions and the breath inversion as in the Loader's own settings files (its "x", "y",
 ## "invert"). Written from their decompiled code; the icons are their shapes' outlines.
 ##
 ##   pleasure     his pleasure towards his finish (over 97: plus how long he has been held at the edge)
@@ -45,7 +45,7 @@ func _init() -> void:
 
 func _setup() -> void:
 	for c in COUNTERS:
-		setting(c[0], false, {"label": c[1], "desc": "Shows the %s counter." % c[1].to_lower()})
+		setting(c[0], true, {"label": c[1], "desc": "Shows the %s counter." % c[1].to_lower()})
 	for c in COUNTERS:
 		setting(c[0] + "_x", c[2].x, {"label": c[1] + " x", "min": 0, "max": 700, "step": 0.05})
 		setting(c[0] + "_y", c[2].y, {"label": c[1] + " y", "min": 0, "max": 600, "step": 0.05})
