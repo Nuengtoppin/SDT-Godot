@@ -859,11 +859,15 @@ func cumOnFace() -> void:
 	if currentMood == HAPPY_MOOD or currentMood == AHEGAO_MOOD:
 		# Reads 'intensity' which is undefined before the first swallow in the original (-> NaN).
 		wetGenerate += float(swallowSequence.get("intensity", NAN)) * 10.0
+	if Hooks.has(&"Her.cumOnFace"):   # HOOK
+		Hooks.after(&"Her.cumOnFace", self)
 
 
 func eyeHit() -> void:
 	cumInEye += 1
 	closeEye()
+	if Hooks.has(&"Her.eyeHit"):   # HOOK
+		Hooks.after(&"Her.eyeHit", self)
 
 
 func eyeClearHit() -> void:
@@ -1158,6 +1162,8 @@ func waggleEyebrows() -> void:
 	changeLookTarget(hisFace, 0, 1)
 	for i in 24:
 		eyebrowOffsets.append(int(-10.0 * (pow(4.0, cos(i * PI / 6.0 - 1.8)) - cos(i * PI / 6.0))))
+	if Hooks.has(&"Her.waggleEyebrows"):   # HOOK
+		Hooks.after(&"Her.waggleEyebrows", self)
 
 
 func startClenchingTeeth() -> void:
@@ -1214,6 +1220,8 @@ func cough() -> void:
 		wince()
 		g.soundControl.playCough()
 		justCoughed = true
+	if Hooks.has(&"Her.cough"):   # HOOK
+		Hooks.after(&"Her.cough", self)
 
 
 func openCough() -> void:
@@ -1231,6 +1239,8 @@ func openCough() -> void:
 		rightBreastController.accelerate(0.1)
 		wince()
 		justCoughed = true
+	if Hooks.has(&"Her.openCough"):   # HOOK
+		Hooks.after(&"Her.openCough", self)
 
 
 func swallow(intensity: float = 0.0, speak: bool = true) -> void:

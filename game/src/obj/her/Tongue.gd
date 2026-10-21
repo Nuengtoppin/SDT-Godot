@@ -278,6 +278,10 @@ func randomAction() -> void:
 
 
 func performNextAction() -> void:
+	if Hooks.has(&"Tongue.performNextAction"):   # HOOK
+		var h := Hooks.before(&"Tongue.performNextAction", self, [])
+		if h.cancelled:
+			return
 	actionTime = 0
 	nearTip = checkNearTip()
 	startedOff = checkOff()

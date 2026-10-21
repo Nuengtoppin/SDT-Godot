@@ -442,6 +442,8 @@ func resetArmPosition() -> void:
 func closeHand() -> void:
 	armContainer.arm.hand.gotoAndStop("holding" + g.himSkinType)
 	handOpen = false
+	if Hooks.has(&"Him.closeHand"):   # HOOK
+		Hooks.after(&"Him.closeHand", self)
 
 
 func openHand() -> void:
@@ -452,6 +454,8 @@ func openHand() -> void:
 	if not handOpen:
 		armContainer.arm.hand.gotoAndPlay("released" + g.himSkinType)
 		handOpen = true
+	if Hooks.has(&"Him.openHand"):   # HOOK
+		Hooks.after(&"Him.openHand", self)
 
 
 func updateArm() -> void:
@@ -724,6 +728,8 @@ func nextSpurt() -> void:
 	pauseTimer = s["pauseTimer"]
 	ejaculation.remove_at(0)
 	g.her.tongueContainer.tongue.ejaculating()
+	if Hooks.has(&"Him.nextSpurt"):   # HOOK
+		Hooks.after(&"Him.nextSpurt", self)
 
 
 func startBMSpurt() -> void:

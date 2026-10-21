@@ -36,6 +36,7 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/himnotletgo/himnotletgo.gd",
 	"res://src/ext/menualphatoggle/menualphatoggle.gd",
 	"res://src/ext/charcodefilesaving/charcodefilesaving.gd",
+	"res://src/ext/dynamicblushing/dynamicblushing.gd",
 	"res://src/ext/extramod/extramod.gd",
 	"res://src/ext/extramodhim/extramodhim.gd",
 ]

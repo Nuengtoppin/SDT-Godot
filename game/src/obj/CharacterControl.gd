@@ -638,6 +638,8 @@ func setSclera(c, _n: String = "rgbFill") -> void:
 func setBlush(c, _n: String = "rgbFill") -> void:
 	g.her.blush.colorTransform = _ct(c)
 	blushRGB = c
+	if Hooks.has(&"CharacterControl.setBlush"):   # HOOK
+		Hooks.after(&"CharacterControl.setBlush", self)
 
 
 func setFreckles(c, _n: String = "rgbFill") -> void:
