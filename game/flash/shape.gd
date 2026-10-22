@@ -10,6 +10,10 @@ var _morph: Dictionary = {}      # morph character entry (ratios -> image entry)
 var _ratio: int = 0
 var _texture: Texture2D = null
 var _draw_entry: Dictionary = {} # entry of the image currently shown; lags _entry while a morph frame streams in
+## Set by game code around a discrete appearance change (e.g. a breast size): morph frames load at once instead of
+## streaming in, so no part shows its old picture next to parts that already switched (Flash shows all at once).
+## Animation keeps streaming: its next frames are prefetched, and a blocking load there would be a hitch.
+static var load_now := false
 
 
 func setup(library, char_id: int, ratio: int = 0) -> void:
@@ -37,6 +41,9 @@ func set_ratio(ratio: int) -> void:
 	# Geometry (bounds, hit mask) switches now; the picture follows as soon as its texture is loaded.
 	_entry = e
 	_content_changed()
+	if load_now:
+		_show(e, _library.get_texture(e["img"]))
+		return
 	var t: Texture2D = _library.request_texture(e["img"], self)
 	if t != null:
 		_show(e, t)

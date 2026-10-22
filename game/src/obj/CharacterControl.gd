@@ -675,6 +675,7 @@ func setBreasts(size: int = -1) -> void:
 		size = breastSize
 	breastSize = size
 	var h: Her = g.her
+	FlashShape.load_now = true   # port: the new size shows at once in every part (no streaming lag, issue #1)
 	setBreastFrame(h.torso.midLayer.chest)
 	setBreastFrame(h.torsoBack.leftBreast)
 	setBreastFrame(h.torso.midLayer.rightBreast)
@@ -689,6 +690,7 @@ func setBreasts(size: int = -1) -> void:
 	setBreastCostumeSize()
 	for fn in breastSizeChangeListeners:
 		fn.call()
+	FlashShape.load_now = false
 
 
 func setBreastFrame(mc) -> void:
