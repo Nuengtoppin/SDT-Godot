@@ -1124,11 +1124,12 @@ func _update_mouse_over(target: FlashDisplayObject = null, searched := false) ->
 		return
 	if not searched:
 		target = _mouse_target_at(mouse_position())
-	if target == _mouse_over:
+	# the hovered object may have been freed since the last update (orphan freeing): treat it as gone
+	var old: FlashDisplayObject = _mouse_over if is_instance_valid(_mouse_over) else null
+	if target == old:
 		return
-	var old := _mouse_over
 	_mouse_over = target
-	if old != null and is_instance_valid(old):
+	if old != null:
 		var e := FlashEvent.mouse(FlashEvent.MOUSE_OUT)
 		e.relatedObject = target
 		_fill_local(e, old)
