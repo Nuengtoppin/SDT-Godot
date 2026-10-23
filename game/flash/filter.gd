@@ -81,6 +81,21 @@ static func shaderFilter(s: Shader, params: Dictionary = {}) -> FlashFilter:
 	return f
 
 
+## Folds the ColorMatrix filters of a filter list into an accumulated colour matrix (filters nearer the drawn
+## object first). Returns [cm, cm_offset (0..1 units, as the shaders take it), true if there was one].
+static func fold_color_matrices(filters: Array, cm: Projection, cm_off: Vector4) -> Array:
+	var found := false
+	for f in filters:
+		if f is FlashFilter and f.type == "ColorMatrix" and f.matrix.size() >= 20:
+			var m: Array = f.matrix
+			var b := Projection(Vector4(m[0], m[5], m[10], m[15]), Vector4(m[1], m[6], m[11], m[16]),
+				Vector4(m[2], m[7], m[12], m[17]), Vector4(m[3], m[8], m[13], m[18]))
+			cm_off = b * cm_off + Vector4(m[4], m[9], m[14], m[19]) / 255.0
+			cm = b * cm
+			found = true
+	return [cm, cm_off, found]
+
+
 ## Converts filter dictionaries from library.json (PlaceObject3 filter lists).
 static func from_swf_list(list: Array) -> Array:
 	var out: Array = []

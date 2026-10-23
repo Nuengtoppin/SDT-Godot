@@ -20,6 +20,9 @@ var _rect := Rect2()          # obj-local area captured
 var _px_scale := 1.0          # render-target pixels per obj-local unit
 var _margin := 0.0            # obj-local margin for filters
 var _mat := ShaderMaterial.new()
+## True if the composite takes the colour matrices of the object and its ancestors (shapes inside then skip them);
+## false with a shader filter, which owns the material.
+var applies_matrix := true
 
 
 func _init() -> void:
@@ -46,6 +49,7 @@ func configure(obj: FlashDisplayObject) -> void:
 	for f in obj._filters:
 		if f is FlashFilter and f.type == "Shader":
 			shader_filter = f
+	applies_matrix = shader_filter == null
 	if shader_filter != null:
 		# A shader filter owns the material; a following inner drop shadow is folded into it (the highlight
 		# shader supports that), other filters are dropped.
@@ -66,7 +70,31 @@ func configure(obj: FlashDisplayObject) -> void:
 			if not (f is FlashFilter) or f.type == "ColorMatrix":
 				continue
 			_apply_filter(f)
+		refresh_matrix()
 	Flash.register_group(self)
+
+
+## Colour matrices of the object and its ancestors up to the next group that applies its own (Flash applies a
+## container's ColorMatrixFilter to its whole composite). Called again when their render state changes.
+func refresh_matrix() -> void:
+	if not applies_matrix or _obj == null:
+		return
+	var cm := Projection.IDENTITY
+	var cm_off := Vector4.ZERO
+	var has_cm := false
+	var o: FlashDisplayObject = _obj
+	while o != null:
+		if o != _obj and o._proxy is FlashGroupProxy and o._proxy.applies_matrix:
+			break
+		if not o._filters.is_empty():
+			var r := FlashFilter.fold_color_matrices(o._filters, cm, cm_off)
+			cm = r[0]
+			cm_off = r[1]
+			has_cm = has_cm or r[2]
+		o = o._flash_parent
+	_mat.set_shader_parameter("use_matrix", has_cm)
+	_mat.set_shader_parameter("cm", cm)
+	_mat.set_shader_parameter("cm_offset", cm_off)
 
 
 func _notification(what: int) -> void:
