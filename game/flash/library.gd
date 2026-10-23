@@ -17,6 +17,7 @@ var fps: float = 30.0
 ## GDScript classes, and their ActionScript runs through `mod`.
 var is_mod := false
 var mod: Object = null
+var _cutouts: Dictionary = {}    # char id -> has_cutout result
 
 var _textures: Dictionary = {}
 
@@ -61,6 +62,20 @@ func get_char(id: int) -> Dictionary:
 
 func class_id(cls: String) -> int:
 	return int(classes.get(cls, -1))
+
+
+## True if the symbol's timeline (or a symbol it places) puts ERASE / ALPHA pieces on any frame.
+func has_cutout(id: int) -> bool:
+	if _cutouts.has(id):
+		return _cutouts[id]
+	_cutouts[id] = false   # cycles
+	var found := false
+	for p in get_char(id).get("places", []):
+		if p.get("bl") == "erase" or p.get("bl") == "alpha" or has_cutout(int(p.get("c", -1))):
+			found = true
+			break
+	_cutouts[id] = found
+	return found
 
 
 func get_texture(img: String) -> Texture2D:

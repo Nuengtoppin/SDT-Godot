@@ -257,6 +257,12 @@ static func reconcile(parent: Node, seq: Array) -> void:
 ## Rebuilds the wrapper chain of obj after its mask / blend mode / filters changed.
 static func update_for(obj: FlashDisplayObject) -> void:
 	var need_group := obj._blend_mode == "layer"
+	# Flash composites a container with any other blend mode as one group as well. That matters when it holds
+	# ERASE / ALPHA pieces, which cut only the group (her bikini tan lines: an overlay clip with an erase child).
+	# Other blended containers draw their pieces one by one: a group costs a render target.
+	if not need_group and obj._blend_mode != "normal" and obj is FlashSprite and obj._library != null \
+			and obj._library.has_cutout(obj._char_id):
+		need_group = true
 	for f in obj._filters:
 		if f is Dictionary and GROUP_FILTERS.has(f.get("type", "")):
 			need_group = true
