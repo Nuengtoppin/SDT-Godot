@@ -964,7 +964,7 @@ func move(targetPos: float, tilt: float) -> float:
 		if not g.handsOff:
 			speed -= pullOff
 	speed *= speedFriction
-	pos = maxf(minPos, minf(maxPos, pos + speed))
+	pos = pos + speed
 	if intro and not g.penisOut:
 		pos -= maxf(0.0, (penisInMouthDist - maxIntroDist) * 0.0015)
 	if not mouthFull and clenchTeeth and not g.penisOut and not gagged:

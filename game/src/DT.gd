@@ -269,7 +269,7 @@ func tick() -> void:
 				var mirroredControls: bool = (g.mirrored or g.invertControls) and not (g.mirrored and g.invertControls)
 				var mx: float = g.screenSize.x - currentMousePos.x if mirroredControls else currentMousePos.x
 				mx = (mx - 100) / 500
-				g.currentMousePos.x = minf(1.2, mx)
+				g.currentMousePos.x = mx
 				g.currentMousePos.y = maxf(-1, minf(1, (currentMousePos.y - 100) / 200 - 1))
 				if g.autoModeOn:
 					g.currentPos = automaticControl.getPos()
