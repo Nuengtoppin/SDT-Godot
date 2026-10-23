@@ -452,6 +452,13 @@ static func _settings() -> Dictionary:
 					PortSettings.set_value("menu", "classic", on)
 					SDTMenu.instance.apply_mode()),
 		]},
+		{"title": "Debug Lab", "controls": [   # derrdev workbench
+			choice("Lab side", "Debug Lab docking side. Set Menu side to the opposite side to see both panels together.", ["Right", "Left"],
+				func(): return PortSettings.get_value("debug_lab", "side", "Right"),
+				func(v: String): PortSettings.set_value("debug_lab", "side", v)),
+			toggle("Enable Debug Lab", "Show the workbench panel for experimental and diagnostic tools.",
+				SDTMenu.debug_lab_enabled, SDTMenu.set_debug_lab_enabled),
+		]},
 		{"title": "Graphics", "controls": [
 			# (the classic menu's Quality is not here: it set Flash's vector quality, which the port does not use)
 			choice("FPS limit", "Frame rate limit. Off: as many frames as the computer can draw. Monitor: your screen's refresh rate. A limit keeps the graphics card from drawing frames the screen cannot show.",

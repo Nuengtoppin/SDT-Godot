@@ -33,6 +33,7 @@ var _help: Label
 var _heading: Label
 var _back: Button
 var _tab: Button
+var _debug_lab: DebugLabShell   # derrdev: the Debug Lab workbench panel
 var _popups: Control
 var _rows: Array = []
 var _cache: Dictionary = {}   # section id -> its built view (VBoxContainer with a "rows" meta)
@@ -118,6 +119,17 @@ static func active() -> bool:
 
 static func classic() -> bool:
 	return bool(PortSettings.get_value("menu", "classic", false))
+
+
+## derrdev: the Debug Lab workbench (Settings > Debug Lab), off by default.
+static func debug_lab_enabled() -> bool:
+	return bool(PortSettings.get_value("debug_lab", "enabled", false))
+
+
+static func set_debug_lab_enabled(on: bool) -> void:
+	PortSettings.set_value("debug_lab", "enabled", on)
+	if instance != null and instance._root != null:
+		instance._layout_debug_lab()
 
 
 static func on_left() -> bool:
@@ -257,6 +269,9 @@ func _build() -> void:
 	_tab.add_theme_font_size_override("font_size", MenuTheme.SMALL + 1)
 	_tab.pressed.connect(func(): open_menu())
 	_root.add_child(_tab)
+	_debug_lab = DebugLabShell.new()
+	_debug_lab.name = "DebugLab"
+	_root.add_child(_debug_lab)
 	_popups = Control.new()
 	_popups.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_popups)
@@ -315,6 +330,7 @@ func _layout() -> void:
 	_tab.offset_top = -32
 	_tab.offset_bottom = 32
 	_place_tab()
+	_layout_debug_lab()
 
 
 func _place_tab() -> void:
@@ -655,6 +671,8 @@ func _show_help(spec) -> void:
 # ---------------------------------------------------------------- every frame
 
 func _process(delta: float) -> void:
+	if _root != null:
+		_layout_debug_lab()
 	if _root == null or not active():
 		return
 	_frame += 1
@@ -699,6 +717,8 @@ func outside_click(event: InputEvent) -> bool:
 	var b: MouseButton = event.button_index
 	if b == MOUSE_BUTTON_WHEEL_UP or b == MOUSE_BUTTON_WHEEL_DOWN or b == MOUSE_BUTTON_WHEEL_LEFT 			or b == MOUSE_BUTTON_WHEEL_RIGHT:
 		return false
+	if _debug_lab.visible and _debug_lab.get_global_rect().has_point(event.position):
+		return false
 	return not _dock.get_global_rect().has_point(event.position)
 
 
@@ -708,6 +728,8 @@ func blocks_mouse() -> bool:
 	if _root == null or not active():
 		return false
 	var p := _root.get_global_mouse_position()
+	if _debug_lab.visible and _debug_lab.get_global_rect().has_point(p):
+		return true
 	if is_open and _dock.get_global_rect().has_point(p):
 		return true
 	if _tab.visible and _tab.get_global_rect().has_point(p):
@@ -729,3 +751,64 @@ static func remove_owner(owner: String) -> void:
 	_controls_version += 1
 	if instance != null and instance.is_open:
 		instance._show()
+
+
+# ---------------------------------------------------------------- Debug Lab (derrdev workbench)
+
+## Full-height panel at the window border on its own side (Settings > Debug Lab > Lab side, right by default).
+func _layout_debug_lab() -> void:
+	if _debug_lab == null:
+		return
+	_debug_lab.visible = active() and debug_lab_enabled() and g.gameRunning
+	if not _debug_lab.visible:
+		return
+	var left: bool = PortSettings.get_value("debug_lab", "side", "Right") == "Left"
+	_debug_lab.position = Vector2(0.0 if left else _root.size.x - WIDTH, 0.0)
+	_debug_lab.size = Vector2(WIDTH, _root.size.y)
+
+
+## The panel itself; tools go into tools_root. No game state of its own.
+class DebugLabShell extends PanelContainer:
+	var tools_root: VBoxContainer
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_STOP
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color("171c24")
+		style.border_color = Color("394657")
+		style.set_border_width_all(1)
+		style.set_corner_radius_all(6)
+		style.content_margin_left = 12
+		style.content_margin_right = 12
+		style.content_margin_top = 10
+		style.content_margin_bottom = 12
+		add_theme_stylebox_override("panel", style)
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", 10)
+		add_child(column)
+		var header := HBoxContainer.new()
+		column.add_child(header)
+		var title := Label.new()
+		title.text = "Debug Lab"
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		header.add_child(title)
+		var close := Button.new()
+		close.text = "X"
+		close.tooltip_text = "Disable Debug Lab"
+		close.focus_mode = Control.FOCUS_NONE
+		close.pressed.connect(func(): SDTMenu.set_debug_lab_enabled(false))
+		header.add_child(close)
+		column.add_child(HSeparator.new())
+		var scroll := ScrollContainer.new()
+		scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		column.add_child(scroll)
+		tools_root = VBoxContainer.new()
+		tools_root.name = "Tools"
+		tools_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(tools_root)
+		var note := Label.new()
+		note.text = "Workbench for experimental tools (derrdev)."
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		note.add_theme_color_override("font_color", Color("a8b4c4"))
+		tools_root.add_child(note)
