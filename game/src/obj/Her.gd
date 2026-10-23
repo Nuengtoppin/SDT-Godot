@@ -1138,6 +1138,11 @@ func updateBlink() -> void:
 
 
 func blink(lookAround: bool = true) -> void:
+	if Hooks.has(&"Her.blink"):   # HOOK
+		var h := Hooks.before(&"Her.blink", self, [lookAround])
+		if h.cancelled:
+			return
+		lookAround = h.args[0]
 	if randf() > 0.8:
 		blinkTime = int(floor(randf() * 5 + 5))
 	else:

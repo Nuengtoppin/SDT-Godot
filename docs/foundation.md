@@ -1,0 +1,71 @@
+# Foundation layer: journal
+
+One place that lists what the SDT_Path patches add for extensions and plugins: hook points in the game code,
+shared plugins and their API, and what we have asked upstream for. Every patch that adds or changes one of these
+updates this file. Before adding a hook point, check that upstream has not added the same one meanwhile.
+
+The approach follows upstream's model (`docs/extensions.md`): the ported classes stay 1:1 with the original, new
+behaviour lives in extensions or plugins. The game code only gets hook points. With nothing using them, the game
+is unchanged.
+
+## Hook points added to the game code
+
+| Hook point | Kind | Patch | Why | Upstream |
+|---|---|---|---|---|
+| `Her.blink` | before (args: `[lookAround]`, can cancel) | P026 | Switch off or take over her automatic blinking without replacing `Her.updateBlink`. The after point already existed. | requested, open |
+
+## Plugins
+
+### `channels` (Mods/Plugins/channels, P026)
+
+One shared table of who controls a part of her behaviour right now. Other extensions use it instead of cancelling
+each other's hooks.
+
+Channels: `gaze` (where she looks) and `blink` (her automatic blinking). More follow (eyelids, hands, movement,
+mouth).
+
+Levels: `MANUAL` 300 > `DIALOGUE` 200 > `MOD` 100. A claim takes a free channel, one already held by the same
+owner, or one held at a lower level; at an equal level the first holder keeps it.
+
+A holder loses its channel on `release()`, when its `ttl` (game ticks) runs out, when a higher level takes it,
+when the extension whose id is the owner is switched off, when a full character code is loaded, or when the
+plugin is switched off. `on_lost(channel, reason)` is called. Holders are never saved.
+
+```gdscript
+var ch = Extensions.get_extension("channels")
+if ch != null and ch.enabled:
+	ch.look_at(id, "his_face", ch.DIALOGUE, 90)   # Vector2 in the scene layer, or "his_face" / "down" / "unfocused"
+	ch.claim(&"blink", id, ch.MOD)                 # she stops blinking by herself
+	ch.blink_now(id)                               # one blink, refused for anyone but the holder
+	ch.release(&"blink", id)
+```
+
+| Call | What it does |
+|---|---|
+| `claim(channel, owner, level, data = {}, ttl = -1, on_lost = Callable())` | Takes a channel; false if refused. |
+| `release(channel, owner)` / `release_owner(owner)` / `release_all()` | Gives channels back. |
+| `update(channel, owner, data)` | Changes the holder's data. |
+| `owner_of(channel)` / `level_of(channel)` / `is_held(channel)` / `snapshot()` | Who holds what. |
+| `add_listener(fn)` / `remove_listener(fn)` | `fn(channel, old_owner, new_owner, reason)` on every change. |
+| `look_at(owner, target, level = MOD, ttl = -1, on_lost = Callable())` | Takes the gaze (or moves the target of a gaze it already holds). |
+| `gaze_target()` | The held gaze point, or null. |
+| `blink_now(owner = "")` | One blink now, without looking around. |
+
+How it works: before-handlers at priority -1000 on `Her.lookAt` (a held gaze cancels the call and runs the game's
+own `lookAt` with the holder's target, so it also wins over moremoods' replacement), `Her.changeLookTarget` and
+`Her.blink`.
+
+Settings: `auto_blink` ("Automatic blinking") and `auto_look` ("Automatic look changes"), both on by default.
+
+Known limit: code that rewrites the iris after `Her.updateEyes` (alternativePassOut's freeze, extramod's eye
+following) still applies on top of the gaze holder. Moving those onto the channel is a later step.
+
+Checks: `game/debug/channels_checks.gd` (needs the plugin in the mods folder).
+
+## Requests to upstream
+
+| Request | Why | Status |
+|---|---|---|
+| Before hook point on `Her.blink` | See above. | to send |
+| `Extensions._disable()` tells shared tables that an extension went off (an event or a callback list) | `channels` checks every tick whether an owner's extension is still on. | to send |
+| An event when a character code is loaded | `channels` uses a never-written character code field to get its reset call. | to send |
