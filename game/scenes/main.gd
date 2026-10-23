@@ -19,6 +19,7 @@ var _picks: Array = []
 var _hide: Array = []
 var _counter: Label = null
 var _driver = null
+var presentation: Presentation
 
 
 func _ready() -> void:
@@ -67,7 +68,10 @@ func _ready() -> void:
 		_counter.z_index = 100
 		_counter.add_theme_font_size_override("font_size", 40)
 		add_child(_counter)
-	Flash.attach_stage(self)
+	PortSettings.apply_window()   # port: Settings > Window (size, fullscreen)
+	presentation = Presentation.new()   # port: widescreen, the stage centred in the window
+	add_child(presentation)
+	Flash.attach_stage(presentation.host)
 	Flash.stage.addChild(DT.new())
 	add_child(preload("res://scenes/fps_counter.gd").new())
 
@@ -134,7 +138,7 @@ func _process(_delta: float) -> void:
 
 
 func _click(p: Vector2) -> void:
-	var screen: Vector2 = get_viewport().get_final_transform() * p
+	var screen: Vector2 = Flash._stage_to_window() * p
 	Flash.mouse_override = p
 	var m := InputEventMouseMotion.new()
 	m.position = screen
@@ -180,7 +184,7 @@ func _dump_obj(f: FileAccess, o: FlashDisplayObject, depth: int) -> void:
 
 
 func _move(p: Vector2) -> void:
-	var screen: Vector2 = get_viewport().get_final_transform() * p
+	var screen: Vector2 = Flash._stage_to_window() * p
 	Flash.mouse_override = p
 	var m := InputEventMouseMotion.new()
 	m.position = screen

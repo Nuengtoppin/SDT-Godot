@@ -945,22 +945,34 @@ var mouse_override = null
 var mouse_blocker := Callable()
 
 
+## Port addition (widescreen): the part of the window that shows the game, in stage coordinates. The 700x600 stage
+## is centred in the window (scenes/presentation.gd); the side areas give x < 0 and x > 700.
+var presentation_rect := Rect2(0, 0, 700, 600)
+
+
 ## Mouse position in stage coordinates.
 func mouse_position() -> Vector2:
 	if mouse_override != null:
 		return mouse_override
 	if stage != null and stage.is_inside_tree():
-		return stage.get_global_mouse_position()
+		return stage.get_local_mouse_position()
 	return Vector2.ZERO
 
 
 ## Window pixels per stage pixel (used to size screen-space effects such as blur).
 func screen_scale() -> float:
+	return _stage_to_window().get_scale().x
+
+
+## Stage coordinates to window pixels.
+func _stage_to_window() -> Transform2D:
 	var vp := get_viewport()
 	if vp == null:
-		return 1.0
+		return Transform2D.IDENTITY
 	var t := vp.get_final_transform()
-	return t.get_scale().x
+	if stage != null and stage.is_inside_tree():
+		t = t * stage.get_global_transform_with_canvas()
+	return t
 
 
 func _mouse_target_at(p: Vector2) -> FlashDisplayObject:
@@ -1262,7 +1274,7 @@ func capture_screen(stage_size: Vector2, scale: float = 1.0) -> Image:
 	var img := vp.get_texture().get_image()
 	if img == null or img.is_empty():
 		return null
-	var t := vp.get_final_transform()
+	var t := _stage_to_window()
 	var origin := t.origin
 	var s := t.get_scale()
 	var rect := Rect2i(Vector2i(origin.round()), Vector2i((stage_size * s).round()))

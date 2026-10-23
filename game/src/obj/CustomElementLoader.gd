@@ -628,7 +628,8 @@ func bgLoaderComplete(e: FlashEvent) -> void:
 	var loader: FlashLoader = e.target.loader
 	if browsingForBG:
 		customBGHeight = loader.content.height
-		bgImportSource = FlashBitmapData.new(700, int(customBGHeight), false, 0xFF000000)
+		# port (widescreen): an image wider than the stage is kept whole (the game kept its leftmost 700 pixels)
+		bgImportSource = FlashBitmapData.new(maxi(700, int(loader.content.width)), int(customBGHeight), false, 0xFF000000)
 		bgImportSource.draw(loader.content)
 		generateCustomBackground()
 		if proxyBGPackage.hasFilePath():
@@ -673,9 +674,12 @@ func generateCustomHair() -> void:
 
 func generateCustomBackground() -> void:
 	clearCustomBackground(false)
-	bgData = FlashBitmapData.new(700, int(customBGHeight), false, 0xFF000000)
+	var w := bgImportSource.width
+	bgData = FlashBitmapData.new(w, int(customBGHeight), false, 0xFF000000)
 	bgLayer = FlashBitmap.new(bgData, "auto", true)
-	bgData.copyPixels(bgImportSource, Rect2i(0, 0, 700, int(customBGHeight)), Vector2i())
+	bgData.copyPixels(bgImportSource, Rect2i(0, 0, w, int(customBGHeight)), Vector2i())
+	# port (widescreen): a wide image is centred on the game field and runs into the side areas
+	bgLayer.x = (700 - w) / 2.0
 	g.bg.addChild(bgLayer)
 	g.characterControl.setCustomBGLoaded()
 	g.sceneLayer.setCustomBGHeight(customBGHeight)

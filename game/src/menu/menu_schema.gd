@@ -426,6 +426,15 @@ static func _mods() -> Dictionary:
 static func _settings() -> Dictionary:
 	var om := func(): return _m().optionsMenu
 	return {"id": "settings", "name": "Settings", "groups": [
+		{"title": "Window", "controls": [
+			choice("Window size", "Size of the game window (shrunk to fit a smaller screen). The game fills its height; the room beside it holds the menu.",
+				PortSettings.WINDOW_SIZES, func(): return PortSettings.window_size(), func(v: String): PortSettings.set_window_size(v),
+				{"dropdown": true}),
+			toggle("Fullscreen", "Fill the whole screen. Off: back to the window size above.",
+				func(): return PortSettings.fullscreen(), func(on: bool): PortSettings.set_fullscreen(on)),
+			toggle("Blurred sides", "Beside the game: a blurred copy of the background. Off: black.",
+				func(): return PortSettings.blurred_sides(), func(on: bool): PortSettings.set_value("window", "blurred_sides", on)),
+		]},
 		{"title": "Menu", "controls": [
 			choice("Menu side", "Which side of the screen the menu opens on.", ["Right", "Left"],
 				func(): return PortSettings.get_value("menu", "side", "Right"),

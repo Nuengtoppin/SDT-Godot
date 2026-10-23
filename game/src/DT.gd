@@ -225,6 +225,10 @@ func initGame() -> void:
 	stage.addEventListener(FlashEvent.KEY_DOWN, keyPressed)
 	stage.addEventListener(FlashEvent.KEY_UP, keyReleased)
 	stage.addEventListener(FlashEvent.MOUSE_LEAVE, mouseLeft)
+	# port (widescreen): the side areas outside the 700x600 field hit the stage itself, below which DT's listeners
+	# never hear them
+	for type in [FlashEvent.MOUSE_DOWN, FlashEvent.MOUSE_UP, FlashEvent.MOUSE_MOVE, FlashEvent.MOUSE_WHEEL]:
+		stage.addEventListener(type, _stageMouse)
 	mainMenu.buttonPlay.addEventListener(FlashEvent.CLICK, playClicked)
 	mainMenu.buttonOptions.addEventListener(FlashEvent.CLICK, optionsClicked)
 	if saveData.saveExists():
@@ -315,6 +319,22 @@ func mouseMoved(_e = null) -> void:
 	if not g.shiftDown and not g.controlLocked:
 		currentMousePos = Vector2(mouseX, mouseY)
 	inGameMenu.mouseMoved(mouseX, mouseY)
+
+
+## Port (widescreen): mouse events aimed at the stage itself (the side areas) go to the handlers above. Events on
+## the display list bubble through DT already.
+func _stageMouse(e: FlashEvent) -> void:
+	if e.target != stage:
+		return
+	match e.type:
+		FlashEvent.MOUSE_DOWN:
+			mousePressed(e)
+		FlashEvent.MOUSE_UP:
+			mouseReleased(e)
+		FlashEvent.MOUSE_MOVE:
+			mouseMoved(e)
+		FlashEvent.MOUSE_WHEEL:
+			mouseWheel(e)
 
 
 func mouseLeft(_e = null) -> void:

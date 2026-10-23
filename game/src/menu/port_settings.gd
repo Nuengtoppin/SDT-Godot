@@ -76,6 +76,70 @@ static func apply_msaa() -> void:
 			p.refresh_msaa()
 
 
+## Window (Settings > Window): the windowed size, a preset (shrunk to fit a smaller screen, keeping its shape),
+## fullscreen, and the blurred background beside the game (scenes/presentation.gd).
+const WINDOW_SIZES := ["1280 x 720", "1600 x 800", "1920 x 1080", "2560 x 1440"]
+const DEFAULT_WINDOW_SIZE := "1600 x 800"
+static var _window_serial := 0
+
+
+static func window_size() -> String:
+	var v := str(get_value("window", "size", DEFAULT_WINDOW_SIZE))
+	return v if v in WINDOW_SIZES else DEFAULT_WINDOW_SIZE
+
+
+static func set_window_size(v: String) -> void:
+	set_value("window", "size", v)
+	apply_window()
+
+
+static func fullscreen() -> bool:
+	return bool(get_value("window", "fullscreen", false))
+
+
+static func set_fullscreen(on: bool) -> void:
+	set_value("window", "fullscreen", on)
+	apply_window()
+
+
+static func blurred_sides() -> bool:
+	return bool(get_value("window", "blurred_sides", true))
+
+
+## Applies the window settings (at start and when they change). Not in headless runs, nor when the editor embeds
+## the game (it owns that window).
+static func apply_window() -> void:
+	if DisplayServer.get_name() == "headless" or Engine.is_embedded_in_editor():
+		return
+	_window_serial += 1
+	_apply_window(_window_serial)
+
+
+static func _apply_window(serial: int) -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	var win := tree.root
+	if fullscreen():
+		win.mode = Window.MODE_FULLSCREEN
+		return
+	if win.mode != Window.MODE_WINDOWED:
+		win.mode = Window.MODE_WINDOWED
+		# the window manager finishes leaving fullscreen first
+		for _i in 2:
+			await tree.process_frame
+			if serial != _window_serial:
+				return
+	var p := window_size().split(" x ")
+	var want := Vector2(float(p[0]), float(p[1]))
+	var usable := DisplayServer.screen_get_usable_rect(win.current_screen)
+	var deco := win.get_size_with_decorations() - win.size
+	var room := Vector2(usable.size - deco)
+	var k := minf(1.0, minf(room.x / want.x, room.y / want.y)) if room.x > 0 and room.y > 0 else 1.0
+	win.size = Vector2i((want * k).floor())
+	# centred on the screen, title bar included
+	var inner := win.position - win.get_position_with_decorations()
+	win.position = usable.position + (usable.size - win.size - deco) / 2 + inner
+
+
 static func _load() -> void:
 	if _cfg != null:
 		return
