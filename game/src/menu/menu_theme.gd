@@ -75,6 +75,9 @@ static func get_theme() -> Theme:
 			t.set_stylebox(st, c, t.get_stylebox(st, "Button"))
 		t.set_color("font_pressed_color", c, TEXT)
 		t.set_color("font_hover_pressed_color", c, TEXT)
+	t.set_icon("arrow", "OptionButton", _svg_icon('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">'
+		+ '<path d="M4 6l4 4 4-4" fill="none" stroke="#%s" stroke-width="1.6" stroke-linecap="round"' % TEXT.to_html(false)
+		+ ' stroke-linejoin="round"/></svg>'))
 	t.set_stylebox("normal", "LineEdit", box(FIELD, LINE, 4, 5, 2))
 	t.set_stylebox("focus", "LineEdit", box(Color(0, 0, 0, 0), ACCENT, 4, 5, 2))
 	t.set_stylebox("read_only", "LineEdit", box(FIELD.darkened(0.2), LINE, 4, 5, 2))
@@ -117,41 +120,26 @@ static func get_theme() -> Theme:
 	return t
 
 
-static func _switch_icon(on: bool, disabled := false) -> ImageTexture:
-	# drawn at 3x and shown at 1/3 (the window scale makes it sharp)
-	var w := 54
-	var h := 30
-	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+## Icons are SVG (DPITexture): drawn again at the size they are shown at, so they stay sharp in big windows.
+static func _svg_icon(svg: String) -> DPITexture:
+	return DPITexture.create_from_string(svg)
+
+
+static func _svg_color(c: Color) -> String:
+	return 'fill="#%s" fill-opacity="%.3f"' % [c.to_html(false), c.a]
+
+
+static func _switch_icon(on: bool, disabled := false) -> DPITexture:
 	var bg := ACCENT if on else TRACK
 	var knob := Color.WHITE if on else Color("c9d1dd")
 	if disabled:
 		bg = bg.darkened(0.4)
 		knob = knob.darkened(0.4)
-	var r := h / 2.0
-	for y in h:
-		for x in w:
-			var cx := clampf(x + 0.5, r, w - r)
-			var d := Vector2(x + 0.5 - cx, y + 0.5 - r).length()
-			if d <= r:
-				img.set_pixel(x, y, bg if d < r - 1 else Color(bg, r - d))
-	var kx := w - r if on else r
-	for y in h:
-		for x in w:
-			var d := Vector2(x + 0.5 - kx, y + 0.5 - r).length()
-			if d <= r - 3:
-				img.set_pixel(x, y, knob if d < r - 4 else Color(knob, r - 3 - d))
-	img.resize(18, 10, Image.INTERPOLATE_LANCZOS)
-	return ImageTexture.create_from_image(img)
+	return _svg_icon('<svg xmlns="http://www.w3.org/2000/svg" width="18" height="10">'
+		+ '<rect width="18" height="10" rx="5" %s/>' % _svg_color(bg)
+		+ '<circle cx="%d" cy="5" r="4" %s/></svg>' % [13 if on else 5, _svg_color(knob)])
 
 
-static func _dot_icon(c: Color) -> ImageTexture:
-	var s := 30
-	var img := Image.create(s, s, false, Image.FORMAT_RGBA8)
-	var r := s / 2.0
-	for y in s:
-		for x in s:
-			var d := Vector2(x + 0.5 - r, y + 0.5 - r).length()
-			if d <= r:
-				img.set_pixel(x, y, c if d < r - 1 else Color(c, r - d))
-	img.resize(10, 10, Image.INTERPOLATE_LANCZOS)
-	return ImageTexture.create_from_image(img)
+static func _dot_icon(c: Color) -> DPITexture:
+	return _svg_icon('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><circle cx="5" cy="5" r="5" %s/></svg>'
+		% _svg_color(c))
