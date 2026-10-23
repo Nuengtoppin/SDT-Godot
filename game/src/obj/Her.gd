@@ -997,7 +997,7 @@ func move(targetPos: float, tilt: float) -> float:
 	var push := 0.0
 	if Hooks.has_value(&"Her.pushBack"):   # HOOK value point: pushes her head back off him (0 in the game; before the clamp)
 		push = Hooks.value(&"Her.pushBack", self, 0.0)
-	pos = maxf(minPos, minf(maxPos, pos + speed - push))
+	pos = pos + speed - push   # derrdev (P021): no minPos / maxPos clamp (wide coordinates)
 	if intro and not g.penisOut:
 		pos -= maxf(0.0, (penisInMouthDist - maxIntroDist) * 0.0015)
 	if not mouthFull and clenchTeeth and not g.penisOut and not gagged:
