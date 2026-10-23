@@ -123,6 +123,11 @@ func pathTyped(e: FlashEvent) -> void:
 func recheck() -> void:
 	if modPackage == null:
 		return
+	if modPackage.loading:
+		# port: still loading; checking now would take over that load (the list is rebuilt when it ends)
+		pathTF.text = "Loading " + modPackage.filePath
+		LoadedModPackage.listWaiting = true
+		return
 	if checkDefaultFolders and g.defaultModFolders.size() > 0:
 		var p: String = g.defaultModFolders[defaultFolder] + enteredPath
 		pathTF.text = "Trying " + p

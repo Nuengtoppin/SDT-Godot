@@ -10,6 +10,14 @@ extends RefCounted
 ##
 ## New mods are converted on a worker thread and inspected once (which items, their types and slots); the result is
 ## cached next to the conversion (catalog.json), so later startups only read small files.
+##
+## Names: a character code names a costume or hair by its picker name (g.dataName). Codes from the Loader name mod
+## items the way MoreClothing listed them, so a name the game does not know is looked up here (find_named): an
+## entry answers to its mod's name, its file name, and the name a names.txt in its folder gives it. names.txt lines:
+## "<file> = <name>" or "<file> = <name> > <slot>" (the slot's picker shows it instead, e.g. "> earring" for an
+## earring made as a hair accessory; "> body": MoreClothing's body slot, the "Body pieces" list in Clothes, where
+## several can be on); "#" starts a comment.
+const BODY_LIST := "body"
 
 const SCAN_FOLDERS := ["Clothing", "Hair", "Backgrounds"]
 const IMAGE_EXTENSIONS := ["png", "jpg", "jpeg", "gif", "bmp"]
@@ -33,18 +41,40 @@ var _seen: Array = []         # [path, catalog] of every mod looked at, for list
 var _queue: Array = []        # paths still to inspect
 var _converting: Dictionary = {}  # task id -> [path, bytes, dir]
 var _busy := false
+var _names: Dictionary = {}   # lower-case file path -> [name, slot] from names.txt
+var _scanned := false         # every mod has been looked at
+var _wanted: Array = []       # [picker, name, callback] asked for before the scan finished (find_named)
 
 
 func start() -> void:
+	picker_entries[BODY_LIST] = []
 	for sub in SCAN_FOLDERS:
 		_scan(Flash.mods_dir(sub))
 	Flash.add_enter_frame(self, _tick)
+	# MoreClothing's extra body slot (Loader codes): the mod is put on; saving writes it as the port's own mod field
+	CharCode.add_field("moreclothingbody", "port", _no_field, _load_body_slot)
+
+
+func _no_field():
+	return null
+
+
+func _load_body_slot(v: String, _load) -> void:
+	if v != "" and v != "none":
+		find_named(null, v, _apply_once)
+
+
+func _apply_once(e: Dictionary) -> void:
+	if not is_applied(e):
+		apply(e)
 
 
 func _scan(dir: String) -> void:
 	var d := DirAccess.open(dir)
 	if d == null:
 		return
+	if d.file_exists("names.txt"):
+		_read_names(dir)
 	for f in d.get_files():
 		var ext := f.get_extension().to_lower()
 		if ext == "swf":
@@ -55,6 +85,15 @@ func _scan(dir: String) -> void:
 				"title": f.get_basename().replace("_", " ").strip_edges(), "picker": "bg"}
 			entries.append(e)
 			bg_entries.append(e)
+		elif ext in IMAGE_EXTENSIONS and dir.begins_with(Flash.mods_dir("Hair")):
+			# image hairs: put on like the vanilla "Import hair" (CustomElementLoader.tryToLoadHairFile)
+			var named: Array = _names.get(dir.path_join(f).to_lower(), ["", ""])
+			var e := {"path": _relative(dir.path_join(f)), "image": true, "items": [], "modTypes": [],
+				"title": named[0] if named[0] != "" else f.get_basename().replace("_", " ").strip_edges(), "picker": "hair",
+				"names": [g.dataName(f.get_basename())] + ([g.dataName(named[0])] if named[0] != "" else []),
+				"named": named[0] != ""}
+			entries.append(e)
+			hair_entries.append(e)
 	for sub in d.get_directories():
 		_scan(dir.path_join(sub))
 
@@ -73,6 +112,10 @@ func _tick() -> void:
 		if _converting.is_empty():
 			Flash.remove_enter_frame(self, _tick)
 			_sync_loaded()
+			_scanned = true
+			for w in _wanted:
+				find_named(w[0], w[1], w[2])
+			_wanted.clear()
 		return
 	if _converting.size() >= 2:
 		return
@@ -171,6 +214,13 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 	var title: String = cat.get("modName", "")
 	if title == "":
 		title = path.get_file().get_basename().replace("_", " ").strip_edges()
+	var named: Array = _names.get(path.to_lower(), ["", ""])
+	var names := [g.dataName(title), g.dataName(path.get_file().get_basename())]
+	var mod_name := title
+	if named[0] != "":
+		names.append(g.dataName(named[0]))
+		title = named[0]   # the pickers show the names.txt name
+	var moved = g.characterControl.get(named[1] + "Control") if named[1] != "" else null
 	# one option per picker: the mod's items for that picker are applied together
 	var groups: Array = []   # [picker key, entry]
 	# items no picker shows (a set's body part: ThickerThighs' socks come with the thicker thighs they fit) go on and
@@ -186,13 +236,17 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 		var key = _picker_key(it)
 		if key == null or (only_key != null and not is_same(key, only_key)):
 			continue
+		if moved is CharacterElementHelper and key is CharacterElementHelper:
+			key = moved
+		elif named[1] == BODY_LIST and not key is String:
+			key = BODY_LIST
 		var e := {}
 		for gr in groups:
 			if is_same(gr[0], key):
 				e = gr[1]
 		if e.is_empty():
-			e = {"path": rel, "items": [], "modTypes": [], "title": title, "modName": title, "companions": companions,
-				"companionTypes": companion_types}
+			e = {"path": rel, "items": [], "modTypes": [], "title": title, "modName": mod_name, "companions": companions,
+				"companionTypes": companion_types, "names": names, "named": named[0] != ""}
 			groups.append([key, e])
 		e["items"].append(int(it["item"]))
 		if not e["modTypes"].has(it["modType"]):
@@ -254,8 +308,44 @@ static func _dedupe(list: Array, e: Dictionary) -> void:
 	var name: String = e.get("modName", e["title"])
 	for o in list:
 		if o != e and o.get("modName", o["title"]) == name:   # the mod's own name, not a title changed already
-			o["title"] = _file_title(o["path"])
-			e["title"] = _file_title(e["path"])
+			for x in [o, e]:
+				if not x.get("named", false):   # a names.txt name stays
+					x["title"] = _file_title(x["path"])
+
+
+## Reads a folder's names.txt (see the top of this file).
+func _read_names(dir: String) -> void:
+	for line in FileAccess.get_file_as_string(dir.path_join("names.txt")).split("\n"):
+		line = line.get_slice("#", 0).strip_edges()
+		if not "=" in line:
+			continue
+		var file := line.get_slice("=", 0).strip_edges()
+		var rest := line.substr(line.find("=") + 1)
+		var slot := rest.get_slice(">", 1).strip_edges() if ">" in rest else ""
+		_names[dir.path_join(file).to_lower()] = [rest.get_slice(">", 0).strip_edges(), slot]
+
+
+## Calls found(entry) with the installed mod that answers to `name` (see the top of this file) in `picker` (a
+## costume element helper, "hair", or null for any), now or once every mod has been looked at; nothing if none does.
+## A newer request for the same picker replaces one still waiting.
+func find_named(picker, name: String, found: Callable) -> void:
+	if not _scanned:
+		_wanted = _wanted.filter(func(w): return picker == null or not is_same(w[0], picker))
+		_wanted.append([picker, name, found])
+		return
+	var n := g.dataName(name)
+	for e in entries:
+		if n in e.get("names", []) and (picker == null or is_same(e.get("helper", e.get("picker")), picker)):
+			# after the code has finished loading, as the original's mods arrived (loading its hair clears hair
+			# costumes, e.g. an earring made as one)
+			found.call_deferred(e)
+			return
+
+
+## Drops a request still waiting for the picker (its slot was set to something else); null: every request (another
+## character is loading).
+func forget_named(picker) -> void:
+	_wanted = _wanted.filter(func(w): return picker != null and not is_same(w[0], picker))
 
 
 static func _file_title(path: String) -> String:
@@ -370,6 +460,8 @@ func _sync_loaded() -> void:
 			mark_selected(pkg.filePath.get_slice("|", 0), pkg.items)
 	if cel.customBGLoaded and cel.proxyBGPackage and cel.proxyBGPackage.hasFilePath():
 		mark_selected(cel.proxyBGPackage.path, [])
+	if cel.customHairLoaded and cel.proxyHairPackage and cel.proxyHairPackage.hasFilePath():
+		mark_selected(cel.proxyHairPackage.path, [])
 
 
 ## Shows a restored saved item as the current option of its picker.

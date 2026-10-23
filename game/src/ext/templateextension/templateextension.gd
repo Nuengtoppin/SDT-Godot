@@ -11,7 +11,8 @@ extends SDTExtension
 ## Port: over-tops (a shibari top) have a slot of their own, "Over top" in the new menu's Clothes, with
 ## their own colour (saved in the character code), so they go over her top instead of replacing it (the original
 ## used the top's slot and colour). Over-top layers with erase parts are groups, so those cut only the over-top's own
-## art (the shibari's ropes go behind her breast, as in the Loader).
+## art (the shibari's ropes go behind her breast, as in the Loader); so are clothing pieces with erase parts in the
+## game's own slots (the same shibari worn as a top).
 
 ## Mod type -> {part name in the mod -> path from her} (paths are tried when the extension is switched on)
 const TYPES := {
@@ -60,6 +61,7 @@ var _saved: Dictionary = {}     # mod type -> the helper it replaced (CostumeBra
 ## The over-top slot: no built-in options ("None"), the over-top mods from Mods/Clothing after it
 var over_top: CharacterElementHelper = null
 var _layers: Dictionary = {}    # over-top part -> its layer
+var _cut_groups: Dictionary = {}   # containers made groups for clothing pieces' cut-outs (_group_layers)
 var hair_over_extended: FlashSprite = null
 
 
@@ -119,6 +121,10 @@ func _disable() -> void:
 		if l._flash_parent != null:
 			l._flash_parent.removeChild(l)
 	_layers.clear()
+	for o in _cut_groups:
+		if is_instance_valid(o) and o.blendMode == "layer":
+			o.blendMode = "normal"
+	_cut_groups.clear()
 	if hair_over_extended != null and hair_over_extended._flash_parent != null:
 		hair_over_extended._flash_parent.removeChild(hair_over_extended)
 	hair_over_extended = null
@@ -173,12 +179,57 @@ func _hair_filters() -> void:
 
 ## Over-top layers holding ERASE / ALPHA parts are LAYER groups, so those parts cut only the over-top's own art (the
 ## shibari's ropes behind her breast, as in the Loader); the others stay plain (no offscreen group).
+## The same for clothing in the game's own slots (that shibari worn as a top): a piece with such parts and no group
+## above it gets one at the nearest container it shares with another piece of its mod (the shibari's breast-shaped
+## eraser and the chest ropes it cuts sit in two containers of the top), else its own (without a group they draw
+## nothing).
 func _group_layers() -> void:
 	for p in _layers:
 		var l: FlashSprite = _layers[p]
 		var want := "layer" if _has_cutout(l) else "normal"
 		if l.blendMode != want:
 			l.blendMode = want
+	var pieces: Array = g.customElementLoader.instancedModElements.filter(func(lm): return lm._mod is FlashSprite \
+		and is_instance_valid(lm._mod) and str(lm._modType).begins_with("Costume"))
+	var want := {}
+	for lm in pieces:
+		var m = lm._mod
+		if not _has_cutout(m) or _in_group(m):
+			continue
+		var target = m if m.blendMode == "normal" else null
+		var a = m._flash_parent
+		while a != null and a != g.her:
+			if pieces.any(func(o): return o != lm and o.sourcePackage == lm.sourcePackage and _is_inside(o._mod, a)):
+				target = a
+				break
+			a = a._flash_parent
+		if target != null:
+			want[target] = true
+	for o in _cut_groups:
+		if not want.has(o) and is_instance_valid(o) and o.blendMode == "layer":
+			o.blendMode = "normal"
+	for o in want:
+		if o.blendMode == "normal":
+			o.blendMode = "layer"
+	_cut_groups = want
+
+
+## Whether a group (not one of ours for cut-outs) is above o.
+func _in_group(o) -> bool:
+	var p = o._flash_parent
+	while p != null:
+		if p.blendMode == "layer" and not _cut_groups.has(p):
+			return true
+		p = p._flash_parent
+	return false
+
+
+static func _is_inside(o, a) -> bool:
+	while o != null:
+		if o == a:
+			return true
+		o = o._flash_parent
+	return false
 
 
 static func _has_cutout(o) -> bool:

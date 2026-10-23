@@ -15,6 +15,12 @@ var loadedStatusString: String = ""
 var loadingErrorHandler: Callable
 var loadingSuccessHandler: Callable
 var loadingInitHandler: Callable
+## Port: a load is running. The character list's path check (ModFilePathEntry) leaves such a package alone: checking
+## it reloads through the package, which would take over the running load's handlers (a stored character's image
+## hair never arrived when a mod was put on while it loaded).
+var loading := false
+## Port: the character list skipped a package that was loading; it is refreshed when a load ends.
+static var listWaiting := false
 ## Port extension: the items of the package chosen from a picker (ModCatalog); empty = the whole package. Saved
 ## as "<path>|<item>+<item>...".
 var items: Array = []
@@ -89,6 +95,7 @@ func dataString() -> String:
 func tryToLoadFilePath(p: String, onError: Callable = Callable(), onSuccess: Callable = Callable(),
 		onInit: Callable = Callable()) -> FlashLoader:
 	filePath = p
+	loading = true
 	var l := FlashLoader.new()
 	loadingErrorHandler = onError
 	loadingSuccessHandler = onSuccess
@@ -104,15 +111,25 @@ func tryToLoadFilePath(p: String, onError: Callable = Callable(), onSuccess: Cal
 
 func fileIOErrorHandler(e: FlashEvent) -> void:
 	e.target.removeEventListener(FlashEvent.IO_ERROR, fileIOErrorHandler)
+	loading = false
 	if loadingErrorHandler.is_valid():
 		loadingErrorHandler.call(e)
+	_refreshList()
 
 
 func fileLoaderComplete(e: FlashEvent) -> void:
 	e.target.removeEventListener(FlashEvent.COMPLETE, fileLoaderComplete)
 	filePathOkay = true
+	loading = false
 	if loadingSuccessHandler.is_valid():
 		loadingSuccessHandler.call(e)
+	_refreshList()
+
+
+static func _refreshList() -> void:
+	if listWaiting and g.inGameMenu != null and g.inGameMenu.charStoring != null:
+		listWaiting = false
+		g.inGameMenu.charStoring.populateMods.call_deferred()
 
 
 func fileLoaderInit(e: FlashEvent) -> void:

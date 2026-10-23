@@ -568,10 +568,33 @@ func cancelHandler(_e = null) -> void:
 	browsingForBG = false
 
 
+## Port: a file a code names by a path that is not there (a Loader character's "Mods/$INIT$/hair.png") is the file
+## of the same name in the port's Mods folder, if there is one.
+static func findModFile(p: String) -> String:
+	if FileAccess.file_exists(Flash.resolve_content_path(p)):
+		return p
+	var found := _findFile(Flash.mods_dir(), p.replace("\\", "/").get_file())
+	return ModCatalog._relative(found) if found != "" else p
+
+
+static func _findFile(dir: String, file: String) -> String:
+	var d := DirAccess.open(dir)
+	if d == null:
+		return ""
+	if d.file_exists(file):
+		return dir.path_join(file)
+	for sub in d.get_directories():
+		var found := _findFile(dir.path_join(sub), file)
+		if found != "":
+			return found
+	return ""
+
+
 func tryToLoadHairFile(p: String) -> FlashLoader:
 	browsingForHair = true
 	if p.ends_with(","):
 		p = p.substr(0, p.length() - 1)
+	p = findModFile(p)
 	if not proxyHairPackage:
 		proxyHairPackage = LoadedModPackage.new("customHair")
 	return proxyHairPackage.tryToLoadFilePath(p, hairErrorHandler, hairLoaderComplete)
@@ -585,6 +608,7 @@ func tryToLoadBGFile(p: String) -> FlashLoader:
 	browsingForBG = true
 	if p.ends_with(","):
 		p = p.substr(0, p.length() - 1)
+	p = findModFile(p)
 	if not proxyBGPackage:
 		proxyBGPackage = LoadedModPackage.new("customBG")
 	return proxyBGPackage.tryToLoadFilePath(p, bgErrorHandler, bgLoaderComplete)
@@ -643,7 +667,7 @@ func _hairLayer(data: FlashBitmapData) -> FlashBitmap:
 	var s := 1.0 / 0.85
 	b.x = -360
 	b.y = -560
-	b.rotation = 15
+	b.rotation_degrees = 15   # Flash degrees (the port's rotation is in radians)
 	b.scaleX = s
 	b.scaleY = s
 	return b
@@ -670,6 +694,8 @@ func generateCustomHair() -> void:
 		g.resetIntro()
 	g.characterControl.setCustomHairLoaded()
 	customHairLoaded = true
+	if g.modCatalog != null and proxyHairPackage != null:   # port: the hair picker shows it if it is a Mods/Hair image
+		g.modCatalog.mark_selected(proxyHairPackage.path, [])
 
 
 func generateCustomBackground() -> void:

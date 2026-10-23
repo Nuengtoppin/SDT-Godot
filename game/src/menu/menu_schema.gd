@@ -198,6 +198,13 @@ static func _her() -> Dictionary:
 	]}
 
 
+static func _toggle_body(on: bool, e: Dictionary) -> void:
+	if on:
+		g.modCatalog.apply(e)
+	else:
+		g.modCatalog.remove_entry(e)
+
+
 static func _clothes() -> Dictionary:
 	var cc := func(): return g.characterControl
 	var head: Array = []
@@ -225,6 +232,11 @@ static func _clothes() -> Dictionary:
 		{"title": "Head and neck", "controls": head},
 		{"title": "Upper body", "controls": upper},
 		{"title": "Lower body", "controls": lower},
+		{"title": "Body pieces", "controls": [
+			{"type": "custom", "label": "Body pieces", "wide": true, "keywords": "moreclothing body armband",
+				"tip": "Clothing worn besides the slots above (MoreClothing's body slot): an armband, a harness... Several can be on. A mod goes here when Mods/Clothing/names.txt names it with \"> body\".",
+				"build": func(): return ModSwitchList.build(ModCatalog.BODY_LIST, _toggle_body, "None (see the tip).")},
+		]},
 		{"title": "Piercings", "controls": pierce},
 		{"title": "Tan lines", "controls": [
 			arrows("Tan", "", func(): return tan.call()._tanNameList, func(): return tan.call()._currentTanID,
