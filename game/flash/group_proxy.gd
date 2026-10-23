@@ -8,6 +8,8 @@ extends Node2D
 ## nest reliably and masks (clip_children) work inside them, unlike CanvasGroup.
 
 const DISPLAY_SHADER := preload("res://flash/shaders/group_display.gdshader")
+const LIQUID_HIGHLIGHT_SHADER := preload("res://flash/shaders/highlight.gdshader")
+const SALIVA_OPACITY := 0.85
 const MAX_SIZE := 4096
 ## Blend modes applied when compositing the group (0 = normal); see group_display.gdshader.
 const BLEND_IDS := {"overlay": 1, "hardlight": 2, "screen": 3, "lighten": 4, "darken": 5, "difference": 6,
@@ -162,7 +164,13 @@ func update_layout() -> void:
 	_px_scale = maxf(sc.x, sc.y)
 	# Shadow / blur parameters are in render-target pixels (= screen pixels).
 	var stretch := Flash.screen_scale()
-	if _mat.shader != DISPLAY_SHADER:
+	if _mat.shader == LIQUID_HIGHLIGHT_SHADER:
+		# render-target pixels per local unit, scene zoom included
+		_mat.set_shader_parameter("px_scale", _px_scale)
+		# these two layers carry the saliva; other highlight groups keep their opacity
+		var is_saliva: bool = _obj == g.strandBackLayer or _obj == g.strandFrontLayer
+		_mat.set_shader_parameter("opacity", SALIVA_OPACITY if is_saliva else 1.0)
+	elif _mat.shader != DISPLAY_SHADER:
 		_mat.set_shader_parameter("px_scale", stretch)
 	if _mat.shader == DISPLAY_SHADER:
 		_mat.set_shader_parameter("blur_px", _filter_px * stretch)
