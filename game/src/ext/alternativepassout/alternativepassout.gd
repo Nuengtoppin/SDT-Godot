@@ -52,7 +52,6 @@ func _setup() -> void:
 func _enable() -> void:
 	hook_before(&"Her.passOut", _pass_out, -10)   # before moremoods' (it replaces both, like the mod)
 	hook_after(&"Her.updateEyes", func(_c): _update_eyes())
-	hook_after(&"Her.lookAt", func(_c): _after_look())
 	hook_before(&"Her.updateElements", func(_c):
 		if _active and option != 0 and g.her.passedOut:
 			g.her.winceTimer = 0)
@@ -134,11 +133,8 @@ func _update_eyes() -> void:
 		her.eye.ball.highlights.alpha -= 1.0 / HIGHLIGHT_FADE_FRAMES
 	elif option == 2:
 		_set_lids(_frozen_frame)
-
-
-func _after_look() -> void:
-	var her = g.her
-	if _active and her.passedOut and option == 2:
+		# Her eyes stay where they were too. Done here, after Her.updateEyes: Her.lookAt has no hook point after it,
+		# and moremoods replaces Her.lookAt (its handler cancels the call), so a handler after Her.lookAt never ran.
 		her.eye.ball.irisContainer.rotation_degrees = _frozen_rotation
 		her.eyeMotion["target"] = _frozen_target
 		her.eyeMotion["ang"] = _frozen_ang
