@@ -16,10 +16,6 @@ uniform bool hide_object = false;
 // 10 subtract.
 uniform int blend_mode = 0;
 uniform sampler2D backdrop : hint_screen_texture, filter_linear;
-// ColorMatrixFilters of the object and its ancestors, applied to the composite (rows applied to rgba; offsets 0..1).
-uniform bool use_matrix = false;
-uniform mat4 cm = mat4(1.0);
-uniform vec4 cm_offset = vec4(0.0);
 
 float overlay1(float b, float s) {
 	return b < 0.5 ? 2.0 * b * s : 1.0 - 2.0 * (1.0 - b) * (1.0 - s);
@@ -80,10 +76,6 @@ void fragment() {
 			vec4 sh = vec4(shadow_color.rgb * oa, oa);
 			r = knockout ? sh * (1.0 - c.a) : (hide_object ? sh : c + sh * (1.0 - c.a));
 		}
-	}
-	if (use_matrix && r.a > 0.0) {
-		vec4 s = clamp(cm * vec4(r.rgb / r.a, r.a) + cm_offset, 0.0, 1.0);
-		r = vec4(s.rgb * s.a, s.a);
 	}
 	// premultiplied output, scaled by the group's modulate (Flash alpha / multipliers of the composite)
 	vec4 o = vec4(r.rgb * modulate.rgb, r.a) * modulate.a;

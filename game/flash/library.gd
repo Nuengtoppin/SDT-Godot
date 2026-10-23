@@ -17,9 +17,7 @@ var fps: float = 30.0
 ## GDScript classes, and their ActionScript runs through `mod`.
 var is_mod := false
 var mod: Object = null
-var _blend_groups: Dictionary = {}   # char id -> blends_as_group result
-var _cutouts: Dictionary = {}
-var _piece_counts: Dictionary = {}
+var _cutouts: Dictionary = {}    # char id -> has_cutout result
 
 var _textures: Dictionary = {}
 
@@ -66,45 +64,18 @@ func class_id(cls: String) -> int:
 	return int(classes.get(cls, -1))
 
 
-## True if an instance of the symbol with a blend mode must be drawn as one group to look as in Flash (which
-## always groups such containers): it puts ERASE / ALPHA pieces on a frame (they cut only the group), or draws
-## more than one piece in a frame (blended one by one, overlaps would blend twice and seams show between them).
-func blends_as_group(id: int) -> bool:
-	if not _blend_groups.has(id):
-		_blend_groups[id] = _has_cutout(id) or _pieces(id) > 1
-	return _blend_groups[id]
-
-
-func _has_cutout(id: int) -> bool:
+## True if the symbol's timeline (or a symbol it places) puts ERASE / ALPHA pieces on any frame.
+func has_cutout(id: int) -> bool:
 	if _cutouts.has(id):
 		return _cutouts[id]
 	_cutouts[id] = false   # cycles
 	var found := false
 	for p in get_char(id).get("places", []):
-		if p.get("bl") == "erase" or p.get("bl") == "alpha" or _has_cutout(int(p.get("c", -1))):
+		if p.get("bl") == "erase" or p.get("bl") == "alpha" or has_cutout(int(p.get("c", -1))):
 			found = true
 			break
 	_cutouts[id] = found
 	return found
-
-
-## Most pieces (shapes, bitmaps, texts) the symbol shows in one frame.
-func _pieces(id: int) -> int:
-	if _piece_counts.has(id):
-		return _piece_counts[id]
-	_piece_counts[id] = 1   # cycles
-	var c := get_char(id)
-	var n := 1 if not c.is_empty() else 0
-	if c.has("places") and c.has("frames"):
-		var places: Array = c["places"]
-		n = 0
-		for row in c["frames"]:
-			var k := 0
-			for e in row:
-				k += _pieces(int(places[int(e[1])].get("c", -1)))
-			n = maxi(n, k)
-	_piece_counts[id] = n
-	return n
 
 
 func get_texture(img: String) -> Texture2D:

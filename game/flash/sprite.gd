@@ -82,8 +82,6 @@ func _hb_child_added(child: FlashDisplayObject) -> void:
 
 
 func _render_state_changed() -> void:
-	if _proxy is FlashGroupProxy:
-		_proxy.refresh_matrix()
 	for c in _children:
 		c._render_state_changed()
 	if _graphics != null and _graphics.has_content():

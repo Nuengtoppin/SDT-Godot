@@ -893,24 +893,23 @@ func shape_material(s: FlashShape) -> Material:
 	var has_cm := false
 	var o: FlashDisplayObject = s
 	var blend_open := true
-	var cm_open := true
 	var grouped := false   # an offscreen group above the object the blend mode comes from
 	while o != null:
 		# An offscreen group composites its whole content with its own blend mode (group_display), so blend
-		# modes at or above a grouped ancestor do not apply to the shapes inside it; nor colour matrices, which
-		# the group applies to its composite (overlapping pieces would each take a matrix's alpha).
+		# modes at or above a grouped ancestor do not apply to the shapes inside it.
 		if o != s and o._proxy is FlashGroupProxy:
 			blend_open = false
 			grouped = grouped or blend != "normal"
-			if o._proxy.applies_matrix:
-				cm_open = false
 		if blend_open and blend == "normal" and o._blend_mode != "normal" and o._blend_mode != "layer":
 			blend = o._blend_mode
-		if cm_open and not o._filters.is_empty():
-			var r := FlashFilter.fold_color_matrices(o._filters, cm, cm_off)
-			cm = r[0]
-			cm_off = r[1]
-			has_cm = has_cm or r[2]
+		for f in o._filters:
+			if f is FlashFilter and f.type == "ColorMatrix" and f.matrix.size() >= 20:
+				var m: Array = f.matrix
+				var b := Projection(Vector4(m[0], m[5], m[10], m[15]), Vector4(m[1], m[6], m[11], m[16]),
+					Vector4(m[2], m[7], m[12], m[17]), Vector4(m[3], m[8], m[13], m[18]))
+				cm_off = b * cm_off + Vector4(m[4], m[9], m[14], m[19]) / 255.0
+				cm = b * cm
+				has_cm = true
 		o = o._flash_parent
 	if off == Color(0, 0, 0, 0) and blend == "normal" and not has_cm:
 		return null
