@@ -911,13 +911,25 @@ func shape_material(s: FlashShape) -> Material:
 				cm = b * cm
 				has_cm = true
 		o = o._flash_parent
-	if off == Color(0, 0, 0, 0) and blend == "normal" and not has_cm:
+	# derrdev tan fix: Tan recolours the selected vanilla skin fills instead of adding a second coverage layer.
+	# New skin frames read the same owner metadata.
+	var skin_tan: float = 0.0
+	var skin_tan_mask: int = 0
+	var skin_owner: FlashDisplayObject = s._flash_parent
+	if blend == "normal" and s._library == base_library and skin_owner != null and skin_owner._library == base_library and skin_owner._char_id in [1230, 1435, 1535]:
+		skin_tan = float(skin_owner.get_meta("sdt_skin_tan_strength", 0.0))
+		var requested_mask: int = int(skin_owner.get_meta("sdt_skin_tan_mask", 0))
+		if (skin_owner._char_id == 1435 and requested_mask == 1394) or (skin_owner._char_id == 1535 and requested_mask in [1527, 1528, 1529]):
+			skin_tan_mask = requested_mask
+	if off == Color(0, 0, 0, 0) and blend == "normal" and not has_cm and skin_tan == 0.0:
 		return null
 	# ERASE / ALPHA need a LAYER parent; without one Flash draws nothing (a mod part with ERASE moved out of its
 	# mod onto her layers, e.g. the shibari over-top's breast, which only cut the mod's own ropes)
 	if (blend == "erase" or blend == "alpha") and not grouped:
 		blend = "none"
 	var key := "%s|%s|%s|%s" % [blend, off, cm if has_cm else "", cm_off if has_cm else ""]
+	if skin_tan > 0.0:
+		key += "|skin_tan:%s|mask:%d" % [skin_tan, skin_tan_mask]
 	var mat: ShaderMaterial = _material_pool.get(key)
 	if mat != null:
 		return mat
@@ -927,6 +939,20 @@ func shape_material(s: FlashShape) -> Material:
 		mat.set_shader_parameter("mode", SCREEN_BLEND_MODES[blend])
 	else:
 		mat.shader = SHAPE_SHADERS.get(blend, SHAPE_SHADERS["normal"])
+	if skin_tan > 0.0:
+		mat.set_shader_parameter("skin_tan_strength", skin_tan)
+		if skin_tan_mask != 0:
+			var mask_entry: Dictionary = base_library.get_char(skin_tan_mask)
+			var full_id: int = 1393 if skin_owner._char_id == 1435 else 1526
+			var full_entry: Dictionary = base_library.get_char(full_id)
+			var mask_tex: Texture2D = base_library.get_texture(mask_entry["img"])
+			var full_tex: Texture2D = base_library.get_texture(full_entry["img"])
+			mat.set_shader_parameter("skin_tan_masked", true)
+			mat.set_shader_parameter("skin_tan_mask", mask_tex)
+			mat.set_shader_parameter("skin_tan_full", full_tex)
+			# Match FlashShape._draw: origin from the entry, size from the baked pixels / library scale.
+			mat.set_shader_parameter("skin_tan_mask_rect", Vector4(float(mask_entry["x"]), float(mask_entry["y"]), float(mask_tex.get_width()) / base_library.scale, float(mask_tex.get_height()) / base_library.scale))
+			mat.set_shader_parameter("skin_tan_full_rect", Vector4(float(full_entry["x"]), float(full_entry["y"]), float(full_tex.get_width()) / base_library.scale, float(full_tex.get_height()) / base_library.scale))
 	mat.set_shader_parameter("offset", Vector4(off.r, off.g, off.b, off.a) / 255.0)
 	if has_cm:
 		mat.set_shader_parameter("use_matrix", true)
