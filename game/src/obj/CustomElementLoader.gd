@@ -704,11 +704,16 @@ func generateCustomBackground() -> void:
 	bgData = FlashBitmapData.new(w, int(customBGHeight), false, 0xFF000000)
 	bgLayer = FlashBitmap.new(bgData, "auto", true)
 	bgData.copyPixels(bgImportSource, Rect2i(0, 0, w, int(customBGHeight)), Vector2i())
-	# port (widescreen): a wide image is centred on the game field and runs into the side areas
-	bgLayer.x = (700 - w) / 2.0
+	# port (widescreen): a wide image takes the height of the game's own backgrounds (850, drawn for the same view,
+	# e.g. a widened classroom) and is centred on the game field, running into the side areas; the game drew images
+	# 1:1 and kept their leftmost 700 pixels
+	var s := 850.0 / customBGHeight if w > 700 else 1.0
+	bgLayer.scaleX = s
+	bgLayer.scaleY = s
+	bgLayer.x = (700 - w * s) / 2.0
 	g.bg.addChild(bgLayer)
 	g.characterControl.setCustomBGLoaded()
-	g.sceneLayer.setCustomBGHeight(customBGHeight)
+	g.sceneLayer.setCustomBGHeight(customBGHeight * s)
 	customBGLoaded = true
 
 
