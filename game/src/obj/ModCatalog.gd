@@ -44,6 +44,7 @@ var _busy := false
 var _names: Dictionary = {}   # lower-case file path -> [name, slot] from names.txt
 var _scanned := false         # every mod has been looked at
 var _wanted: Array = []       # [picker, name, callback] asked for before the scan finished (find_named)
+var _known: Dictionary = {}   # lower-case paths of the files scanned, so rescan() only adds new ones
 
 
 func start() -> void:
@@ -77,6 +78,9 @@ func _scan(dir: String) -> void:
 		_read_names(dir)
 	for f in d.get_files():
 		var ext := f.get_extension().to_lower()
+		if _known.has(dir.path_join(f).to_lower()):
+			continue
+		_known[dir.path_join(f).to_lower()] = true
 		if ext == "swf":
 			_queue.append(dir.path_join(f))
 		elif ext in IMAGE_EXTENSIONS and dir.begins_with(Flash.mods_dir("Backgrounds")):
@@ -340,6 +344,31 @@ func find_named(picker, name: String, found: Callable) -> void:
 			# costumes, e.g. an earring made as one)
 			found.call_deferred(e)
 			return
+
+
+## Looks at the mods folders again (files added since, e.g. by LoaderImport): new mods are added, names.txt is read
+## again and installed mods take its new names.
+func rescan() -> void:
+	_scanned = false
+	for sub in SCAN_FOLDERS:
+		_scan(Flash.mods_dir(sub))
+	for e in entries:
+		var named: Array = _names.get(Flash.resolve_content_path(e["path"]).to_lower(), ["", ""])
+		if named[0] != "" and not g.dataName(named[0]) in e.get("names", []):
+			e["names"] = e.get("names", []) + [g.dataName(named[0])]
+			e["title"] = named[0]
+			e["named"] = true
+	Flash.remove_enter_frame(self, _tick)
+	Flash.add_enter_frame(self, _tick)
+
+
+## Whether an installed mod answers to `name` in `picker` (see find_named), as far as the scan has got.
+func has_named(picker, name: String) -> bool:
+	var n := g.dataName(name)
+	for e in entries:
+		if n in e.get("names", []) and (picker == null or is_same(e.get("helper", e.get("picker")), picker)):
+			return true
+	return false
 
 
 ## Drops a request still waiting for the picker (its slot was set to something else); null: every request (another
