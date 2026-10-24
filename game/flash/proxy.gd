@@ -264,7 +264,8 @@ static func reconcile(parent: Node, seq: Array) -> void:
 
 ## Rebuilds the wrapper chain of obj after its mask / blend mode / filters changed.
 static func update_for(obj: FlashDisplayObject) -> void:
-	var need_group := obj._blend_mode == "layer"
+	# derrdev tan fix: Tan opts an overlay tan layer into its own group (meta "flash_isolate_composite").
+	var need_group: bool = obj._blend_mode == "layer" or bool(obj.get_meta("flash_isolate_composite", false))
 	# Flash composites a container with any other blend mode as one group as well. That matters when it holds
 	# ERASE / ALPHA pieces, which cut only the group (her bikini tan lines: an overlay clip with an erase child).
 	# Other blended containers draw their pieces one by one: a group costs a render target.

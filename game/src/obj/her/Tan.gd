@@ -17,6 +17,25 @@ var _alphaSlider = null
 func _init() -> void:
 	prepItems()
 	prepScalingDictionary()
+	# Existing character notification, not a new per-frame update.
+	g.characterControl.addBreastSizeChangeListener(_refreshAfterSizeChange)
+
+
+## Timeline size changes may replace tan nodes and skin shapes while the style stays unchanged.
+func _refreshAfterSizeChange() -> void:
+	prepItems()
+	for item in _standardTanItems:
+		var t = item.get("tan")
+		if t:
+			CharacterControl.tryToSetFrameLabel(t, _tanNameList[_currentTanID])
+	setTanAlpha()
+	# P008 stores tan on the owner. A new skin shape can arrive with unchanged
+	# owner metadata, so explicitly rebuild its material after frame selection.
+	var chest = g.her.torso.midLayer.chest
+	if chest._library == Flash.base_library and chest._char_id == 1435:
+		for child in chest._children:
+			if child is FlashShape:
+				child._render_state_changed()
 
 
 func registerMenuItems(menuList, slider) -> void:
@@ -84,39 +103,78 @@ func setTanAlpha(v: float = -1.0) -> void:
 	if v != -1:
 		_currentTanAlpha = v
 	var a := _currentTanAlpha * _currentAlphaScaling
-	var cmf := FlashFilter.colorMatrix([1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, a, 0])
 	for item in _standardTanItems:
 		var t = item.get("tan")
 		if t:
+			if _setSkinTanFill(item, t, a):
+				continue
 			if a > 0 and _currentTanID != 0:
 				t.visible = true
 				t.alpha = a
 			else:
 				t.visible = false
+			_setTanIsolation(t, a > 0 and _currentTanID != 0)
 	g.her.ear.tan.alpha = a
 	for t in _modTanItems():
 		t.visible = a > 0 and _currentTanID != 0
 		t.alpha = a
+	_setTanIsolation(g.her.ear.tan, a > 0 and _currentTanID != 0)
 	for item in _multiPartTanItems:
-		if a > 0 and _currentTanID != 0:
-			item.filters = [cmf]
-			item.visible = true
-		else:
-			item.filters = []
-			item.visible = false
+		# ColorMatrix alpha is folded into individual leaf materials by this renderer.
+		# That accumulates opacity at overlaps. Apply strength once to the flattened
+		# tan group instead, matching the standard tan layers (including the brow).
+		item.filters = []
+		item.alpha = a
+		item.visible = a > 0 and _currentTanID != 0
+		_setTanIsolation(item, a > 0 and _currentTanID != 0)
+
+# Recolour selected vanilla skin fills before applying coverage. Torso cutouts
+# sample the existing style silhouettes in owner-local coordinates, normalized
+# by Full coverage so the outer antialiasing is not applied a second time.
+func _setSkinTanFill(item: FlashSprite, tan_layer: FlashDisplayObject, strength: float) -> bool:
+	var is_brow: bool = item == g.her.eye.eyebrowUnderMask and item._char_id == 1230
+	var is_torso: bool = (item == g.her.torso.back and item._char_id == 1535) or (item == g.her.torso.midLayer.chest and item._char_id == 1435)
+	if item._library != Flash.base_library or not (is_brow or is_torso):
+		return false
+	var skin_shapes: Array = []
+	for child in item._children:
+		if child is FlashShape:
+			if child._library != Flash.base_library:
+				return false
+			skin_shapes.append(child)
+	if skin_shapes.is_empty():
+		return false
+	var mask_id: int = 0
+	var has_tan: bool = _currentTanID != 0
+	if is_torso:
+		# Slots: None, Full, Bikini, Swimsuit, Swimsuit-T. A zero mask
+		# for an active style means uniform Full; negative means no fill.
+		var profiles: Array = [0, 0, 1394, -1, -1] if item._char_id == 1435 else [0, 0, 1527, 1528, 1529]
+		mask_id = int(profiles[_currentTanID])
+		has_tan = has_tan and mask_id >= 0
+	var amount: float = clampf(strength, 0.0, 1.0) if has_tan else 0.0
+	mask_id = maxi(mask_id, 0) if amount > 0.0 else 0
+	if float(item.get_meta("sdt_skin_tan_strength", -1.0)) != amount or int(item.get_meta("sdt_skin_tan_mask", -1)) != mask_id:
+		item.set_meta("sdt_skin_tan_strength", amount)
+		item.set_meta("sdt_skin_tan_mask", mask_id)
+		for shape in skin_shapes:
+			shape._render_state_changed()
+	tan_layer.visible = false
+	_setTanIsolation(tan_layer, false)
+	return true
 
 
-## Port fix (the Loader did this): body mod pieces' own "tan" children follow her tan lines like her own parts (the
-## game left them on their first frame, fully shown).
-func _modTanItems() -> Array:
-	var out: Array = []
-	for m in g.customElementLoader.instancedModElements:
-		if m.modType == ModTypes.BODY and m._mod != null and is_instance_valid(m._mod):
-			for p in [m._mod] + (range(m._mod.numChildren).map(func(i): return m._mod.getChildAt(i)) if m._mod is FlashSprite else []):
-				var t = p.getChildByName("tan") if p is FlashSprite else null
-				if t is FlashMovieClip:
-					out.append(t)
-	return out
+# Isolate the overlay's internal fills and ERASE/ALPHA operations from the skin backdrop.
+# The existing FlashGroupProxy applies the outer Overlay once, after flattening.
+# Release this opt-in when tan is disabled rather than retaining extra hidden viewports.
+func _setTanIsolation(target: FlashDisplayObject, active: bool) -> void:
+	if not is_instance_valid(target):
+		return
+	var wanted: bool = active and target._blend_mode == "overlay"
+	if bool(target.get_meta("flash_isolate_composite", false)) == wanted:
+		return
+	target.set_meta("flash_isolate_composite", wanted)
+	FlashProxy.update_for(target)
 
 
 func tanLeftClicked(_e = null) -> void:
@@ -173,3 +231,14 @@ func prepScalingDictionary() -> void:
 	_skinAlphaScaling[SkinPalette.PALE_SKIN] = 0.995
 	_skinAlphaScaling[SkinPalette.TAN_SKIN] = 0.6
 	_skinAlphaScaling[SkinPalette.DARK_SKIN] = 0.5
+
+
+func _modTanItems() -> Array:
+	var out: Array = []
+	for m in g.customElementLoader.instancedModElements:
+		if m.modType == ModTypes.BODY and m._mod != null and is_instance_valid(m._mod):
+			for p in [m._mod] + (range(m._mod.numChildren).map(func(i): return m._mod.getChildAt(i)) if m._mod is FlashSprite else []):
+				var t = p.getChildByName("tan") if p is FlashSprite else null
+				if t is FlashMovieClip:
+					out.append(t)
+	return out
