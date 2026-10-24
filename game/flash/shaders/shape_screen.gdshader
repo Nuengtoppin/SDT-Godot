@@ -12,7 +12,11 @@ float overlay1(float b, float s) {
 
 void fragment() {
 	vec4 c = flash_color(texture(TEXTURE, UV), flash_modulate);
-	vec3 b = texture(backdrop, SCREEN_UV).rgb;
+	// A transparent viewport stores premultiplied RGB. Nonlinear blend functions
+	// need straight backdrop colour and must account for uncovered backdrop area.
+	vec4 backdrop_sample = texture(backdrop, SCREEN_UV);
+	float backdrop_alpha = clamp(backdrop_sample.a, 0.0, 1.0);
+	vec3 b = backdrop_alpha > 0.0 ? backdrop_sample.rgb / backdrop_alpha : vec3(0.0);
 	vec3 r;
 	if (mode == 0) {
 		r = vec3(overlay1(b.r, c.r), overlay1(b.g, c.g), overlay1(b.b, c.b));
@@ -29,5 +33,7 @@ void fragment() {
 	} else {
 		r = 1.0 - b;
 	}
-	COLOR = vec4(r, c.a);
+	// Source-over with blending: (1-Ab)*Cs + Ab*B(Cb,Cs). blend_mix
+	// applies source alpha and adds the remaining premultiplied destination.
+	COLOR = vec4(mix(c.rgb, r, backdrop_alpha), c.a);
 }

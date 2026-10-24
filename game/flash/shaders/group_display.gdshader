@@ -80,8 +80,14 @@ void fragment() {
 	// premultiplied output, scaled by the group's modulate (Flash alpha / multipliers of the composite)
 	vec4 o = vec4(r.rgb * modulate.rgb, r.a) * modulate.a;
 	if (blend_mode != 0 && o.a > 0.0) {
-		vec3 b = texture(backdrop, SCREEN_UV).rgb;
-		o.rgb = blend_rgb(b, o.rgb / o.a) * o.a;
+		// Viewport RGB is premultiplied. Blend in straight colour, then
+		// include the portion of the source not covered by the backdrop.
+		vec4 backdrop_sample = texture(backdrop, SCREEN_UV);
+		float backdrop_alpha = clamp(backdrop_sample.a, 0.0, 1.0);
+		vec3 b = backdrop_alpha > 0.0 ? backdrop_sample.rgb / backdrop_alpha : vec3(0.0);
+		vec3 source_rgb = o.rgb / o.a;
+		vec3 blended = mix(source_rgb, blend_rgb(b, source_rgb), backdrop_alpha);
+		o.rgb = blended * o.a;
 	}
 	COLOR = o;
 }

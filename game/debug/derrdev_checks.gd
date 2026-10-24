@@ -54,6 +54,7 @@ func step(_frame: int) -> void:
 			g.her.setRightArmPosition(4)
 			g.her.setLeftArmPosition(4)
 			_check("arm modes including Loose survive", g.her.currentRightArmPosition == 4)
+			_test_tan_fill()
 			g.tears = true
 			_check("base tear bitmap size", g.her.tears.tearArea.size == Vector2i(120, 150))
 			g.her.clearMascara()
@@ -92,6 +93,27 @@ func _test_tan_and_sizes() -> void:
 			g.characterControl.setBreasts()
 			_check("tan %d survives size %d" % [style, int(size)], is_instance_valid(g.her.torso.midLayer.chest))
 			_check("size texture is ready", _textures_ready(g.her.torso.midLayer.chest))
+
+
+## derrdev tan fix: the Full style recolours her chest skin (no second layer); None leaves it plain.
+func _test_tan_fill() -> void:
+	var tan = g.her.tan
+	tan.setTan(1)
+	tan.setTanAlpha(0.5)
+	var chest = g.her.torso.midLayer.chest
+	_check("tan Full: chest skin carries the tan strength", _skin_tan(chest) > 0.0)
+	_check("tan Full: chest overlay layer hidden", not chest.tan.visible if chest.get("tan") != null else true)
+	tan.setTan(0)
+	_check("tan None: chest skin plain", _skin_tan(chest) == 0.0)
+
+
+func _skin_tan(owner) -> float:
+	for child in owner._children:
+		if child is FlashShape and child.material is ShaderMaterial:
+			var v = child.material.get_shader_parameter("skin_tan_strength")
+			if v != null and float(v) > 0.0:
+				return float(v)
+	return 0.0
 
 
 func _textures_ready(root: FlashDisplayObject) -> bool:
