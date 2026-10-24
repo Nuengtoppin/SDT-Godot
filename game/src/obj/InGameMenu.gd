@@ -1773,6 +1773,11 @@ func instanceStoredCharFile(param1):
 	var _loc4_ = []
 	for _loc5_ in param1:
 		if _loc5_["charName"]:
+			# port: adding to the list skips characters it has already (same name and code), so loading a file twice
+			# (or importing from the Loader again) does not double them
+			if not g.overwriteCharList and g.storedChars.any(func(c): return c.charName == str(_loc5_.charName) \
+					and c.charData == str(_loc5_.charData)):
+				continue
 			_loc6_ = { "name":_loc5_.charName, "data":_loc5_.charData, "shotBytes":_loc5_.get("shotBytes") }
 			if _loc5_.get("dialogue") != null:
 				_loc6_["dialogue"] = _loc5_["dialogue"]

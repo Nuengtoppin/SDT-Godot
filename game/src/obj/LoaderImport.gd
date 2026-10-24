@@ -34,6 +34,7 @@ var copied: Array = []        # file names copied
 var named_count := 0          # names added to names.txt
 var missing: Array = []       # names / paths found nowhere
 var chars: Array = []         # the characters (Load Backup entries)
+var added := 0                # characters added to the list (the others were in it already)
 var error := ""
 
 
@@ -74,14 +75,17 @@ static func run(dir: String) -> LoaderImport:
 		if str(ch.get("charName", "")) != "":
 			li._import_code(str(ch.get("charData", "")))
 	g.modCatalog.rescan()
+	var before: int = 0 if g.overwriteCharList else g.storedChars.size()
 	g.inGameMenu.instanceStoredCharFile(li.chars)
+	li.added = g.storedChars.size() - before
 	return li
 
 
 static func _report(li: LoaderImport) -> void:
 	var n := li.chars.filter(func(c): return str(c.get("charName", "")) != "").size()
-	var text := li.error if li.error != "" else "%d characters imported.\n%d mod files copied, %d names added to names.txt." \
-		% [n, li.copied.size(), li.named_count]
+	var already := " (%d were in the list already)" % (n - li.added) if n > li.added else ""
+	var text := li.error if li.error != "" else "%d characters imported%s.\n%d mod files copied, %d names added to names.txt." \
+		% [li.added, already, li.copied.size(), li.named_count]
 	if not li.missing.is_empty():
 		text += "\n\nNot found in the Loader: " + ", ".join(PackedStringArray(li.missing))
 	var d := AcceptDialog.new()
