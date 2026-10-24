@@ -237,6 +237,8 @@ func _hook_checks() -> void:
 	var calls_before := p.calls
 	Hooks.add_before(&"Probe.calc", func(c): c.cancel(-1), "t2", 1)
 	_check("cancel skips original and returns result", p.calc(3) == -1 and p.calls == calls_before)
+	var hc := Hooks.before(&"Probe.calc", p, [3])
+	_check("cancelled_by names the cancelling owner", hc.cancelled and hc.cancelled_by == "t2", hc.cancelled_by)
 	Hooks.remove_owner("t2")
 	var other := Probe.new()
 	Hooks.add_before(&"Probe.calc", func(c): c.cancel(42), "t3", -10, other)
