@@ -1814,7 +1814,7 @@ func generateSaveData():
 	var _loc1_ = getSaveDataString()
 	moddingMenu.saveDataTF.text = _loc1_
 	stage.focus = moddingMenu.saveDataTF
-	moddingMenu.saveDataTF.setSelection(0,moddingMenu.saveDataTF.text.size())
+	moddingMenu.saveDataTF.setSelection(0,moddingMenu.saveDataTF.text.length())
 
 
 func _rgba(c) -> String:
