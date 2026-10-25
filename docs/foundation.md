@@ -99,6 +99,22 @@ Settings › Menu › Developer mode (off by default, kept in `port.cfg` as `dev
   section ids. `DevSchema.value(label, tip, get_fn)` is a read-only value row.
 - The FPS counter (`game/scenes/fps_counter.gd`) slides beside an open panel docked on the left
   (`SDTMenu.left_inset()`).
+- Behaviour tabs (P029, `game/src/menu/dev_behaviour.gd`): Eyes, Mouth, Fluids, State, Him. One row per behaviour
+  from `DevBehaviour.entries()` (group, label, hook point, call, tip): a call button, an "auto" switch and a status
+  line. Auto off = a veto at priority -99999 on that before point (owner `devmode`); the row's call passes it
+  (`call_now`), other extensions' vetoes still apply. An observer at -100000 on every listed point keeps the last
+  `Hooks.Call`, so the status shows "ran / called from here / vetoed by <owner>" with `cancelled_by`. Vetoes and
+  observers exist only while Developer mode is on (not in Vanilla mode or with the classic menu).
+- Panel tab › Automation: Freeze all / Restore all, how many are off, and "Remember after restart"
+  (`port.cfg` `dev_behaviour/remember`, the list in `dev_behaviour/off`). Off: every start is the normal game; the
+  session keeps its switches.
+- Info tab: her state by the same groups (gaze, eye, tears, cum in mouth, swallowing, teeth, cough build-up,
+  drooling, sweat, wetness build-up, mood, breath, passing out, pace) and his pleasure.
+
+Found while wiring the panel (upstream's existing points, not changed here): a veto on `Her.passOut`, `Her.wakeUp`
+or `Her.cough` is asked again every tick, because their callers poll (`animateBreathing`: pass-out factor at the
+top, breathing again while passed out; `checkPosition`: the next cough time stays at 0). Same kind of clean-up as
+in P028 would fix it.
 
 Checks: `game/debug/derrdev_checks.gd`.
 

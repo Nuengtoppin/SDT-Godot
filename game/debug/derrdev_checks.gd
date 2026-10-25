@@ -10,12 +10,12 @@ var _failed := 0
 var _menu: SDTMenu
 
 
-func _check(label: String, ok: bool) -> void:
+func _check(label: String, ok: bool, detail := "") -> void:
 	if ok:
 		_passed += 1
 	else:
 		_failed += 1
-	print("DERRDEV CHECK %s %s" % ["ok" if ok else "FAIL", label])
+	print("DERRDEV CHECK %s %s%s" % ["ok" if ok else "FAIL", label, "" if ok or detail == "" else " (%s)" % detail])
 
 
 func step(_frame: int) -> void:
@@ -34,6 +34,7 @@ func step(_frame: int) -> void:
 			_menu.build_now()
 			_menu.close_menu()
 			_test_dev_mode()
+			_test_behaviour()
 			_test_hover()
 			_test_tan_and_sizes()
 			for i in Her.armPositions.size():
@@ -79,7 +80,7 @@ func _test_dev_mode() -> void:
 	_check("dev panel made", dev is DevMenu and dev._root != null)
 	_check("dev mode remembered", bool(cfg.get_value("developer", "enabled", false)))
 	_check("dev panel starts collapsed", not dev.is_open and not dev._dock.visible)
-	_check("dev panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 3 and dev._help != null)
+	_check("dev panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 8 and dev._help != null)
 	_check("dev tab says DEBUG", dev._tab.text.replace("\n", "") == "DEBUG")
 	_check("menu right -> dev panel left", dev._left() and not _menu._left())
 	dev.open_menu()
@@ -112,6 +113,57 @@ func _test_dev_mode() -> void:
 	_check("dev mode off remembered", not bool(cfg.get_value("developer", "enabled", true)))
 	PortSettings.set_value("menu", "side", "Right")
 	_menu.side_setting_changed()
+
+
+## Behaviour tabs: a row per behaviour, automation off = a veto that the panel's own call passes, freeze / restore,
+## remembering, and nothing left behind when Developer mode or the new menu goes off.
+func _test_behaviour() -> void:
+	var her = g.her
+	SDTMenu.set_dev_mode(true)
+	var dev = SDTMenu.dev
+	_check("behaviour tabs: Eyes, Mouth, Fluids, State, Him", ["dev_eyes", "dev_mouth", "dev_fluids", "dev_state", "dev_him"]
+		.all(func(id): return dev._nav_buttons.has(id)))
+	dev.open_menu("dev_mouth")
+	dev.build_now()
+	_check("Mouth tab: All off/on and 4 rows", dev._rows.size() == 5, str(dev._rows.size()))
+	_check("everything on at first", DevBehaviour.off_count() == 0)
+	DevBehaviour.set_auto(&"Her.swallow", false)
+	her.swallowing = false
+	her.swallow()
+	_check("Swallow off: she does not swallow by herself", not her.swallowing)
+	_check("Swallow off: the status names the veto", DevBehaviour.status(&"Her.swallow").contains("vetoed by Developer mode"),
+		DevBehaviour.status(&"Her.swallow"))
+	var free: bool = not her.passedOut and not her.speaking
+	DevBehaviour.call_now(&"Her.swallow", func(): her.swallow())
+	_check("Swallow off: the call button still works", not free or her.swallowing)
+	_check("the button's call shows as called from here", not free or DevBehaviour.status(&"Her.swallow").contains("called from here"),
+		DevBehaviour.status(&"Her.swallow"))
+	her.swallowing = false
+	DevBehaviour.set_all(false)
+	_check("Freeze all switches off every behaviour", DevBehaviour.off_count() == DevBehaviour.hooks().size())
+	DevBehaviour.set_all(true, "eyes")
+	_check("All on in one tab", not DevBehaviour.is_off(&"Her.blink") and DevBehaviour.is_off(&"Her.swallow"))
+	DevBehaviour.set_all(true)
+	_check("Restore all", DevBehaviour.off_count() == 0 and not Hooks.registered().is_empty())
+	var cfg: ConfigFile = PortSettings._cfg
+	DevBehaviour.set_remember(true)
+	DevBehaviour.set_auto(&"Him.ejaculate", false)
+	_check("Remember on: switched-off automation saved", "Him.ejaculate" in cfg.get_value("dev_behaviour", "off", []))
+	DevBehaviour.set_remember(false)
+	_check("Remember off: nothing saved, the session keeps it", cfg.get_value("dev_behaviour", "off", ["x"]).is_empty()
+		and DevBehaviour.is_off(&"Him.ejaculate"))
+	SDTMenu.set_dev_mode(false)
+	_check("Developer mode off: no vetoes or observers left", not Hooks.has(&"Him.ejaculate") and not Hooks.has(&"Her.swallow"))
+	SDTMenu.set_dev_mode(true)
+	_check("Developer mode back on: the session's switches return", Hooks.has(&"Him.ejaculate"))
+	Extensions.set_vanilla_mode(true)
+	_menu.apply_mode()
+	_check("Vanilla mode: no vetoes or observers", not Hooks.has(&"Him.ejaculate"))
+	Extensions.set_vanilla_mode(false)
+	_menu.apply_mode()
+	DevBehaviour.set_all(true)
+	dev.close_menu()
+	SDTMenu.set_dev_mode(false)
 
 
 func _press(pos: Vector2) -> InputEventMouseButton:
