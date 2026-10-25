@@ -2100,6 +2100,12 @@ func generateSplat(power: float, count: int = 1, spread: float = 1.0, isCum: boo
 
 
 func generateRandomStrand(side: String = "front", long: bool = true) -> void:
+	if Hooks.has(&"Her.generateRandomStrand"):   # HOOK
+		var h := Hooks.before(&"Her.generateRandomStrand", self, [side, long])
+		if h.cancelled:
+			return
+		side = h.args[0]
+		long = h.args[1]
 	if g.spit and not g.strandControl.maxPop():
 		if side == "random":
 			side = "front" if randf() > 0.7 else "back"

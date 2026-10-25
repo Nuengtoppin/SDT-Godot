@@ -368,6 +368,7 @@ func _veto_checks() -> void:
 	_veto_open_eye()
 	_veto_tear_spot()
 	_veto_release_tears()
+	_veto_random_strand()
 	Hooks.remove_owner("veto")   # (end of the veto checks)
 
 
@@ -433,6 +434,16 @@ func _veto_release_tears() -> void:
 		and tears.tearList.size() == falling)
 	tears.clearTearSpots()
 	g.tears = was
+
+
+func _veto_random_strand() -> void:
+	var was: bool = g.spit
+	g.spit = true
+	var count := func(): return g.strandFrontLayer.numChildren + g.strandBackLayer.numChildren
+	var before: int = count.call()
+	var n := _vetoed(&"Her.generateRandomStrand", g.her.generateRandomStrand.bind("front", true))
+	_check("vetoed spit strand: none made", n == 1 and count.call() == before)
+	g.spit = was
 
 
 func _plugin_checks() -> void:
