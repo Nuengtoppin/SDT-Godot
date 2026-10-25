@@ -7,6 +7,14 @@ extends SDTExtension
 ##     default).
 ## Settings for all characters, like the mod's own default. Values from its settings file as shipped. Written from its
 ## source (its replacement of the neck drawing is the port's Neck.swallowScale).
+## derrdev (throat ring plan, stage 2): swallowing, after sby's swallowguzzle but on the game's own swallow (so the
+## Her.swallow veto and the developer panel's switch still apply), all off by default:
+##   - "Swallow until empty": when a swallow ends with cum left and her mouth free, she swallows again;
+##   - "Swallow while he cums": on each spurt in her mouth (not held deep: that goes down her throat anyway), when her
+##     mouth is more than half full, or whenever there is cum in it, she swallows if not already swallowing;
+##   - "Per swallow": how much one swallow takes (0: the game's 5-9);
+##   - swallow bulge "By amount": the swallow's bulge follows how much she swallowed.
+## Extra swallows say nothing (no SWALLOW dialogue line each time).
 
 const MAX_BULGE := 1.5
 const CHANGE_SPEED := 0.7
@@ -16,11 +24,18 @@ const INTENSITY_MIN := 0.4
 const INTENSITY_MAX := 1.2
 const SWALLOW_MIN := 0.2
 const SWALLOW_MAX := 0.75
-const SWALLOW_MODES := ["The game's", "By swallow", "By slider", "Larger of both"]
+const SWALLOW_MODES := ["The game's", "By swallow", "By slider", "Larger of both", "By amount"]
+const PUMP_MODES := ["Off", "When full", "Always"]
+const AMOUNT_FULL := 10.0   # derrdev: a swallow of this much gives the largest bulge of "By swallow" (SWALLOW_MAX)
 
 var _cumming := false
 var _base := 1.0     # the throat bulge setting while it is raised
 var _volume := 0.0
+# derrdev: swallowing
+var _prev_cum := 0
+var _prev_wave := false
+var _prev_swallowing := false
+var last_amount := 0          # how much the last swallow took
 
 
 func _init() -> void:
@@ -37,6 +52,12 @@ func _setup() -> void:
 		"desc": "How much her throat bulges when she swallows."})
 	setting("swallow_amount", 0.25, {"label": "Swallow bulge size", "min": 0, "max": 1, "step": 0.01,
 		"desc": "0.25 is about the game's."})
+	setting("guzzle", false, {"label": "Swallow until empty",
+		"desc": "When a swallow ends with cum left and her mouth free, she swallows again until it is empty."})
+	setting("pump", PUMP_MODES[0], {"label": "Swallow while he cums", "options": PUMP_MODES,
+		"desc": "On each spurt in her mouth she swallows: when her mouth is more than half full, or whenever there is cum in it."})
+	setting("per_swallow", 0, {"label": "Per swallow", "min": 0, "max": 20, "step": 1,
+		"desc": "How much one swallow takes (0: the game's, 5 to 9). Less: more swallows to empty her mouth."})
 
 
 func _enable() -> void:
@@ -51,7 +72,11 @@ func _enable() -> void:
 	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "swallow_mode",
 		{"after": "Throat bulge", "wide": true}))
 	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "swallow_amount",
-		{"after": "Throat bulge", "visible": func(): return get_setting("swallow_mode") in SWALLOW_MODES.slice(2)}))
+		{"after": "Throat bulge", "visible": func(): return get_setting("swallow_mode") in SWALLOW_MODES.slice(2, 4)}))
+	for key in ["guzzle", "pump", "per_swallow"]:
+		menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, key, {"after": "Throat bulge", "wide": key == "pump"}))
+	hook_after(&"Him.nextSpurt", func(_c): _on_spurt())
+	_prev_cum = g.her.cumInMouth if g.her != null else 0
 
 
 func _disable() -> void:
@@ -76,6 +101,7 @@ func _tick() -> void:
 	if her == null:
 		return
 	_cum_bulge(her)
+	_swallowing(her)
 	_swallow_scale(her)
 
 
@@ -112,6 +138,39 @@ func _swallow_scale(her) -> void:
 	var by_swallow := clampf(SWALLOW_MIN + (intensity - INTENSITY_MIN) / (INTENSITY_MAX - INTENSITY_MIN)
 		* (SWALLOW_MAX - SWALLOW_MIN), SWALLOW_MIN, SWALLOW_MAX)
 	var slider: float = get_setting("swallow_amount")
-	var k: float = by_swallow if mode == SWALLOW_MODES[1] else (slider if mode == SWALLOW_MODES[2] else maxf(by_swallow, slider))
+	var by_amount := minf(1.5, SWALLOW_MIN + (SWALLOW_MAX - SWALLOW_MIN) * last_amount / AMOUNT_FULL)
+	var k: float = by_swallow if mode == SWALLOW_MODES[1] else (slider if mode == SWALLOW_MODES[2] else
+		(by_amount if mode == SWALLOW_MODES[4] else maxf(by_swallow, slider)))
 	# the mod's smoothlargeswallow: big swallows push out more than down
 	neck.swallowScale = Vector2(0.8 * k * 4, 0.5 * minf(1, by_swallow * -16.0 / 3 + 4.0 / 3))
+
+
+# ---------------------------------------------------------------- derrdev: swallowing
+
+## After the game's tick: a swallow's wave just started (the game took 5-9 from her mouth on that tick) - set how much
+## it took; a swallow just ended - swallow again if "until empty".
+func _swallowing(her) -> void:
+	var neck = her.head.neck
+	if neck.swallowing and not _prev_wave:
+		var took: int = _prev_cum - her.cumInMouth
+		var per: int = get_setting("per_swallow")
+		if per > 0 and took > 0:
+			took = mini(per, _prev_cum)
+			her.cumInMouth = _prev_cum - took
+		last_amount = maxi(0, took)
+	if _prev_swallowing and not her.swallowing and get_setting("guzzle") and her.cumInMouth > 0 \
+			and her.penisInMouthDist < 0 and not her.passedOut:
+		her.swallow(0.0, false)
+	_prev_wave = neck.swallowing
+	_prev_swallowing = her.swallowing
+	_prev_cum = her.cumInMouth
+
+
+## A spurt starts: swallow during it if "while he cums" says so.
+func _on_spurt() -> void:
+	var her = g.her
+	var mode: String = get_setting("pump")
+	if mode == PUMP_MODES[0] or her == null or not her.mouthFull or her.held or g.penisOut or her.swallowing:
+		return
+	if her.cumInMouth > (her.maxCumInMouth / 2 if mode == PUMP_MODES[1] else 0):
+		her.swallow(0.0, false)

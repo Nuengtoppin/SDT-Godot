@@ -114,6 +114,13 @@ Checks: `game/debug/derrdev_checks.gd`.
   the way back, so she takes him as poking her face; auto mode gets stuck with a long penis; the neck's bulge stops
   at 35 px.
 - The throat ring model (P033/P034, see the Developer mode section) inside upstream's `throatresiststretch`.
+- Swallowing (P037, stage 2 of the throat ring plan) inside upstream's `throatcumbulge`, after sby's swallowguzzleV2
+  but on the game's own `Her.swallow` (the veto and the developer panel's switch apply), all off by default: "Swallow
+  until empty" (a swallow that ends with cum left and her mouth free starts another), "Swallow while he cums" (Off /
+  When full: more than half / Always; on `Him.nextSpurt`, in her mouth, not held deep, not already swallowing), "Per
+  swallow" (0 = the game's 5-9; set from the wave's first tick, when the game has just taken its share), and swallow
+  bulge mode "By amount" (the wave follows how much she swallowed: 10 = the largest of "By swallow"). Extra swallows
+  pass speak = false (no SWALLOW line each time).
 
 ## Requests to upstream
 
