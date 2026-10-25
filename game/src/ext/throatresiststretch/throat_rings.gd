@@ -29,7 +29,7 @@ const BOUNDS_EVERY := 15      # ticks between reading the collar's bounds again
 const MATERIALS := {"Band": [0.35, 0.2, 60.0], "Leather": [0.6, 0.6, 200.0], "Metal": [0.85, 1.0, INF]}
 const SECTION := "throat_rings"   # port.cfg: edges_<collar> = [top, bottom], material_<collar> (spaces as _)
 ## edge adjustments for the game's collars where the picture's bounds are not the band (seen in the game)
-const DEFAULT_EDGES := {"Leather": [0.005, -0.05]}
+const DEFAULT_EDGES := {"Leather": [0.005, -0.05], "Tie": [0.04, -0.085], "Gem Choker": [0.03, -0.03]}
 
 static var entrance := _ring("Throat entrance", ENTRANCE_TOP, ENTRANCE_BOTTOM, 0.5, 0.5, INF)
 static var collar := _ring("Collar", 0.55, 0.75, 0.6, 0.6, 200.0)

@@ -209,7 +209,8 @@ func _test_throat_rings() -> void:
 		PortSettings.get_value(ThroatRings.SECTION, "edges_Leather") == [0.02, -0.03])
 	cc.select(3)
 	ThroatRings.tick(her)
-	_check("another collar: its own edges", ThroatRings.collar_name == "Gem Choker" and ThroatRings.collar_top_adjust == 0.0)
+	_check("another collar: its own edges", ThroatRings.collar_name == "Gem Choker" and ThroatRings.collar_top_adjust == 0.03
+		and ThroatRings.collar_bottom_adjust == -0.03)
 	ThroatRings.set_collar_material("Metal")
 	cc.select(1)
 	ThroatRings.tick(her)
@@ -223,7 +224,8 @@ func _test_throat_rings() -> void:
 	ThroatRings.tick(her)
 	var tb: Rect2 = her.collarContainer.collar.getBounds(n)
 	_check("tie: only the band counts, not the hanging tie", c["on"] and tb.size.y > ThroatRings.COLLAR_BAND
-		and is_equal_approx(c["bottom"], ThroatRings.depth_at_y(n, tb.position.y + ThroatRings.COLLAR_BAND)))
+		and ThroatRings.collar_top_adjust == 0.04 and ThroatRings.collar_bottom_adjust == -0.085
+		and is_equal_approx(c["bottom"], ThroatRings.depth_at_y(n, tb.position.y + ThroatRings.COLLAR_BAND) - 0.085))
 	var game := [g.throatResistance, her.pos, n.throatBulgeAmount, her.collarContainer.collar.scaleX, n.swallowScale]
 	# a ring of its own, pressed hard: it stretches, holds less, wears down and snaps; at rest it comes back
 	var r := ThroatRings._ring("test", 0.2, 0.3, 0.8, 0.0, 5.0)
