@@ -117,6 +117,7 @@ func step(_frame: int) -> void:
 				_mood_checks()
 				_template_checks()
 				_extramod_checks()
+				_shock_spray_veto_checks()
 				_extramodhim_checks()
 				_leglayer_checks()
 				_disable_checks()
@@ -251,6 +252,35 @@ func _hook_checks() -> void:
 	Hooks.remove_owner("t4")
 	Hooks.remove_owner("t")
 	_check("remove_owner clears the hook", not Hooks.has(&"Probe.calc") and p.calc(3) == 6)
+
+
+## Her.shock (startled: eyes wide, maybe a blink) and Her.lastSpurt (cum from her nose when her mouth overflows at
+## his last spurt): a veto changes nothing; a handler can change the shock's strength.
+func _shock_spray_veto_checks() -> void:
+	var her = g.her
+	var veto := func(c): c.cancel()
+	Hooks.add_before(&"Her.shock", veto, "shock")
+	her.eyelidMotion["shock"] = 0
+	her.blinkTimer = 0
+	her.shock(50)
+	_check("vetoed shock: eyes and eyelids untouched", her.eyelidMotion["shock"] == 0 and her.blinkTimer == 0)
+	Hooks.remove(&"Her.shock", veto)
+	var weaker := func(c): c.args[0] = 20
+	Hooks.add_before(&"Her.shock", weaker, "shock")
+	her.shock(50)
+	_check("shock: a handler can change the strength", her.eyelidMotion["shock"] == 20)
+	Hooks.remove(&"Her.shock", weaker)
+	her.eyelidMotion["shock"] = 0
+	var was: bool = g.nostrilSpray
+	g.nostrilSpray = true
+	her.cumInMouth = her.fullCumInMouth + her.minNostrilSpray + 1
+	her.nostrilSpraying = false
+	Hooks.add_before(&"Her.lastSpurt", veto, "shock")
+	her.lastSpurt()
+	_check("vetoed last spurt: no cum from her nose, no shock", not her.nostrilSpraying and her.eyelidMotion["shock"] == 0)
+	Hooks.remove(&"Her.lastSpurt", veto)
+	her.cumInMouth = 0
+	g.nostrilSpray = was
 
 
 func _lifecycle_start() -> void:

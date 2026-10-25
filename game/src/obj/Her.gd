@@ -851,6 +851,11 @@ func suck() -> void:
 
 
 func shock(amount: int) -> void:
+	if Hooks.has(&"Her.shock"):   # HOOK
+		var h := Hooks.before(&"Her.shock", self, [amount])
+		if h.cancelled:
+			return
+		amount = h.args[0]
 	eyelidMotion["shock"] = amount
 	if randf() > 0.5:
 		blink(false)
@@ -2166,6 +2171,10 @@ func swallowFromMouth() -> void:
 
 
 func lastSpurt() -> void:
+	if Hooks.has(&"Her.lastSpurt"):   # HOOK
+		var h := Hooks.before(&"Her.lastSpurt", self, [])
+		if h.cancelled:
+			return
 	if g.nostrilSpray and cumInMouth >= fullCumInMouth + minNostrilSpray:
 		currentNostrilSpray = g.strandControl.newCumStrand(nostril, head.face)
 		currentNostrilSpray.myGravity = g.gravity / 2.0
