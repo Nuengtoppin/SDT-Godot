@@ -39,6 +39,7 @@ func step(_frame: int) -> void:
 			_test_throat_rings()
 			_test_penisrange()
 			_test_swallowing()
+			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
 			for i in Her.armPositions.size():
@@ -61,6 +62,7 @@ func step(_frame: int) -> void:
 			if Flash.tick_count < _t0 + 10:
 				return
 			_test_body_end()
+			_test_value_points_asked()
 			_check("base tear limit is respected", g.her.tears.tearList.size() + g.her.tears.tearSpotList.size() <= g.her.tears.maxTears)
 			g.her.clearMascara()
 			g.her.tears.clearTearSpots()
@@ -373,6 +375,42 @@ func _test_swallowing() -> void:
 	her.cumInMouth = 0
 	x._prev_cum = 0
 	x._prev_swallowing = false
+
+
+## Value points: the game's number when nothing is added; handlers by phase, then priority; owners come off.
+func _test_value_points() -> void:
+	_check("value points: none set by default", not ValuePoints.has(&"Neck.throatBulge") and not ValuePoints.has(&"Her.resistance"))
+	var order := []
+	var clamp := func(v, _b, _o): order.append("clamp"); return minf(v, 3.0)
+	var mood2 := func(v, _b, _o): order.append("mood2"); return v * 2.0
+	var mood1 := func(v, _b, _o): order.append("mood1"); return v + 1.0
+	ValuePoints.add(&"test.v", clamp, "t1", ValuePoints.CLAMP)
+	ValuePoints.add(&"test.v", mood2, "t2", ValuePoints.MOOD, 5)
+	ValuePoints.add(&"test.v", mood1, "t1", ValuePoints.MOOD, 0)
+	var v := ValuePoints.value(&"test.v", 1.0)
+	_check("value points: by phase, then priority", order == ["mood1", "mood2", "clamp"] and v == 3.0, "%s %s" % [order, v])
+	var inner := [false]
+	ValuePoints.add(&"test.v", func(x, _b, _o): inner[0] = ValuePoints.has(&"test.v"); return x, "t3", ValuePoints.FINAL)
+	ValuePoints.value(&"test.v", 1.0)
+	_check("value points: not re-entered from a handler", not inner[0] and ValuePoints.last[&"test.v"] == [1.0, 3.0])
+	ValuePoints.remove_owner("t1")
+	ValuePoints.remove_owner("t3")
+	_check("value points: an owner's handlers come off", ValuePoints.value(&"test.v", 1.0) == 2.0)
+	ValuePoints.remove(&"test.v", mood2)
+	_check("value points: the last handler off, the point is gone", not ValuePoints.has(&"test.v"))
+	# the game asks its points every tick (checked after a few ticks)
+	for p in [&"Neck.throatBulge", &"Neck.bulgeCap", &"Her.pushBack"]:
+		ValuePoints.add(p, func(x, _b, _o): _asked[p] = _asked.get(p, 0) + 1; return x, "derrdev_checks")
+
+
+var _asked := {}
+
+
+func _test_value_points_asked() -> void:
+	_check("the game asks its value points every tick", _asked.get(&"Neck.throatBulge", 0) > 3 and _asked.get(&"Neck.bulgeCap", 0) > 3
+		and _asked.get(&"Her.pushBack", 0) > 3, str(_asked))
+	ValuePoints.remove_owner("derrdev_checks")
+	_check("value points: all off again", ValuePoints.registered().is_empty())
 
 
 ## Runs `fn` with a counting veto on hook `name`; returns how many times the veto was asked.

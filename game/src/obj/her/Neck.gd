@@ -101,12 +101,18 @@ func swallow() -> void:
 func render(depth: float) -> void:
 	var pts: Array = neckPoints.duplicate()
 	bulgeSize = 35.0 * (1.0 + (g.him.getPenisWidthWithTwitch() - 1.0) * 1.5)
+	var bulgeAmount := throatBulgeAmount
+	if ValuePoints.has(&"Neck.throatBulge"):   # VALUE derrdev: how much the throat bulges (her throat bulge setting)
+		bulgeAmount = ValuePoints.value(&"Neck.throatBulge", bulgeAmount, self)
+	var bulgeCap := 35.0
+	if ValuePoints.has(&"Neck.bulgeCap"):   # VALUE derrdev: the most the bulge pushes the neck out, in pixels
+		bulgeCap = ValuePoints.value(&"Neck.bulgeCap", bulgeCap, self)
 	for i in frontEndPoint:
 		var f := float(i) / frontEndPoint
-		if throatBulgeAmount > 0:
+		if bulgeAmount > 0:
 			var rel := f - depth
-			var bulge := 1.0 / (1.0 + pow(2.0, rel * 35.0)) * throatBulgeAmount
-			var amt := minf(1.0, 0.6 + 0.6 * depth) * minf(35.0, bulgeSize * bulge * pow(1.0 - f, 1.4))
+			var bulge := 1.0 / (1.0 + pow(2.0, rel * 35.0)) * bulgeAmount
+			var amt := minf(1.0, 0.6 + 0.6 * depth) * minf(bulgeCap, bulgeSize * bulge * pow(1.0 - f, 1.4))
 			pts[i] = pts[i] + Vector2(amt, 0.3 * amt)
 		if swallowing:
 			var sw := swallowSize * maxf(0.0, 2.0 / (2.0 + pow(8.0 * (f - swallowProgress), 2.0)) - 0.2)

@@ -102,6 +102,24 @@ tick, because their callers poll (`animateBreathing`: pass-out factor at the top
 
 Checks: `game/debug/derrdev_checks.gd`.
 
+## Value points (P038, `game/src/ext/value_points.gd`, local branch `rings`)
+
+Numbers the game reads every tick that extensions add to in phases (MOOD -> OVERRIDE -> CLAMP -> FINAL, then
+priority, then registration order) instead of writing the game's variable themselves. The maintainer's design
+(`Hooks.value`), kept small and apart (`ValuePoints`) so it can be swapped for his core when it lands. Handlers are
+`fn(v, base, obj) -> float`; `SDTExtension.value_point()` registers one under the extension's id, and switching an
+extension off removes its handlers. With no handler a point returns the game's number (one dictionary lookup).
+Marked `# VALUE` in game code.
+
+| Point | Where | The game's number |
+|---|---|---|
+| `Neck.throatBulge` | `Neck.render` | her throat bulge setting (`throatBulgeAmount`) |
+| `Neck.bulgeCap` | `Neck.render` | 35 (px the bulge pushes the neck out at most) |
+| `Her.resistance` | `Her.move`, while he pushes in | `previousResistance` (checkPosition's zones) |
+| `Her.pushBack` | `Her.move`, after the intro push | 0 (pos pushed back per tick) |
+
+The developer panel (Body > Throat rings) shows each point's game number -> the value used.
+
 ## Loader mods ported here (local branch `rings`, not pushed until upstream agrees)
 
 - `penisrange` (P035, `game/src/ext/penisrange/penisrange.gd`, sby's penisrangeV8): Him > Penis > "Extended size

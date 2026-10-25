@@ -85,10 +85,24 @@ static func _throat() -> Dictionary:
 		{"type": "slider", "label": "Collar bottom edge", "tip": "Moves the ring's bottom edge: narrow it for a thin band so the ring does not cover half of a wide collar's picture.", "min": -0.15, "max": 0.15, "step": 0.005,
 			"get": func(): return ThroatRings.collar_bottom_adjust, "set": func(v: float): ThroatRings.adjust_collar(ThroatRings.collar_top_adjust, v),
 			"format": func(v): return "%+.3f" % v},
+		_vp("Neck.throatBulge", "How much her throat bulges (her throat bulge setting, then what extensions add)."),
+		_vp("Neck.bulgeCap", "The most the bulge pushes her neck out, in pixels (the game's: 35)."),
+		_vp("Her.resistance", "What holds him back as he pushes in (the game's throat resistance zones)."),
+		_vp("Her.pushBack", "What pushes her head back off him each tick (0 in the game)."),
 		MenuSchema.actions("", "", [
 			["Reset stretch", func(): ThroatRings.reset_stretch(), "Every ring back to not stretched."],
 			["Repair", func(): ThroatRings.repair(), "Durability back to full; a snapped ring holds again."]]),
 	]}
+
+
+## A value point's row: the game's number -> what the game uses, or that nothing changes it.
+static func _vp(name: String, tip: String) -> Dictionary:
+	return value(name, "Value point: " + tip, func():
+		var sn := StringName(name)
+		if not ValuePoints.has(sn) and not ValuePoints._points.has(sn):
+			return "game's"
+		var l = ValuePoints.last.get(sn)
+		return "set, not asked yet" if l == null else "%.3f → %.3f" % [l[0], l[1]])
 
 
 static func _edges(r: Dictionary) -> String:

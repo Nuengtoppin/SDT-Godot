@@ -972,13 +972,18 @@ func move(targetPos: float, tilt: float) -> float:
 	speed += acceleration
 	if not passedOut:
 		if penisInMouthDist > 0 and acceleration > 0:
-			speed -= previousResistance + armsPushPower * 0.001
+			var res := previousResistance
+			if ValuePoints.has(&"Her.resistance"):   # VALUE derrdev: what holds him back as he pushes in (checkPosition's)
+				res = ValuePoints.value(&"Her.resistance", res, self)
+			speed -= res + armsPushPower * 0.001
 		if not g.handsOff:
 			speed -= pullOff
 	speed *= speedFriction
 	pos = pos + speed
 	if intro and not g.penisOut:
 		pos -= maxf(0.0, (penisInMouthDist - maxIntroDist) * 0.0015)
+	if ValuePoints.has(&"Her.pushBack"):   # VALUE derrdev: pushes her head back off him (0 in the game)
+		pos -= ValuePoints.value(&"Her.pushBack", 0.0, self)
 	if not mouthFull and clenchTeeth and not g.penisOut and not gagged:
 		if penisInMouthDist > 0:
 			clenchedTeethTimer = maxi(0, clenchedTeethTimer - 1)
