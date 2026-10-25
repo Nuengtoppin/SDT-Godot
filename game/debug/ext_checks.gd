@@ -391,6 +391,7 @@ func _charcode_checks() -> void:
 ## caller would otherwise ask again on every tick.
 func _veto_checks() -> void:
 	_veto_clench_teeth()
+	_veto_waggle_eyebrows()
 	Hooks.remove_owner("veto")   # (end of the veto checks)
 
 
@@ -411,6 +412,13 @@ func _veto_clench_teeth() -> void:
 	var free: bool = not her.gagged and not her.mouthFull
 	var n := _vetoed(&"Her.startClenchingTeeth", her.startClenchingTeeth)
 	_check("vetoed clenching: teeth not clenched", n == 1 and not her.clenchTeeth and her.clenchedTeethTime == time and free)
+
+
+func _veto_waggle_eyebrows() -> void:
+	var her = g.her
+	var queued: int = her.eyebrowOffsets.size()
+	var n := _vetoed(&"Her.waggleEyebrows", her.waggleEyebrows)
+	_check("vetoed eyebrow waggle: nothing queued", n == 1 and her.eyebrowOffsets.size() == queued)
 
 
 func _plugin_checks() -> void:
