@@ -1076,6 +1076,8 @@ func passOut() -> void:
 	if Hooks.has(&"Her.passOut"):   # HOOK
 		var h := Hooks.before(&"Her.passOut", self, [])
 		if h.cancelled:
+			if not passedOut and passOutFactor >= passOutMax:   # vetoed (not replaced): she stays on the edge and
+				passOutFactor = passOutMax - 7.5                 # animateBreathing tries again in 150 ticks, not every tick
 			return
 	passOutFactor = passOutMax
 	g.soundControl.playPassOut(pos)
@@ -1112,6 +1114,8 @@ func wakeUp() -> void:
 	if Hooks.has(&"Her.wakeUp"):   # HOOK
 		var h := Hooks.before(&"Her.wakeUp", self, [])
 		if h.cancelled:
+			if passedOut and passOutFactor <= 0:   # vetoed (not replaced): animateBreathing tries again in 80 ticks
+				passOutFactor = passOutMax
 			return
 	shock(85)
 	eyeMotion["ang"] = 20.0
@@ -1232,6 +1236,8 @@ func cough() -> void:
 	if Hooks.has(&"Her.cough"):   # HOOK
 		var h := Hooks.before(&"Her.cough", self, [])
 		if h.cancelled:
+			if nextCoughTime <= 0:   # vetoed, and the handler set no time of its own: wait as after a cough
+				nextCoughTime = int(floor(randf() * 210)) + 30
 			return
 	if g.coughing:
 		nextCoughTime = int(floor(randf() * 210)) + 30

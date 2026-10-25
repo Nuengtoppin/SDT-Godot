@@ -24,6 +24,9 @@ is unchanged.
 | `Her.startDroolingCum` | before (args: `[force]`, can cancel) | P028 | Switch off or replace cum drooling. Asked only when it would start (more than 5 in her mouth, or forced). `updateElements` polls it every tick, so a veto holds the drool off while the conditions last and is asked again each tick then; there is no timer to restart. Vetoed: no forced cum, no drool. | PR |
 | `Him.ejaculate` | before (args: `[]`, can cancel) | P028 | Switch off or replace his ejaculation. Vetoed: `maxPleasureTimer` restarts (the pre-climax pulse runs again). The automatic caller resets pleasure and flashes only if `ejaculating` is set after the call (always so in the original), so a veto keeps his pleasure. | PR |
 | `Sweat.spawn` | before (args: `[container, p, spread, others]`, can cancel) | P028 | Switch off, move or replace sweat droplets. Static: `obj` is null. Args can be changed. Vetoed: no droplet. | PR |
+| `Her.passOut` (upstream's) | before, can cancel | P030 | Veto clean-up only. Vetoed, not replaced (still awake, factor at the top): `passOutFactor` drops 7.5 below the top, so `animateBreathing` tries again in 150 ticks; she stays on the edge. A handler that passes her out itself (alternativePassOut) is left alone. | PR |
+| `Her.wakeUp` (upstream's) | before, can cancel | P030 | Veto clean-up only. Vetoed, not replaced (still out, factor at 0): `passOutFactor` goes back to the top, so the next try is in 80 ticks. | PR |
+| `Her.cough` (upstream's) | before, can cancel | P030 | Veto clean-up only. Vetoed and no wait of its own set by the handler (moremoods sets one): `nextCoughTime` gets a normal wait (30–239 ticks) instead of 0. | PR |
 
 Veto rule (upstream's request): a vetoed one-off action resets its own timers and changes no other state. Callers
 may already have changed state before the call (`shock()` sets the eyelid shock, then calls `blink(false)`); that
@@ -111,10 +114,9 @@ Settings › Menu › Developer mode (off by default, kept in `port.cfg` as `dev
 - Info tab: her state by the same groups (gaze, eye, tears, cum in mouth, swallowing, teeth, cough build-up,
   drooling, sweat, wetness build-up, mood, breath, passing out, pace) and his pleasure.
 
-Found while wiring the panel (upstream's existing points, not changed here): a veto on `Her.passOut`, `Her.wakeUp`
-or `Her.cough` is asked again every tick, because their callers poll (`animateBreathing`: pass-out factor at the
-top, breathing again while passed out; `checkPosition`: the next cough time stays at 0). Same kind of clean-up as
-in P028 would fix it.
+Found while wiring the panel: a veto on upstream's `Her.passOut`, `Her.wakeUp` or `Her.cough` was asked again every
+tick, because their callers poll (`animateBreathing`: pass-out factor at the top, breathing again while passed out;
+`checkPosition`: the next cough time stays at 0). Fixed in P030 (see the hook table).
 
 Checks: `game/debug/derrdev_checks.gd`.
 
