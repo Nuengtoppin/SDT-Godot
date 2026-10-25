@@ -24,6 +24,8 @@ static func entries() -> Array:
 		["eyes", "Look around", &"Her.changeLookTarget", func(): her.call().changeLookTarget(her.call().hisFace, 0, 1),
 			"Her gaze moving by itself (at his face, down, around). The button: look at his face."],
 		["eyes", "Eyebrow waggle", &"Her.waggleEyebrows", func(): her.call().waggleEyebrows(), "Happy mood between actions, auto mode."],
+		["eyes", "Shock", &"Her.shock", func(): her.call().shock(50),
+			"Startled: eyes wide, sometimes a blink (he comes, she wakes up, cum from her nose, dialogue)."],
 		["eyes", "Wince", &"Her.wince", func(): her.call().wince(), "Squeezing her eyes: a fast pace, a swallow, coughs."],
 		["eyes", "Close eye", &"", func(): her.call().closeEye(), "Closes her eye (as cum in her eye does). No automation of its own."],
 		["eyes", "Open eye", &"Her.openEye", func(): her.call().openEye(), "A closed eye opens when it is clean or after 40 s."],
@@ -39,6 +41,8 @@ static func entries() -> Array:
 		["fluids", "Spit drool", &"Her.randomSpitDrool", func(): her.call().randomSpitDrool(), "Gagged or Ahegao (needs Spit on)."],
 		["fluids", "Cum drool", &"Her.startDroolingCum", func(): her.call().startDroolingCum(true),
 			"Mouth open with her head tilted and more than 5 in her mouth. The button adds some if needed."],
+		["fluids", "Cum from nose", &"Her.lastSpurt", func(): her.call().lastSpurt(),
+			"At his last spurt, when her mouth is over-full (needs Nostril spray on). The button does nothing otherwise."],
 		["fluids", "Sweat", &"Sweat.spawn", func():
 			var h = her.call()
 			Sweat.spawn(h.head, Vector2(21, -65), Vector2(150, 100), [h.rightArmContainer.upperArm, h.torso.back,
@@ -46,6 +50,8 @@ static func entries() -> Array:
 			"Droplets by her breath level (needs Sweat on)."],
 		["state", "Pass out", &"Her.passOut", func(): her.call().passOut(), "Out of breath for too long."],
 		["state", "Wake up", &"Her.wakeUp", func(): her.call().wakeUp(), "Breathing again after passing out."],
+		["state", "Push him away", &"", func(): her.call().pushArms(),
+			"Her arms push back for 0.5-2.5 s (adds to the resistance). Exists in the original but nothing calls it."],
 		["state", "Tap hands", &"Her.tapHands", func(): her.call().tapHands(), "Tapping him to be let go; also with clenched teeth."],
 		["him", "Ejaculate", &"Him.ejaculate", func(): g.him.ejaculate(),
 			"At full pleasure for 2 s. Off: he stays at the edge, his pleasure kept."],

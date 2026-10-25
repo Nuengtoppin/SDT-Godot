@@ -52,6 +52,8 @@ static func _info() -> Dictionary:
 				func(): return "%.0f%%" % (g.breathLevel / g.breathLevelMax * 100.0)),
 			value("Passing out", "Builds while out of breath; at the top she passes out.",
 				func(): return "out" if g.her.passedOut else "%.0f%%" % (g.her.passOutFactor / g.her.passOutMax * 100.0)),
+			value("Arms pushing", "Push him away: her arms add to the resistance.",
+				func(): return "%.0f of %.0f" % [g.her.armsPushPower, g.her.armsPushPowerMax]),
 			value("Pace (vigour)", "Built from movement, falls by itself; above 1000 she winces.",
 				func(): return "%.0f of 1050" % g.her.vigour),
 		]},

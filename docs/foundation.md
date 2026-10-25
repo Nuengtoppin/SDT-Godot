@@ -27,6 +27,11 @@ is unchanged.
 | `Her.passOut` (upstream's) | before, can cancel | P030 | Veto clean-up only. Vetoed, not replaced (still awake, factor at the top): `passOutFactor` drops 7.5 below the top, so `animateBreathing` tries again in 150 ticks; she stays on the edge. A handler that passes her out itself (alternativePassOut) is left alone. | PR |
 | `Her.wakeUp` (upstream's) | before, can cancel | P030 | Veto clean-up only. Vetoed, not replaced (still out, factor at 0): `passOutFactor` goes back to the top, so the next try is in 80 ticks. | PR |
 | `Her.cough` (upstream's) | before, can cancel | P030 | Veto clean-up only. Vetoed and no wait of its own set by the handler (moremoods sets one): `nextCoughTime` gets a normal wait (30–239 ticks) instead of 0. | PR |
+| `Her.shock` | before (args: `[amount]`, can cancel) | P031 | Switch off, weaken or replace her being startled (eyes wide, sometimes a blink): he comes, she wakes up, cum from her nose, dialogue. Vetoed: nothing changes (no shock, no blink). | PR |
+| `Her.lastSpurt` | before (args: `[]`, can cancel) | P031 | Switch off or replace cum from her nose at his last spurt (her mouth over-full, Nostril spray on). Vetoed: nothing changes. | PR |
+
+Not one-offs, so no before point: `Him.closeHand` (`Her.move` calls it every tick while he holds her; it is the hand's
+state, a flag for a value point) and the spit flow while she moves (`generateSpit`, every tick).
 
 Veto rule (upstream's request): a vetoed one-off action resets its own timers and changes no other state. Callers
 may already have changed state before the call (`shock()` sets the eyelid shock, then calls `blink(false)`); that
