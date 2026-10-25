@@ -37,6 +37,7 @@ func step(_frame: int) -> void:
 			_test_behaviour()
 			_test_body_start()
 			_test_throat_rings()
+			_test_penisrange()
 			_test_hover()
 			_test_tan_and_sizes()
 			for i in Her.armPositions.size():
@@ -255,6 +256,37 @@ func _test_throat_rings() -> void:
 	_check("overlay: two edges per ring", d.get("node") == n and d["zones"].size() == 4)
 	cc.select(was)
 	ThroatRings.reset_stretch()
+
+
+## penisrange: off by default (the game's limits); on, wider limits, sizes kept as sizes; big sizes move the mask
+## and the balls; off again, sizes and limits back inside the game's range.
+func _test_penisrange() -> void:
+	var x = Extensions.get_extension("penisrange")
+	var him = g.him
+	_check("penisrange: built in, off by default, the game's limits", x != null and x.enabled and not x.get_setting("on")
+		and Him.MIN_PENIS_SIZE == 0.7 and Him.MAX_PENIS_SIZE == 1.2 and Him.MIN_BALL_SIZE == 0.5 and Him.MAX_BALL_SIZE == 1.3)
+	var balls := Vector2(him.balls.x, him.balls.y)
+	x.set_setting("on", true)
+	_check("penisrange on: wider limits", Him.MAX_PENIS_SIZE == 3.0 and is_equal_approx(Him.MIN_PENIS_SIZE, 0.35)
+		and is_equal_approx(Him.MAX_BALL_SIZE, 3.25) and is_equal_approx(Him.MIN_BALL_SIZE, 0.25))
+	him.setPenisLength(1.0)
+	_check("the length slider reaches the new largest size", is_equal_approx(him.currentPenisLengthScale, 3.0))
+	him.loadPenisScales(2.5, 2.0)
+	_check("sizes past the game's range load as they are", him.currentPenisLengthScale == 2.5 and him.currentPenisWidthScale == 2.0)
+	him.setBallScale(2.0)
+	x._tick()
+	_check("big sizes: the mask follows his length", him.penisMask.scaleX == 2.5)
+	_check("big balls move down and back", is_equal_approx(him.balls.y, balls.y + 0.7 * 22.0)
+		and is_equal_approx(him.balls.x, balls.x + 0.7 * 20.0))
+	him.loadPenisScales(1.0, 1.0)
+	him.setBallScale(1.0)
+	x._tick()
+	_check("within the game's range: the game's mask and balls", him.penisMask.scaleX == 1.0 and him.balls.y == balls.y)
+	him.loadPenisScales(2.5, 2.0)
+	x.set_setting("on", false)
+	_check("penisrange off: the game's limits, sizes brought back", Him.MAX_PENIS_SIZE == 1.2 and Him.MIN_PENIS_SIZE == 0.7
+		and him.currentPenisLengthScale == 1.2 and him.currentPenisWidthScale == 1.2 and him.penisMask.scaleX == 1.0)
+	him.loadPenisScales(1.0, 1.0)
 
 
 func _test_body_end() -> void:

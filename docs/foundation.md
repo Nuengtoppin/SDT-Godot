@@ -102,6 +102,19 @@ tick, because their callers poll (`animateBreathing`: pass-out factor at the top
 
 Checks: `game/debug/derrdev_checks.gd`.
 
+## Loader mods ported here (local branch `rings`, not pushed until upstream agrees)
+
+- `penisrange` (P035, `game/src/ext/penisrange/penisrange.gd`, sby's penisrangeV8): Him > Penis > "Extended size
+  range", off by default. Widens `Him.MIN/MAX_PENIS_SIZE` and `MIN/MAX_BALL_SIZE` (made static vars for this; the
+  game's values unchanged): largest size 3 (setting), smallest the game's / 2 (setting), balls likewise. While a size
+  is outside the game's range: the mask follows how far his tip is past her lips, the in-mouth constraint smoothing
+  eases off for big sizes, big balls move down and back. Off again: the game's limits, sizes clamped back. Not
+  taken: the per-character size file, the tilt options, the strap-on colour field.
+  Limits of the game's geometry (tested): past a length of about 2 his tip is past her lips even with her head all
+  the way back, so she takes him as poking her face; auto mode gets stuck with a long penis; the neck's bulge stops
+  at 35 px.
+- The throat ring model (P033/P034, see the Developer mode section) inside upstream's `throatresiststretch`.
+
 ## Requests to upstream
 
 | Request | Why | Status |
@@ -109,4 +122,5 @@ Checks: `game/debug/derrdev_checks.gd`.
 | Before hook point on `Her.blink` | See above. | merged (main) |
 | `Hooks.Call.cancelled_by` | The event log names who vetoed a call. | done upstream (e6dda3a) |
 | `Extensions._disable()` tells shared tables that an extension went off (an event or a callback list) | (was for `channels`, dropped) | not needed: modifiers go with their extension |
+| `Him` size limits as static vars, not constants | Extensions widen them (penisrange). | ours (P035), to send with it |
 | An event when a character code is loaded | (was for `channels`, dropped) | not needed for now |
