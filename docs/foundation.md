@@ -116,6 +116,12 @@ Settings › Menu › Developer mode (off by default, kept in `port.cfg` as `dev
 - Panel tab › Automation: Freeze all / Restore all, how many are off, and "Remember after restart"
   (`port.cfg` `dev_behaviour/remember`, the list in `dev_behaviour/off`). Off: every start is the normal game; the
   session keeps its switches.
+- Body tab (P032, `game/src/menu/dev_body_overlay.gd`): debug layers drawn over body parts, the same four for every
+  part - source shape (cyan), what is drawn this tick (pink, a second outline in blue), control points, axes and
+  bones (yellow) - plus line width and point size. A part is a provider returning its node and point arrays in the
+  node's space; `DevBodyOverlay` draws them in screen space on its own CanvasLayer (45: over the game, under the
+  menus), outside the Flash display list, so nothing in the game changes and nothing is hit-tested. First part: the
+  neck (`Neck.renderedPoints` / `lastDepth`, kept by `Neck.render` for this). Next: legs and breasts.
 - Info tab: her state by the same groups (gaze, eye, tears, cum in mouth, swallowing, teeth, cough build-up,
   drooling, sweat, wetness build-up, mood, breath, passing out, pace) and his pleasure.
 

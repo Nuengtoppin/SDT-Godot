@@ -35,6 +35,7 @@ func step(_frame: int) -> void:
 			_menu.close_menu()
 			_test_dev_mode()
 			_test_behaviour()
+			_test_body_start()
 			_test_hover()
 			_test_tan_and_sizes()
 			for i in Her.armPositions.size():
@@ -56,6 +57,7 @@ func step(_frame: int) -> void:
 		2:
 			if Flash.tick_count < _t0 + 10:
 				return
+			_test_body_end()
 			_check("base tear limit is respected", g.her.tears.tearList.size() + g.her.tears.tearSpotList.size() <= g.her.tears.maxTears)
 			g.her.clearMascara()
 			g.her.tears.clearTearSpots()
@@ -80,7 +82,7 @@ func _test_dev_mode() -> void:
 	_check("dev panel made", dev is DevMenu and dev._root != null)
 	_check("dev mode remembered", bool(cfg.get_value("developer", "enabled", false)))
 	_check("dev panel starts collapsed", not dev.is_open and not dev._dock.visible)
-	_check("dev panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 8 and dev._help != null)
+	_check("dev panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 9 and dev._help != null)
 	_check("dev tab says DEBUG", dev._tab.text.replace("\n", "") == "DEBUG")
 	_check("menu right -> dev panel left", dev._left() and not _menu._left())
 	dev.open_menu()
@@ -164,6 +166,29 @@ func _test_behaviour() -> void:
 	DevBehaviour.set_all(true)
 	dev.close_menu()
 	SDTMenu.set_dev_mode(false)
+
+
+## Body tab: the neck's debug layers (DevBodyOverlay) - data from the live neck, drawn only in Developer mode.
+func _test_body_start() -> void:
+	SDTMenu.set_dev_mode(true)
+	_check("Body tab", SDTMenu.dev._nav_buttons.has("dev_body"))
+	for layer in DevBodyOverlay.LAYERS:
+		DevBodyOverlay.set_on("neck", layer, true)
+	_check("neck layers on, overlay made", DevBodyOverlay.instance != null and DevBodyOverlay.any_on())
+	var d: Dictionary = DevBodyOverlay.neck()
+	_check("neck data: node, outline, highlight, axis", d.get("node") == g.her.head.neck and d["base"].size() > 10
+		and d["rendered2"].size() > 3 and d["axes"].size() == 1)
+
+
+func _test_body_end() -> void:
+	var n: Neck = g.her.head.neck
+	_check("the neck keeps its rendered outline", n.renderedPoints.size() == n.neckPoints.size())
+	_check("overlay drawn while Developer mode is on", DevBodyOverlay.instance._canvas.visible)
+	SDTMenu.set_dev_mode(false)
+	DevBodyOverlay.instance._process(0.0)
+	_check("overlay hidden when Developer mode is off", not DevBodyOverlay.instance._canvas.visible)
+	DevBodyOverlay.clear()
+	_check("Hide all layers", not DevBodyOverlay.any_on())
 
 
 func _press(pos: Vector2) -> InputEventMouseButton:
