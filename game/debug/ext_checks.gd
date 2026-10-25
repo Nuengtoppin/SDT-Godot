@@ -367,6 +367,7 @@ func _veto_checks() -> void:
 	_veto_waggle_eyebrows()
 	_veto_open_eye()
 	_veto_tear_spot()
+	_veto_release_tears()
 	Hooks.remove_owner("veto")   # (end of the veto checks)
 
 
@@ -414,6 +415,22 @@ func _veto_tear_spot() -> void:
 	tears.clearTearSpots()
 	var n := _vetoed(&"Tears.addTearSpot", tears.addTearSpot)
 	_check("vetoed tear spot: none added", n == 1 and tears.tearSpotList.is_empty())
+	tears.clearTearSpots()
+	g.tears = was
+
+
+func _veto_release_tears() -> void:
+	var tears = g.her.tears
+	var was: bool = g.tears
+	g.tears = true
+	tears.clearTearSpots()
+	for i in 4:
+		tears.addTearSpot()
+	var spots: int = tears.tearSpotList.size()
+	var falling: int = tears.tearList.size()
+	var n := _vetoed(&"Tears.releaseTears", tears.releaseTears)
+	_check("vetoed tear release: the spots stay", n == 1 and spots > 0 and tears.tearSpotList.size() == spots
+		and tears.tearList.size() == falling)
 	tears.clearTearSpots()
 	g.tears = was
 
