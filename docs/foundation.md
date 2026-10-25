@@ -20,6 +20,7 @@ is unchanged.
 | `Tears.addTearSpot` | before (args: `[]`, can cancel) | P028 | Switch off or replace new tear spots. Vetoed: no spot; the callers' own effects (cough, hilt) stay. | PR |
 | `Tears.releaseTears` | before (args: `[]`, can cancel) | P028 | Keep tear spots from running (on blink and wince). Vetoed: the spots stay. | PR |
 | `Her.generateRandomStrand` | before (args: `[side, long]`, can cancel) | P028 | Switch off, move or replace spit strands to him. Args can be changed. Vetoed: no strand; callers do not retry. | PR |
+| `Her.randomSpitDrool` | before (args: `[]`, can cancel) | P028 | Switch off or replace spit drool (gag, Ahegao, moremoods). Vetoed: no drool; the gag timer restarts as usual. | PR |
 
 Veto rule (upstream's request): a vetoed one-off action resets its own timers and changes no other state. Callers
 may already have changed state before the call (`shock()` sets the eyelid shock, then calls `blink(false)`); that
