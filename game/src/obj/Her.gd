@@ -887,6 +887,11 @@ func closeEye() -> void:
 
 
 func openEye() -> void:
+	if Hooks.has(&"Her.openEye"):   # HOOK
+		var h := Hooks.before(&"Her.openEye", self, [])
+		if h.cancelled:
+			eyelidMotion["closedTimer"] = 0   # vetoed: the 40 s check that opens a closed eye starts over (no retry every tick)
+			return
 	eyelidMotion["isClosed"] = false
 
 
