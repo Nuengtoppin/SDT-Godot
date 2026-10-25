@@ -1250,6 +1250,13 @@ func openCough() -> void:
 
 
 func swallow(intensity: float = 0.0, speak: bool = true) -> void:
+	if Hooks.has(&"Her.swallow"):   # HOOK
+		var h := Hooks.before(&"Her.swallow", self, [intensity, speak])
+		if h.cancelled:
+			startSwallowTimer = 0   # vetoed: the wait with cum in her mouth starts over (no retry every tick)
+			return
+		intensity = h.args[0]
+		speak = h.args[1]
 	if not swallowing and not passedOut and not speaking:
 		if intensity <= 0.5:
 			swallowSequence["intensity"] = randf() * 0.3 + 0.5 * (float(cumInMouth) / maxCumInMouth) + 0.4
