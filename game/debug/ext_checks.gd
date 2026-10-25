@@ -366,6 +366,7 @@ func _veto_checks() -> void:
 	_veto_clench_teeth()
 	_veto_waggle_eyebrows()
 	_veto_open_eye()
+	_veto_tear_spot()
 	Hooks.remove_owner("veto")   # (end of the veto checks)
 
 
@@ -404,6 +405,17 @@ func _veto_open_eye() -> void:
 	_check("vetoed eye opening: the 40 s check starts over", her.eyelidMotion["closedTimer"] == 0)
 	her.openEye()
 	_check("eye opens without the veto", not her.eyelidMotion["isClosed"])
+
+
+func _veto_tear_spot() -> void:
+	var tears = g.her.tears
+	var was: bool = g.tears
+	g.tears = true
+	tears.clearTearSpots()
+	var n := _vetoed(&"Tears.addTearSpot", tears.addTearSpot)
+	_check("vetoed tear spot: none added", n == 1 and tears.tearSpotList.is_empty())
+	tears.clearTearSpots()
+	g.tears = was
 
 
 func _plugin_checks() -> void:
