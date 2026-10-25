@@ -392,6 +392,7 @@ func _charcode_checks() -> void:
 func _veto_checks() -> void:
 	_veto_clench_teeth()
 	_veto_waggle_eyebrows()
+	_veto_open_eye()
 	Hooks.remove_owner("veto")   # (end of the veto checks)
 
 
@@ -419,6 +420,17 @@ func _veto_waggle_eyebrows() -> void:
 	var queued: int = her.eyebrowOffsets.size()
 	var n := _vetoed(&"Her.waggleEyebrows", her.waggleEyebrows)
 	_check("vetoed eyebrow waggle: nothing queued", n == 1 and her.eyebrowOffsets.size() == queued)
+
+
+func _veto_open_eye() -> void:
+	var her = g.her
+	her.closeEye()
+	her.eyelidMotion["closedTimer"] = 1200
+	var n := _vetoed(&"Her.openEye", her.openEye)
+	_check("vetoed eye opening: the eye stays closed", n == 1 and her.eyelidMotion["isClosed"])
+	_check("vetoed eye opening: the 40 s check starts over", her.eyelidMotion["closedTimer"] == 0)
+	her.openEye()
+	_check("eye opens without the veto", not her.eyelidMotion["isClosed"])
 
 
 func _plugin_checks() -> void:

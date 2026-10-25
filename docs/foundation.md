@@ -16,6 +16,7 @@ is unchanged.
 | `Her.swallow` | before (args: `[intensity, speak]`, can cancel) | P028 | Switch off or replace her swallowing (automatic, dialogue `[SWALLOW]`, the key). Vetoed: `startSwallowTimer` restarts, so the cum-in-mouth wait does not call it every tick; nothing else changes. A veto at the end of a swallow leaves breathing to `checkBreathing`'s usual delay. | PR |
 | `Her.startClenchingTeeth` | before (args: `[]`, can cancel) | P028 | Switch off or replace her clenching her teeth (Angry mood, moremoods). Vetoed: nothing changes; the callers restart their own timers. | PR |
 | `Her.waggleEyebrows` | before (args: `[]`, can cancel) | P028 | Switch off or replace the eyebrow waggle (Happy mood, auto mode, moremoods). The after point already existed. Vetoed: nothing changes. | PR |
+| `Her.openEye` | before (args: `[]`, can cancel) | P028 | Keep an eye closed. Vetoed: `eyelidMotion.closedTimer` restarts, so `updateElements` does not ask every tick after 1200 ticks; the caller still clears `cumInEye`. | PR |
 
 Veto rule (upstream's request): a vetoed one-off action resets its own timers and changes no other state. Callers
 may already have changed state before the call (`shock()` sets the eyelid shock, then calls `blink(false)`); that
