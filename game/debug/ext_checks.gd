@@ -113,6 +113,7 @@ func step(_frame: int) -> void:
 				_check("profiler names the extension", Flash._slowest_listener.begins_with("ext:test."), Flash._slowest_listener)
 				_ext.slow = false
 				_settings_checks()
+				_poll_veto_checks()
 				_charcode_checks()
 				_mood_checks()
 				_template_checks()
@@ -265,6 +266,48 @@ func _lifecycle_start() -> void:
 	_listener_obj.addEventListener(FlashEvent.ENTER_FRAME, func(): _ext.order.append("game"))
 	_ext.order.clear()
 	_start_tick = Flash.tick_count
+
+
+## Her.passOut, Her.wakeUp, Her.cough: their callers ask every tick, so a veto restarts the action's own wait, unless
+## the handler replaced the action (did it itself, or set its own wait).
+func _poll_veto_checks() -> void:
+	var her = g.her
+	var veto := func(c): c.cancel()
+	Hooks.add_before(&"Her.passOut", veto, "poll")
+	her.passedOut = false
+	her.passOutFactor = her.passOutMax
+	her.passOut()
+	_check("vetoed pass-out: still awake, next try in 150 ticks", not her.passedOut
+		and is_equal_approx(her.passOutFactor, her.passOutMax - 7.5), str(her.passOutFactor))
+	her.passOutFactor = 0.0
+	her.passOut()
+	_check("vetoed pass-out called early: nothing changes", her.passOutFactor == 0.0)
+	Hooks.remove(&"Her.passOut", veto)
+	var replace := func(c): c.cancel(); her.passedOut = true
+	Hooks.add_before(&"Her.passOut", replace, "poll")
+	her.passOutFactor = her.passOutMax
+	her.passOut()
+	_check("pass-out replaced by a handler: left as the handler made it", her.passedOut and her.passOutFactor == her.passOutMax)
+	Hooks.remove(&"Her.passOut", replace)
+	Hooks.add_before(&"Her.wakeUp", veto, "poll")
+	her.passOutFactor = 0.0
+	her.wakeUp()
+	_check("vetoed wake-up: still out, next try in 80 ticks", her.passedOut and her.passOutFactor == her.passOutMax)
+	Hooks.remove(&"Her.wakeUp", veto)
+	her.passedOut = false
+	her.passOutFactor = 0.0
+	Hooks.add_before(&"Her.cough", veto, "poll")
+	her.nextCoughTime = 0
+	her.cough()
+	_check("vetoed cough: next try after a normal wait", her.nextCoughTime >= 30 and her.nextCoughTime < 240, str(her.nextCoughTime))
+	Hooks.remove(&"Her.cough", veto)
+	var own := func(c): c.cancel(); her.nextCoughTime = 500
+	Hooks.add_before(&"Her.cough", own, "poll")
+	her.nextCoughTime = 0
+	her.cough()
+	_check("cough replaced with its own wait: kept", her.nextCoughTime == 500)
+	Hooks.remove(&"Her.cough", own)
+	her.nextCoughTime = 0
 
 
 func _tick_checks() -> void:
