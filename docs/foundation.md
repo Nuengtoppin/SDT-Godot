@@ -85,7 +85,8 @@ tab (P032) on top.
   by depth (the neck's own: penisInMouthDist / 400) with rings on it - the throat entrance (the game's resistance zone
   75..150, tightness = her throat resistance) and, while she wears one, her collar (edges from the collar's bounds on
   the neck, kept to a 70 px band, adjustable by hand; material Band / Leather / Metal sets tightness, stiffness and
-  durability). Each tick a ring gets pressure from his width past its top edge, more while he pushes in, and from the
+  durability; P034: the adjustments and material are kept for each collar in `port.cfg` `throat_rings`, Leather starts
+  at +0.005 / -0.05 as seen in the game). Each tick a ring gets pressure from his width past its top edge, more while he pushes in, and from the
   swallow wave inside it; under pressure it stretches and wears down (would snap at 0), at rest it recovers. It is
   ticked by the throatresiststretch extension while Developer mode is on and changes nothing in the game; later
   stages give its stretch and hold to the throat resistance and bulge through value points and take over that

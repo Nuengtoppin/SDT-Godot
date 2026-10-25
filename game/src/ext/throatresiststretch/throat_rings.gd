@@ -8,7 +8,8 @@ extends RefCounted
 ##
 ## Depth is the neck's own: 0 at her lips, 1 = 400 deep (penisInMouthDist / 400, what Neck.render uses), so a ring's
 ## edges are where they are drawn on the neck. The collar ring's edges come from the collar's picture (its bounds on
-## the neck, kept to the band so a hanging tie does not count), with a hand adjustment for each edge.
+## the neck, kept to the band so a hanging tie does not count), with a hand adjustment for each edge. The adjustments
+## and the material are kept for each collar (Leather, Tie, ...) in port.cfg, section throat_rings.
 ##
 ## Pressure comes from what he does, not from the mouse: his width while he is past the ring's top edge, more while
 ## he pushes in, plus the swallow wave passing through the ring. Under pressure a ring stretches (faster when it is
@@ -17,8 +18,8 @@ extends RefCounted
 const DEPTH_SCALE := 400.0
 const ENTRANCE_TOP := 75.0 / DEPTH_SCALE      # Her.deepthroatStartDistance: the resistance at the throat entrance
 const ENTRANCE_BOTTOM := 150.0 / DEPTH_SCALE  # Her.deepthroatDistance: past it he is in her throat
-const STRETCH_RATE := 0.004   # per tick, at pressure 1 on a fully tight, fully stretchy ring
-const RECOVER_RATE := 0.001   # per tick without pressure (halved for a fully stiff ring)
+const STRETCH_RATE := 0.016   # per tick, at pressure 1 on a fully tight, fully stretchy ring
+const RECOVER_RATE := 0.002   # per tick without pressure (halved for a fully stiff ring)
 const WEAR_REST := 0.1        # durability back per tick without pressure (none for a fully stiff ring)
 const PUSH_FULL := 10.0       # his movement per tick that counts as a full push (the game's "fast" threshold)
 const WAVE_PRESSURE := 0.05   # pressure per unit of swallow size while the wave is inside a ring
@@ -26,6 +27,9 @@ const COLLAR_BAND := 70.0     # the most of the collar's height (neck pixels) ta
 const BOUNDS_EVERY := 15      # ticks between reading the collar's bounds again
 ## material -> [tightness, stiffness, durability (INF: does not break)]
 const MATERIALS := {"Band": [0.35, 0.2, 60.0], "Leather": [0.6, 0.6, 200.0], "Metal": [0.85, 1.0, INF]}
+const SECTION := "throat_rings"   # port.cfg: edges_<collar> = [top, bottom], material_<collar> (spaces as _)
+## edge adjustments for the game's collars where the picture's bounds are not the band (seen in the game)
+const DEFAULT_EDGES := {"Leather": [0.005, -0.05]}
 
 static var entrance := _ring("Throat entrance", ENTRANCE_TOP, ENTRANCE_BOTTOM, 0.5, 0.5, INF)
 static var collar := _ring("Collar", 0.55, 0.75, 0.6, 0.6, 200.0)
@@ -34,6 +38,7 @@ static var collar_top_adjust := 0.0     # added to the edge found from the colla
 static var collar_bottom_adjust := 0.0
 static var tip := 0.0                   # his tip, in depth units (0 while outside her mouth)
 static var push := 0.0                  # how hard he pushes in this tick, 0..1
+static var collar_name := ""            # the collar the ring is for ("Leather", "Tie", ...; "Custom" for a mod's)
 static var _bounds_tick := -1000000
 static var _bounds_collar = null
 
@@ -98,6 +103,10 @@ static func _update_collar(her, neck) -> void:
 		_bounds_collar = null
 		return
 	collar["on"] = true
+	var sel_id: int = g.characterControl.collarControl.selection
+	var cname: String = g.characterControl.collarNameList[sel_id] if sel_id != 0 else "Custom"
+	if cname != collar_name:
+		_load_collar(cname)
 	var sel = [g.characterControl.collarControl.selection, c.numChildren]
 	if sel == _bounds_collar and Flash.tick_count - _bounds_tick < BOUNDS_EVERY:
 		return
@@ -128,9 +137,31 @@ static func depth_at_y(neck, y: float) -> float:
 	return float(n - 1) / n
 
 
+## The ring settings kept for this collar: edge adjustments (else DEFAULT_EDGES) and material (else Leather).
+static func _load_collar(cname: String) -> void:
+	collar_name = cname
+	var e = PortSettings.get_value(SECTION, _key("edges", cname), DEFAULT_EDGES.get(cname, [0.0, 0.0]))
+	collar_top_adjust = float(e[0])
+	collar_bottom_adjust = float(e[1])
+	_set_material(str(PortSettings.get_value(SECTION, _key("material", cname), "Leather")))
+	_bounds_collar = null
+
+
+static func _key(kind: String, cname: String) -> String:
+	return kind + "_" + cname.replace(" ", "_")
+
+
 static func set_collar_material(m: String) -> void:
 	if not MATERIALS.has(m):
 		return
+	_set_material(m)
+	if collar_name != "":
+		PortSettings.set_value(SECTION, _key("material", collar_name), m)
+
+
+static func _set_material(m: String) -> void:
+	if not MATERIALS.has(m):
+		m = "Leather"
 	collar_material = m
 	collar["tight"] = MATERIALS[m][0]
 	collar["stiff"] = MATERIALS[m][1]
@@ -142,6 +173,8 @@ static func adjust_collar(top: float, bottom: float) -> void:
 	collar_top_adjust = top
 	collar_bottom_adjust = bottom
 	_bounds_collar = null   # read the edges again on the next tick
+	if collar_name != "":
+		PortSettings.set_value(SECTION, _key("edges", collar_name), [top, bottom])
 
 
 static func repair() -> void:

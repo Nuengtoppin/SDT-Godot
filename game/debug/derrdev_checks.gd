@@ -195,13 +195,29 @@ func _test_throat_rings() -> void:
 	ThroatRings.tick(her)
 	var c: Dictionary = ThroatRings.collar
 	var b: Rect2 = her.collarContainer.collar.getBounds(n)
-	_check("leather collar: ring at the collar's picture", c["on"] and is_equal_approx(c["top"], ThroatRings.depth_at_y(n, b.position.y))
+	_check("leather collar: its edges as seen in the game by default", ThroatRings.collar_name == "Leather"
+		and ThroatRings.collar_top_adjust == 0.005 and ThroatRings.collar_bottom_adjust == -0.05)
+	_check("leather collar: ring at the collar's picture", c["on"]
+		and is_equal_approx(c["top"], ThroatRings.depth_at_y(n, b.position.y) + ThroatRings.collar_top_adjust)
 		and c["bottom"] > c["top"] and c["top"] > 0.3 and c["bottom"] < 0.95, "%s %s" % [c["top"], c["bottom"]])
 	ThroatRings.adjust_collar(0.02, -0.03)
 	var top: float = c["top"]
 	ThroatRings.tick(her)
-	_check("collar edges move by hand", is_equal_approx(c["top"], top + 0.02))
-	ThroatRings.adjust_collar(0.0, 0.0)
+	_check("collar edges move by hand", is_equal_approx(c["top"], top + 0.015))
+	_check("collar edges kept in port.cfg for this collar",
+		PortSettings.get_value(ThroatRings.SECTION, "edges_Leather") == [0.02, -0.03])
+	cc.select(3)
+	ThroatRings.tick(her)
+	_check("another collar: its own edges", ThroatRings.collar_name == "Gem Choker" and ThroatRings.collar_top_adjust == 0.0)
+	ThroatRings.set_collar_material("Metal")
+	cc.select(1)
+	ThroatRings.tick(her)
+	_check("back to the first collar: its edges and material come back", ThroatRings.collar_top_adjust == 0.02
+		and ThroatRings.collar_bottom_adjust == -0.03 and ThroatRings.collar_material == "Leather")
+	cc.select(3)
+	ThroatRings.tick(her)
+	_check("material kept for each collar", ThroatRings.collar_material == "Metal"
+		and PortSettings.get_value(ThroatRings.SECTION, "material_Gem_Choker") == "Metal")
 	cc.select(2)
 	ThroatRings.tick(her)
 	var tb: Rect2 = her.collarContainer.collar.getBounds(n)
