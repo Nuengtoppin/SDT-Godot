@@ -451,7 +451,7 @@ static func _settings() -> Dictionary:
 				func(): return PortSettings.blurred_sides(), func(on: bool): PortSettings.set_value("window", "blurred_sides", on)),
 		]},
 		{"title": "Menu", "controls": [
-			choice("Menu side", "Which side of the screen the menu opens on.", ["Right", "Left"],
+			choice("Menu side", "Which side of the screen the menu opens on. The developer panel (Developer mode) opens on the other side.", ["Right", "Left"],
 				func(): return PortSettings.get_value("menu", "side", "Right"),
 				func(v: String):
 					PortSettings.set_value("menu", "side", v)
@@ -466,6 +466,8 @@ static func _settings() -> Dictionary:
 				func(on: bool):
 					PortSettings.set_value("menu", "classic", on)
 					SDTMenu.instance.apply_mode()),
+			toggle("Developer mode", "A second panel with tools for testing and debugging, on the side opposite the menu. Its DEBUG tab shows when the mouse comes close to that edge.",
+				SDTMenu.dev_mode_enabled, SDTMenu.set_dev_mode, {"keywords": "debug developer tools"}),
 		]},
 		{"title": "Graphics", "controls": [
 			# (the classic menu's Quality is not here: it set Flash's vector quality, which the port does not use)

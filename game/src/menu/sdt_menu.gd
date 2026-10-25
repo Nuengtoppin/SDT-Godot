@@ -15,6 +15,7 @@ const EDGE_ZONE := 60.0       # how close (stage pixels) the mouse must come to 
 const TAB_SECTIONS := {1: "her", 2: "clothes", 3: "mods", 4: "settings", 5: "help"}   # Y U I O P
 
 static var instance: SDTMenu = null
+static var dev = null                  # the developer panel (DevMenu), made when Developer mode is first on
 static var _ext_controls: Array = []   # specs added by extensions: {"section", "group", "owner", ...}
 static var open_popups := 0            # colour pickers etc. open (they block the scene's mouse input too)
 
@@ -120,12 +121,104 @@ static func classic() -> bool:
 	return bool(PortSettings.get_value("menu", "classic", false))
 
 
+## Developer mode (Settings > Menu), off by default. Its panel (DevMenu) opens on the side opposite the menu.
+static func dev_mode_enabled() -> bool:
+	return bool(PortSettings.get_value("developer", "enabled", false))
+
+
+static func set_dev_mode(on: bool) -> void:
+	PortSettings.set_value("developer", "enabled", on)
+	_sync_dev()
+
+
+## Makes the developer panel the first time it is needed (never in Vanilla mode or with the classic menu).
+static func _sync_dev() -> void:
+	if dev == null and instance != null and active() and dev_mode_enabled():
+		dev = DevMenu.new()
+		dev.name = "DevMenu"
+		Flash.add_child(dev)
+		dev._ensure_built()
+	if dev != null:
+		dev.apply_mode()
+
+
 static func on_left() -> bool:
 	return PortSettings.get_value("menu", "side", "Right") == "Left"
 
 
 static func pause_on_open() -> bool:
 	return bool(PortSettings.get_value("menu", "pause", true))
+
+
+# What a second panel built on this one (DevMenu) changes.
+func _left() -> bool:
+	return on_left()
+
+
+func _enabled() -> bool:
+	return active()
+
+
+func _make_sections() -> Array:
+	return MenuSchema.sections()
+
+
+func _search_pool() -> Array:
+	return sections + MenuSchema.extension_pages()
+
+
+func _home() -> String:
+	return "her"
+
+
+func _title() -> String:
+	return "Menu"
+
+
+func _search_hint() -> String:
+	return "Search all options"
+
+
+func _tab_label() -> String:
+	return "M\nE\nN\nU"
+
+
+func _pauses() -> bool:
+	return pause_on_open()
+
+
+func _default_help() -> String:
+	return DEFAULT_HELP
+
+
+## The built panels: the menu and (once made) the developer panel.
+static func panels() -> Array:
+	var out: Array = []
+	for p in [instance, dev]:
+		if p != null and p._root != null:
+			out.append(p)
+	return out
+
+
+## True if the other panel's open dock or visible tab is under `pos`.
+func _over_other(pos: Vector2) -> bool:
+	for p in panels():
+		if p == self:
+			continue
+		if p.is_open and p._dock.get_global_rect().has_point(pos):
+			return true
+		if p._tab.visible and p._tab.get_global_rect().has_point(pos):
+			return true
+	return false
+
+
+## How far an open panel docked on the left reaches (0 if none): the FPS counter moves beside it.
+static func left_inset() -> float:
+	var x := 0.0
+	for p in panels():
+		if p.is_open and p._left():
+			x = maxf(x, p._dock.get_global_rect().end.x)
+	return x
 
 
 func _ready() -> void:
@@ -136,7 +229,7 @@ func _ready() -> void:
 func _ensure_built() -> void:
 	if _root != null:
 		return
-	sections = MenuSchema.sections()
+	sections = _make_sections()
 	_build()
 
 
@@ -160,11 +253,11 @@ func _build() -> void:
 	var head_m := _margin(head, 7, 6, 7, 6)
 	v.add_child(head_m)
 	var title := Label.new()
-	title.text = "Menu"
+	title.text = _title()
 	title.add_theme_font_size_override("font_size", MenuTheme.TITLE)
 	head.add_child(title)
 	_search = LineEdit.new()
-	_search.placeholder_text = "Search all options"
+	_search.placeholder_text = _search_hint()
 	_search.clear_button_enabled = true
 	_search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_search.focus_entered.connect(func(): g.inTextField = true)
@@ -251,9 +344,9 @@ func _build() -> void:
 	_show_help(null)
 
 	_tab = Button.new()
-	_tab.text = "M\nE\nN\nU"
+	_tab.text = _tab_label()
 	_tab.focus_mode = Control.FOCUS_NONE
-	_tab.custom_minimum_size = Vector2(20, 64)
+	_tab.custom_minimum_size = Vector2(20, _tab_height())
 	_tab.add_theme_font_size_override("font_size", MenuTheme.SMALL + 1)
 	_tab.pressed.connect(func(): open_menu())
 	_root.add_child(_tab)
@@ -288,9 +381,13 @@ func _line() -> ColorRect:
 	return l
 
 
+func _tab_height() -> float:
+	return 16.0 * (_tab_label().count("\n") + 1)
+
+
 ## Places the dock and the tab on the chosen side.
 func _layout() -> void:
-	var left := on_left()
+	var left := _left()
 	_dock.anchor_top = 0
 	_dock.anchor_bottom = 1
 	_dock.offset_top = 0
@@ -312,15 +409,15 @@ func _layout() -> void:
 	_tab.add_theme_stylebox_override("hover", rh)
 	_tab.anchor_top = 0.5
 	_tab.anchor_bottom = 0.5
-	_tab.offset_top = -32
-	_tab.offset_bottom = 32
+	_tab.offset_top = -_tab_height() / 2.0
+	_tab.offset_bottom = _tab_height() / 2.0
 	_place_tab()
 
 
 func _place_tab() -> void:
 	var w := 20.0
 	var shown := w * _tab_t
-	if on_left():
+	if _left():
 		_tab.anchor_left = 0
 		_tab.anchor_right = 0
 		_tab.offset_left = shown - w
@@ -349,19 +446,20 @@ func apply_mode() -> void:
 			close_menu()
 		_tab.visible = false
 	_layout()
+	_sync_dev()
 
 
 # ---------------------------------------------------------------- open / close
 
 func open_menu(sec := "") -> void:
-	if not active():
+	if not _enabled():
 		return
 	if sec != "":
 		section = sec
 	if not is_open:
 		is_open = true
 		_dock.visible = true
-		_paused_by_menu = pause_on_open()
+		_paused_by_menu = _pauses()
 		if _paused_by_menu:
 			g.gamePaused = true
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -378,7 +476,7 @@ func close_menu() -> void:
 	if _paused_by_menu:
 		g.gamePaused = false
 	_paused_by_menu = false
-	if not g.showMouse and g.gameRunning:
+	if not g.showMouse and g.gameRunning and not panels().any(func(p): return p.is_open):
 		Input.mouse_mode = Input.MOUSE_MODE_HIDDEN
 	_close_popups(_content)   # colour pickers belong to the rows
 	for p in _popups.get_children():
@@ -415,6 +513,8 @@ func pause_setting_changed() -> void:
 func side_setting_changed() -> void:
 	if _root != null:
 		_layout()
+	if self == instance and dev != null:
+		dev.side_setting_changed()   # the developer panel takes the other side
 
 
 # ---------------------------------------------------------------- content
@@ -479,7 +579,7 @@ func _show() -> void:
 	if query != "":
 		var q := query.to_lower()
 		var groups: Array = []
-		for sec in sections + MenuSchema.extension_pages():
+		for sec in _search_pool():
 			for grp in _groups_of(sec):
 				var hits: Array = grp["controls"].filter(func(c): return _matches(c, q, grp["title"], sec["name"]))
 				if not hits.is_empty():
@@ -492,7 +592,7 @@ func _show() -> void:
 	else:
 		s = _find_section(section)
 		if s.is_empty():
-			section = "her"
+			section = _home()
 			s = _find_section(section)
 		_heading.text = s["name"]
 		_back.visible = s.get("hidden", false)
@@ -646,7 +746,7 @@ const DEFAULT_HELP := "Point at an option to see what it does. Search finds opti
 
 func _show_help(spec) -> void:
 	if spec == null or str(spec.get("tip", "")) == "":
-		_help.text = DEFAULT_HELP if spec == null else str(spec.get("label", ""))
+		_help.text = _default_help() if spec == null else str(spec.get("label", ""))
 		return
 	var who := " (%s)" % spec["owner"] if spec.get("owner", "") != "" else ""
 	_help.text = "%s%s: %s" % [spec.get("label", ""), who, spec["tip"]]
@@ -655,7 +755,7 @@ func _show_help(spec) -> void:
 # ---------------------------------------------------------------- every frame
 
 func _process(delta: float) -> void:
-	if _root == null or not active():
+	if _root == null or not _enabled():
 		return
 	_frame += 1
 	if is_open:
@@ -670,7 +770,7 @@ func _process(delta: float) -> void:
 	# the MENU tab slides in while the mouse is near its edge
 	var m := _root.get_local_mouse_position()
 	var w := _root.size.x
-	var near: bool = (m.x < EDGE_ZONE if on_left() else m.x > w - EDGE_ZONE) and m.y >= 0 and m.y <= _root.size.y \
+	var near: bool = (m.x < EDGE_ZONE if _left() else m.x > w - EDGE_ZONE) and m.y >= 0 and m.y <= _root.size.y \
 		and g.gameRunning and not g.controlLocked
 	_tab_t = move_toward(_tab_t, 1.0 if near else 0.0, delta * 8.0)
 	_tab.visible = _tab_t > 0.0
@@ -679,7 +779,9 @@ func _process(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if outside_click(event):
-		close_menu()
+		for p in panels():   # a click on the scene closes both panels (a handled click reaches only this one)
+			if p == self or p.outside_click(event):
+				p.close_menu()
 		get_viewport().set_input_as_handled()   # the click only closes the menu, it does not reach the scene
 		return
 	if is_open and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
@@ -699,13 +801,17 @@ func outside_click(event: InputEvent) -> bool:
 	var b: MouseButton = event.button_index
 	if b == MOUSE_BUTTON_WHEEL_UP or b == MOUSE_BUTTON_WHEEL_DOWN or b == MOUSE_BUTTON_WHEEL_LEFT 			or b == MOUSE_BUTTON_WHEEL_RIGHT:
 		return false
+	if _over_other(event.position):   # the other panel: clicking it keeps this one open
+		return false
 	return not _dock.get_global_rect().has_point(event.position)
 
 
 ## Flash input skips mouse presses and moves over the dock and the tab (Flash.mouse_blocker), so clicking the menu
 ## does not also click the scene behind it.
 func blocks_mouse() -> bool:
-	if _root == null or not active():
+	if self == instance and dev != null and dev.blocks_mouse():   # Flash.mouse_blocker asks the menu only
+		return true
+	if _root == null or not _enabled():
 		return false
 	var p := _root.get_global_mouse_position()
 	if is_open and _dock.get_global_rect().has_point(p):
