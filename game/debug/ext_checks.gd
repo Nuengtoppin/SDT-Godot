@@ -371,6 +371,7 @@ func _veto_checks() -> void:
 	_veto_random_strand()
 	_veto_spit_drool()
 	_veto_cum_drool()
+	_veto_ejaculate()
 	Hooks.remove_owner("veto")   # (end of the veto checks)
 
 
@@ -466,6 +467,21 @@ func _veto_cum_drool() -> void:
 	_check("cum drool: not asked when it would not start", asked == 0)
 	var n := _vetoed(&"Her.startDroolingCum", her.startDroolingCum.bind(true))
 	_check("vetoed forced cum drool: no cum added, no drool", n == 1 and her.cumInMouth == 0 and not her.droolingCum)
+
+
+func _veto_ejaculate() -> void:
+	var him = g.him
+	var finishes: int = g.totalFinishes
+	var n := _vetoed(&"Him.ejaculate", him.ejaculate)
+	_check("vetoed ejaculation: none", n == 1 and not him.ejaculating and g.totalFinishes == finishes)
+	# the automatic one: at full pleasure for 60 ticks; a veto keeps his pleasure and restarts the wait
+	him.pleasure = him.ejacPleasure + 10.0
+	him.maxPleasureTimer = 60
+	n = _vetoed(&"Him.ejaculate", func(): him.move(0.0, 0.0, 0.0))
+	_check("vetoed automatic ejaculation: pleasure kept, wait restarted", n == 1 and not him.ejaculating
+		and him.pleasure >= him.ejacPleasure and him.maxPleasureTimer == 0, "%s %s" % [him.pleasure, him.maxPleasureTimer])
+	him.pleasure = 0.0
+	him.maxPleasureTimer = 0
 
 
 func _plugin_checks() -> void:

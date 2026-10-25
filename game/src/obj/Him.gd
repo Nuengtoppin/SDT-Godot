@@ -541,9 +541,10 @@ func move(p: float, mx: float, my: float) -> void:
 	if pleasure >= ejacPleasure:
 		if maxPleasureTimer >= 60:
 			ejaculate()
-			pleasure = 0
-			buildUp = 0
-			g.screenEffects.showFlash()
+			if ejaculating:   # HOOK: always true in the original; false when Him.ejaculate was vetoed (pleasure kept)
+				pleasure = 0
+				buildUp = 0
+				g.screenEffects.showFlash()
 		else:
 			g.screenEffects.showPulse()
 			maxPleasureTimer += 1
@@ -675,6 +676,11 @@ func move(p: float, mx: float, my: float) -> void:
 
 
 func ejaculate() -> void:
+	if Hooks.has(&"Him.ejaculate"):   # HOOK
+		var h := Hooks.before(&"Him.ejaculate", self, [])
+		if h.cancelled:
+			maxPleasureTimer = 0   # vetoed: the pre-climax wait starts over (no retry every tick)
+			return
 	if not ejaculating:
 		g.totalFinishes += 1
 		var extra := minf(30.0, maxf(0.0, (buildUp - ejacPleasure - 20.0) / 6.0))
