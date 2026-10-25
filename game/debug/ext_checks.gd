@@ -369,6 +369,7 @@ func _veto_checks() -> void:
 	_veto_tear_spot()
 	_veto_release_tears()
 	_veto_random_strand()
+	_veto_spit_drool()
 	Hooks.remove_owner("veto")   # (end of the veto checks)
 
 
@@ -443,6 +444,17 @@ func _veto_random_strand() -> void:
 	var before: int = count.call()
 	var n := _vetoed(&"Her.generateRandomStrand", g.her.generateRandomStrand.bind("front", true))
 	_check("vetoed spit strand: none made", n == 1 and count.call() == before)
+	g.spit = was
+
+
+func _veto_spit_drool() -> void:
+	var her = g.her
+	var was: bool = g.spit
+	g.spit = true
+	her.droolingSpit = false
+	var timer: int = her.spitDroolTimer
+	var n := _vetoed(&"Her.randomSpitDrool", her.randomSpitDrool)
+	_check("vetoed spit drool: no drool", n == 1 and not her.droolingSpit and her.spitDroolTimer == timer)
 	g.spit = was
 
 

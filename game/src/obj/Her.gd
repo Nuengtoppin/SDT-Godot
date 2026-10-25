@@ -2234,6 +2234,10 @@ func stopDroolingSpit() -> void:
 
 
 func randomSpitDrool() -> void:
+	if Hooks.has(&"Her.randomSpitDrool"):   # HOOK
+		var h := Hooks.before(&"Her.randomSpitDrool", self, [])
+		if h.cancelled:
+			return
 	if g.spit:
 		spitDroolTimer = int(floor(randf() * 5 + 3)) * spitDroolLinkFreq
 		droolingSpit = true
