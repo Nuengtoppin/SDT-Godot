@@ -115,6 +115,14 @@ static var _batches: Dictionary = {}   # container index -> SweatBatch
 ## A new droplet on `container` near p (its space), spread at random, that may land on `others` when it falls
 ## (Sweat.new in the original).
 static func spawn(container: FlashSprite, p: Vector2, spread: Vector2, others: Array) -> void:
+	if Hooks.has(&"Sweat.spawn"):   # HOOK
+		var h := Hooks.before(&"Sweat.spawn", null, [container, p, spread, others])
+		if h.cancelled:
+			return
+		container = h.args[0]
+		p = h.args[1]
+		spread = h.args[2]
+		others = h.args[3]
 	if not native_enabled:
 		Sweat.new(container, p, spread, others)
 		return

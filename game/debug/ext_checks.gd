@@ -372,6 +372,7 @@ func _veto_checks() -> void:
 	_veto_spit_drool()
 	_veto_cum_drool()
 	_veto_ejaculate()
+	_veto_sweat()
 	Hooks.remove_owner("veto")   # (end of the veto checks)
 
 
@@ -482,6 +483,16 @@ func _veto_ejaculate() -> void:
 		and him.pleasure >= him.ejacPleasure and him.maxPleasureTimer == 0, "%s %s" % [him.pleasure, him.maxPleasureTimer])
 	him.pleasure = 0.0
 	him.maxPleasureTimer = 0
+
+
+func _veto_sweat() -> void:
+	var before: int = Sweat.droplet_count()
+	var seen := [0]
+	var see := func(c): seen[0] = c.args.size()
+	Hooks.add_before(&"Sweat.spawn", see, "veto", -1)
+	var n := _vetoed(&"Sweat.spawn", func(): Sweat.spawn(g.her.head, Vector2(21, -65), Vector2(150, 100), []))
+	Hooks.remove(&"Sweat.spawn", see)
+	_check("vetoed sweat: no droplet", n == 1 and Sweat.droplet_count() == before and seen[0] == 4)
 
 
 func _plugin_checks() -> void:
