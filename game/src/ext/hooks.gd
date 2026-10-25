@@ -76,7 +76,7 @@ static func remove(name: StringName, fn: Callable) -> void:
 	_drop_if_empty(name)
 
 
-## Removes every handler registered with `owner`.
+## Removes every handler and value modifier registered with `owner`.
 static func remove_owner(owner: String) -> void:
 	for name in _hooks.keys():
 		for phase in ["before", "after"]:
@@ -85,6 +85,9 @@ static func remove_owner(owner: String) -> void:
 				if list[i][4] == owner:
 					list.remove_at(i)
 		_drop_if_empty(name)
+	for id in _modifiers.keys():
+		if _modifiers[id].owner == owner:
+			remove_modifier(id)
 
 
 static func before(name: StringName, obj: Object, args: Array = []) -> Call:
@@ -147,3 +150,207 @@ static func _run(name: StringName, phase: String, obj: Object, args: Array, resu
 			break
 	_running.erase(name)
 	return c
+
+
+# ---------------------------------------------------------------- value points
+
+## A value point is where game code decides a TARGET (where she looks, how far her eyelids open...): extensions
+## change the target there with modifiers instead of replacing the method, so several of them combine, and the
+## game's own easing towards the target keeps the motion smooth. In game code, one guarded line:
+##
+##     if Hooks.has_value(&"Her.lookTarget"):   # HOOK
+##         point = Hooks.value(&"Her.lookTarget", self, point)
+##
+## Modifiers apply phase by phase: GENERATE (replaces how the value is made, e.g. a mood's own gaze), MOOD (ambient
+## states), OVERRIDE (timed commands: dialogue triggers; manual control in a high `order` band), CLAMP (limits),
+## FINAL (states that win over everything, e.g. passed out). Within a phase: fn modifiers run in order, then the
+## last `set` (or `hold`) replaces the value, then the `bias`es are added, then the clamps apply together (their
+## ranges intersect), so the result never depends on the order inside a phase.
+## Modifier spec (Dictionary):
+##   phase (default MOOD), op: "set" | "bias" | "clamp" | "hold" | "fn", value (set / bias), min / max (clamp),
+##   fn: Callable(value, obj) -> value (fn), when: Callable(obj) -> bool (applies only while true; a hold captures
+##   the value again each time it starts applying), ticks (lifetime in game ticks; default: until removed),
+##   order (int, default 0; later wins among sets)
+## Sorted by (phase, order, owner, add order) when added, never by load order. Two owners setting different values
+## in the same phase at once log one warning. Without modifiers a value point costs one dictionary lookup.
+
+const GENERATE := 0
+const MOOD := 1
+const OVERRIDE := 2
+const CLAMP := 3
+const FINAL := 4
+const PHASE_NAMES := ["GENERATE", "MOOD", "OVERRIDE", "CLAMP", "FINAL"]
+
+
+class Modifier:
+	extends RefCounted
+	var id := 0
+	var name: StringName
+	var owner := ""
+	var seq := 0
+	var phase := MOOD
+	var order := 0
+	var op := "set"
+	var value = null
+	var vmin := -INF
+	var vmax := INF
+	var fn := Callable()
+	var when := Callable()
+	var ticks := -1
+	var held = null
+	var holding := false
+
+
+static var _values: Dictionary = {}      # value point name -> Array[Modifier], sorted
+static var _modifiers: Dictionary = {}   # id -> Modifier
+static var _mod_seq := 0
+static var _timed := 0                   # modifiers with a lifetime (the tick countdown runs while there are any)
+static var _tick_installed := false
+static var _explain: Dictionary = {}     # names to explain -> the last evaluation's chain
+static var _warned: Dictionary = {}
+
+
+## True if modifiers are registered for the value point `name`.
+static func has_value(name: StringName) -> bool:
+	return _values.has(name)
+
+
+## Adds a modifier (see above) to the value point `name`; returns its id (for remove_modifier).
+static func add_modifier(name: StringName, spec: Dictionary, owner := "") -> int:
+	var m := Modifier.new()
+	_mod_seq += 1
+	m.id = _mod_seq
+	m.seq = _mod_seq
+	m.name = name
+	m.owner = owner
+	m.phase = int(spec.get("phase", MOOD))
+	m.order = int(spec.get("order", 0))
+	m.op = str(spec.get("op", "set"))
+	m.value = spec.get("value")
+	m.vmin = float(spec.get("min", -INF))
+	m.vmax = float(spec.get("max", INF))
+	m.fn = spec.get("fn", Callable())
+	m.when = spec.get("when", Callable())
+	m.ticks = int(spec.get("ticks", -1))
+	if m.ticks > 0:
+		_timed += 1
+		_install_tick()
+	_modifiers[m.id] = m
+	if not _values.has(name):
+		_values[name] = []
+	var list: Array = _values[name]
+	list.append(m)
+	list.sort_custom(func(a: Modifier, b: Modifier): return a.phase < b.phase if a.phase != b.phase \
+		else (a.order < b.order if a.order != b.order else (a.owner < b.owner if a.owner != b.owner else a.seq < b.seq)))
+	return m.id
+
+
+static func remove_modifier(id: int) -> void:
+	var m: Modifier = _modifiers.get(id)
+	if m == null:
+		return
+	_modifiers.erase(id)
+	if m.ticks > 0:
+		_timed -= 1
+	var list: Array = _values.get(m.name, [])
+	list.erase(m)
+	if list.is_empty():
+		_values.erase(m.name)
+
+
+## The value point `name`: `value` (the game's own) with the modifiers applied.
+static func value(name: StringName, obj: Object, v):
+	var list = _values.get(name)
+	if list == null:
+		return v
+	var chain = [] if _explain.has(name) else null
+	var i := 0
+	var n: int = list.size()
+	while i < n:
+		var phase: int = list[i].phase
+		var entering = v
+		var set_by: Modifier = null
+		var bias = null
+		var lo := -INF
+		var hi := INF
+		var clamped := false
+		while i < n and list[i].phase == phase:
+			var m: Modifier = list[i]
+			i += 1
+			if m.when.is_valid() and not m.when.call(obj):
+				m.holding = false
+				continue
+			match m.op:
+				"fn":
+					v = m.fn.call(v, obj)
+					entering = v
+				"set":
+					if set_by != null and set_by.owner != m.owner and set_by.value != m.value:
+						_warn_conflict(name, set_by, m)
+					set_by = m
+				"hold":
+					if not m.holding:
+						m.held = entering
+						m.holding = true
+					set_by = m
+				"bias":
+					bias = m.value if bias == null else bias + m.value
+				"clamp":
+					lo = maxf(lo, m.vmin)
+					hi = minf(hi, m.vmax)
+					clamped = true
+			if chain != null:
+				chain.append({"owner": m.owner, "phase": PHASE_NAMES[phase], "op": m.op})
+		if set_by != null:
+			v = set_by.held if set_by.op == "hold" else set_by.value
+		if bias != null:
+			v = v + bias
+		if clamped and (v is float or v is int):
+			v = clampf(v, lo, maxf(lo, hi))
+		if chain != null:
+			chain.append({"phase": PHASE_NAMES[phase], "result": v})
+	if chain != null:
+		_explain[name] = chain
+	return v
+
+
+## The last evaluation of the value point `name`, step by step (for debugging; recording starts with the first call).
+static func explain(name: StringName) -> Array:
+	if not _explain.has(name):
+		_explain[name] = []
+	return _explain[name]
+
+
+## Value points with modifiers, for debugging.
+static func value_points() -> Array:
+	return _values.keys()
+
+
+static func _warn_conflict(name: StringName, a: Modifier, b: Modifier) -> void:
+	var key := "%s|%s|%s" % [name, a.owner, b.owner]
+	if _warned.has(key):
+		return
+	_warned[key] = true
+	push_warning("value point %s: '%s' and '%s' both set it in the %s phase ('%s' wins)" % [name, a.owner, b.owner,
+		PHASE_NAMES[a.phase], b.owner])
+
+
+## Counts down the lifetimes of timed modifiers, once per game tick (before the game's tick).
+static func _install_tick() -> void:
+	if _tick_installed:
+		return
+	_tick_installed = true
+	Flash.tick_before.append(func(): Hooks._tick_modifiers())
+
+
+static func _tick_modifiers() -> void:
+	if _timed <= 0:
+		return
+	for id in _modifiers.keys():
+		var m: Modifier = _modifiers[id]
+		if m.ticks > 0:
+			m.ticks -= 1
+			if m.ticks == 0:
+				_timed -= 1
+				m.ticks = -1
+				remove_modifier(id)

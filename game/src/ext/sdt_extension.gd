@@ -86,6 +86,12 @@ func hook_after(name: StringName, fn: Callable, priority := 0, target: Object = 
 	Hooks.add_after(name, fn, id, priority, target)
 
 
+## Adds a modifier to the value point `name` ("Class.target"); see Hooks (value points). Returns its id for
+## Hooks.remove_modifier(); all of an extension's modifiers go when it is switched off.
+func modify(name: StringName, spec: Dictionary) -> int:
+	return Hooks.add_modifier(name, spec, id)
+
+
 ## Her mood, including extended moods (see Moods).
 func mood() -> String:
 	return Moods.current()

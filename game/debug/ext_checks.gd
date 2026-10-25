@@ -98,7 +98,9 @@ func step(_frame: int) -> void:
 	match _phase:
 		0:
 			_hook_checks()
+			_value_checks()
 			_lifecycle_start()
+			_ext.modify(&"T.ext", {"op": "set", "value": 1.0})
 			_phase = 1
 		1:
 			if Flash.tick_count >= _start_tick + 5:
@@ -111,6 +113,8 @@ func step(_frame: int) -> void:
 		3:
 			if Flash.tick_count > _start_tick:
 				_check("profiler names the extension", Flash._slowest_listener.begins_with("ext:test."), Flash._slowest_listener)
+				_check("value modifier lifetime ends after its ticks", not Hooks.has_value(&"T.t")
+					and Hooks.value(&"T.t", null, 7.0) == 7.0)
 				_ext.slow = false
 				_settings_checks()
 				_charcode_checks()
@@ -251,6 +255,52 @@ func _hook_checks() -> void:
 	Hooks.remove_owner("t4")
 	Hooks.remove_owner("t")
 	_check("remove_owner clears the hook", not Hooks.has(&"Probe.calc") and p.calc(3) == 6)
+
+
+## Value points: phases, folding rules, hold, generator, ordering independent of load order, lifetimes (checked
+## a few ticks later), removal with the owner.
+func _value_checks() -> void:
+	var o := Probe.new()
+	_check("value point without modifiers is unchanged", Hooks.value(&"T.v", o, 5.0) == 5.0 and not Hooks.has_value(&"T.v"))
+	Hooks.add_modifier(&"T.v", {"phase": Hooks.MOOD, "op": "set", "value": 10.0}, "va")
+	Hooks.add_modifier(&"T.v", {"phase": Hooks.MOOD, "op": "bias", "value": 1.0}, "vb")
+	_check("set then bias within a phase", Hooks.value(&"T.v", o, 5.0) == 11.0)
+	Hooks.add_modifier(&"T.v", {"phase": Hooks.OVERRIDE, "op": "set", "value": 20.0}, "vc")
+	_check("a later phase wins", Hooks.value(&"T.v", o, 5.0) == 20.0)
+	Hooks.add_modifier(&"T.v", {"phase": Hooks.CLAMP, "op": "clamp", "min": 0.0, "max": 15.0}, "vd")
+	Hooks.add_modifier(&"T.v", {"phase": Hooks.CLAMP, "op": "clamp", "min": 3.0, "max": 12.0}, "ve")
+	_check("clamps intersect", Hooks.value(&"T.v", o, 5.0) == 12.0)
+	var chain := Hooks.explain(&"T.v")
+	Hooks.value(&"T.v", o, 5.0)
+	_check("explain records the chain", Hooks.explain(&"T.v").size() > 0 and chain is Array)
+	Hooks.add_modifier(&"T.g", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(v, _o): return v * 3.0}, "vf")
+	Hooks.add_modifier(&"T.g", {"phase": Hooks.MOOD, "op": "bias", "value": 1.0}, "vf")
+	_check("generator, then later phases", Hooks.value(&"T.g", o, 2.0) == 7.0)
+	var on := [true]
+	Hooks.add_modifier(&"T.h", {"phase": Hooks.FINAL, "op": "hold", "when": func(_o): return on[0]}, "vg")
+	var h1 = Hooks.value(&"T.h", o, 1.0)
+	var h2 = Hooks.value(&"T.h", o, 2.0)
+	on[0] = false
+	var h3 = Hooks.value(&"T.h", o, 3.0)
+	on[0] = true
+	var h4 = Hooks.value(&"T.h", o, 4.0)
+	_check("hold keeps the captured value while it applies", [h1, h2, h3, h4] == [1.0, 1.0, 3.0, 4.0], str([h1, h2, h3, h4]))
+	Hooks.add_modifier(&"T.o1", {"op": "set", "value": 1.0}, "y")
+	Hooks.add_modifier(&"T.o1", {"op": "set", "value": 2.0}, "x")
+	Hooks.add_modifier(&"T.o2", {"op": "set", "value": 2.0}, "x")
+	Hooks.add_modifier(&"T.o2", {"op": "set", "value": 1.0}, "y")
+	_check("order does not depend on load order", Hooks.value(&"T.o1", o, 0.0) == Hooks.value(&"T.o2", o, 0.0))
+	_check("two owners setting one phase warn once", Hooks._warned.has("T.o1|x|y"))
+	Hooks.add_modifier(&"T.vec", {"op": "bias", "value": Vector2(1, 2)}, "vh")
+	_check("vector values", Hooks.value(&"T.vec", o, Vector2(10, 10)) == Vector2(11, 12))
+	var id := Hooks.add_modifier(&"T.r", {"op": "set", "value": 9.0}, "vi")
+	Hooks.remove_modifier(id)
+	_check("remove_modifier", not Hooks.has_value(&"T.r"))
+	for owner in ["va", "vb", "vc", "vd", "ve", "vf", "vg", "vh", "x", "y"]:
+		Hooks.remove_owner(owner)
+	_check("remove_owner removes modifiers", Hooks.value_points().is_empty(), str(Hooks.value_points()))
+	Hooks.add_modifier(&"T.t", {"op": "set", "value": 1.0, "ticks": 3}, "vt")
+	_check("timed modifier applies", Hooks.value(&"T.t", o, 7.0) == 1.0)
 
 
 func _lifecycle_start() -> void:
@@ -432,5 +482,6 @@ func _disable_checks() -> void:
 	_check("leaving vanilla mode re-enables", _ext.enabled and Hooks.has(&"Probe.calc"))
 	Extensions.set_enabled("test", false)
 	_check("disable", not _ext.enabled and not Hooks.has(&"Probe.calc"))
+	_check("disable removes the extension's value modifiers", not Hooks.has_value(&"T.ext"))
 	Extensions.remove("test")
 	_listener_obj.free()

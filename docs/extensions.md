@@ -171,6 +171,54 @@ Handlers get a `Hooks.Call` with `name`, `obj` (the object whose method runs), `
 - A handler registered with a `target` runs only for that object. A hook name covers every instance of the class.
 - An unused hook point costs one dictionary lookup, so hooks are fine even in methods that run every tick.
 
+## Value points
+
+Hooks let an extension replace a method, so two extensions that both change, say, where she looks end up fighting:
+the one that cancels the method wins and the other's code never runs. For her continuous behaviour (gaze, eyelids,
+mouth...) the game code has **value points** instead: the place where it decides a *target* (where she wants to
+look), before its own easing moves her towards it. Extensions add **modifiers** to the target; they all apply, in a
+fixed order, and the easing keeps the motion smooth when one starts or ends.
+
+```gdscript
+# game code (one guarded line, marked # HOOK like hook points)
+if Hooks.has_value(&"Her.lookTarget"):   # HOOK
+	point = Hooks.value(&"Her.lookTarget", self, point)
+
+# an extension
+modify(&"Her.lookTarget", {"phase": Hooks.OVERRIDE, "op": "set", "value": g.her.eyesDown, "ticks": 60})
+```
+
+Modifiers apply phase by phase, each phase working on the result of the one before:
+
+| Phase | For |
+|---|---|
+| `GENERATE` | replacing how the value is made (`op: "fn"`), e.g. a mood's own way of looking around |
+| `MOOD` | ambient states: moods, settings |
+| `OVERRIDE` | timed commands: dialogue triggers (manual control: a high `order`) |
+| `CLAMP` | limits |
+| `FINAL` | states that win over everything, e.g. passed out |
+
+Within a phase: `fn` modifiers run in order, then the last `set` or `hold` replaces the value, then every `bias` is
+added, then the clamps apply together (their ranges intersect). So the result never depends on the order inside a
+phase, and the order between extensions is (phase, `order`, extension id, add order): never their load order.
+
+A modifier is a Dictionary:
+
+- `op`: `"set"` (`value`), `"bias"` (`value`, added), `"clamp"` (`min` / `max`, numbers only), `"hold"` (keeps the
+  value it saw when it started applying), `"fn"` (`fn: Callable(value, obj) -> value`, for anything else)
+- `phase` (default `MOOD`), `order` (default 0, a later one wins among `set`s)
+- `when: Callable(obj) -> bool`: applies only while true (a `hold` captures again each time it starts applying)
+- `ticks`: lifetime in game ticks (default: until removed)
+
+`modify()` returns an id for `Hooks.remove_modifier(id)`; an extension's modifiers go when it is switched off. Values
+are numbers or `Vector2` points. Two extensions `set`ting different values in the same phase at the same time log a
+warning once. `Hooks.explain(name)` returns the last evaluation step by step (recording starts with the first call),
+`Hooks.value_points()` lists the points with modifiers. A value point without modifiers costs one dictionary lookup.
+
+Rule: for behaviour that has value points, change the targets through modifiers; do not cancel the method. One-off
+actions (a blink, a cough) keep their before-hooks, which may cancel (veto) them. Code that writes a target field
+directly (an older plugin) still works, as part of the game's base value: modifiers apply on top of it.
+
 ## Testing
 
 `tools/regress.sh` runs the game scenarios in Vanilla mode (their reference dumps must not change because of an
