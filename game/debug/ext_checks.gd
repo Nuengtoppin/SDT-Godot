@@ -397,6 +397,7 @@ func _veto_checks() -> void:
 	_veto_release_tears()
 	_veto_random_strand()
 	_veto_spit_drool()
+	_veto_cum_drool()
 	Hooks.remove_owner("veto")   # (end of the veto checks)
 
 
@@ -483,6 +484,15 @@ func _veto_spit_drool() -> void:
 	var n := _vetoed(&"Her.randomSpitDrool", her.randomSpitDrool)
 	_check("vetoed spit drool: no drool", n == 1 and not her.droolingSpit and her.spitDroolTimer == timer)
 	g.spit = was
+
+
+func _veto_cum_drool() -> void:
+	var her = g.her
+	her.cumInMouth = 0
+	var asked := _vetoed(&"Her.startDroolingCum", her.startDroolingCum.bind(false))
+	_check("cum drool: not asked when it would not start", asked == 0)
+	var n := _vetoed(&"Her.startDroolingCum", her.startDroolingCum.bind(true))
+	_check("vetoed forced cum drool: no cum added, no drool", n == 1 and her.cumInMouth == 0 and not her.droolingCum)
 
 
 func _plugin_checks() -> void:
