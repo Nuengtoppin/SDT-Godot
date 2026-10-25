@@ -118,6 +118,10 @@ func addTears() -> void:
 
 
 func addTearSpot() -> void:
+	if Hooks.has(&"Tears.addTearSpot"):   # HOOK
+		var h := Hooks.before(&"Tears.addTearSpot", self, [])
+		if h.cancelled:
+			return
 	if g.tears and tearSpotList.size() + tearList.size() < maxTears:
 		var r := randf()
 		var spot := Flash.create("TearSpot")
