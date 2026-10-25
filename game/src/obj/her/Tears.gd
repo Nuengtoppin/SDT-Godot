@@ -138,6 +138,10 @@ func addTearSpot() -> void:
 
 
 func releaseTears() -> void:
+	if Hooks.has(&"Tears.releaseTears"):   # HOOK
+		var h := Hooks.before(&"Tears.releaseTears", self, [])
+		if h.cancelled:
+			return
 	var n := tearSpotList.size()
 	var i := 0
 	while i < n:

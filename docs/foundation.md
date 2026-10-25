@@ -18,6 +18,7 @@ is unchanged.
 | `Her.waggleEyebrows` | before (args: `[]`, can cancel) | P028 | Switch off or replace the eyebrow waggle (Happy mood, auto mode, moremoods). The after point already existed. Vetoed: nothing changes. | PR |
 | `Her.openEye` | before (args: `[]`, can cancel) | P028 | Keep an eye closed. Vetoed: `eyelidMotion.closedTimer` restarts, so `updateElements` does not ask every tick after 1200 ticks; the caller still clears `cumInEye`. | PR |
 | `Tears.addTearSpot` | before (args: `[]`, can cancel) | P028 | Switch off or replace new tear spots. Vetoed: no spot; the callers' own effects (cough, hilt) stay. | PR |
+| `Tears.releaseTears` | before (args: `[]`, can cancel) | P028 | Keep tear spots from running (on blink and wince). Vetoed: the spots stay. | PR |
 
 Veto rule (upstream's request): a vetoed one-off action resets its own timers and changes no other state. Callers
 may already have changed state before the call (`shock()` sets the eyelid shock, then calls `blink(false)`); that
