@@ -23,6 +23,7 @@ is unchanged.
 | `Her.randomSpitDrool` | before (args: `[]`, can cancel) | P028 | Switch off or replace spit drool (gag, Ahegao, moremoods). Vetoed: no drool; the gag timer restarts as usual. | PR |
 | `Her.startDroolingCum` | before (args: `[force]`, can cancel) | P028 | Switch off or replace cum drooling. Asked only when it would start (more than 5 in her mouth, or forced). `updateElements` polls it every tick, so a veto holds the drool off while the conditions last and is asked again each tick then; there is no timer to restart. Vetoed: no forced cum, no drool. | PR |
 | `Him.ejaculate` | before (args: `[]`, can cancel) | P028 | Switch off or replace his ejaculation. Vetoed: `maxPleasureTimer` restarts (the pre-climax pulse runs again). The automatic caller resets pleasure and flashes only if `ejaculating` is set after the call (always so in the original), so a veto keeps his pleasure. | PR |
+| `Sweat.spawn` | before (args: `[container, p, spread, others]`, can cancel) | P028 | Switch off, move or replace sweat droplets. Static: `obj` is null. Args can be changed. Vetoed: no droplet. | PR |
 
 Veto rule (upstream's request): a vetoed one-off action resets its own timers and changes no other state. Callers
 may already have changed state before the call (`shock()` sets the eyelid shock, then calls `blink(false)`); that
