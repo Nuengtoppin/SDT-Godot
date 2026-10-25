@@ -36,6 +36,7 @@ func step(_frame: int) -> void:
 			_test_dev_mode()
 			_test_behaviour()
 			_test_body_start()
+			_test_throat_rings()
 			_test_hover()
 			_test_tan_and_sizes()
 			for i in Her.armPositions.size():
@@ -175,6 +176,69 @@ func _test_body_start() -> void:
 	var d: Dictionary = DevBodyOverlay.neck()
 	_check("neck data: node, outline, highlight, axis", d.get("node") == g.her.head.neck and d["base"].size() > 10
 		and d["rendered2"].size() > 3 and d["axes"].size() == 1)
+
+
+## Throat rings (ThroatRings), read only: the collar ring from the collar's picture, pressure stretches a ring and
+## wears it down, rest brings it back, a stiff ring does not give; nothing in the game changes.
+func _test_throat_rings() -> void:
+	var her = g.her
+	var n: Neck = her.head.neck
+	var cc = g.characterControl.collarControl
+	var was: int = cc.selection
+	_check("throat rings work out only in Developer mode", ThroatRings.active())
+	cc.select(0)
+	ThroatRings.tick(her)
+	_check("no collar: no collar ring", not ThroatRings.collar["on"] and ThroatRings.entrance["on"])
+	_check("entrance ring on the game's resistance zone", is_equal_approx(ThroatRings.entrance["top"], 75.0 / 400.0)
+		and is_equal_approx(ThroatRings.entrance["bottom"], 150.0 / 400.0))
+	cc.select(1)
+	ThroatRings.tick(her)
+	var c: Dictionary = ThroatRings.collar
+	var b: Rect2 = her.collarContainer.collar.getBounds(n)
+	_check("leather collar: ring at the collar's picture", c["on"] and is_equal_approx(c["top"], ThroatRings.depth_at_y(n, b.position.y))
+		and c["bottom"] > c["top"] and c["top"] > 0.3 and c["bottom"] < 0.95, "%s %s" % [c["top"], c["bottom"]])
+	ThroatRings.adjust_collar(0.02, -0.03)
+	var top: float = c["top"]
+	ThroatRings.tick(her)
+	_check("collar edges move by hand", is_equal_approx(c["top"], top + 0.02))
+	ThroatRings.adjust_collar(0.0, 0.0)
+	cc.select(2)
+	ThroatRings.tick(her)
+	var tb: Rect2 = her.collarContainer.collar.getBounds(n)
+	_check("tie: only the band counts, not the hanging tie", c["on"] and tb.size.y > ThroatRings.COLLAR_BAND
+		and is_equal_approx(c["bottom"], ThroatRings.depth_at_y(n, tb.position.y + ThroatRings.COLLAR_BAND)))
+	var game := [g.throatResistance, her.pos, n.throatBulgeAmount, her.collarContainer.collar.scaleX, n.swallowScale]
+	# a ring of its own, pressed hard: it stretches, holds less, wears down and snaps; at rest it comes back
+	var r := ThroatRings._ring("test", 0.2, 0.3, 0.8, 0.0, 5.0)
+	ThroatRings.tip = 0.5
+	ThroatRings.push = 1.0
+	ThroatRings._step(r, 1.0, n)
+	var hold0: float = r["hold"]
+	for i in 30:
+		ThroatRings._step(r, 1.0, n)
+	_check("pressure stretches a ring and it holds less", r["stretch"] > 0.05 and r["hold"] < hold0 and r["pressure"] >= 1.0,
+		"%s %s" % [r["stretch"], r["hold"]])
+	_check("pressure wears a ring down until it would snap", r["snapped"] and r["hold"] == 0.0)
+	ThroatRings.tip = 0.0
+	var st: float = r["stretch"]
+	ThroatRings._step(r, 1.0, n)
+	_check("at rest a ring recovers", r["stretch"] < st and r["pressure"] == 0.0)
+	var m := ThroatRings._ring("metal", 0.2, 0.3, 0.85, 1.0, INF)
+	ThroatRings.tip = 0.5
+	for i in 30:
+		ThroatRings._step(m, 1.0, n)
+	_check("a fully stiff ring does not give or break", m["stretch"] == 0.0 and not m["snapped"] and m["hold"] == 0.85)
+	ThroatRings.set_collar_material("Band")
+	_check("material sets the collar ring", c["tight"] == 0.35 and c["max_durability"] == 60.0 and c["durability"] == 60.0)
+	ThroatRings.set_collar_material("Leather")
+	ThroatRings.tick(her)
+	_check("the rings change nothing in the game", game == [g.throatResistance, her.pos, n.throatBulgeAmount,
+		her.collarContainer.collar.scaleX, n.swallowScale])
+	DevBodyOverlay.set_on("throat", "zones", true)
+	var d: Dictionary = DevBodyOverlay.throat()
+	_check("overlay: two edges per ring", d.get("node") == n and d["zones"].size() == 4)
+	cc.select(was)
+	ThroatRings.reset_stretch()
 
 
 func _test_body_end() -> void:

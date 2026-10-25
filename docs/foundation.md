@@ -75,12 +75,23 @@ tab (P032) on top.
 - Panel tab › Automation: Freeze all / Restore all, how many are off, and "Remember after restart"
   (`port.cfg` `dev_behaviour/remember`, the list in `dev_behaviour/off`). Off: every start is the normal game; the
   session keeps its switches.
-- Body tab (P032, `game/src/menu/dev_body_overlay.gd`): debug layers drawn over body parts, the same four for every
+- Body tab (P032, `game/src/menu/dev_body_overlay.gd`): debug layers drawn over body parts, the same layers for every
   part - source shape (cyan), what is drawn this tick (pink, a second outline in blue), control points, axes and
   bones (yellow) - plus line width and point size. A part is a provider returning its node and point arrays in the
   node's space; `DevBodyOverlay` draws them in screen space on its own CanvasLayer (45: over the game, under the
   menus), outside the Flash display list, so nothing in the game changes and nothing is hit-tested. First part: the
   neck (`Neck.renderedPoints` / `lastDepth`, kept by `Neck.render` for this). Next: legs and breasts.
+- Throat rings (P033, `game/src/ext/throatresiststretch/throat_rings.gd`, stage 1, read only): her throat as a path
+  by depth (the neck's own: penisInMouthDist / 400) with rings on it - the throat entrance (the game's resistance zone
+  75..150, tightness = her throat resistance) and, while she wears one, her collar (edges from the collar's bounds on
+  the neck, kept to a 70 px band, adjustable by hand; material Band / Leather / Metal sets tightness, stiffness and
+  durability). Each tick a ring gets pressure from his width past its top edge, more while he pushes in, and from the
+  swallow wave inside it; under pressure it stretches and wears down (would snap at 0), at rest it recovers. It is
+  ticked by the throatresiststretch extension while Developer mode is on and changes nothing in the game; later
+  stages give its stretch and hold to the throat resistance and bulge through value points and take over that
+  extension's counter and the collar mods (sby's chokercollarresistance and its addon). Shown in the Body tab
+  (values, collar controls) and by the overlay's fifth layer, `zones` (a line across the neck at each edge, green
+  to red by stretch, thicker under pressure; dots at his tip and the swallow wave).
 - Info tab: her state by the same groups (gaze, eye, tears, cum in mouth, swallowing, teeth, cough build-up,
   drooling, sweat, wetness build-up, mood, breath, passing out, pace) and his pleasure.
 

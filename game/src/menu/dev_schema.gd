@@ -4,7 +4,7 @@ extends RefCounted
 ## add controls here too: SDTMenu.add_control() with "section" set to one of these ids.
 ##   dev_tools   workbench for experimental tools (empty for now)
 ##   dev_eyes, dev_mouth, dev_fluids, dev_state, dev_him   her and his behaviours (DevBehaviour): call, automation
-##   dev_body    debug layers drawn over body parts (DevBodyOverlay): the neck for now
+##   dev_body    debug layers drawn over body parts (DevBodyOverlay): the neck and her throat's rings (ThroatRings)
 ##   dev_info    live values: her state by the same groups, engine, extensions
 ##   dev_panel   the panel's own settings, automation as a whole
 
@@ -47,7 +47,56 @@ static func _body() -> Dictionary:
 				func(): return "%.0f%%" % (neck.call().swallowProgress * 100.0) if neck.call().swallowing else "no"),
 			value("Neck angle", "The neck's rotation.", func(): return "%.1f°" % wrapf(neck.call().rotation_degrees, -180.0, 180.0)),
 		]},
+		_throat(),
 	]}
+
+
+## Her throat's rings (ThroatRings): stage 1, worked out but changing nothing in the game yet.
+static func _throat() -> Dictionary:
+	var e: Dictionary = ThroatRings.entrance
+	var c: Dictionary = ThroatRings.collar
+	var stretch_ext := func():
+		var x = Extensions.get_extension("throatresiststretch")
+		return "off" if x == null or not x.enabled or not x.get_setting("on") else "%.2f" % x.get("loose")
+	return {"title": "Throat rings", "controls": [
+		MenuSchema.note("Read only for now: the rings are worked out from what he does, but change nothing in the game yet. Depth: 0 at her lips, 1 = 400 deep."),
+		_layer("throat", "zones", "Rings on the neck", "A line across the neck at each ring's top and bottom edge: green (not stretched) to red (fully stretched), thicker while he presses on it, grey once it would have snapped. White dot: his tip; blue dot: the swallow wave."),
+		value("Tip / push", "How deep his tip is, and how hard he pushes in this tick (0..1, from his movement).",
+			func(): return "%.2f / %.2f" % [ThroatRings.tip, ThroatRings.push]),
+		value("Entrance edges", "The throat entrance ring: where the game's resistance at the way into her throat starts and ends. Its tightness is her throat resistance slider.",
+			func(): return _edges(e)),
+		value("Entrance stretch", "How far the ring has stretched (0..1) / how hard he presses on it / how much it would hold him back.",
+			func(): return _ring_state(e)),
+		value("throatResistStretch", "That extension's own loosening (Behaviour > Resistance > Throat loosens), for comparison; the ring is to replace it.",
+			stretch_ext),
+		value("Collar edges", "The collar ring, from the collar's picture on her neck (its band, at most 70 px), plus the adjustments below.",
+			func(): return _edges(c) if c["on"] else "no collar"),
+		value("Collar stretch", "How far the collar has stretched / how hard he presses on it / how much it would hold him back.",
+			func(): return _ring_state(c) if c["on"] else "—"),
+		value("Collar durability", "What is left before it would snap; it wears while he presses on it, more when it is stretched, and recovers at rest.",
+			func(): return "doesn't break" if not is_finite(c["max_durability"]) else ("would have snapped" if c["snapped"] else "%.0f / %.0f" % [c["durability"], c["max_durability"]])),
+		MenuSchema.choice("Collar material", "Sets tightness, stiffness and durability together. Band: tight-ish, stretches, breaks easily. Leather: holds, breaks hard. Metal: does not give and does not break.",
+			ThroatRings.MATERIALS.keys(), func(): return ThroatRings.collar_material, func(v): ThroatRings.set_collar_material(v)),
+		{"type": "slider", "label": "Collar tightness", "tip": "How hard the collar holds (the material sets it; change it here).", "min": 0.0, "max": 1.0, "step": 0.05,
+			"get": func(): return c["tight"], "set": func(v: float): c["tight"] = v, "format": func(v): return "%.2f" % v},
+		{"type": "slider", "label": "Collar top edge", "tip": "Moves the ring's top edge from where the collar's picture puts it (depth units).", "min": -0.15, "max": 0.15, "step": 0.005,
+			"get": func(): return ThroatRings.collar_top_adjust, "set": func(v: float): ThroatRings.adjust_collar(v, ThroatRings.collar_bottom_adjust),
+			"format": func(v): return "%+.3f" % v},
+		{"type": "slider", "label": "Collar bottom edge", "tip": "Moves the ring's bottom edge: narrow it for a thin band so the ring does not cover half of a wide collar's picture.", "min": -0.15, "max": 0.15, "step": 0.005,
+			"get": func(): return ThroatRings.collar_bottom_adjust, "set": func(v: float): ThroatRings.adjust_collar(ThroatRings.collar_top_adjust, v),
+			"format": func(v): return "%+.3f" % v},
+		MenuSchema.actions("", "", [
+			["Reset stretch", func(): ThroatRings.reset_stretch(), "Every ring back to not stretched."],
+			["Repair", func(): ThroatRings.repair(), "Durability back to full; a snapped ring holds again."]]),
+	]}
+
+
+static func _edges(r: Dictionary) -> String:
+	return "%.2f – %.2f" % [r["top"], r["bottom"]]
+
+
+static func _ring_state(r: Dictionary) -> String:
+	return "%.2f / %.2f / %.2f" % [r["stretch"], r["pressure"], r["hold"]]
 
 
 static func _layer(part: String, layer: String, label: String, tip: String) -> Dictionary:

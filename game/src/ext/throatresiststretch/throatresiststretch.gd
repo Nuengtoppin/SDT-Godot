@@ -5,6 +5,8 @@ extends SDTExtension
 ## A setting for all characters, like the mod's own default. Values from its settings file as shipped. Written from
 ## its source. Port fix: the loosened resistance is not stored as her throat resistance (the mod's lower value went
 ## into the character code whenever she was saved while loose); the slider keeps showing the value you set.
+## derrdev: also ticks the throat ring model (ThroatRings, throat_rings.gd) while Developer mode is on; read only for
+## now, it is to take over this extension's counter later.
 
 const INCREASE := 0.0015         # per tick while vigorous enough
 const DECREASE := 0.0002
@@ -62,6 +64,8 @@ func _release() -> void:
 
 func _tick() -> void:
 	var her = g.her
+	if her != null and not g.gamePaused and ThroatRings.active():   # derrdev: the ring model, read only for now
+		ThroatRings.tick(her)
 	if not get_setting("on") or her == null or g.gamePaused:
 		return
 	var vigorous: float = her.vigour / her.VIGOUR_WINCE_LEVEL * 2.0
