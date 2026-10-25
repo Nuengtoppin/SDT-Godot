@@ -26,8 +26,7 @@ var screen = null   # mt_screen.gd
 # timed effects: time (getTimer ms) they stop at, -1 = off
 var _shock_until := -1.0
 var _shock_power := SHOCK_POWER
-var _look_until := -1.0
-var _look_at := Vector2()
+var _look_id := 0   # the current [LOOK_...]: a modifier of the value point Her.lookTarget (0: none)
 var _mouth_until := -1.0
 var _mouth_angle := 0.0
 var _wince_until := -1.0
@@ -56,7 +55,7 @@ func _disable() -> void:
 		screen.remove()
 	screen = null
 	_shock_until = -1
-	_look_until = -1
+	_look_id = 0   # (its modifier went with the extension)
 	_mouth_until = -1
 	_wince_until = -1
 	for k in _grow:
@@ -272,22 +271,30 @@ func _shock(ms, power) -> void:
 	_shock_power = AS3.Number(power)
 
 
-## [LOOK_UP / DOWN / STRAIGHTFORWARD_<ms>] or [LOOK_<x>_<y>_<ms>]: where she looks, until the time is up.
+const LOOK_ORDER := 1000   # dialogue commands' band among OVERRIDE modifiers
+
+
+## [LOOK_UP / DOWN / STRAIGHTFORWARD_<ms>] or [LOOK_<x>_<y>_<ms>]: where she looks, until the time is up. A dialogue
+## command: an OVERRIDE of her look point (Her.lookTarget) in the dialogue band, so it wins over moods and ends by
+## itself (port: counted in game ticks, 30 a second, instead of milliseconds).
 func _look(dir: String, x, y, ms) -> void:
 	var her = g.her
+	var point := Vector2()
 	if dir == "":
-		_look_at = Vector2(AS3.Number(x), AS3.Number(y))
+		point = Vector2(AS3.Number(x), AS3.Number(y))
 	else:
 		match dir:
 			"UP":
-				_look_at = her.hisFace
+				point = her.hisFace
 			"DOWN":
-				_look_at = her.eyesDown
+				point = her.eyesDown
 			"STRAIGHTFORWARD":
-				_look_at = Vector2(900, 0)
+				point = Vector2(900, 0)
 			_:
-				_look_at = Vector2(900, 350)
-	_look_until = Flash.getTimer() + _ms(ms)
+				point = Vector2(900, 350)
+	Hooks.remove_modifier(_look_id)
+	_look_id = modify(&"Her.lookTarget", {"phase": Hooks.OVERRIDE, "order": LOOK_ORDER, "op": "set", "value": point,
+		"ticks": maxi(1, roundi(_ms(ms) * 30.0 / 1000.0))})
 
 
 func _close_mouth(ms: float) -> void:
@@ -310,11 +317,6 @@ func _tick() -> void:
 			_shock_until = -1
 		else:
 			her.eyelidMotion["shock"] = _shock_power
-	if _look_until >= 0:
-		if now > _look_until:
-			_look_until = -1
-		else:
-			her.currentLookTarget = _look_at
 	if _mouth_until >= 0:
 		if now > _mouth_until:
 			_mouth_until = -1

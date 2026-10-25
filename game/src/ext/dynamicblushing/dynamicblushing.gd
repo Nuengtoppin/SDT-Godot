@@ -190,8 +190,8 @@ func _tick() -> void:
 		_decay("wakeUp")
 	sum += cur["wakeUp"]
 	var open: bool = not her.eyelidMotion["isClosed"]
-	var at_face: bool = her.currentLookTarget == her.hisFace and open
-	var at_penis: bool = her.currentLookTarget == her.eyesDown and open
+	var at_face: bool = her.lookPoint == her.hisFace and open
+	var at_penis: bool = her.lookPoint == her.eyesDown and open
 	sum += _ramp("lookAtFaceOff", at_face and not her.mouthFull)
 	sum += _ramp("lookAtPenisOff", at_penis and not her.mouthFull)
 	sum += _ramp("lookAtFaceOn", at_face and her.mouthFull)

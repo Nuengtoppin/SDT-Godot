@@ -774,7 +774,7 @@ func _blush_rules(m: String) -> void:
 				_change_blush(_blush + 5, 5)
 			elif her.held:
 				_change_blush(_blush - 1, 5)
-		elif her.currentLookTarget == her.hisFace:
+		elif her.lookPoint == her.hisFace:
 			_change_blush(_blush + 4, 5)
 		else:
 			_change_blush(_blush - 2, 5)

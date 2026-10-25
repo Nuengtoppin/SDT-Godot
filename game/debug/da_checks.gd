@@ -63,6 +63,8 @@ func step(_frame: int) -> void:
 				_phase = 3
 		3:
 			_mood_cycle_step()
+		4:
+			_gaze_step()
 
 
 func _finish() -> void:
@@ -411,10 +413,47 @@ func _mood_cycle_step() -> void:
 		_check("bite and eyelid fields in the character code", ";bitemode:2,1.00" in g.inGameMenu.getSaveDataString(false)
 			and ";uppereyelidlimit:" in g.inGameMenu.getSaveDataString(false))
 		her.setMood("Normal")
-		_finish()
+		_t0 = Flash.tick_count
+		_phase = 4
 		return
 	her.setMood(mm.MOODS[_mood_cycle_i])
 	_mood_cycle_i += 1
+
+
+## Her gaze through the value points (Hooks): the two conflicts that the extensions used to have.
+var _rot_before := 0.0
+func _gaze_step() -> void:
+	var her = g.her
+	var mm = Extensions.get_extension("moremoods")
+	var ap = Extensions.get_extension("alternativepassout")
+	var t := Flash.tick_count - _t0
+	if t == 1:
+		Flash.get_tree().current_scene._move(Vector2(690, 120))   # out of her mouth
+		mm.set_mood("Smug")
+	elif t == 40:
+		_check("Smug looks at his face", her.lookPoint == her.hisFace, str(her.lookPoint))
+		da.run_code("[LOOK_DOWN_1000]")
+	elif t == 45:
+		_check("[LOOK_DOWN] wins over Smug while it lasts", her.lookPoint == her.eyesDown, str(her.lookPoint))
+	elif t == 85:
+		_check("after [LOOK_DOWN] she looks at his face again (Smug)", her.lookPoint == her.hisFace, str(her.lookPoint))
+		ap.set_setting("on", true)
+		ap.set_setting("eyeroll_chance", 0.0)
+		ap.set_setting("freeze_chance", 1.0)
+		her.winceTimer = 0
+		her.passOut()
+	elif t == 90:
+		_rot_before = her.eye.ball.irisContainer.rotation_degrees
+	elif t == 120:
+		var rot: float = her.eye.ball.irisContainer.rotation_degrees
+		_check("pass-out freeze holds her eyes with moremoods on", her.passedOut and ap.option == 2
+			and absf(rot - _rot_before) < 0.01, "%s %s %.3f -> %.3f" % [her.passedOut, ap.option, _rot_before, rot])
+		her.wakeUp()
+		ap.set_setting("on", false)
+		ap.set_setting("eyeroll_chance", 0.33)
+		ap.set_setting("freeze_chance", 0.5)
+		mm.set_mood("Normal")
+		_finish()
 
 
 func _game_checks_later() -> void:
@@ -492,7 +531,7 @@ func _mt_checks_later() -> void:
 		return
 	var her = g.her
 	_check("SHOCK holds her shocked eyes", her.eyelidMotion["shock"] == 150.0, str(her.eyelidMotion["shock"]))
-	_check("LOOK holds where she looks", her.currentLookTarget == Vector2(10, 20), str(her.currentLookTarget))
+	_check("LOOK holds where she looks", her.lookPoint == Vector2(10, 20), str(her.lookPoint))
 	_check("CLOSE_MOUTH holds her jaw", is_equal_approx(her.head.jaw.rotation_degrees, Her.closedJawAngle * 0.95),
 		str(her.head.jaw.rotation_degrees))
 	_check("GROW_BREASTS_BY_5", g.characterControl.breastSize == mini(_mt_breasts + 5, 149),

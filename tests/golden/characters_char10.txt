@@ -157,6 +157,7 @@ eyesDown=(800.000,160.000)
 eyesUnfocused=(900.000,0.000)
 currentLookTarget=(800.000,160.000)
 nextLookTarget=(800.000,160.000)
+lookPoint=(800.000,160.000)
 blankEyed=false
 bodySize=0.680
 teethClenched=false

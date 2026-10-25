@@ -264,6 +264,8 @@ var eyesDown := Vector2(800, 160)
 var eyesUnfocused := Vector2(900, 0)
 var currentLookTarget := Vector2(800, -270)
 var nextLookTarget := Vector2(800, -270)
+## Port: the point she actually looks at this tick (currentLookTarget after the Her.lookTarget value point).
+var lookPoint := Vector2(800, -270)
 var blankEyed := false
 
 
@@ -1642,7 +1644,10 @@ func updateElements() -> void:
 	elif lookChangeTimer == 0:
 		currentLookTarget = nextLookTarget
 		lookChangeTimer = -1
-	lookAt(currentLookTarget)
+	lookPoint = currentLookTarget
+	if Hooks.has_value(&"Her.lookTarget"):   # HOOK value point: where she looks
+		lookPoint = Hooks.value(&"Her.lookTarget", self, lookPoint)
+	lookAt(lookPoint)
 	if eyelidMotion["shock"] > 0:
 		eyelidMotion["shock"] -= 1
 	if winceTimer > 0:
@@ -1758,14 +1763,19 @@ func lookAt(target: Vector2) -> void:
 		if h.cancelled:
 			return
 		target = h.args[0]
+	lookPoint = target
 	var local: Vector2 = globalToLocal(g.sceneLayer.localToGlobal(target))
 	var d := Vector2(local.x - eyeAim.x, local.y - eyeAim.y)
 	eyeMotion["target"] = minf(110.0, maxf(75.0, g.getAngle(d.x, d.y)))
 	if currentMood == AHEGAO_MOOD:
 		eyeMotion["target"] = 62.0 + eyelidMotion["pos"] * 0.05 + randf() * 2.0 - 1.0
 	eyeMotion["target"] -= randf() * 0.5 * passOutFactor + passOutFactor * 0.5
+	if Hooks.has_value(&"Her.gazeAngle"):   # HOOK value point: the iris angle she turns towards
+		eyeMotion["target"] = Hooks.value(&"Her.gazeAngle", self, eyeMotion["target"])
 	eyeMotion["ang"] += (eyeMotion["target"] - eyeMotion["ang"]) * 0.2
 	eye.ball.irisContainer.rotation_degrees = eyeMotion["ang"] - 90.0
+	if Hooks.has(&"Her.lookAt"):   # HOOK
+		Hooks.after(&"Her.lookAt", self, [target])
 
 
 func getJawAngle(amount: float, mult: float = 1.0) -> float:

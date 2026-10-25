@@ -298,7 +298,8 @@ func _value_checks() -> void:
 	_check("remove_modifier", not Hooks.has_value(&"T.r"))
 	for owner in ["va", "vb", "vc", "vd", "ve", "vf", "vg", "vh", "x", "y"]:
 		Hooks.remove_owner(owner)
-	_check("remove_owner removes modifiers", Hooks.value_points().is_empty(), str(Hooks.value_points()))
+	var left := Hooks.value_points().filter(func(n): return str(n).begins_with("T."))
+	_check("remove_owner removes modifiers", left.is_empty(), str(left))
 	Hooks.add_modifier(&"T.t", {"op": "set", "value": 1.0, "ticks": 3}, "vt")
 	_check("timed modifier applies", Hooks.value(&"T.t", o, 7.0) == 1.0)
 

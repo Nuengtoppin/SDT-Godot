@@ -29,9 +29,8 @@ var _roll_max := 0.0
 var _roll_rate := 0.0
 var _saved_iris := 0
 var _frozen_frame := 1
-var _frozen_rotation := 0.0
-var _frozen_target := 0.0
 var _frozen_ang := 0.0
+var _freeze_id := 0   # the freeze: a FINAL modifier of the value point Her.gazeAngle (0: none)
 
 
 func _init() -> void:
@@ -52,7 +51,6 @@ func _setup() -> void:
 func _enable() -> void:
 	hook_before(&"Her.passOut", _pass_out, -10)   # before moremoods' (it replaces both, like the mod)
 	hook_after(&"Her.updateEyes", func(_c): _update_eyes())
-	hook_after(&"Her.lookAt", func(_c): _after_look())
 	hook_before(&"Her.updateElements", func(_c):
 		if _active and option != 0 and g.her.passedOut:
 			g.her.winceTimer = 0)
@@ -89,8 +87,6 @@ func _choose(her) -> void:
 	_active = true
 	var eye = her.eye
 	_frozen_frame = eye.upperEyelid.currentFrame
-	_frozen_rotation = eye.ball.irisContainer.rotation_degrees
-	_frozen_target = her.eyeMotion["target"]
 	_frozen_ang = her.eyeMotion["ang"]
 	_saved_iris = g.characterControl.currentIris
 	option = 0
@@ -106,6 +102,11 @@ func _choose(her) -> void:
 			_roll = 0.0
 	elif get_setting("freeze_chance") > randf() and her.winceTimer <= 0:
 		option = 2
+		# her eyes stay where they were: the iris angle she turns towards is the one she has (FINAL: whatever a mood
+		# or a dialogue line wants)
+		Hooks.remove_modifier(_freeze_id)
+		_freeze_id = modify(&"Her.gazeAngle", {"phase": Hooks.FINAL, "op": "set", "value": _frozen_ang,
+			"when": func(h): return _active and option == 2 and h.passedOut})
 	if option != 0 and get_setting("blank_eyes"):
 		g.characterControl.setIris(BLANK_IRIS)
 
@@ -136,18 +137,12 @@ func _update_eyes() -> void:
 		_set_lids(_frozen_frame)
 
 
-func _after_look() -> void:
-	var her = g.her
-	if _active and her.passedOut and option == 2:
-		her.eye.ball.irisContainer.rotation_degrees = _frozen_rotation
-		her.eyeMotion["target"] = _frozen_target
-		her.eyeMotion["ang"] = _frozen_ang
-
-
 func _wake() -> void:
 	if not _active or g.her == null:
 		return
 	_active = false
+	Hooks.remove_modifier(_freeze_id)
+	_freeze_id = 0
 	g.her.eye.ball.highlights.alpha = 1
 	if g.characterControl.currentIris != _saved_iris:
 		g.characterControl.setIris(_saved_iris)

@@ -41,7 +41,11 @@ func hook() -> void:
 	mm.hook_after(&"Her.updateLips", func(_c): update_lips())
 	mm.hook_after(&"Her.blink", func(_c): toggle_out_eyes = not toggle_out_eyes)
 	mm.hook_before(&"Her.changeLookTarget", func(c): _change_look_target(c.args[0]))
-	mm.hook_before(&"Her.lookAt", func(c): c.cancel(); look_at(c.args[0]))
+	# her gaze through the value points (Hooks): the mood's look point, then moremoods' own angle model, so dialogue
+	# looks ([LOOK_...], OVERRIDE) and pass-out states (FINAL) still apply on top
+	mm.modify(&"Her.lookTarget", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, _her): return mood_point(v)})
+	mm.modify(&"Her.gazeAngle", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(_v, _her): return gaze_angle()})
+	mm.hook_after(&"Her.lookAt", func(_c): _after_look())
 	mm.hook_after(&"Her.wakeUp", func(_c): wake_up())
 
 
@@ -349,7 +353,7 @@ func update_lips() -> void:
 	her.head.headTan.jaw.gotoAndStop(low)
 
 
-# ---------------------------------------------------------------- looking (instead of Her.lookAt)
+# ---------------------------------------------------------------- looking (value points Her.lookTarget, Her.gazeAngle)
 
 func _change_look_target(target: Vector2) -> void:
 	trying_face = target == g.her.hisFace
@@ -373,34 +377,34 @@ func _target_local() -> Vector2:
 	return g.her.globalToLocal(g.sceneLayer.localToGlobal(g.her.currentLookTarget))
 
 
-func look_at(target: Vector2) -> void:
+## The mood's look point (MOOD modifier of Her.lookTarget): the point the game chose, or the mood's own.
+func mood_point(point: Vector2) -> Vector2:
 	var her = g.her
 	var him = g.him
 	var m: String = mm.mood_name
-	var local: Vector2 = her.globalToLocal(g.sceneLayer.localToGlobal(target))
-	var aim: Vector2 = her.eyeAim
+	var chosen := point
 	if m == "Submissive":
 		her.currentLookTarget = _look_point(800, s("submissivehimeye") if trying_face else s("submissivenormaleye"))
-		local = _target_local()
+		chosen = her.currentLookTarget
 		_limit_rot(0.25)
 	if m == "Drugged":
 		if her.currentLookTarget == her.hisFace:
 			her.currentLookTarget = her.eyesUnfocused
-			local = _target_local()
+			chosen = her.currentLookTarget
 		if her.nextLookTarget == her.hisFace:
 			her.nextLookTarget = her.eyesUnfocused
 	if m == "Spent" or m == "Numb":
 		her.currentLookTarget = _look_point(816, -138)
-		local = _target_local()
+		chosen = her.currentLookTarget
 		_limit_rot(1.0 / 9.0)
 	if m == "Depressed":
 		her.currentLookTarget = _look_point(800, 75)
-		local = _target_local()
+		chosen = her.currentLookTarget
 		_limit_rot(1.0 / 6.0)
 	if m == "Android":
 		if her.passedOut:
 			her.currentLookTarget = _look_point(800, s("androidmoodpassouteyeycord"))
-			local = _target_local()
+			chosen = her.currentLookTarget
 			if not eyeroll_enabled():
 				var ic = her.eye.ball.irisContainer
 				ic.rotation_degrees = clampf(ic.rotation_degrees, prev_rot - 1.0 / 6.0, prev_rot + 1.0 / 6.0)
@@ -409,32 +413,41 @@ func look_at(target: Vector2) -> void:
 		var want: Vector2 = her.eyesDown if him.ejaculating else her.hisFace
 		if her.currentLookTarget != want:
 			her.currentLookTarget = want
-			local = _target_local()
+			chosen = her.currentLookTarget
 	if m == "Smug" and not g.gamePaused and not her.passedOut:
 		if her.mouthFull:
 			if him.ejaculating and her.currentLookTarget != her.eyesDown:
 				her.currentLookTarget = her.eyesDown
-				local = _target_local()
+				chosen = her.currentLookTarget
 		elif her.currentLookTarget != her.hisFace:
 			her.currentLookTarget = her.hisFace
-			local = _target_local()
+			chosen = her.currentLookTarget
 	if m == "Professional" and not g.gamePaused and not her.passedOut:
 		if (him.pleasure + 10 > him.ejacPleasure or him.ejaculating) and her.currentLookTarget != her.hisFace:
 			her.currentLookTarget = her.hisFace
-			local = _target_local()
+			chosen = her.currentLookTarget
 	if m == "Tease" or m == "Overwhelmed":
 		if not g.gamePaused and not her.passedOut:
 			if (her.mouthFull and him.ejaculating) or (her.mouthFull and her.passOutFactor > 0) or (her.held and mm.bite_timer() > 20):
 				if her.currentLookTarget != her.eyesDown:
 					her.currentLookTarget = her.eyesDown
-					local = _target_local()
+					chosen = her.currentLookTarget
 					eye_look_timer = 80 if him.ejaculating else 30
 			elif eye_look_timer == 0 and her.currentLookTarget != her.hisFace:
 				her.currentLookTarget = her.hisFace
-				local = _target_local()
+				chosen = her.currentLookTarget
 		eye_look_timer = maxi(0, eye_look_timer - 1)
+	return chosen
+
+
+## moremoods' iris angle (GENERATE modifier of Her.gazeAngle), towards the point she looks at.
+func gaze_angle() -> float:
+	var her = g.her
+	var m: String = mm.mood_name
+	var local: Vector2 = her.globalToLocal(g.sceneLayer.localToGlobal(her.lookPoint))
+	var aim: Vector2 = her.eyeAim
+	var em := {"target": 0.0}
 	var d := local - aim
-	var em: Dictionary = her.eyeMotion
 	if m == "Submissive":
 		em["target"] = clampf(g.getAngle(d.x, d.y), 75, 120)
 	elif m == "Drugged":
@@ -482,9 +495,14 @@ func look_at(target: Vector2) -> void:
 		em["target"] = inc - vibration + recenter
 	else:
 		em["target"] = em["target"] - (vibration + raise * 0.5)
-	em["ang"] = em["ang"] + (em["target"] - em["ang"]) * 0.2
+	return em["target"]
+
+
+## After Her.lookAt (the game eased the iris to the angle): the iris offsets of some moods.
+func _after_look() -> void:
+	var her = g.her
+	var m: String = mm.mood_name
 	var ic = her.eye.ball.irisContainer
-	ic.rotation_degrees = em["ang"] - 90
 	if m == "Drugged":
 		ic.x = -54
 		her.eye.ball.highlights.x = 17
