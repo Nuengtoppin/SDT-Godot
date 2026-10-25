@@ -14,10 +14,14 @@ is unchanged.
 |---|---|---|---|---|
 | `Her.blink` | before (args: `[lookAround]`, can cancel) | P026, P028 | Switch off or take over her automatic blinking without replacing `Her.updateBlink`. The after point already existed. Vetoed (P028): `blinkTime` gets a normal wait (90–149 ticks), so `updateBlink` does not retry every tick; the eyelids and tears are left alone. | PR |
 | `Her.swallow` | before (args: `[intensity, speak]`, can cancel) | P028 | Switch off or replace her swallowing (automatic, dialogue `[SWALLOW]`, the key). Vetoed: `startSwallowTimer` restarts, so the cum-in-mouth wait does not call it every tick; nothing else changes. A veto at the end of a swallow leaves breathing to `checkBreathing`'s usual delay. | PR |
+| `Her.startClenchingTeeth` | before (args: `[]`, can cancel) | P028 | Switch off or replace her clenching her teeth (Angry mood, moremoods). Vetoed: nothing changes; the callers restart their own timers. | PR |
 
 Veto rule (upstream's request): a vetoed one-off action resets its own timers and changes no other state. Callers
 may already have changed state before the call (`shock()` sets the eyelid shock, then calls `blink(false)`); that
 stays theirs and needs its own hook point if it should be stoppable.
+
+Not a one-off, so no before point: `Her.suck` adds to `suckPower` on every tick she pulls back (Happy,
+Ahegao, auto mode); it is left for a value point.
 
 ## Plugins
 
