@@ -25,6 +25,9 @@ var _tanLayer: FlashSprite
 var tanAlpha: float = 1.0
 ## Port: how far the swallow bulge pushes the neck out (x) and down (y); the throatcumbulge extension changes it.
 var swallowScale := Vector2(0.8, 0.5)
+## derrdev: the last render's outline points and depth, for the developer panel's neck overlay (read only).
+var renderedPoints: Array = []
+var lastDepth: float = 0.0
 
 
 func _init() -> void:
@@ -113,6 +116,8 @@ func render(depth: float) -> void:
 		swallowProgress += 0.05
 		if swallowProgress > 1:
 			swallowing = false
+	renderedPoints = pts   # derrdev: for the neck overlay
+	lastDepth = depth
 	var gr := graphics
 	gr.clear()
 	gr.beginGradientFill("radial", [shade1, shade3], [1, 1], [209, 250], mainGradient, "pad", "rgb", 0.1)

@@ -4,12 +4,13 @@ extends RefCounted
 ## add controls here too: SDTMenu.add_control() with "section" set to one of these ids.
 ##   dev_tools   workbench for experimental tools (empty for now)
 ##   dev_eyes, dev_mouth, dev_fluids, dev_state, dev_him   her and his behaviours (DevBehaviour): call, automation
+##   dev_body    debug layers drawn over body parts (DevBodyOverlay): the neck for now
 ##   dev_info    live values: her state by the same groups, engine, extensions
 ##   dev_panel   the panel's own settings, automation as a whole
 
 
 static func sections() -> Array:
-	return [_tools()] + DevBehaviour.sections() + [_info(), _panel()]
+	return [_tools()] + DevBehaviour.sections() + [_body(), _info(), _panel()]
 
 
 static func _tools() -> Dictionary:
@@ -18,6 +19,40 @@ static func _tools() -> Dictionary:
 			MenuSchema.note("Experimental and diagnostic tools appear here."),
 		]},
 	]}
+
+
+static func _body() -> Dictionary:
+	var neck := func(): return g.her.head.neck
+	return {"id": "dev_body", "name": "Body", "groups": [
+		{"title": "Debug layers", "controls": [
+			MenuSchema.note("Drawn over the game, read only: straight lines through the points (the game draws curves through them). The same layers for every body part; legs and breasts come next."),
+			{"type": "slider", "label": "Line width", "tip": "Width of the outlines and axes, in screen pixels.", "min": 0.5, "max": 3.0, "step": 0.25,
+				"get": func(): return DevBodyOverlay.line_width, "set": func(v: float): DevBodyOverlay.line_width = v,
+				"format": func(v): return "%.2f" % v},
+			{"type": "slider", "label": "Point size", "tip": "Radius of the control points, in screen pixels.", "min": 0.5, "max": 4.0, "step": 0.25,
+				"get": func(): return DevBodyOverlay.point_radius, "set": func(v: float): DevBodyOverlay.point_radius = v,
+				"format": func(v): return "%.2f" % v},
+			MenuSchema.actions("", "", [["Hide all layers", func(): DevBodyOverlay.clear(), "Switch every debug layer off."]]),
+		]},
+		{"title": "Neck", "controls": [
+			_layer("neck", "base", "Source outline", "Cyan: the neck's outline from the symbol, respaced, before the throat bulge and swallow wave."),
+			_layer("neck", "rendered", "Rendered outline", "Pink: the outline drawn this tick (throat bulge, swallow wave). Blue: the highlight."),
+			_layer("neck", "points", "Control points", "The outline points (cyan) and highlight points (blue) the neck is drawn through."),
+			_layer("neck", "axis", "Neck to torso axis", "Yellow: from the neck's origin to her torso's."),
+			value("Points", "Outline points (the front of the neck is resampled into 30) / highlight points.",
+				func(): return "%d / %d" % [neck.call().neckPoints.size(), neck.call().highlightPoints.size()]),
+			value("Throat depth", "How deep he is, as the neck's bulge sees it (0 at her lips, 1 = 400 deep; below 0: outside her mouth).",
+				func(): return "%.2f" % neck.call().lastDepth),
+			value("Swallow wave", "Where the swallow bulge is along the neck while she swallows.",
+				func(): return "%.0f%%" % (neck.call().swallowProgress * 100.0) if neck.call().swallowing else "no"),
+			value("Neck angle", "The neck's rotation.", func(): return "%.1f°" % wrapf(neck.call().rotation_degrees, -180.0, 180.0)),
+		]},
+	]}
+
+
+static func _layer(part: String, layer: String, label: String, tip: String) -> Dictionary:
+	return MenuSchema.toggle(label, tip, func(): return DevBodyOverlay.is_on(part, layer),
+		func(on: bool): DevBodyOverlay.set_on(part, layer, on), {"keywords": "debug overlay " + part})
 
 
 static func _info() -> Dictionary:
