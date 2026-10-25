@@ -2267,6 +2267,11 @@ func tickCumDrool() -> void:
 
 
 func startDroolingCum(force: bool = false) -> void:
+	if Hooks.has(&"Her.startDroolingCum") and (cumInMouth > 5 or force):   # HOOK (only when it would start)
+		var h := Hooks.before(&"Her.startDroolingCum", self, [force])
+		if h.cancelled:
+			return
+		force = h.args[0]
 	if cumInMouth < 5 and force:
 		cumInMouth = 5 + int(ceil(randf() * 5))
 	if cumInMouth > 5:
