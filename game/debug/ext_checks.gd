@@ -112,6 +112,7 @@ func step(_frame: int) -> void:
 			if Flash.tick_count > _start_tick:
 				_check("profiler names the extension", Flash._slowest_listener.begins_with("ext:test."), Flash._slowest_listener)
 				_ext.slow = false
+				_veto_checks()
 				_settings_checks()
 				_charcode_checks()
 				_mood_checks()
@@ -359,6 +360,32 @@ func _charcode_checks() -> void:
 
 ## The test plugins in tests/plugins (regress.sh copies them into the run's Mods/Plugins and leaves a loading
 ## marker for "crashy", as if it had crashed the previous start).
+## Before-hooks on one-off actions: a vetoed action changes nothing, apart from restarting its own timer where the
+## caller would otherwise ask again on every tick.
+func _veto_checks() -> void:
+	_veto_clench_teeth()
+	Hooks.remove_owner("veto")   # (end of the veto checks)
+
+
+## Runs `fn` with a counting veto on hook `name`; returns how many times the veto was asked.
+func _vetoed(name: StringName, fn: Callable) -> int:
+	var n := [0]
+	var veto := func(c): n[0] += 1; c.cancel()
+	Hooks.add_before(name, veto, "veto")
+	fn.call()
+	Hooks.remove(name, veto)
+	return n[0]
+
+
+func _veto_clench_teeth() -> void:
+	var her = g.her
+	her.clenchTeeth = false
+	var time: int = her.clenchedTeethTime
+	var free: bool = not her.gagged and not her.mouthFull
+	var n := _vetoed(&"Her.startClenchingTeeth", her.startClenchingTeeth)
+	_check("vetoed clenching: teeth not clenched", n == 1 and not her.clenchTeeth and her.clenchedTeethTime == time and free)
+
+
 func _plugin_checks() -> void:
 	var P := Extensions.plugins
 	if not P.has("example"):

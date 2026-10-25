@@ -1173,6 +1173,10 @@ func waggleEyebrows() -> void:
 
 
 func startClenchingTeeth() -> void:
+	if Hooks.has(&"Her.startClenchingTeeth"):   # HOOK
+		var h := Hooks.before(&"Her.startClenchingTeeth", self, [])
+		if h.cancelled:
+			return
 	if not clenchTeeth and not gagged and not mouthFull:
 		clenchTeeth = true
 		clenchedTeethTime = int(randf() * 120 + 60)
