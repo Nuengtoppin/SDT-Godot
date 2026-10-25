@@ -177,6 +177,17 @@ func getDataString() -> String:
 func loadDataString(s: String) -> void:
 	var vals := s.split(",")
 	findFunction.call(String(vals[0]))
+	# port: a name that is not one of this slot's (a Loader character's MoreClothing item) is the installed mod of
+	# that name (ModCatalog.find_named), if there is one
+	if g.modCatalog != null:
+		if elementNameList.any(func(n): return g.dataName(n) == g.dataName(vals[0])):
+			g.modCatalog.forget_named(self)
+		else:
+			g.modCatalog.find_named(self, vals[0], func(e): _wearModEntry(e, vals))
+	_readFills(vals)
+
+
+func _readFills(vals: PackedStringArray) -> void:
 	if vals.size() == 5:
 		readRGB(Array(vals.slice(1, 5)), "rgbFill")
 		if haveRGBFill2 and getDefaultRGB2():
@@ -260,6 +271,16 @@ func _step(d: int) -> void:
 		modEntryIndex = i - n
 		updateMenuList.call(modEntries[i - n]["title"])
 	g.saveData.saveCharData()
+
+
+## Port: puts on a catalog entry as this slot's choice (as stepping to it does), with the code's colours.
+func _wearModEntry(e: Dictionary, vals: PackedStringArray) -> void:
+	findName("None")
+	if not g.modCatalog.is_applied(e):
+		g.modCatalog.apply(e)
+	modEntryIndex = modEntries.find(e)
+	updateMenuList.call(e["title"])
+	_readFills(vals)
 
 
 func registerRGBButton(button, swatch: Array, xPos: float, showAlpha: bool = true) -> void:

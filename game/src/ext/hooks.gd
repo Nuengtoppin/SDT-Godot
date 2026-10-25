@@ -35,6 +35,8 @@ class Call:
 	var args: Array
 	var result = null
 	var cancelled := false
+	## Owner of the handler that cancelled the call ("" if none, or one registered without an owner), e.g. for logs.
+	var cancelled_by := ""
 
 	## Skips the original method (and the handlers after this one); `value` becomes the method's return value.
 	func cancel(value = null) -> void:
@@ -141,6 +143,7 @@ static func _run(name: StringName, phase: String, obj: Object, args: Array, resu
 			continue
 		fn.call(c)
 		if c.cancelled:
+			c.cancelled_by = h[4]
 			break
 	_running.erase(name)
 	return c

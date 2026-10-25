@@ -159,7 +159,8 @@ func lookAt(target: Vector2) -> void:
 		Hooks.after(&"Her.lookAt", self, [target])
 ```
 
-Handlers get a `Hooks.Call` with `name`, `obj` (the object whose method runs), `args`, `result` and `cancel(value)`:
+Handlers get a `Hooks.Call` with `name`, `obj` (the object whose method runs), `args`, `result` and `cancel(value)`
+(and, once cancelled, `cancelled_by`: the owner of the handler that cancelled it, e.g. for logs):
 
 - **Before-handlers** run in `priority` order (lower first, then registration order). They may change `call.args`,
   or call `call.cancel(value)`: the original method is skipped and returns `value`, and the remaining handlers

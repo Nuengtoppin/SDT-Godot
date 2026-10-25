@@ -198,6 +198,13 @@ static func _her() -> Dictionary:
 	]}
 
 
+static func _toggle_body(on: bool, e: Dictionary) -> void:
+	if on:
+		g.modCatalog.apply(e)
+	else:
+		g.modCatalog.remove_entry(e)
+
+
 static func _clothes() -> Dictionary:
 	var cc := func(): return g.characterControl
 	var head: Array = []
@@ -225,6 +232,11 @@ static func _clothes() -> Dictionary:
 		{"title": "Head and neck", "controls": head},
 		{"title": "Upper body", "controls": upper},
 		{"title": "Lower body", "controls": lower},
+		{"title": "Body pieces", "controls": [
+			{"type": "custom", "label": "Body pieces", "wide": true, "keywords": "moreclothing body armband",
+				"tip": "Clothing worn besides the slots above (MoreClothing's body slot): an armband, a harness... Several can be on. A mod goes here when Mods/Clothing/names.txt names it with \"> body\".",
+				"build": func(): return ModSwitchList.build(ModCatalog.BODY_LIST, _toggle_body, "None (see the tip).")},
+		]},
 		{"title": "Piercings", "controls": pierce},
 		{"title": "Tan lines", "controls": [
 			arrows("Tan", "", func(): return tan.call()._tanNameList, func(): return tan.call()._currentTanID,
@@ -414,6 +426,9 @@ static func _mods() -> Dictionary:
 			actions("", "", [["Save backup…", func(): _m().saveBackupClicked(), "All stored characters in one file (CustomChars.sdt)."],
 				["Load backup…", func(): _m().loadBackupClicked(), "Characters from a backup file, or from a Flash save (ChoIrrumatio.sol)."]],
 				{"keywords": "characters backup import export sol"}),
+			actions("", "", [["Import from the Loader…", func(): LoaderImport.choose(),
+				"Pick the Loader's folder: its stored characters come in with the clothing and hair mods they wear (copied into Mods/, never over your files)."]],
+				{"keywords": "loader import characters mods moreclothing"}),
 			check("Replace the list when loading", "Off: loaded characters are added to the list.",
 				func(): return md.call().cbOverwriteCharList, _m().cbOverwriteCharListClicked),
 		]},

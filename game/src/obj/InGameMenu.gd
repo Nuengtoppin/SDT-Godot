@@ -1258,17 +1258,28 @@ func _stepHair(d: int) -> void:
 		g.characterControl.setHair(i)
 		updateHairList()
 	else:
-		if g.characterControl.customHairLoaded:
-			# imported image hair would stay on screen under the mod hair
-			g.customElementLoader.clearCustomHair(false)
-			g.characterControl.customHairLoaded = false
-		if hairModIndex < 0:
-			g.characterControl.clearHair()
-		g.customElementLoader.clearModTypes([ModTypes.HAIR, ModTypes.DYNAMIC_HAIR])
-		g.modCatalog.apply(mods[i - n])
-		hairModIndex = i - n
-		customMenu.mlHair.itemLabel.text = mods[i - n]["title"]
+		_wearHairMod(mods[i - n])
 	g.saveData.saveCharData()
+
+
+## Port: puts on a hair mod from the catalog as the hair picker's choice (an image hair: as importing it does).
+func _wearHairMod(e: Dictionary) -> void:
+	if e.get("image", false):
+		g.customElementLoader.clearModTypes([ModTypes.HAIR, ModTypes.DYNAMIC_HAIR])
+		g.customElementLoader.tryToLoadHairFile(e["path"])
+		hairModIndex = g.modCatalog.hair_entries.find(e)
+		customMenu.mlHair.itemLabel.text = e["title"]
+		return
+	if g.characterControl.customHairLoaded:
+		# imported image hair would stay on screen under the mod hair
+		g.customElementLoader.clearCustomHair(false)
+		g.characterControl.customHairLoaded = false
+	if hairModIndex < 0:
+		g.characterControl.clearHair()
+	g.customElementLoader.clearModTypes([ModTypes.HAIR, ModTypes.DYNAMIC_HAIR])
+	g.modCatalog.apply(e)
+	hairModIndex = g.modCatalog.hair_entries.find(e)
+	customMenu.mlHair.itemLabel.text = e["title"]
 
 
 func irisLeftClicked(param1 = null):
@@ -1762,6 +1773,11 @@ func instanceStoredCharFile(param1):
 	var _loc4_ = []
 	for _loc5_ in param1:
 		if _loc5_["charName"]:
+			# port: adding to the list skips characters it has already (same name and code), so loading a file twice
+			# (or importing from the Loader again) does not double them
+			if not g.overwriteCharList and g.storedChars.any(func(c): return c.charName == str(_loc5_.charName) \
+					and c.charData == str(_loc5_.charData)):
+				continue
 			_loc6_ = { "name":_loc5_.charName, "data":_loc5_.charData, "shotBytes":_loc5_.get("shotBytes") }
 			if _loc5_.get("dialogue") != null:
 				_loc6_["dialogue"] = _loc5_["dialogue"]
@@ -1803,7 +1819,7 @@ func generateSaveData():
 	var _loc1_ = getSaveDataString()
 	moddingMenu.saveDataTF.text = _loc1_
 	stage.focus = moddingMenu.saveDataTF
-	moddingMenu.saveDataTF.setSelection(0,moddingMenu.saveDataTF.text.size())
+	moddingMenu.saveDataTF.setSelection(0,moddingMenu.saveDataTF.text.length())
 
 
 func _rgba(c) -> String:
@@ -1927,6 +1943,8 @@ func loadData(param1, param2 = true, param3 = false, param4 = null):
 		charStoring.setEditing(true,param4)
 	if not CharCode.keep_unlisted:   # HOOK port extension: DialogueActions' [LOAD_CHARCODE] keeps unlisted items
 		_resetUnlistedForLoad()
+		if g.modCatalog:
+			g.modCatalog.forget_named(null)   # port: mods the previous code named, still waiting for the mod scan
 	if not onlyLoadCostume:
 		updateBodySlider()
 		updateArmsList()
@@ -2108,13 +2126,21 @@ func loadData(param1, param2 = true, param3 = false, param4 = null):
 	if _loc14_.size() > 0:
 		g.customElementLoader.tryToLoadSwfMods(_loc14_,true,onlyLoadCostume)
 	if _loc9_ != "":
+		if g.modCatalog:   # port: an image hair, no hair mod from the catalog
+			g.modCatalog.forget_named("hair")
+			hairModIndex = -1
 		_loc27_ = g.customElementLoader.tryToLoadHairFile(_loc9_)
 		if param3:
 			_loc27_.contentLoaderInfo.addEventListener(FlashEvent.IO_ERROR,modIOError)
 	elif _loc10_ != "":
 		g.customElementLoader.clearCustomHair()
 		_loc28_ = Array(_loc10_.split(","))
-		g.characterControl.findHair(_loc28_[0],false)
+		if g.characterControl.findHair(_loc28_[0],false):
+			if g.modCatalog:
+				g.modCatalog.forget_named("hair")
+		elif g.modCatalog:
+			# port: not one of the game's hairstyles (a Loader character's mod hair): the installed hair mod of that name
+			g.modCatalog.find_named("hair", _loc28_[0], _wearHairMod)
 		g.characterControl.setCurrentElements(_loc28_.slice(1))
 	if _loc13_ != "":
 		_loc29_ = Array(_loc13_.split(","))
