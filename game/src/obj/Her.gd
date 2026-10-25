@@ -1165,6 +1165,10 @@ func wince() -> void:
 
 
 func waggleEyebrows() -> void:
+	if Hooks.has(&"Her.waggleEyebrows"):   # HOOK
+		var h := Hooks.before(&"Her.waggleEyebrows", self, [])
+		if h.cancelled:
+			return
 	changeLookTarget(hisFace, 0, 1)
 	for i in 24:
 		eyebrowOffsets.append(int(-10.0 * (pow(4.0, cos(i * PI / 6.0 - 1.8)) - cos(i * PI / 6.0))))
