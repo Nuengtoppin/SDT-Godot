@@ -62,6 +62,28 @@ following) still applies on top of the gaze holder. Moving those onto the channe
 
 Checks: `game/debug/channels_checks.gd` (needs the plugin in the mods folder).
 
+## Developer mode panel (derrdev workbench)
+
+Settings › Menu › Developer mode (off by default, kept in `port.cfg` as `developer/enabled`; an old
+`debug_lab/enabled` is read as its default). It replaces the earlier Debug Lab panel.
+
+- `DevMenu` (`game/src/menu/dev_menu.gd`) extends `SDTMenu`: the same panel (search, sections, cards, help line),
+  docked on the side opposite the menu, so Menu side moves both. A DEBUG tab on its edge opens it, like the MENU
+  tab. It never pauses the game. It is made the first time Developer mode is on (`SDTMenu._sync_dev()`), never in
+  Vanilla mode or with the classic menu.
+- What a second panel changes is a small set of instance methods in `SDTMenu`: `_left()`, `_enabled()`,
+  `_make_sections()`, `_search_pool()`, `_home()`, `_title()`, `_search_hint()`, `_tab_label()`, `_pauses()`,
+  `_default_help()`. With only the menu, they return what the menu used before.
+- Both panels can be open together: clicking one does not close the other; clicking the scene closes both.
+  `Flash.mouse_blocker` still asks the menu, which also asks the developer panel.
+- Sections come from `DevSchema` (`game/src/menu/dev_schema.gd`): `dev_tools` (workbench, empty for now),
+  `dev_info` (live values), `dev_panel`. Extensions can add controls with `SDTMenu.add_control()` and one of these
+  section ids. `DevSchema.value(label, tip, get_fn)` is a read-only value row.
+- The FPS counter (`game/scenes/fps_counter.gd`) slides beside an open panel docked on the left
+  (`SDTMenu.left_inset()`).
+
+Checks: `game/debug/derrdev_checks.gd`.
+
 ## Requests to upstream
 
 | Request | Why | Status |

@@ -1,6 +1,6 @@
 extends RefCounted
-## Checks for the derrdev workbench (Debug Lab) and the fixes it relied on (hover, sizes with tan, arm modes,
-## tears). Uses the existing game loop and a disposable save.
+## Checks for the derrdev workbench (Developer mode panel, the FPS counter beside panels) and the fixes it relied on
+## (hover, sizes with tan, arm modes, tears). Uses the existing game loop and a disposable save.
 ## run_debug.bat -- --save-dir=<temporary folder> --mods-dir=<empty folder> --driver=res://debug/derrdev_checks.gd
 
 var _phase := 0
@@ -32,20 +32,8 @@ func step(_frame: int) -> void:
 			_menu = SDTMenu.instance
 			_menu.open_menu()
 			_menu.build_now()
-			_check("Lab off by default", not SDTMenu.debug_lab_enabled() and not _menu._debug_lab.visible)
-			SDTMenu.set_debug_lab_enabled(true)
-			_check("Lab builds and is visible", is_instance_valid(_menu._debug_lab) and _menu._debug_lab.visible)
-			_check("Lab has its tool area", _menu._debug_lab.tools_root.get_child_count() == 1)
-			PortSettings.set_value("debug_lab", "side", "Right")
-			_menu._layout_debug_lab()
-			_check("Lab docks on the right", _menu._debug_lab.position.x >= _menu._root.size.x * 0.5)
-			PortSettings.set_value("debug_lab", "side", "Left")
-			_menu._layout_debug_lab()
-			_check("Lab docks on the left", _menu._debug_lab.position.x == 0.0)
-			PortSettings.set_value("debug_lab", "side", "Right")
 			_menu.close_menu()
-			SDTMenu.set_debug_lab_enabled(false)
-			_check("Lab hidden when switched off", not _menu._debug_lab.visible)
+			_test_dev_mode()
 			_test_hover()
 			_test_tan_and_sizes()
 			for i in Her.armPositions.size():
@@ -74,6 +62,64 @@ func step(_frame: int) -> void:
 			print("DERRDEV CHECKS: %d passed, %d failed" % [_passed, _failed])
 			_phase = 99
 			Flash.get_tree().quit(1 if _failed else 0)
+
+
+## Developer mode: off by default, a collapsed panel with the menu's layout on the other side, both panels open
+## together, the FPS counter beside a left panel, switched off and remembered.
+func _test_dev_mode() -> void:
+	var cfg: ConfigFile = PortSettings._cfg
+	_check("dev mode off by default", not SDTMenu.dev_mode_enabled() and SDTMenu.dev == null)
+	PortSettings.set_value("debug_lab", "enabled", true)
+	_check("an old Debug Lab switch carries over", SDTMenu.dev_mode_enabled())
+	PortSettings.set_value("debug_lab", "enabled", false)
+	PortSettings.set_value("menu", "side", "Right")
+	_menu.side_setting_changed()
+	SDTMenu.set_dev_mode(true)
+	var dev = SDTMenu.dev
+	_check("dev panel made", dev is DevMenu and dev._root != null)
+	_check("dev mode remembered", bool(cfg.get_value("developer", "enabled", false)))
+	_check("dev panel starts collapsed", not dev.is_open and not dev._dock.visible)
+	_check("dev panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 3 and dev._help != null)
+	_check("dev tab says DEBUG", dev._tab.text.replace("\n", "") == "DEBUG")
+	_check("menu right -> dev panel left", dev._left() and not _menu._left())
+	dev.open_menu()
+	dev.build_now()
+	var root_w: float = dev._root.size.x
+	_check("dev panel docked at the left edge", is_zero_approx(dev._dock.get_global_rect().position.x))
+	_check("dev panel does not pause", not g.gamePaused)
+	_check("FPS counter moves beside a left panel", is_equal_approx(SDTMenu.left_inset(), SDTMenu.WIDTH))
+	dev.query = "frame rate"
+	dev._show()
+	_check("dev search finds its own options", dev._heading.text.begins_with("1 option"))
+	dev.query = ""
+	dev._show()
+	_menu.open_menu()
+	var in_dev := _press(dev._dock.get_global_rect().get_center())
+	var on_scene := _press(Vector2(root_w * 0.5, 200))
+	_check("clicking the dev panel keeps the menu open", not _menu.outside_click(in_dev) and not dev.outside_click(in_dev))
+	_check("clicking the scene closes both", _menu.outside_click(on_scene) and dev.outside_click(on_scene))
+	_menu.close_menu()
+	PortSettings.set_value("menu", "side", "Left")
+	_menu.side_setting_changed()
+	_check("menu left -> dev panel right", not dev._left()
+		and is_equal_approx(dev._dock.get_global_rect().end.x, root_w))
+	_check("FPS counter back at the left with nothing open there", is_zero_approx(SDTMenu.left_inset()))
+	_menu.open_menu()
+	_check("FPS counter beside the menu on the left", is_equal_approx(SDTMenu.left_inset(), SDTMenu.WIDTH))
+	_menu.close_menu()
+	SDTMenu.set_dev_mode(false)
+	_check("dev mode off closes the panel and hides its tab", not dev.is_open and not dev._tab.visible)
+	_check("dev mode off remembered", not bool(cfg.get_value("developer", "enabled", true)))
+	PortSettings.set_value("menu", "side", "Right")
+	_menu.side_setting_changed()
+
+
+func _press(pos: Vector2) -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = true
+	e.position = pos
+	return e
 
 
 func _test_hover() -> void:
