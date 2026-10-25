@@ -1141,6 +1141,7 @@ func blink(lookAround: bool = true) -> void:
 	if Hooks.has(&"Her.blink"):   # HOOK
 		var h := Hooks.before(&"Her.blink", self, [lookAround])
 		if h.cancelled:
+			blinkTime = int(floor(randf() * 60 + 90))   # vetoed: the next try after a normal wait, not every tick
 			return
 		lookAround = h.args[0]
 	if randf() > 0.8:

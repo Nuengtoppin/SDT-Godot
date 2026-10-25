@@ -12,7 +12,12 @@ is unchanged.
 
 | Hook point | Kind | Patch | Why | Upstream |
 |---|---|---|---|---|
-| `Her.blink` | before (args: `[lookAround]`, can cancel) | P026 | Switch off or take over her automatic blinking without replacing `Her.updateBlink`. The after point already existed. | requested, open |
+| `Her.blink` | before (args: `[lookAround]`, can cancel) | P026, P028 | Switch off or take over her automatic blinking without replacing `Her.updateBlink`. The after point already existed. Vetoed (P028): `blinkTime` gets a normal wait (90–149 ticks), so `updateBlink` does not retry every tick; the eyelids and tears are left alone. | PR |
+| `Her.swallow` | before (args: `[intensity, speak]`, can cancel) | P028 | Switch off or replace her swallowing (automatic, dialogue `[SWALLOW]`, the key). Vetoed: `startSwallowTimer` restarts, so the cum-in-mouth wait does not call it every tick; nothing else changes. A veto at the end of a swallow leaves breathing to `checkBreathing`'s usual delay. | PR |
+
+Veto rule (upstream's request): a vetoed one-off action resets its own timers and changes no other state. Callers
+may already have changed state before the call (`shock()` sets the eyelid shock, then calls `blink(false)`); that
+stays theirs and needs its own hook point if it should be stoppable.
 
 ## Plugins
 
@@ -88,6 +93,7 @@ Checks: `game/debug/derrdev_checks.gd`.
 
 | Request | Why | Status |
 |---|---|---|
-| Before hook point on `Her.blink` | See above. | to send |
+| Before hook point on `Her.blink` | See above. | PR (with the veto handled) |
+| `Hooks.Call.cancelled_by` | The event log names who vetoed a call. | done upstream (e6dda3a) |
 | `Extensions._disable()` tells shared tables that an extension went off (an event or a callback list) | `channels` checks every tick whether an owner's extension is still on. | to send |
 | An event when a character code is loaded | `channels` uses a never-written character code field to get its reset call. | to send |

@@ -115,6 +115,7 @@ func step(_frame: int) -> void:
 				_settings_checks()
 				_charcode_checks()
 				_mood_checks()
+				_blink_veto_checks()
 				_template_checks()
 				_extramod_checks()
 				_extramodhim_checks()
@@ -419,6 +420,27 @@ func _mood_checks() -> void:
 	Moods.unregister_owner("test")
 	_check("unregistered extended mood is cleared", Moods.current() == "Normal")
 	her.setMood("Normal")
+
+
+## Her.blink: a vetoed blink waits a normal interval before the next try (updateBlink would retry every tick) and
+## leaves the eyelids alone.
+func _blink_veto_checks() -> void:
+	var her = g.her
+	var calls := [0]
+	var veto := func(c): calls[0] += 1; c.cancel()
+	Hooks.add_before(&"Her.blink", veto, "test")
+	her.blinkTime = 0
+	her.blinkTimer = 0
+	for i in 30:
+		her.updateBlink()
+	_check("vetoed blink: tried once, not every tick", calls[0] == 1, str(calls[0]))
+	# 90..149 ticks from the veto, minus the 29 calls after it
+	_check("vetoed blink: next try after a normal wait", her.blinkTime >= 60 and her.blinkTime <= 120, str(her.blinkTime))
+	_check("vetoed blink: eyelids not closed", her.blinkTimer == 0)
+	Hooks.remove(&"Her.blink", veto)
+	her.blinkTime = 0
+	her.updateBlink()
+	_check("blink runs again without the veto", her.blinkTimer == 2)
 
 
 func _disable_checks() -> void:
