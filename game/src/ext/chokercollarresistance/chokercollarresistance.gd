@@ -11,15 +11,20 @@ extends SDTExtension
 ##     not go through the collar: her neck bulges above it and, when he is deeper, below it, held in by the band,
 ##     with a soft step at each edge. A wide collar holds a wide band, a thin one a thin band.
 ## The ring stretches under his pressure (his width, more while he pushes, the swallow wave too) and gives way: a
-## leather collar slowly, a band fast, metal never. "Collar stretches": the collar's picture widens with the
-## stretch, as the mod did. "Wince when it holds": she winces while it holds him back (the mod's option).
+## leather collar slowly, a band fast, metal never. "Collar stretches" (P042): her throat pushes the collar out and
+## the collar follows it with a lag, to show how tight it is - the neck may press a few pixels into it, the collar
+## gives way after it, as far as the ring's stretch lets it (up to 17.5 px fully stretched), and settles back when
+## her throat does. Only the front moves: the back of the collar, at her nape, stays where it is (the mod widened
+## the whole picture by the ring's memory, about a point 70 px behind its origin, so it stayed wide in the air). "Wince when it holds": she winces while it holds him back (the mod's option).
 ## Pressure comes from what he does, not from holding the mouse button (the mod's), so auto mode works the same.
 ## Not taken yet: the dialogue line "collarresistance", the breath-below-50% option during the intro, snapping (the
 ## ring's durability is worked out; a snapped ring holds nothing; the reactions come in the next stage).
 
 const PUSH := 0.0015          # pos pushed back per pixel past the top edge, at hold 1 (the game's intro: 0.0015)
 const RESIST := 0.15          # resistance added past the top edge at hold 1 (the game's throat entrance at most: 0.2)
-const WIDEN := 0.25           # how much wider the collar's picture gets fully stretched
+const WIDEN := 0.25           # fully stretched the collar gives way by 70 x this px (the mod's 25 % of 70 px)
+const LAG := 0.15             # share of the way to her throat the collar's front catches up per tick
+const SLACK := 3.0            # px her throat may press into the collar before it gives way
 const WINCE_PUSH := 0.004     # pushed back at least this much in a tick: she winces
 const BAND_GAP := 2.0         # px the outline may push out under the collar (the collar sits on the skin)
 const BAND_WIDEN := 70.0 * WIDEN   # px more fully stretched, as much as the picture widens (the mod's 70 px)
@@ -31,6 +36,8 @@ var _resist_fn := Callable()
 var _band_fn := Callable()
 var _widened := false
 var _collar_x := 0.0
+var _back := {}               # collar name -> [back edge, width] in its own space (back: its left side, her nape)
+var push_px := 0.0            # how far the collar's front is pushed out now (px, follows her throat with LAG)
 
 
 func _init() -> void:
@@ -109,7 +116,8 @@ func band_limit(f: float) -> float:
 	var c: Dictionary = ThroatRings.collar
 	if not c["on"] or c["snapped"]:
 		return INF
-	var inside: float = BAND_GAP + (c["stretch"] * BAND_WIDEN if get_setting("widen") else 0.0)
+	var room: float = c["stretch"] * BAND_WIDEN if get_setting("widen") else 0.0   # how far it can give now
+	var inside: float = BAND_GAP + minf(room, push_px + SLACK) if room > 0.0 else BAND_GAP
 	var out: float = maxf(c["top"] - f, f - c["bottom"])
 	if out <= 0.0:
 		return inside
@@ -133,20 +141,43 @@ func _tick() -> void:
 	ThroatRings.tick(her)
 	var c: Dictionary = ThroatRings.collar
 	if get_setting("widen") and c["on"]:
-		_widen(her, c["stretch"])
-	elif _widened:
-		_unwiden()
+		push_px += (_throat_push(her.head.neck, c) - push_px) * LAG
+		_widen(her)
+	else:
+		push_px = 0.0
+		if _widened:
+			_unwiden()
 	if get_setting("wince") and _past() * ThroatRings.DEPTH_SCALE * PUSH * c["hold"] >= WINCE_PUSH:
 		her.wince()
 
 
-func _widen(her, stretch: float) -> void:
+## How far her throat pushes out under the collar this tick (px past the gap, from the drawn neck).
+func _throat_push(neck, c: Dictionary) -> float:
+	var pts: Array = neck.renderedPoints
+	var n: int = neck.frontEndPoint
+	if pts.size() != neck.neckPoints.size() or n < 2:
+		return 0.0
+	var most := 0.0
+	for i in range(int(ceil(c["top"] * n)), mini(n, int(floor(c["bottom"] * n)) + 1)):
+		most = maxf(most, (pts[i] as Vector2).x - (neck.neckPoints[i] as Vector2).x)
+	return maxf(0.0, most - BAND_GAP)
+
+
+## The collar's picture pushed out by push_px at its front; its back edge stays put.
+func _widen(her) -> void:
 	var col = her.collarContainer.collar
 	if not _widened:
 		_widened = true
 		_collar_x = col.x
-	col.scaleX = 1.0 + stretch * WIDEN
-	col.x = _collar_x + (col.scaleX - 1.0) * 70.0   # as the mod: keeps the front of the collar on her throat
+	var cname := ThroatRings.current_collar()
+	if not _back.has(cname):
+		var sx: float = col.scaleX
+		col.scaleX = 1.0
+		var b: Rect2 = col.getBounds(col)
+		_back[cname] = [b.position.x, maxf(1.0, b.size.x)]
+		col.scaleX = sx
+	col.scaleX = 1.0 + push_px / _back[cname][1]
+	col.x = _collar_x + _back[cname][0] * (1.0 - col.scaleX)   # the back edge stays put, the front moves out
 
 
 func _unwiden() -> void:

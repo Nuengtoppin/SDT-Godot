@@ -471,7 +471,11 @@ func _test_collar_ring() -> void:
 	var step: float = at.call(c["top"] - 0.02)
 	_check("a soft step at the collar's edge", step > 2.0 and step < 30.0, str(step))
 	c["stretch"] = 1.0
-	_check("fully stretched: the band holds as wide as the widened picture", is_equal_approx(at.call(mid), 2.0 + 70.0 * 0.25))
+	x.push_px = 0.0
+	_check("stretched: her throat may press a little into the collar first", is_equal_approx(at.call(mid), 2.0 + 3.0))
+	x.push_px = 30.0
+	_check("pushed out: no further than the stretch lets it", is_equal_approx(at.call(mid), 2.0 + 70.0 * 0.25))
+	x.push_px = 0.0
 	x.set_setting("widen", false)
 	_check("picture not widening: the band stays tight", at.call(mid) == 2.0)
 	x.set_setting("widen", true)
@@ -489,9 +493,28 @@ func _test_collar_ring() -> void:
 	_check("drawn: under the collar the neck stays in, above it bulges", out_mid <= 2.001 and out_above > 5.0,
 		"%s %s" % [out_mid, out_above])
 	neck.throatBulgeAmount = was_bulge
-	c["stretch"] = 0.5
-	x._tick()
-	_check("the collar's picture widens with the stretch", is_equal_approx(her.collarContainer.collar.scaleX, 1.0 + 0.5 * 0.25))
+	var cont = her.collarContainer
+	var col = cont.collar
+	var before: Rect2 = col.getBounds(cont)
+	x.push_px = 12.0
+	x._widen(her)
+	var after: Rect2 = col.getBounds(cont)
+	_check("her throat pushes the collar's front out by as much", absf((after.end.x - before.end.x) - 12.0) < 0.5, "%s -> %s" % [before, after])
+	_check("it widens to the front only: the back (her nape) stays put", absf(after.position.x - before.position.x) < 0.5)
+	# the collar follows her throat with a lag and settles back when her throat does
+	var neck2 = her.head.neck
+	c["stretch"] = 1.0
+	x.push_px = 0.0
+	neck2.throatBulgeAmount = 1.5
+	neck2.render(0.95)
+	var push0: float = x._throat_push(neck2, c)
+	x.push_px += (push0 - x.push_px) * x.LAG
+	_check("the collar follows her throat a part of the way per tick", push0 > 0.0 and x.push_px > 0.0 and x.push_px < push0,
+		"%s %s" % [push0, x.push_px])
+	neck2.render(0.0)
+	_check("her throat relaxed: nothing pushes the collar", x._throat_push(neck2, c) == 0.0)
+	neck2.throatBulgeAmount = 1.0
+	x.push_px = 0.0
 	ThroatRings.tip = c["top"] - 0.05
 	_check("above the collar nothing", ValuePoints.value(&"Her.pushBack", 0.0, her) == 0.0)
 	c["snapped"] = true

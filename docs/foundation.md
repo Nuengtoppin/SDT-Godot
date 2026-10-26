@@ -144,6 +144,9 @@ The developer panel (Body > Throat rings) shows each point's game number -> the 
   past it; P041: `Neck.pointBulge` clamped between the collar's edges to 2 px (+ up to 17.5 px as it stretches, if its
   picture widens), rising over a 0.04 step past each edge - her neck bulges above and below the collar, held in by
   the band (P040 clamped `Neck.depth` at the top edge instead).
+  P042: "Collar stretches" - her throat pushes the collar's front out (measured from the drawn neck under the band)
+  and the picture follows with a lag (0.15 of the way per tick), up to the ring's room (stretch x 17.5 px); her
+  throat may press 3 px into it first; the back edge (her nape) stays put. Settles back when her throat does.
   "Collar stretches": the collar's picture widens with the stretch (x1.25 at full, as the mod); "Wince when it
   holds". Collar material and tightness in the same group, kept for each collar (`port.cfg` `throat_rings`). Pressure
   from what he does, not the mouse button. Not yet: the "collarresistance" line, the intro breath option, snapping.
