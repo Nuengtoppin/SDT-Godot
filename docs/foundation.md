@@ -137,6 +137,14 @@ The developer panel (Body > Throat rings) shows each point's game number -> the 
   stretch lowers the entrance's share of `Her.resistance` and keeps `Neck.depth` at least at the stretch; "Throat
   recovers" sets how fast it tightens back (0.25: about 90 s from fully loose). Her throat resistance setting is
   never changed.
+- `chokercollarresistance` (P040, new built-in, after sby's chokercollarresistanceV4, on the collar ring): Behaviour >
+  Resistance > "Collar holds her throat", off by default. While she wears a collar: `Her.pushBack` past the collar's
+  top edge (0.0015 pos per px past it x what the ring holds, like the intro limit), `Her.resistance` + 0.15 x hold
+  past it, `Neck.depth` clamped to the collar's top edge until the ring stretches (her neck stays narrow under it).
+  "Collar stretches": the collar's picture widens with the stretch (x1.25 at full, as the mod); "Wince when it
+  holds". Collar material and tightness in the same group, kept for each collar (`port.cfg` `throat_rings`). Pressure
+  from what he does, not the mouse button. Not yet: the "collarresistance" line, the intro breath option, snapping.
+- `throatcumbulge` "Neck follows his size" (P040): `Neck.bulgeCap` = 35 x his width (the game: 35 for every width).
 - Swallowing (P037, stage 2 of the throat ring plan) inside upstream's `throatcumbulge`, after sby's swallowguzzleV2
   but on the game's own `Her.swallow` (the veto and the developer panel's switch apply), all off by default: "Swallow
   until empty" (a swallow that ends with cum left and her mouth free starts another), "Swallow while he cums" (Off /

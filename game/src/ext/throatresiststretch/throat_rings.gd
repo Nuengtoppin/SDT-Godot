@@ -39,6 +39,7 @@ static var collar_bottom_adjust := 0.0
 static var tip := 0.0                   # his tip, in depth units (0 while outside her mouth)
 static var push := 0.0                  # how hard he pushes in this tick, 0..1
 static var collar_name := ""            # the collar the ring is for ("Leather", "Tie", ...; "Custom" for a mod's)
+static var _tick_done := -1            # the game tick last worked out (several extensions may ask)
 static var _bounds_tick := -1000000
 static var _bounds_collar = null
 
@@ -59,6 +60,9 @@ static func active() -> bool:
 
 
 static func tick(her) -> void:
+	if Flash.tick_count == _tick_done:
+		return
+	_tick_done = Flash.tick_count
 	var neck = her.head.neck
 	tip = 0.0 if g.penisOut else maxf(0.0, her.penisInMouthDist / DEPTH_SCALE)
 	push = 0.0 if g.penisOut else clampf(her.movement / PUSH_FULL, 0.0, 1.0)
@@ -103,10 +107,7 @@ static func _update_collar(her, neck) -> void:
 		_bounds_collar = null
 		return
 	collar["on"] = true
-	var sel_id: int = g.characterControl.collarControl.selection
-	var cname: String = g.characterControl.collarNameList[sel_id] if sel_id != 0 else "Custom"
-	if cname != collar_name:
-		_load_collar(cname)
+	_sync_collar()
 	var sel = [g.characterControl.collarControl.selection, c.numChildren]
 	if sel == _bounds_collar and Flash.tick_count - _bounds_tick < BOUNDS_EVERY:
 		return
@@ -137,6 +138,18 @@ static func depth_at_y(neck, y: float) -> float:
 	return float(n - 1) / n
 
 
+## The collar she wears now ("Leather", "Tie", "Gem Choker"; "Custom" for a mod's).
+static func current_collar() -> String:
+	var sel_id: int = g.characterControl.collarControl.selection
+	return g.characterControl.collarNameList[sel_id] if sel_id != 0 else "Custom"
+
+
+## Loads the ring settings kept for the collar she wears now if the ring was for another one.
+static func _sync_collar() -> void:
+	if g.characterControl != null and current_collar() != collar_name:
+		_load_collar(current_collar())
+
+
 ## The ring settings kept for this collar: edge adjustments (else DEFAULT_EDGES) and material (else Leather).
 static func _load_collar(cname: String) -> void:
 	collar_name = cname
@@ -144,6 +157,9 @@ static func _load_collar(cname: String) -> void:
 	collar_top_adjust = float(e[0])
 	collar_bottom_adjust = float(e[1])
 	_set_material(str(PortSettings.get_value(SECTION, _key("material", cname), "Leather")))
+	var t = PortSettings.get_value(SECTION, _key("tight", cname))
+	if t != null:
+		collar["tight"] = float(t)
 	_bounds_collar = null
 
 
@@ -154,9 +170,11 @@ static func _key(kind: String, cname: String) -> String:
 static func set_collar_material(m: String) -> void:
 	if not MATERIALS.has(m):
 		return
+	_sync_collar()
 	_set_material(m)
 	if collar_name != "":
 		PortSettings.set_value(SECTION, _key("material", collar_name), m)
+		PortSettings.set_value(SECTION, _key("tight", collar_name), collar["tight"])
 
 
 static func _set_material(m: String) -> void:
@@ -169,7 +187,16 @@ static func _set_material(m: String) -> void:
 	repair()
 
 
+## Collar tightness, kept for this collar (the material sets it too).
+static func set_collar_tight(v: float) -> void:
+	_sync_collar()
+	collar["tight"] = clampf(v, 0.0, 1.0)
+	if collar_name != "":
+		PortSettings.set_value(SECTION, _key("tight", collar_name), collar["tight"])
+
+
 static func adjust_collar(top: float, bottom: float) -> void:
+	_sync_collar()
 	collar_top_adjust = top
 	collar_bottom_adjust = bottom
 	_bounds_collar = null   # read the edges again on the next tick

@@ -14,6 +14,8 @@ extends SDTExtension
 ##     mouth is more than half full, or whenever there is cum in it, she swallows if not already swallowing;
 ##   - "Per swallow": how much one swallow takes (0: the game's 5-9);
 ##   - swallow bulge "By amount": the swallow's bulge follows how much she swallowed.
+## derrdev (stage 3): "Neck follows his size": the game stops her throat bulge at 35 px however wide he is; with this
+## the limit grows with his width (value point Neck.bulgeCap: 35 x his width).
 ## Extra swallows say nothing (no SWALLOW dialogue line each time).
 
 const MAX_BULGE := 1.5
@@ -36,6 +38,7 @@ var _prev_cum := 0
 var _prev_wave := false
 var _prev_swallowing := false
 var last_amount := 0          # how much the last swallow took
+var _cap_fn := Callable()
 
 
 func _init() -> void:
@@ -56,6 +59,8 @@ func _setup() -> void:
 		"desc": "When a swallow ends with cum left and her mouth free, she swallows again until it is empty."})
 	setting("pump", PUMP_MODES[0], {"label": "Swallow while he cums", "options": PUMP_MODES,
 		"desc": "On each spurt in her mouth she swallows: when her mouth is more than half full, or whenever there is cum in it."})
+	setting("follow_size", false, {"label": "Neck follows his size",
+		"desc": "Her throat bulge grows with his width (the game stops it at the same size for every width)."})
 	setting("per_swallow", 0, {"label": "Per swallow", "min": 0, "max": 20, "step": 1,
 		"desc": "How much one swallow takes (0: the game's, 5 to 9). Less: more swallows to empty her mouth."})
 
@@ -73,13 +78,28 @@ func _enable() -> void:
 		{"after": "Throat bulge", "wide": true}))
 	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "swallow_amount",
 		{"after": "Throat bulge", "visible": func(): return get_setting("swallow_mode") in SWALLOW_MODES.slice(2, 4)}))
-	for key in ["guzzle", "pump", "per_swallow"]:
+	for key in ["follow_size", "guzzle", "pump", "per_swallow"]:
 		menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, key, {"after": "Throat bulge", "wide": key == "pump"}))
 	hook_after(&"Him.nextSpurt", func(_c): _on_spurt())
+	_cap_fn = func(v: float, _b: float, _neck) -> float: return v * maxf(1.0, g.him.getPenisWidthWithTwitch())
+	_apply_size()
 	_prev_cum = g.her.cumInMouth if g.her != null else 0
 
 
+func _setting_changed(key: String, _value) -> void:
+	if key == "follow_size":
+		_apply_size()
+
+
+## derrdev: "Neck follows his size" on or off.
+func _apply_size() -> void:
+	ValuePoints.remove(&"Neck.bulgeCap", _cap_fn)
+	if get_setting("follow_size"):
+		value_point(&"Neck.bulgeCap", _cap_fn)
+
+
 func _disable() -> void:
+	ValuePoints.remove(&"Neck.bulgeCap", _cap_fn)
 	if _cumming:
 		_set_bulge(_base)
 	_cumming = false

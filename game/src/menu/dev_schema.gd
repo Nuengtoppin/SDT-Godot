@@ -78,7 +78,7 @@ static func _throat() -> Dictionary:
 		MenuSchema.choice("Collar material", "Sets tightness, stiffness and durability together. Band: tight-ish, stretches, breaks easily. Leather: holds, breaks hard. Metal: does not give and does not break.",
 			ThroatRings.MATERIALS.keys(), func(): return ThroatRings.collar_material, func(v): ThroatRings.set_collar_material(v)),
 		{"type": "slider", "label": "Collar tightness", "tip": "How hard the collar holds (the material sets it; change it here).", "min": 0.0, "max": 1.0, "step": 0.05,
-			"get": func(): return c["tight"], "set": func(v: float): c["tight"] = v, "format": func(v): return "%.2f" % v},
+			"get": func(): return c["tight"], "set": func(v: float): ThroatRings.set_collar_tight(v), "format": func(v): return "%.2f" % v},
 		{"type": "slider", "label": "Collar top edge", "tip": "Moves the ring's top edge from where the collar's picture puts it (depth units).", "min": -0.15, "max": 0.15, "step": 0.005,
 			"get": func(): return ThroatRings.collar_top_adjust, "set": func(v: float): ThroatRings.adjust_collar(v, ThroatRings.collar_bottom_adjust),
 			"format": func(v): return "%+.3f" % v},

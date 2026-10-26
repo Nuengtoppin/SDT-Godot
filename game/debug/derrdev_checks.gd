@@ -191,12 +191,12 @@ func _test_throat_rings() -> void:
 	var was: int = cc.selection
 	_check("throat rings work out only in Developer mode", ThroatRings.active())
 	cc.select(0)
-	ThroatRings.tick(her)
+	_ring_tick(her)
 	_check("no collar: no collar ring", not ThroatRings.collar["on"] and ThroatRings.entrance["on"])
 	_check("entrance ring on the game's resistance zone", is_equal_approx(ThroatRings.entrance["top"], 75.0 / 400.0)
 		and is_equal_approx(ThroatRings.entrance["bottom"], 150.0 / 400.0))
 	cc.select(1)
-	ThroatRings.tick(her)
+	_ring_tick(her)
 	var c: Dictionary = ThroatRings.collar
 	var b: Rect2 = her.collarContainer.collar.getBounds(n)
 	_check("leather collar: its edges as seen in the game by default", ThroatRings.collar_name == "Leather"
@@ -206,25 +206,25 @@ func _test_throat_rings() -> void:
 		and c["bottom"] > c["top"] and c["top"] > 0.3 and c["bottom"] < 0.95, "%s %s" % [c["top"], c["bottom"]])
 	ThroatRings.adjust_collar(0.02, -0.03)
 	var top: float = c["top"]
-	ThroatRings.tick(her)
+	_ring_tick(her)
 	_check("collar edges move by hand", is_equal_approx(c["top"], top + 0.015))
 	_check("collar edges kept in port.cfg for this collar",
 		PortSettings.get_value(ThroatRings.SECTION, "edges_Leather") == [0.02, -0.03])
 	cc.select(3)
-	ThroatRings.tick(her)
+	_ring_tick(her)
 	_check("another collar: its own edges", ThroatRings.collar_name == "Gem Choker" and ThroatRings.collar_top_adjust == 0.03
 		and ThroatRings.collar_bottom_adjust == -0.03)
 	ThroatRings.set_collar_material("Metal")
 	cc.select(1)
-	ThroatRings.tick(her)
+	_ring_tick(her)
 	_check("back to the first collar: its edges and material come back", ThroatRings.collar_top_adjust == 0.02
 		and ThroatRings.collar_bottom_adjust == -0.03 and ThroatRings.collar_material == "Leather")
 	cc.select(3)
-	ThroatRings.tick(her)
+	_ring_tick(her)
 	_check("material kept for each collar", ThroatRings.collar_material == "Metal"
 		and PortSettings.get_value(ThroatRings.SECTION, "material_Gem_Choker") == "Metal")
 	cc.select(2)
-	ThroatRings.tick(her)
+	_ring_tick(her)
 	var tb: Rect2 = her.collarContainer.collar.getBounds(n)
 	_check("tie: only the band counts, not the hanging tie", c["on"] and tb.size.y > ThroatRings.COLLAR_BAND
 		and ThroatRings.collar_top_adjust == 0.04 and ThroatRings.collar_bottom_adjust == -0.085
@@ -253,7 +253,7 @@ func _test_throat_rings() -> void:
 	ThroatRings.set_collar_material("Band")
 	_check("material sets the collar ring", c["tight"] == 0.35 and c["max_durability"] == 60.0 and c["durability"] == 60.0)
 	ThroatRings.set_collar_material("Leather")
-	ThroatRings.tick(her)
+	_ring_tick(her)
 	_check("the rings change nothing in the game", game == [g.throatResistance, her.pos, n.throatBulgeAmount,
 		her.collarContainer.collar.scaleX, n.swallowScale])
 	DevBodyOverlay.set_on("throat", "zones", true)
@@ -399,6 +399,7 @@ func _test_value_points() -> void:
 	ValuePoints.remove(&"test.v", mood2)
 	_check("value points: the last handler off, the point is gone", not ValuePoints.has(&"test.v"))
 	_test_entrance_ring()
+	_test_collar_ring()
 	# the game asks its points every tick (checked after a few ticks), with the entrance ring acting: one neck render
 	# per tick (the mod drew the neck a second time)
 	Extensions.get_extension("throatresiststretch").set_setting("on", true)
@@ -434,6 +435,73 @@ func _test_entrance_ring() -> void:
 	x.set_setting("on", false)
 	_check("throat loosens off: nothing left", not ValuePoints.registered().any(func(r): return r[2] == "throatresiststretch")
 		and e["stretch"] == 0.0)
+
+
+## The collar ring acting (chokercollarresistance): past its top edge her head is pushed back and pushing in is
+## harder by what it holds, the bulge stops at it until it stretches, its picture widens; off, nothing is left.
+func _test_collar_ring() -> void:
+	var x = Extensions.get_extension("chokercollarresistance")
+	var her = g.her
+	var cc = g.characterControl.collarControl
+	var was: int = cc.selection
+	var c: Dictionary = ThroatRings.collar
+	_check("collar holds: off by default", x != null and not x.get_setting("on")
+		and not ValuePoints.registered().any(func(r): return r[2] == "chokercollarresistance"))
+	cc.select(1)
+	ThroatRings._tick_done = -1
+	_ring_tick(her)
+	x.set_setting("on", true)
+	var pts: Array = ValuePoints.registered().filter(func(r): return r[2] == "chokercollarresistance").map(func(r): return r[0])
+	_check("collar holds on: push back, resistance, neck depth", pts.has(&"Her.pushBack") and pts.has(&"Her.resistance") and pts.has(&"Neck.depth"))
+	ThroatRings.reset_stretch()
+	ThroatRings.repair()
+	ThroatRings.tip = c["top"] + 0.05
+	c["hold"] = c["tight"]
+	_check("past the collar's top her head is pushed back by what it holds",
+		is_equal_approx(ValuePoints.value(&"Her.pushBack", 0.0, her), 0.05 * 400.0 * 0.0015 * c["tight"]))
+	_check("past the collar's top pushing in is harder", is_equal_approx(ValuePoints.value(&"Her.resistance", 0.0, her), 0.15 * c["tight"]))
+	_check("not stretched: the bulge stops at the collar", is_equal_approx(ValuePoints.value(&"Neck.depth", 0.9, her.head.neck), c["top"]))
+	c["stretch"] = 1.0
+	_check("fully stretched: no limit", ValuePoints.value(&"Neck.depth", 0.9, her.head.neck) == 0.9)
+	c["stretch"] = 0.5
+	x._tick()
+	_check("the collar's picture widens with the stretch", is_equal_approx(her.collarContainer.collar.scaleX, 1.0 + 0.5 * 0.25))
+	ThroatRings.tip = c["top"] - 0.05
+	_check("above the collar nothing", ValuePoints.value(&"Her.pushBack", 0.0, her) == 0.0)
+	c["snapped"] = true
+	ThroatRings.tip = c["top"] + 0.05
+	_check("a snapped collar holds nothing", ValuePoints.value(&"Her.pushBack", 0.0, her) == 0.0
+		and ValuePoints.value(&"Neck.depth", 0.9, her.head.neck) == 0.9)
+	ThroatRings.repair()
+	var st: float = c["stretch"]
+	ThroatRings._tick_done = -1
+	ThroatRings.tick(her)
+	var once: float = c["stretch"]
+	ThroatRings.tick(her)
+	_check("the rings are worked out once per game tick", c["stretch"] == once and once != st or c["stretch"] == once)
+	x.set_setting("on", false)
+	_check("collar holds off: nothing left, the picture as it was", not ValuePoints.registered().any(func(r): return r[2] == "chokercollarresistance")
+		and her.collarContainer.collar.scaleX == 1.0)
+	ThroatRings.set_collar_tight(0.7)
+	_check("collar tightness kept for each collar", PortSettings.get_value(ThroatRings.SECTION, "tight_Leather") == 0.7)
+	ThroatRings.set_collar_material("Leather")
+	# the neck follows his size
+	var tb = Extensions.get_extension("throatcumbulge")
+	tb.set_setting("follow_size", true)
+	g.him.loadPenisScales(1.0, 1.2)
+	_check("neck follows his size: the bulge limit grows with his width",
+		is_equal_approx(ValuePoints.value(&"Neck.bulgeCap", 35.0, her.head.neck), 35.0 * g.him.getPenisWidthWithTwitch()))
+	tb.set_setting("follow_size", false)
+	g.him.loadPenisScales(1.0, 1.0)
+	_check("neck follows his size off: the game's limit", not ValuePoints.has(&"Neck.bulgeCap"))
+	ThroatRings.reset_stretch()
+	cc.select(was)
+
+
+## The ring model works a game tick out once; these checks run several in one tick.
+func _ring_tick(her) -> void:
+	ThroatRings._tick_done = -1
+	ThroatRings.tick(her)
 
 
 var _asked_from := 0

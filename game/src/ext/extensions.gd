@@ -45,6 +45,7 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/throatresiststretch/throatresiststretch.gd",
 	"res://src/ext/throatcumbulge/throatcumbulge.gd",
 	"res://src/ext/penisrange/penisrange.gd",   # derrdev
+	"res://src/ext/chokercollarresistance/chokercollarresistance.gd",   # derrdev
 	"res://src/ext/extramod/extramod.gd",
 	"res://src/ext/extramodhim/extramodhim.gd",
 ]
