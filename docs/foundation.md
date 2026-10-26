@@ -117,6 +117,7 @@ Marked `# VALUE` in game code.
 | `Neck.bulgeCap` | `Neck.render` | 35 (px the bulge pushes the neck out at most) |
 | `Her.resistance` | `Her.move`, while he pushes in | `previousResistance` (checkPosition's zones) |
 | `Her.pushBack` | `Her.move`, after the intro push | 0 (pos pushed back per tick) |
+| `Neck.depth` | `Neck.render` (P039) | his depth / 400 (where the throat bulge sits) |
 
 The developer panel (Body > Throat rings) shows each point's game number -> the value used.
 
@@ -131,7 +132,11 @@ The developer panel (Body > Throat rings) shows each point's game number -> the 
   Limits of the game's geometry (tested): past a length of about 2 his tip is past her lips even with her head all
   the way back, so she takes him as poking her face; auto mode gets stuck with a long penis; the neck's bulge stops
   at 35 px.
-- The throat ring model (P033/P034, see the Developer mode section) inside upstream's `throatresiststretch`.
+- The throat ring model (P033/P034, see the Developer mode section) inside upstream's `throatresiststretch`. P039: its
+  "Throat loosens" is the throat entrance ring (the mod's counter and its second neck render are gone): the ring's
+  stretch lowers the entrance's share of `Her.resistance` and keeps `Neck.depth` at least at the stretch; "Throat
+  recovers" sets how fast it tightens back (0.25: about 90 s from fully loose). Her throat resistance setting is
+  never changed.
 - Swallowing (P037, stage 2 of the throat ring plan) inside upstream's `throatcumbulge`, after sby's swallowguzzleV2
   but on the game's own `Her.swallow` (the veto and the developer panel's switch apply), all off by default: "Swallow
   until empty" (a swallow that ends with cum left and her mouth free starts another), "Swallow while he cums" (Off /

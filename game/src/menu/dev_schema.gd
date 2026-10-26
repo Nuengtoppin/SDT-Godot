@@ -57,7 +57,7 @@ static func _throat() -> Dictionary:
 	var c: Dictionary = ThroatRings.collar
 	var stretch_ext := func():
 		var x = Extensions.get_extension("throatresiststretch")
-		return "off" if x == null or not x.enabled or not x.get_setting("on") else "%.2f" % x.get("loose")
+		return "acting" if x != null and x.enabled and x.get_setting("on") else "read only"
 	return {"title": "Throat rings", "controls": [
 		MenuSchema.note("Read only for now: the rings are worked out from what he does, but change nothing in the game yet. Depth: 0 at her lips, 1 = 400 deep."),
 		_layer("throat", "zones", "Rings on the neck", "A line across the neck at each ring's top and bottom edge: green (not stretched) to red (fully stretched), thicker while he presses on it, grey once it would have snapped. White dot: his tip; blue dot: the swallow wave."),
@@ -67,7 +67,7 @@ static func _throat() -> Dictionary:
 			func(): return _edges(e)),
 		value("Entrance stretch", "How far the ring has stretched (0..1) / how hard he presses on it / how much it would hold him back.",
 			func(): return _ring_state(e)),
-		value("throatResistStretch", "That extension's own loosening (Behaviour > Resistance > Throat loosens), for comparison; the ring is to replace it.",
+		value("Entrance ring", "Acting: Behaviour > Resistance > Throat loosens is on, so its stretch lowers the entrance's resistance and keeps her neck drawn stretched. Read only: worked out for this tab only.",
 			stretch_ext),
 		value("Collar edges", "The collar ring, from the collar's picture on her neck (its band, at most 70 px), plus the adjustments below; the adjustments and the material are kept for each collar.",
 			func(): return "%s: %s" % [ThroatRings.collar_name, _edges(c)] if c["on"] else "no collar"),
@@ -89,6 +89,7 @@ static func _throat() -> Dictionary:
 		_vp("Neck.bulgeCap", "The most the bulge pushes her neck out, in pixels (the game's: 35)."),
 		_vp("Her.resistance", "What holds him back as he pushes in (the game's throat resistance zones)."),
 		_vp("Her.pushBack", "What pushes her head back off him each tick (0 in the game)."),
+		_vp("Neck.depth", "How deep the throat bulge sits (his depth / 400; a loosened throat keeps it deeper)."),
 		MenuSchema.actions("", "", [
 			["Reset stretch", func(): ThroatRings.reset_stretch(), "Every ring back to not stretched."],
 			["Repair", func(): ThroatRings.repair(), "Durability back to full; a snapped ring holds again."]]),

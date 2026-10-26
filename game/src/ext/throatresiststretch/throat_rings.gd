@@ -1,10 +1,10 @@
 class_name ThroatRings
 extends RefCounted
-## derrdev, stage 1 of the throat ring model: her throat as a path by depth with rings on it, the throat entrance and,
-## when she wears one, her collar. Every tick (only while Developer mode is on) it works out how hard he presses on
-## each ring, how far the ring has stretched and how much it would hold him back. Read only: nothing in the game
-## changes yet. Later stages feed it to her throat resistance and bulge (through value points) and replace the
-## separate counters of throatResistStretch and the collar mods with these rings.
+## derrdev, the throat ring model: her throat as a path by depth with rings on it, the throat entrance and, when she
+## wears one, her collar. Every tick it works out how hard he presses on each ring, how far the ring has stretched
+## and how much it would hold him back. It is ticked by the throatresiststretch extension while its "Throat loosens"
+## is on (then the entrance ring acts on the game through value points, see that extension) or Developer mode is on
+## (read only, for the Body tab). The collar ring acts in a later stage.
 ##
 ## Depth is the neck's own: 0 at her lips, 1 = 400 deep (penisInMouthDist / 400, what Neck.render uses), so a ring's
 ## edges are where they are drawn on the neck. The collar ring's edges come from the collar's picture (its bounds on
@@ -46,7 +46,7 @@ static var _bounds_collar = null
 static func _ring(label: String, top: float, bottom: float, tight: float, stiff: float, durability: float) -> Dictionary:
 	return {"label": label, "on": true, "top": top, "bottom": bottom, "tight": tight, "stiff": stiff,
 		"max_durability": durability, "durability": durability, "stretch": 0.0, "pressure": 0.0, "hold": 0.0,
-		"snapped": false}
+		"snapped": false, "recover": 1.0}
 
 
 static func rings() -> Array:
@@ -84,7 +84,7 @@ static func _step(r: Dictionary, width: float, neck) -> void:
 	if p > 0.0:
 		r["stretch"] = minf(1.0, r["stretch"] + p * r["tight"] * (1.0 - r["stiff"]) * STRETCH_RATE)
 	else:
-		r["stretch"] = maxf(0.0, r["stretch"] - RECOVER_RATE * (1.0 - 0.5 * r["stiff"]))
+		r["stretch"] = maxf(0.0, r["stretch"] - RECOVER_RATE * r["recover"] * (1.0 - 0.5 * r["stiff"]))
 	if is_finite(r["max_durability"]) and not r["snapped"]:
 		if p > 0.0:
 			r["durability"] = maxf(0.0, r["durability"] - p * (0.2 + r["stretch"]))

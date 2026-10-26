@@ -398,17 +398,58 @@ func _test_value_points() -> void:
 	_check("value points: an owner's handlers come off", ValuePoints.value(&"test.v", 1.0) == 2.0)
 	ValuePoints.remove(&"test.v", mood2)
 	_check("value points: the last handler off, the point is gone", not ValuePoints.has(&"test.v"))
-	# the game asks its points every tick (checked after a few ticks)
+	_test_entrance_ring()
+	# the game asks its points every tick (checked after a few ticks), with the entrance ring acting: one neck render
+	# per tick (the mod drew the neck a second time)
+	Extensions.get_extension("throatresiststretch").set_setting("on", true)
+	_asked_from = Flash.tick_count
+	_resist0 = [g.throatResistance, g.her.resistance["boundary"]]
 	for p in [&"Neck.throatBulge", &"Neck.bulgeCap", &"Her.pushBack"]:
 		ValuePoints.add(p, func(x, _b, _o): _asked[p] = _asked.get(p, 0) + 1; return x, "derrdev_checks")
+
+
+## The throat entrance ring acting (throatresiststretch "Throat loosens"): it lowers the entrance's share of the
+## resistance and keeps the neck drawn stretched, through value points; off, nothing is left.
+func _test_entrance_ring() -> void:
+	var x = Extensions.get_extension("throatresiststretch")
+	var her = g.her
+	var e: Dictionary = ThroatRings.entrance
+	x.set_setting("on", true)
+	var owners: Array = ValuePoints.registered().filter(func(r): return r[2] == "throatresiststretch").map(func(r): return r[0])
+	_check("throat loosens on: the entrance ring acts on resistance and neck depth", owners.has(&"Her.resistance") and owners.has(&"Neck.depth"))
+	e["stretch"] = 0.5
+	ThroatRings.tip = 0.3
+	var upper: float = her.resistance["upper"]
+	_check("a stretched entrance lowers its share of the resistance",
+		is_equal_approx(ValuePoints.value(&"Her.resistance", upper + 0.05, her), upper + 0.025))
+	ThroatRings.tip = 0.5
+	_check("past the entrance the resistance is the game's", ValuePoints.value(&"Her.resistance", 0.0, her) == 0.0)
+	_check("a stretched entrance keeps the neck drawn as deep as the stretch", ValuePoints.value(&"Neck.depth", 0.1, her.head.neck) == 0.5
+		and ValuePoints.value(&"Neck.depth", 0.7, her.head.neck) == 0.7)
+	x.set_setting("recover", 0.5)
+	ThroatRings.tip = 0.0
+	ThroatRings._step(e, 1.0, her.head.neck)
+	_check("the throat tightens back at the set speed", is_equal_approx(e["stretch"], 0.5 - ThroatRings.RECOVER_RATE * 0.5 * (1.0 - 0.5 * e["stiff"])))
+	x.set_setting("recover", 0.25)
+	x.set_setting("on", false)
+	_check("throat loosens off: nothing left", not ValuePoints.registered().any(func(r): return r[2] == "throatresiststretch")
+		and e["stretch"] == 0.0)
+
+
+var _asked_from := 0
+var _resist0 := []
 
 
 var _asked := {}
 
 
 func _test_value_points_asked() -> void:
+	var ticks := Flash.tick_count - _asked_from
 	_check("the game asks its value points every tick", _asked.get(&"Neck.throatBulge", 0) > 3 and _asked.get(&"Neck.bulgeCap", 0) > 3
 		and _asked.get(&"Her.pushBack", 0) > 3, str(_asked))
+	_check("throat loosens: the neck is drawn once per tick", _asked.get(&"Neck.throatBulge", 0) <= ticks + 1, "%s in %d ticks" % [_asked, ticks])
+	_check("throat loosens: her throat resistance setting is never changed", _resist0 == [g.throatResistance, g.her.resistance["boundary"]])
+	Extensions.get_extension("throatresiststretch").set_setting("on", false)
 	ValuePoints.remove_owner("derrdev_checks")
 	_check("value points: all off again", ValuePoints.registered().is_empty())
 

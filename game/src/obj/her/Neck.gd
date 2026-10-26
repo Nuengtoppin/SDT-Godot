@@ -99,6 +99,8 @@ func swallow() -> void:
 
 
 func render(depth: float) -> void:
+	if ValuePoints.has(&"Neck.depth"):   # VALUE derrdev: how deep the throat bulge sits (his depth / 400)
+		depth = ValuePoints.value(&"Neck.depth", depth, self)
 	var pts: Array = neckPoints.duplicate()
 	bulgeSize = 35.0 * (1.0 + (g.him.getPenisWidthWithTwitch() - 1.0) * 1.5)
 	var bulgeAmount := throatBulgeAmount
