@@ -467,7 +467,8 @@ func _test_collar_ring() -> void:
 	_ring_tick(her)
 	x.set_setting("on", true)
 	var pts: Array = ValuePoints.registered().filter(func(r): return r[2] == "chokercollarresistance").map(func(r): return r[0])
-	_check("collar holds on: push back, resistance, the band on her neck", pts.has(&"Her.pushBack") and pts.has(&"Her.resistance")
+	_check("collar holds on: push back, resistance (awake and passed out), the band on her neck", pts.has(&"Her.pushBack")
+		and pts.has(&"Her.resistance") and pts.has(&"Her.limpResistance")
 		and pts.has(&"Neck.pointBulge"))
 	ThroatRings.set_stiffness(0.6)
 	ThroatRings.reset_stretch()
@@ -481,6 +482,16 @@ func _test_collar_ring() -> void:
 		is_equal_approx(ValuePoints.value(&"Her.resistance", 0.0, her), 0.3 * c["tight"] * 0.05 / band))
 	ThroatRings.tip = c["bottom"] - 0.0001
 	_check("at its bottom edge the collar is a wall (0.3 x what it holds)", absf(x.wall() - 0.3 * c["tight"]) < 0.001)
+	ThroatRings.tip = c["bottom"] + 0.2
+	ThroatRings.set_wall(0.25)
+	ThroatRings.tip = c["bottom"] - 0.0001
+	_check("Collar resistance sets the wall on its own", absf(x.wall() - 0.25) < 0.001 and ThroatRings.collar_wall == 0.25
+		and PortSettings.get_value(ThroatRings.SECTION, "wall") == 0.25)
+	_check("passed out she is still held by the collar", is_equal_approx(ValuePoints.value(&"Her.limpResistance", 0.0, her), x.wall()))
+	ThroatRings.set_stiffness(0.2)
+	_check("setting the stiffness sets the wall to match (0.3 x stiffness)", is_equal_approx(ThroatRings.collar_wall, 0.06))
+	ThroatRings.set_stiffness(0.6)
+	c["hold"] = c["tight"]
 	ThroatRings.tip = c["bottom"] + 0.2
 	_check("through it: only a squeeze, no more push back than the band's",
 		is_equal_approx(x.wall(), 0.03 * c["tight"])

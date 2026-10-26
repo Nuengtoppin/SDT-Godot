@@ -88,6 +88,7 @@ static func _throat() -> Dictionary:
 		_vp("Neck.throatBulge", "How much her throat bulges (her throat bulge setting, then what extensions add)."),
 		_vp("Neck.bulgeCap", "The most the bulge pushes her neck out, in pixels (the game's: 35)."),
 		_vp("Her.resistance", "What holds him back as he pushes in (the game's throat resistance zones)."),
+		_vp("Her.limpResistance", "What holds him back while she is passed out (nothing in the game; a collar holds)."),
 		_vp("Her.pushBack", "What pushes her head back off him each tick (0 in the game)."),
 		_vp("Neck.depth", "How deep the throat bulge sits (his depth / 400; a loosened throat keeps it deeper)."),
 		MenuSchema.actions("", "", [

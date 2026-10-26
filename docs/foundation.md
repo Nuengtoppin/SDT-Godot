@@ -117,6 +117,7 @@ Marked `# VALUE` in game code.
 | `Neck.bulgeCap` | `Neck.render` | 35 (px the bulge pushes the neck out at most) |
 | `Her.resistance` | `Her.move`, while he pushes in | `previousResistance` (checkPosition's zones) |
 | `Her.pushBack` | `Her.move`, after the intro push | 0 (pos pushed back per tick) |
+| `Her.limpResistance` | `Her.move`, while she is passed out and he pushes in (P046) | 0 (the game holds nothing then) |
 | `Neck.depth` | `Neck.render` (P039) | his depth / 400 (where the throat bulge sits) |
 | `Neck.pointBulge` | `Neck.render`, per front outline point (P041; `Neck.bulgePointDepth` = that point's depth) | how far the point pushes out (px) |
 
@@ -167,6 +168,11 @@ The developer panel (Body > Throat rings) shows each point's game number -> the 
   break" (off by default; then every collar is unbreakable): `ThroatRings.collar_breaks`; a snapped collar rides
   free until "Repair collar", another collar or another stiffness. Past each edge the held outline blends into the
   free bulge over 0.08 depth (smoothstep), not a fixed px step, so big bulges keep a round step.
+  P046: the wall has its own setting, "Collar resistance" 0..0.3 (`ThroatRings.collar_wall`, `port.cfg`
+  `throat_rings/wall`): setting the stiffness or a quick button sets it to 0.3 x stiffness, then it can be set apart.
+  The wall is the setting less the ring's stretch, rising across the band, 10 % of it past the bottom edge. While she
+  is passed out the game applies no resistance at all; the new value point `Her.limpResistance` (`Her.move`, passed
+  out, 0 in the game) carries the collar's wall then, so the collar no longer lets go when she passes out.
 - `throatcumbulge` "Neck follows his size" (P040): `Neck.bulgeCap` = 35 x his width (the game: 35 for every width).
 - Swallowing (P037, stage 2 of the throat ring plan) inside upstream's `throatcumbulge`, after sby's swallowguzzleV2
   but on the game's own `Her.swallow` (the veto and the developer panel's switch apply), all off by default: "Swallow

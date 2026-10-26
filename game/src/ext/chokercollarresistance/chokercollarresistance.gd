@@ -28,12 +28,14 @@ extends SDTExtension
 ## out collar snaps, then holds nothing and rides along like stiffness 0, until it is repaired (the button, another
 ## collar or another stiffness). At its edges the band blends into the free bulge over a few outline points, so big
 ## bulges keep a round step.
+## P046: the wall has its own setting, "Collar resistance" (0 .. 0.3, ThroatRings.collar_wall): setting the stiffness
+## (or a quick button) sets it to match (0.3 x stiffness), then it can be set apart. The wall also holds while she is
+## passed out (Her.limpResistance; the game holds nothing then, so the collar let go when she passed out).
 ## Not taken yet: the dialogue line "collarresistance", the breath-below-50% option during the intro, reactions when
 ## it snaps.
 
 const PUSH := 0.0015          # pos pushed back per pixel past the top edge, at hold 1 (the game's intro: 0.0015)
-const WALL := 0.3             # resistance at the collar's bottom edge at hold 1 (the game's throat: 0.2 at 100)
-const SQUEEZE := 0.03         # resistance past the bottom edge at hold 1 (through it: it only squeezes)
+const SQUEEZE := 0.1          # P046: share of the wall left past its bottom edge (through it: it only squeezes)
 const GIVE := 6.0             # px the front gives way at stiffness 0.5; GIVE x (1 - k) / k (0: free, 1: none)
 const SPRING := 1.0           # the collar's front: pull toward her throat per tick per px (P044: fast, was 0.2)
 const DAMP := 0.6             # share of its speed lost per tick (it settles in about 3 ticks, a little overshoot)
@@ -45,6 +47,7 @@ const BAND_SOFT := 0.08       # depth past each edge over which the held outline
 
 var _push_fn := Callable()
 var _resist_fn := Callable()
+var _limp_fn := Callable()
 var _band_fn := Callable()
 var _widened := false
 var _collar_x := 0.0
@@ -74,6 +77,8 @@ func _enable() -> void:
 		return v + _band_past() * ThroatRings.DEPTH_SCALE * PUSH * ThroatRings.collar["hold"]
 	_resist_fn = func(v: float, _b: float, _her) -> float:
 		return v + wall()
+	_limp_fn = func(v: float, _b: float, _her) -> float:
+		return v + wall()
 	_band_fn = func(v: float, _b: float, neck) -> float:
 		return minf(v, band_limit(neck.bulgePointDepth, v))
 	on_late_tick(_tick)
@@ -87,6 +92,10 @@ func _enable() -> void:
 	menu_control("behaviour", "Resistance", MenuSchema.actions("", "", ThroatRings.PRESETS.keys().map(func(k):
 		return [k, func(): ThroatRings.set_stiffness(ThroatRings.PRESETS[k]), "Collar stiffness %.1f." % ThroatRings.PRESETS[k]]),
 		{"after": "Throat resistance", "visible": on}))
+	menu_control("behaviour", "Resistance", {"type": "slider", "label": "Collar resistance", "after": "Throat resistance",
+		"tip": "How hard the collar's band stops him going deeper, like her throat resistance (the game's throat at 100: 0.2). Setting the stiffness sets it to match; then set it apart here.",
+		"min": 0.0, "max": ThroatRings.WALL_MAX, "step": 0.01, "get": func(): return ThroatRings.collar_wall,
+		"set": func(v: float): ThroatRings.set_wall(v), "format": func(v): return "%.2f" % v, "visible": on})
 	for key in ["widen", "wince", "breaks"]:
 		menu_control("behaviour", "Resistance", MenuSchema.setting_control(self, key, {"after": "Throat resistance", "visible": on}))
 	menu_control("behaviour", "Resistance", MenuSchema.actions("", "", [["Repair collar", func(): ThroatRings.repair(),
@@ -114,6 +123,7 @@ func _apply() -> void:
 	if get_setting("on"):
 		value_point(&"Her.pushBack", _push_fn)
 		value_point(&"Her.resistance", _resist_fn, ValuePoints.MOOD, 10)
+		value_point(&"Her.limpResistance", _limp_fn, ValuePoints.MOOD, 10)
 		value_point(&"Neck.pointBulge", _band_fn, ValuePoints.CLAMP)
 	else:
 		_release()
@@ -124,6 +134,7 @@ func _apply() -> void:
 func _remove_points() -> void:
 	ValuePoints.remove(&"Her.pushBack", _push_fn)
 	ValuePoints.remove(&"Her.resistance", _resist_fn)
+	ValuePoints.remove(&"Her.limpResistance", _limp_fn)
 	ValuePoints.remove(&"Neck.pointBulge", _band_fn)
 
 
@@ -173,16 +184,17 @@ func _band_past() -> float:
 	return clampf(ThroatRings.tip - c["top"], 0.0, c["bottom"] - c["top"])
 
 
-## What the collar adds to her resistance now: like her throat entrance, rising across its band up to WALL x what
-## it holds at the bottom edge; once he is through, a little squeeze.
+## What the collar adds to her resistance now: like her throat entrance, rising across its band up to its wall
+## ("Collar resistance", less what the ring has stretched) at the bottom edge; once he is through, a little squeeze.
 func wall() -> float:
 	var c: Dictionary = ThroatRings.collar
 	var past := _band_past()
 	if past <= 0.0:
 		return 0.0
+	var w: float = ThroatRings.collar_wall * (1.0 - c["stretch"])
 	if ThroatRings.tip >= c["bottom"]:
-		return SQUEEZE * c["hold"]
-	return WALL * c["hold"] * past / maxf(0.001, c["bottom"] - c["top"])
+		return SQUEEZE * w
+	return w * past / maxf(0.001, c["bottom"] - c["top"])
 
 
 func _tick() -> void:

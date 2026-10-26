@@ -31,6 +31,7 @@ const BOUNDS_EVERY := 15      # ticks between reading the collar's bounds again
 ## quick settings of the stiffness
 const PRESETS := {"Band": 0.2, "Leather": 0.6, "Metal": 1.0}
 const METAL := 0.95           # this stiff or more: does not give and does not break
+const WALL_MAX := 0.3         # P046: the strongest collar wall (the game's throat at resistance 100: 0.2)
 const SECTION := "throat_rings"   # port.cfg: stiffness; edges_<collar> = [top, bottom] (hand fit, spaces as _)
 ## Collar tags: what the picture alone does not tell. "band": [top, bottom] moves the edges found from the picture
 ## (depth units) - the game's collars, fitted in the game; "stiffness": the collar's own (else the setting);
@@ -45,6 +46,7 @@ static var entrance := _ring("Throat entrance", ENTRANCE_TOP, ENTRANCE_BOTTOM, 0
 static var collar := _ring("Collar", 0.55, 0.75, 0.6, 0.6, 200.0)
 static var stiffness := 0.6           # the setting (0 soft band .. 1 metal)
 static var collar_breaks := false       # P044: collars may snap ("Collar can break"; off: they never do)
+static var collar_wall := 0.18          # P046: how hard the collar's wall holds at its bottom edge (0 .. WALL_MAX)
 static var collar_top_adjust := 0.0     # added to the edge found from the collar's picture (depth units)
 static var collar_bottom_adjust := 0.0
 static var tip := 0.0                   # his tip, in depth units (0 while outside her mouth)
@@ -180,15 +182,24 @@ static func _key(kind: String, cname: String) -> String:
 	return kind + "_" + cname.replace(" ", "_")
 
 
-## The stiffness setting (0 a soft band .. 1 metal), for every collar; kept in port.cfg.
+## The stiffness setting (0 a soft band .. 1 metal), for every collar; kept in port.cfg. P046: it also sets the
+## collar's wall to match (WALL_MAX x stiffness), which can then be set apart (set_wall).
 static func set_stiffness(k: float) -> void:
 	stiffness = clampf(k, 0.0, 1.0)
 	PortSettings.set_value(SECTION, "stiffness", stiffness)
+	set_wall(WALL_MAX * stiffness)
 	_apply_stiffness()
+
+
+## P046: how hard the collar's wall holds at its bottom edge (0 .. WALL_MAX), for every collar; kept in port.cfg.
+static func set_wall(w: float) -> void:
+	collar_wall = clampf(w, 0.0, WALL_MAX)
+	PortSettings.set_value(SECTION, "wall", collar_wall)
 
 
 static func load_stiffness() -> void:
 	stiffness = clampf(float(PortSettings.get_value(SECTION, "stiffness", 0.6)), 0.0, 1.0)
+	collar_wall = clampf(float(PortSettings.get_value(SECTION, "wall", WALL_MAX * stiffness)), 0.0, WALL_MAX)
 	_apply_stiffness()
 
 

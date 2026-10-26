@@ -978,6 +978,8 @@ func move(targetPos: float, tilt: float) -> float:
 			speed -= res + armsPushPower * 0.001
 		if not g.handsOff:
 			speed -= pullOff
+	elif ValuePoints.has(&"Her.limpResistance") and penisInMouthDist > 0 and acceleration > 0:   # VALUE derrdev: what holds him back while she is passed out (the game: nothing)
+		speed -= ValuePoints.value(&"Her.limpResistance", 0.0, self)
 	speed *= speedFriction
 	pos = pos + speed
 	if intro and not g.penisOut:
