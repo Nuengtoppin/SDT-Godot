@@ -169,7 +169,8 @@ static func _run(name: StringName, phase: String, obj: Object, args: Array, resu
 ## Modifier spec (Dictionary):
 ##   phase (default MOOD), op: "set" | "bias" | "clamp" | "hold" | "fn", value (set / bias), min / max (clamp),
 ##   fn: Callable(value, obj) -> value (fn), when: Callable(obj) -> bool (applies only while true; a hold captures
-##   the value again each time it starts applying), ticks (lifetime in game ticks; default: until removed),
+##   the value again each time it starts applying), ms (lifetime in milliseconds of game time, counted down by
+##   the length of each tick: pauses don't use it up and it lasts as long at any tick rate; default: until removed),
 ##   order (int, default 0; later wins among sets)
 ## Sorted by (phase, order, owner, add order) when added, never by load order. Two owners setting different values
 ## in the same phase at once log one warning. Without modifiers a value point costs one dictionary lookup.
@@ -196,7 +197,7 @@ class Modifier:
 	var vmax := INF
 	var fn := Callable()
 	var when := Callable()
-	var ticks := -1
+	var ms := -1.0
 	var held = null
 	var holding := false
 
@@ -231,8 +232,8 @@ static func add_modifier(name: StringName, spec: Dictionary, owner := "") -> int
 	m.vmax = float(spec.get("max", INF))
 	m.fn = spec.get("fn", Callable())
 	m.when = spec.get("when", Callable())
-	m.ticks = int(spec.get("ticks", -1))
-	if m.ticks > 0:
+	m.ms = float(spec.get("ms", -1.0))
+	if m.ms > 0.0:
 		_timed += 1
 		_install_tick()
 	_modifiers[m.id] = m
@@ -250,7 +251,7 @@ static func remove_modifier(id: int) -> void:
 	if m == null:
 		return
 	_modifiers.erase(id)
-	if m.ticks > 0:
+	if m.ms > 0.0:
 		_timed -= 1
 	var list: Array = _values.get(m.name, [])
 	list.erase(m)
@@ -346,11 +347,12 @@ static func _install_tick() -> void:
 static func _tick_modifiers() -> void:
 	if _timed <= 0:
 		return
+	var step := 1000.0 / Flash.frame_rate
 	for id in _modifiers.keys():
 		var m: Modifier = _modifiers[id]
-		if m.ticks > 0:
-			m.ticks -= 1
-			if m.ticks == 0:
+		if m.ms > 0.0:
+			m.ms -= step
+			if m.ms <= 0.001:   # 3000 ms at 30 Hz ends after exactly 90 ticks despite the float sum
 				_timed -= 1
-				m.ticks = -1
+				m.ms = -1.0
 				remove_modifier(id)

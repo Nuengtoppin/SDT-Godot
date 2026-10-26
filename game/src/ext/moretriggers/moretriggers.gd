@@ -276,7 +276,7 @@ const LOOK_ORDER := 1000   # dialogue commands' band among OVERRIDE modifiers
 
 ## [LOOK_UP / DOWN / STRAIGHTFORWARD_<ms>] or [LOOK_<x>_<y>_<ms>]: where she looks, until the time is up. A dialogue
 ## command: an OVERRIDE of her look point (Her.lookTarget) in the dialogue band, so it wins over moods and ends by
-## itself (port: counted in game ticks, 30 a second, instead of milliseconds).
+## itself (port: milliseconds of game time, so a paused game doesn't use them up).
 func _look(dir: String, x, y, ms) -> void:
 	var her = g.her
 	var point := Vector2()
@@ -294,7 +294,7 @@ func _look(dir: String, x, y, ms) -> void:
 				point = Vector2(900, 350)
 	Hooks.remove_modifier(_look_id)
 	_look_id = modify(&"Her.lookTarget", {"phase": Hooks.OVERRIDE, "order": LOOK_ORDER, "op": "set", "value": point,
-		"ticks": maxi(1, roundi(_ms(ms) * 30.0 / 1000.0))})
+		"ms": maxf(1.0, _ms(ms))})
 
 
 func _close_mouth(ms: float) -> void:

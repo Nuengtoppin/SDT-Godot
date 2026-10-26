@@ -185,7 +185,7 @@ if Hooks.has_value(&"Her.lookTarget"):   # HOOK
 	point = Hooks.value(&"Her.lookTarget", self, point)
 
 # an extension
-modify(&"Her.lookTarget", {"phase": Hooks.OVERRIDE, "op": "set", "value": g.her.eyesDown, "ticks": 60})
+modify(&"Her.lookTarget", {"phase": Hooks.OVERRIDE, "op": "set", "value": g.her.eyesDown, "ms": 2000})
 ```
 
 Modifiers apply phase by phase, each phase working on the result of the one before:
@@ -208,7 +208,8 @@ A modifier is a Dictionary:
   value it saw when it started applying), `"fn"` (`fn: Callable(value, obj) -> value`, for anything else)
 - `phase` (default `MOOD`), `order` (default 0, a later one wins among `set`s)
 - `when: Callable(obj) -> bool`: applies only while true (a `hold` captures again each time it starts applying)
-- `ticks`: lifetime in game ticks (default: until removed)
+- `ms`: lifetime in milliseconds of game time (counted down by each tick's length, so a paused game doesn't use it
+  up and it lasts as long at any tick rate; default: until removed)
 
 `modify()` returns an id for `Hooks.remove_modifier(id)`; an extension's modifiers go when it is switched off. Values
 are numbers or `Vector2` points. Two extensions `set`ting different values in the same phase at the same time log a

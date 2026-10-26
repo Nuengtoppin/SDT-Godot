@@ -113,7 +113,7 @@ func step(_frame: int) -> void:
 		3:
 			if Flash.tick_count > _start_tick:
 				_check("profiler names the extension", Flash._slowest_listener.begins_with("ext:test."), Flash._slowest_listener)
-				_check("value modifier lifetime ends after its ticks", not Hooks.has_value(&"T.t")
+				_check("value modifier lifetime ends after its ms", not Hooks.has_value(&"T.t")
 					and Hooks.value(&"T.t", null, 7.0) == 7.0)
 				_ext.slow = false
 				_settings_checks()
@@ -300,7 +300,7 @@ func _value_checks() -> void:
 		Hooks.remove_owner(owner)
 	var left := Hooks.value_points().filter(func(n): return str(n).begins_with("T."))
 	_check("remove_owner removes modifiers", left.is_empty(), str(left))
-	Hooks.add_modifier(&"T.t", {"op": "set", "value": 1.0, "ticks": 3}, "vt")
+	Hooks.add_modifier(&"T.t", {"op": "set", "value": 1.0, "ms": 100.0}, "vt")
 	_check("timed modifier applies", Hooks.value(&"T.t", o, 7.0) == 1.0)
 
 
