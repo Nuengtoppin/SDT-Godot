@@ -20,20 +20,28 @@ extends SDTExtension
 ## her throat does. Only the front moves: the back of the collar, at her nape, stays where it is (the mod widened
 ## the whole picture by the ring's memory, about a point 70 px behind its origin, so it stayed wide in the air). "Wince when it holds": she winces while it holds him back (the mod's option).
 ## Pressure comes from what he does, not from holding the mouse button (the mod's), so auto mode works the same.
-## Not taken yet: the dialogue line "collarresistance", the breath-below-50% option during the intro, snapping (the
-## ring's durability is worked out; a snapped ring holds nothing; the reactions come in the next stage).
+## P044 (after playing it): a collar holds like her throat entrance, a wall across its band: past its top edge pushing
+## in gets harder, up to WALL x what the ring holds at its bottom edge, and her head is pushed back while he is in the
+## band; once through, it squeezes only a little. How far its front gives way comes from its softness at once (a soft
+## collar gives with the first push, the ring's stretch adds to that), the spring is fast, and stiffness 0 is a collar
+## that holds nothing and rides along with her neck. "Collar can break" (off by default: collars never break): a worn
+## out collar snaps, then holds nothing and rides along like stiffness 0, until it is repaired (the button, another
+## collar or another stiffness). At its edges the band blends into the free bulge over a few outline points, so big
+## bulges keep a round step.
+## Not taken yet: the dialogue line "collarresistance", the breath-below-50% option during the intro, reactions when
+## it snaps.
 
 const PUSH := 0.0015          # pos pushed back per pixel past the top edge, at hold 1 (the game's intro: 0.0015)
-const RESIST := 0.15          # resistance added past the top edge at hold 1 (the game's throat entrance at most: 0.2)
-const WIDEN := 0.25           # fully stretched the collar gives way by 70 x this px (the mod's 25 % of 70 px)
-const SPRING := 0.2           # the collar's front: pull toward her throat per tick per px (P043, was a plain lag)
-const DAMP := 0.3             # share of its speed lost per tick (less: it overshoots more)
+const WALL := 0.3             # resistance at the collar's bottom edge at hold 1 (the game's throat: 0.2 at 100)
+const SQUEEZE := 0.03         # resistance past the bottom edge at hold 1 (through it: it only squeezes)
+const GIVE := 6.0             # px the front gives way at stiffness 0.5; GIVE x (1 - k) / k (0: free, 1: none)
+const SPRING := 1.0           # the collar's front: pull toward her throat per tick per px (P044: fast, was 0.2)
+const DAMP := 0.6             # share of its speed lost per tick (it settles in about 3 ticks, a little overshoot)
 const SLACK := 3.0            # px her throat may press into the collar before it gives way
-const WINCE_PUSH := 0.004     # pushed back at least this much in a tick: she winces
+const WINCE_RES := 0.1        # the collar resists at least this much while he pushes: she winces
 const BAND_GAP := 2.0         # px the outline may push out under the collar (the collar sits on the skin)
-const BAND_WIDEN := 70.0 * WIDEN   # px more fully stretched, as much as the picture widens (the mod's 70 px)
-const BAND_SOFT := 0.04       # depth over which the hold fades out past each edge
-const BAND_SOFT_PX := 40.0    # px of room gained across that step
+const BAND_WIDEN := 70.0 * 0.25   # px more fully stretched (the mod's 25 % of 70 px)
+const BAND_SOFT := 0.08       # depth past each edge over which the held outline blends into the free bulge
 
 var _push_fn := Callable()
 var _resist_fn := Callable()
@@ -54,38 +62,44 @@ func _init() -> void:
 
 func _setup() -> void:
 	setting("on", false, {"label": "Collar holds her throat",
-		"desc": "While she wears a collar, past its top edge her head is pushed back and her neck stays narrow under it, until it stretches."})
-	setting("widen", true, {"label": "Collar stretches", "desc": "The collar's picture widens as it stretches."})
+		"desc": "While she wears a collar it holds like her throat: past its top edge going deeper is harder and her head is pushed back, and her neck stays narrow under it as far as it gives."})
+	setting("widen", true, {"label": "Collar stretches", "desc": "The collar's front gives way after her throat."})
 	setting("wince", true, {"label": "Wince when it holds", "desc": "She winces while the collar holds him back."})
+	setting("breaks", false, {"label": "Collar can break",
+		"desc": "Pressed long and hard enough the collar snaps; then it holds nothing and only rides along with her neck. Off: collars never break."})
 
 
 func _enable() -> void:
 	_push_fn = func(v: float, _b: float, _her) -> float:
-		var past := _past()
-		return v + past * ThroatRings.DEPTH_SCALE * PUSH * ThroatRings.collar["hold"] if past > 0.0 else v
+		return v + _band_past() * ThroatRings.DEPTH_SCALE * PUSH * ThroatRings.collar["hold"]
 	_resist_fn = func(v: float, _b: float, _her) -> float:
-		return v + RESIST * ThroatRings.collar["hold"] if _past() > 0.0 else v
+		return v + wall()
 	_band_fn = func(v: float, _b: float, neck) -> float:
-		return minf(v, band_limit(neck.bulgePointDepth))
+		return minf(v, band_limit(neck.bulgePointDepth, v))
 	on_late_tick(_tick)
 	var on := func(): return get_setting("on")
 	var after := {"after": "Throat resistance"}
 	menu_control("behaviour", "Resistance", MenuSchema.setting_control(self, "on", after))
 	menu_control("behaviour", "Resistance", {"type": "slider", "label": "Collar stiffness", "after": "Throat resistance",
-		"tip": "One setting for every collar. 0: a soft band - holds lightly, gives fast, breaks easily. 1: metal - holds hard, never gives or breaks.",
+		"tip": "One setting for every collar. 0: holds nothing, rides along with her neck. Higher: holds harder and gives less. 1: metal - a wall, never gives.",
 		"min": 0.0, "max": 1.0, "step": 0.05, "get": func(): return ThroatRings.stiffness,
 		"set": func(v: float): ThroatRings.set_stiffness(v), "format": func(v): return "%.2f" % v, "visible": on})
 	menu_control("behaviour", "Resistance", MenuSchema.actions("", "", ThroatRings.PRESETS.keys().map(func(k):
 		return [k, func(): ThroatRings.set_stiffness(ThroatRings.PRESETS[k]), "Collar stiffness %.1f." % ThroatRings.PRESETS[k]]),
 		{"after": "Throat resistance", "visible": on}))
-	for key in ["widen", "wince"]:
+	for key in ["widen", "wince", "breaks"]:
 		menu_control("behaviour", "Resistance", MenuSchema.setting_control(self, key, {"after": "Throat resistance", "visible": on}))
+	menu_control("behaviour", "Resistance", MenuSchema.actions("", "", [["Repair collar", func(): ThroatRings.repair(),
+		"A snapped collar holds again."]], {"after": "Throat resistance",
+		"visible": func(): return get_setting("on") and get_setting("breaks")}))
 	ThroatRings.load_stiffness()
 	_apply()
 
 
 func _disable() -> void:
 	_release()
+	ThroatRings.collar_breaks = false
+	ThroatRings._apply_stiffness()
 
 
 func _setting_changed(_key: String, _value) -> void:
@@ -94,6 +108,9 @@ func _setting_changed(_key: String, _value) -> void:
 
 func _apply() -> void:
 	_remove_points()
+	if ThroatRings.collar_breaks != bool(get_setting("breaks")):
+		ThroatRings.collar_breaks = get_setting("breaks")
+		ThroatRings._apply_stiffness()
 	if get_setting("on"):
 		value_point(&"Her.pushBack", _push_fn)
 		value_point(&"Her.resistance", _resist_fn, ValuePoints.MOOD, 10)
@@ -115,28 +132,57 @@ func _release() -> void:
 	_unwiden()
 
 
-## How far (px) her neck's outline may push out at depth `f`: little between the collar's edges (more as it stretches,
-## if its picture widens with it), rising across a soft step past each edge, free elsewhere.
-func band_limit(f: float) -> float:
+## True while the collar holds nothing and rides along with her neck: stiffness 0, or snapped.
+func rides_free() -> bool:
 	var c: Dictionary = ThroatRings.collar
-	if not c["on"] or c["snapped"]:
+	return c["snapped"] or ThroatRings.collar_stiffness() <= 0.0
+
+
+## How far (px) the collar's front may give way now: from its softness at once, plus what the ring has stretched;
+## INF when it rides free, 0 when its picture does not widen ("Collar stretches" off).
+func room() -> float:
+	if not get_setting("widen"):
+		return 0.0
+	if rides_free():
 		return INF
-	var room: float = c["stretch"] * BAND_WIDEN if get_setting("widen") else 0.0   # how far it can give now
-	var inside: float = BAND_GAP + minf(room, push_px + SLACK) if room > 0.0 else BAND_GAP
+	var k := ThroatRings.collar_stiffness()
+	return GIVE * (1.0 - k) / k + ThroatRings.collar["stretch"] * BAND_WIDEN
+
+
+## How far (px) her neck's outline may push out at depth `f` (`free_px`: as far as it would without the collar):
+## between the collar's edges as far as the collar has given way (plus the slack), blending into the free bulge
+## across BAND_SOFT past each edge, free elsewhere and while the collar rides free.
+func band_limit(f: float, free_px: float = INF) -> float:
+	var c: Dictionary = ThroatRings.collar
+	if not c["on"] or rides_free():
+		return INF
+	var inside: float = BAND_GAP + minf(room(), push_px + SLACK)
 	var out: float = maxf(c["top"] - f, f - c["bottom"])
 	if out <= 0.0:
 		return inside
-	if out >= BAND_SOFT:
+	if out >= BAND_SOFT or not is_finite(free_px):
 		return INF
-	return inside + out / BAND_SOFT * BAND_SOFT_PX
+	return lerpf(inside, maxf(inside, free_px), smoothstep(0.0, 1.0, out / BAND_SOFT))
 
 
-## How far (depth units) his tip is past the collar's top edge while the collar holds.
-func _past() -> float:
+## How far (depth units) his tip is into the collar's band (0 above it, the band's height once through) while it holds.
+func _band_past() -> float:
 	var c: Dictionary = ThroatRings.collar
 	if not c["on"] or c["snapped"] or g.penisOut:
 		return 0.0
-	return maxf(0.0, ThroatRings.tip - c["top"])
+	return clampf(ThroatRings.tip - c["top"], 0.0, c["bottom"] - c["top"])
+
+
+## What the collar adds to her resistance now: like her throat entrance, rising across its band up to WALL x what
+## it holds at the bottom edge; once he is through, a little squeeze.
+func wall() -> float:
+	var c: Dictionary = ThroatRings.collar
+	var past := _band_past()
+	if past <= 0.0:
+		return 0.0
+	if ThroatRings.tip >= c["bottom"]:
+		return SQUEEZE * c["hold"]
+	return WALL * c["hold"] * past / maxf(0.001, c["bottom"] - c["top"])
 
 
 func _tick() -> void:
@@ -153,18 +199,18 @@ func _tick() -> void:
 		push_speed = 0.0
 		if _widened:
 			_unwiden()
-	if get_setting("wince") and _past() * ThroatRings.DEPTH_SCALE * PUSH * c["hold"] >= WINCE_PUSH:
+	if get_setting("wince") and ThroatRings.push > 0.2 and wall() >= WINCE_RES:
 		her.wince()
 
 
-## The collar's front: a spring pulled toward where her throat pushes it, no further out than the ring's room and
+## The collar's front: a fast spring pulled toward where her throat pushes it, no further out than it can give and
 ## never into her neck.
-func _spring(target: float, c: Dictionary) -> void:
+func _spring(target: float, _c: Dictionary = {}) -> void:
 	push_speed = (push_speed + (target - push_px) * SPRING) * (1.0 - DAMP)
 	push_px += push_speed
-	var room: float = c["stretch"] * BAND_WIDEN
-	if push_px > room or push_px < 0.0:
-		push_px = clampf(push_px, 0.0, room)
+	var most := room()
+	if push_px > most or push_px < 0.0:
+		push_px = clampf(push_px, 0.0, most)
 		push_speed = 0.0
 
 

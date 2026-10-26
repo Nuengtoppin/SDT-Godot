@@ -156,7 +156,17 @@ The developer panel (Body > Throat rings) shows each point's game number -> the 
   pictures: the picture is the band. The hand edge fit stays in Developer mode.
   "Collar stretches": the collar's picture widens with the stretch (x1.25 at full, as the mod); "Wince when it
   holds". Collar material and tightness in the same group, kept for each collar (`port.cfg` `throat_rings`). Pressure
-  from what he does, not the mouse button. Not yet: the "collarresistance" line, the intro breath option, snapping.
+  from what he does, not the mouse button. Not yet: the "collarresistance" line, the intro breath option, reactions
+  when a collar snaps.
+  P044 (after playing it): the collar holds like her throat entrance - `Her.resistance` rises across its band from 0
+  at the top edge to 0.3 x hold at the bottom edge (the game's throat: 0.2 at resistance 100), then only a 0.03 x hold
+  squeeze; `Her.pushBack` only while he is in the band (no more than the band's height). Tightness = k (0 holds
+  nothing). The front gives 6 x (1 - k) / k px at once (plus the stretch's 17.5 px), so a soft collar moves with the
+  first push; k = 0 or snapped: the collar rides along with her neck, no limit on the neck, nothing held. Spring
+  pull 1.0 per px per tick, 60 % of its speed lost per tick (there in about 3 ticks, ~12 % overshoot). "Collar can
+  break" (off by default; then every collar is unbreakable): `ThroatRings.collar_breaks`; a snapped collar rides
+  free until "Repair collar", another collar or another stiffness. Past each edge the held outline blends into the
+  free bulge over 0.08 depth (smoothstep), not a fixed px step, so big bulges keep a round step.
 - `throatcumbulge` "Neck follows his size" (P040): `Neck.bulgeCap` = 35 x his width (the game: 35 for every width).
 - Swallowing (P037, stage 2 of the throat ring plan) inside upstream's `throatcumbulge`, after sby's swallowguzzleV2
   but on the game's own `Her.swallow` (the veto and the developer panel's switch apply), all off by default: "Swallow

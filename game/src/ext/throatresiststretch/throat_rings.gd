@@ -34,7 +34,7 @@ const METAL := 0.95           # this stiff or more: does not give and does not b
 const SECTION := "throat_rings"   # port.cfg: stiffness; edges_<collar> = [top, bottom] (hand fit, spaces as _)
 ## Collar tags: what the picture alone does not tell. "band": [top, bottom] moves the edges found from the picture
 ## (depth units) - the game's collars, fitted in the game; "stiffness": the collar's own (else the setting);
-## "can_snap": false for a collar that never breaks. Collars loaded from mods will add theirs here.
+## "can_snap": false for a collar that never breaks (even with "Collar can break" on). Collars loaded from mods will add theirs here.
 static var collar_tags := {
 	"Leather": {"band": [0.005, -0.05]},
 	"Tie": {"band": [0.04, -0.085]},
@@ -44,6 +44,7 @@ static var collar_tags := {
 static var entrance := _ring("Throat entrance", ENTRANCE_TOP, ENTRANCE_BOTTOM, 0.5, 0.5, INF)
 static var collar := _ring("Collar", 0.55, 0.75, 0.6, 0.6, 200.0)
 static var stiffness := 0.6           # the setting (0 soft band .. 1 metal)
+static var collar_breaks := false       # P044: collars may snap ("Collar can break"; off: they never do)
 static var collar_top_adjust := 0.0     # added to the edge found from the collar's picture (depth units)
 static var collar_bottom_adjust := 0.0
 static var tip := 0.0                   # his tip, in depth units (0 while outside her mouth)
@@ -191,17 +192,17 @@ static func load_stiffness() -> void:
 	_apply_stiffness()
 
 
-## The collar she wears: its stiffness (its tags', else the setting) sets how tight it holds, how hard it is to
-## stretch and how much it takes before it breaks.
+## The collar she wears: its stiffness (its tags', else the setting) sets how tight it holds (P044: 0 holds nothing,
+## 1 holds fully), how hard it is to stretch and, when collars may break, how much it takes before it does.
 static func collar_stiffness() -> float:
 	return clampf(float(tags(collar_name).get("stiffness", stiffness)), 0.0, 1.0)
 
 
 static func _apply_stiffness() -> void:
 	var k := collar_stiffness()
-	collar["tight"] = 0.35 + 0.5 * k
+	collar["tight"] = k
 	collar["stiff"] = k
-	var unbreakable: bool = k >= METAL or not tags(collar_name).get("can_snap", true)
+	var unbreakable: bool = not collar_breaks or k >= METAL or not tags(collar_name).get("can_snap", true)
 	collar["max_durability"] = INF if unbreakable else lerpf(60.0, 300.0, k)
 	repair()
 
