@@ -97,14 +97,21 @@ static func _throat() -> Dictionary:
 	]}
 
 
-## A value point's row: the game's number -> what the game uses, or that nothing changes it.
+## A value point's row: who changes it and the value the game used last (Hooks.explain), or that nothing changes it.
 static func _vp(name: String, tip: String) -> Dictionary:
 	return value(name, "Value point: " + tip, func():
 		var sn := StringName(name)
-		if not ValuePoints.has(sn) and not ValuePoints._points.has(sn):
+		if not Hooks.has_value(sn):
 			return "game's"
-		var l = ValuePoints.last.get(sn)
-		return "set, not asked yet" if l == null else "%.3f → %.3f" % [l[0], l[1]])
+		var chain: Array = Hooks.explain(sn)
+		if chain.is_empty():
+			return "set, not asked yet"
+		var owners: Array = []
+		for step in chain:
+			if step.has("owner") and not owners.has(step["owner"]):
+				owners.append(step["owner"])
+		var r = chain[-1].get("result")
+		return "%s → %s" % [", ".join(owners), "%.3f" % r if r is float else str(r)])
 
 
 static func _edges(r: Dictionary) -> String:

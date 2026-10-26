@@ -41,6 +41,8 @@ var last_amount := 0          # how much the last swallow took
 var _cap_fn := Callable()
 
 
+var _mods := {}            # value point -> this extension's modifier id (Hooks.value)
+
 func _init() -> void:
 	id = "throatcumbulge"
 	title = "throatcumbulge"
@@ -81,7 +83,7 @@ func _enable() -> void:
 	for key in ["follow_size", "guzzle", "pump", "per_swallow"]:
 		menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, key, {"after": "Throat bulge", "wide": key == "pump"}))
 	hook_after(&"Him.nextSpurt", func(_c): _on_spurt())
-	_cap_fn = func(v: float, _b: float, _neck) -> float: return v * maxf(1.0, g.him.getPenisWidthWithTwitch())
+	_cap_fn = func(v, _neck) -> float: return v * maxf(1.0, g.him.getPenisWidthWithTwitch())
 	_apply_size()
 	_prev_cum = g.her.cumInMouth if g.her != null else 0
 
@@ -93,13 +95,13 @@ func _setting_changed(key: String, _value) -> void:
 
 ## derrdev: "Neck follows his size" on or off.
 func _apply_size() -> void:
-	ValuePoints.remove(&"Neck.bulgeCap", _cap_fn)
+	_drop_mods()
 	if get_setting("follow_size"):
-		value_point(&"Neck.bulgeCap", _cap_fn)
+		_mods[&"Neck.bulgeCap"] = modify(&"Neck.bulgeCap", {"phase": Hooks.MOOD, "op": "fn", "fn": _cap_fn})
 
 
 func _disable() -> void:
-	ValuePoints.remove(&"Neck.bulgeCap", _cap_fn)
+	_drop_mods()
 	if _cumming:
 		_set_bulge(_base)
 	_cumming = false
@@ -194,3 +196,10 @@ func _on_spurt() -> void:
 		return
 	if her.cumInMouth > (her.maxCumInMouth / 2 if mode == PUMP_MODES[1] else 0):
 		her.swallow(0.0, false)
+
+
+## Removes this extension's value point modifiers (Hooks.value).
+func _drop_mods() -> void:
+	for id in _mods.values():
+		Hooks.remove_modifier(id)
+	_mods.clear()

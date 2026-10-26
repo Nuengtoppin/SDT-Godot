@@ -101,17 +101,17 @@ func swallow() -> void:
 
 
 func render(depth: float) -> void:
-	if ValuePoints.has(&"Neck.depth"):   # VALUE derrdev: how deep the throat bulge sits (his depth / 400)
-		depth = ValuePoints.value(&"Neck.depth", depth, self)
+	if Hooks.has_value(&"Neck.depth"):   # HOOK value point (derrdev): how deep the throat bulge sits (his depth / 400)
+		depth = Hooks.value(&"Neck.depth", self, depth)
 	var pts: Array = neckPoints.duplicate()
 	bulgeSize = 35.0 * (1.0 + (g.him.getPenisWidthWithTwitch() - 1.0) * 1.5)
 	var bulgeAmount := throatBulgeAmount
-	if ValuePoints.has(&"Neck.throatBulge"):   # VALUE derrdev: how much the throat bulges (her throat bulge setting)
-		bulgeAmount = ValuePoints.value(&"Neck.throatBulge", bulgeAmount, self)
+	if Hooks.has_value(&"Neck.throatBulge"):   # HOOK value point (derrdev): how much the throat bulges (her throat bulge setting)
+		bulgeAmount = Hooks.value(&"Neck.throatBulge", self, bulgeAmount)
 	var bulgeCap := 35.0
-	if ValuePoints.has(&"Neck.bulgeCap"):   # VALUE derrdev: the most the bulge pushes the neck out, in pixels
-		bulgeCap = ValuePoints.value(&"Neck.bulgeCap", bulgeCap, self)
-	var pointLimit := ValuePoints.has(&"Neck.pointBulge")
+	if Hooks.has_value(&"Neck.bulgeCap"):   # HOOK value point (derrdev): the most the bulge pushes the neck out, in pixels
+		bulgeCap = Hooks.value(&"Neck.bulgeCap", self, bulgeCap)
+	var pointLimit := Hooks.has_value(&"Neck.pointBulge")
 	for i in frontEndPoint:
 		var f := float(i) / frontEndPoint
 		if bulgeAmount > 0:
@@ -123,11 +123,11 @@ func render(depth: float) -> void:
 			var sw := swallowSize * maxf(0.0, 2.0 / (2.0 + pow(8.0 * (f - swallowProgress), 2.0)) - 0.2)
 			sw *= minf(1.0, minf((swallowProgress - swallowStart) * 5.0, 2.0 - swallowProgress * 2.0))
 			pts[i] = pts[i] + sw * swallowScale
-		if pointLimit:   # VALUE derrdev: how far this point of the front pushes out, in pixels (a collar holds it)
+		if pointLimit:   # HOOK value point (derrdev): how far this point of the front pushes out, in pixels (a collar holds it)
 			var d: Vector2 = pts[i] - neckPoints[i]
 			if d.x > 0.0:
 				bulgePointDepth = f
-				var lim := ValuePoints.value(&"Neck.pointBulge", d.x, self)
+				var lim: float = Hooks.value(&"Neck.pointBulge", self, d.x)
 				if lim < d.x:
 					pts[i] = neckPoints[i] + d * (maxf(0.0, lim) / d.x)
 	if swallowing:

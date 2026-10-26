@@ -392,27 +392,10 @@ func _test_swallowing() -> void:
 	x._prev_swallowing = false
 
 
-## Value points: the game's number when nothing is added; handlers by phase, then priority; owners come off.
+## Value points (upstream's Hooks.value): ours (neck, throat) are not set by default; the ring extensions' modifiers.
 func _test_value_points() -> void:
-	_check("value points: none set by default", not ValuePoints.has(&"Neck.throatBulge") and not ValuePoints.has(&"Her.resistance"))
-	var order := []
-	var clamp := func(v, _b, _o): order.append("clamp"); return minf(v, 3.0)
-	var mood2 := func(v, _b, _o): order.append("mood2"); return v * 2.0
-	var mood1 := func(v, _b, _o): order.append("mood1"); return v + 1.0
-	ValuePoints.add(&"test.v", clamp, "t1", ValuePoints.CLAMP)
-	ValuePoints.add(&"test.v", mood2, "t2", ValuePoints.MOOD, 5)
-	ValuePoints.add(&"test.v", mood1, "t1", ValuePoints.MOOD, 0)
-	var v := ValuePoints.value(&"test.v", 1.0)
-	_check("value points: by phase, then priority", order == ["mood1", "mood2", "clamp"] and v == 3.0, "%s %s" % [order, v])
-	var inner := [false]
-	ValuePoints.add(&"test.v", func(x, _b, _o): inner[0] = ValuePoints.has(&"test.v"); return x, "t3", ValuePoints.FINAL)
-	ValuePoints.value(&"test.v", 1.0)
-	_check("value points: not re-entered from a handler", not inner[0] and ValuePoints.last[&"test.v"] == [1.0, 3.0])
-	ValuePoints.remove_owner("t1")
-	ValuePoints.remove_owner("t3")
-	_check("value points: an owner's handlers come off", ValuePoints.value(&"test.v", 1.0) == 2.0)
-	ValuePoints.remove(&"test.v", mood2)
-	_check("value points: the last handler off, the point is gone", not ValuePoints.has(&"test.v"))
+	_check("value points: none of ours set by default", not Hooks.has_value(&"Neck.throatBulge")
+		and not Hooks.has_value(&"Her.resistance") and not Hooks.has_value(&"Neck.pointBulge"))
 	_test_entrance_ring()
 	_test_collar_ring()
 	# the game asks its points every tick (checked after a few ticks), with the entrance ring acting: one neck render
@@ -421,7 +404,7 @@ func _test_value_points() -> void:
 	_asked_from = Flash.tick_count
 	_resist0 = [g.throatResistance, g.her.resistance["boundary"]]
 	for p in [&"Neck.throatBulge", &"Neck.bulgeCap", &"Her.pushBack"]:
-		ValuePoints.add(p, func(x, _b, _o): _asked[p] = _asked.get(p, 0) + 1; return x, "derrdev_checks")
+		Hooks.add_modifier(p, {"op": "fn", "fn": func(x, _o): _asked[p] = _asked.get(p, 0) + 1; return x}, "derrdev_checks")
 
 
 ## The throat entrance ring acting (throatresiststretch "Throat loosens"): it lowers the entrance's share of the
@@ -431,24 +414,24 @@ func _test_entrance_ring() -> void:
 	var her = g.her
 	var e: Dictionary = ThroatRings.entrance
 	x.set_setting("on", true)
-	var owners: Array = ValuePoints.registered().filter(func(r): return r[2] == "throatresiststretch").map(func(r): return r[0])
+	var owners: Array = _vp_owned("throatresiststretch")
 	_check("throat loosens on: the entrance ring acts on resistance and neck depth", owners.has(&"Her.resistance") and owners.has(&"Neck.depth"))
 	e["stretch"] = 0.5
 	ThroatRings.tip = 0.3
 	var upper: float = her.resistance["upper"]
 	_check("a stretched entrance lowers its share of the resistance",
-		is_equal_approx(ValuePoints.value(&"Her.resistance", upper + 0.05, her), upper + 0.025))
+		is_equal_approx(Hooks.value(&"Her.resistance", her, upper + 0.05), upper + 0.025))
 	ThroatRings.tip = 0.5
-	_check("past the entrance the resistance is the game's", ValuePoints.value(&"Her.resistance", 0.0, her) == 0.0)
-	_check("a stretched entrance keeps the neck drawn as deep as the stretch", ValuePoints.value(&"Neck.depth", 0.1, her.head.neck) == 0.5
-		and ValuePoints.value(&"Neck.depth", 0.7, her.head.neck) == 0.7)
+	_check("past the entrance the resistance is the game's", Hooks.value(&"Her.resistance", her, 0.0) == 0.0)
+	_check("a stretched entrance keeps the neck drawn as deep as the stretch", Hooks.value(&"Neck.depth", her.head.neck, 0.1) == 0.5
+		and Hooks.value(&"Neck.depth", her.head.neck, 0.7) == 0.7)
 	x.set_setting("recover", 0.5)
 	ThroatRings.tip = 0.0
 	ThroatRings._step(e, 1.0, her.head.neck)
 	_check("the throat tightens back at the set speed", is_equal_approx(e["stretch"], 0.5 - ThroatRings.RECOVER_RATE * 0.5 * (1.0 - 0.5 * e["stiff"])))
 	x.set_setting("recover", 0.25)
 	x.set_setting("on", false)
-	_check("throat loosens off: nothing left", not ValuePoints.registered().any(func(r): return r[2] == "throatresiststretch")
+	_check("throat loosens off: nothing left", not not _vp_owned("throatresiststretch").is_empty()
 		and e["stretch"] == 0.0)
 
 
@@ -461,12 +444,12 @@ func _test_collar_ring() -> void:
 	var was: int = cc.selection
 	var c: Dictionary = ThroatRings.collar
 	_check("collar holds: off by default", x != null and not x.get_setting("on")
-		and not ValuePoints.registered().any(func(r): return r[2] == "chokercollarresistance"))
+		and not not _vp_owned("chokercollarresistance").is_empty())
 	cc.select(1)
 	ThroatRings._tick_done = -1
 	_ring_tick(her)
 	x.set_setting("on", true)
-	var pts: Array = ValuePoints.registered().filter(func(r): return r[2] == "chokercollarresistance").map(func(r): return r[0])
+	var pts: Array = _vp_owned("chokercollarresistance")
 	_check("collar holds on: push back, resistance (awake and passed out), the band on her neck", pts.has(&"Her.pushBack")
 		and pts.has(&"Her.resistance") and pts.has(&"Her.limpResistance")
 		and pts.has(&"Neck.pointBulge"))
@@ -477,9 +460,9 @@ func _test_collar_ring() -> void:
 	ThroatRings.tip = c["top"] + 0.05
 	c["hold"] = c["tight"]
 	_check("in the collar's band her head is pushed back by what it holds",
-		is_equal_approx(ValuePoints.value(&"Her.pushBack", 0.0, her), 0.05 * 400.0 * 0.0015 * c["tight"]))
+		is_equal_approx(Hooks.value(&"Her.pushBack", her, 0.0), 0.05 * 400.0 * 0.0015 * c["tight"]))
 	_check("in the band going deeper gets harder, like her throat entrance",
-		is_equal_approx(ValuePoints.value(&"Her.resistance", 0.0, her), 0.3 * c["tight"] * 0.05 / band))
+		is_equal_approx(Hooks.value(&"Her.resistance", her, 0.0), 0.3 * c["tight"] * 0.05 / band))
 	ThroatRings.tip = c["bottom"] - 0.0001
 	_check("at its bottom edge the collar is a wall (0.3 x what it holds)", absf(x.wall() - 0.3 * c["tight"]) < 0.001)
 	ThroatRings.tip = c["bottom"] + 0.2
@@ -487,7 +470,7 @@ func _test_collar_ring() -> void:
 	ThroatRings.tip = c["bottom"] - 0.0001
 	_check("Collar resistance sets the wall on its own", absf(x.wall() - 0.25) < 0.001 and ThroatRings.collar_wall == 0.25
 		and PortSettings.get_value(ThroatRings.SECTION, "wall") == 0.25)
-	_check("passed out she is still held by the collar", is_equal_approx(ValuePoints.value(&"Her.limpResistance", 0.0, her), x.wall()))
+	_check("passed out she is still held by the collar", is_equal_approx(Hooks.value(&"Her.limpResistance", her, 0.0), x.wall()))
 	ThroatRings.set_stiffness(0.2)
 	_check("setting the stiffness sets the wall to match (0.3 x stiffness)", is_equal_approx(ThroatRings.collar_wall, 0.06))
 	ThroatRings.set_stiffness(0.6)
@@ -495,13 +478,14 @@ func _test_collar_ring() -> void:
 	ThroatRings.tip = c["bottom"] + 0.2
 	_check("through it: only a squeeze, no more push back than the band's",
 		is_equal_approx(x.wall(), 0.03 * c["tight"])
-		and is_equal_approx(ValuePoints.value(&"Her.pushBack", 0.0, her), band * 400.0 * 0.0015 * c["tight"]))
+		and is_equal_approx(Hooks.value(&"Her.pushBack", her, 0.0), band * 400.0 * 0.0015 * c["tight"]))
 	ThroatRings.tip = c["top"] + 0.05
 	var neck = her.head.neck
 	var mid: float = (c["top"] + c["bottom"]) / 2.0
 	var at := func(f: float) -> float:
 		neck.bulgePointDepth = f
-		return ValuePoints.value(&"Neck.pointBulge", 30.0, neck)
+		x.refresh_band()
+		return Hooks.value(&"Neck.pointBulge", neck, 30.0)
 	var give: float = 6.0 * 0.4 / 0.6
 	_check("a softer collar gives way at once, before it stretches", is_equal_approx(x.room(), give))
 	x.push_px = 0.0
@@ -524,12 +508,13 @@ func _test_collar_ring() -> void:
 	ThroatRings.set_stiffness(0.0)
 	c["hold"] = c["tight"]
 	_check("stiffness 0: it holds nothing and rides along with her neck", x.rides_free() and at.call(mid) == 30.0
-		and x.wall() == 0.0 and ValuePoints.value(&"Her.pushBack", 0.0, her) == 0.0 and not is_finite(x.room()))
+		and x.wall() == 0.0 and Hooks.value(&"Her.pushBack", her, 0.0) == 0.0 and not is_finite(x.room()))
 	ThroatRings.set_stiffness(1.0)
 	c["hold"] = c["tight"]
 	# drawn: deep, a big bulge - the outline under a metal collar stays in, above it bulges
 	var was_bulge: float = neck.throatBulgeAmount
 	neck.throatBulgeAmount = 1.5
+	x.refresh_band()
 	neck.render(0.95)
 	var pts_r: Array = neck.renderedPoints
 	var n: int = neck.frontEndPoint
@@ -554,6 +539,7 @@ func _test_collar_ring() -> void:
 	c["stretch"] = 1.0
 	x.push_px = 0.0
 	neck2.throatBulgeAmount = 1.5
+	x.refresh_band()
 	neck2.render(0.95)
 	var push0: float = x._throat_push(neck2, c)
 	x.push_speed = 0.0
@@ -569,19 +555,20 @@ func _test_collar_ring() -> void:
 		peak = maxf(peak, x.push_px)
 	_check("it overshoots a little, then settles where her throat pushes it", peak > push0 and peak < 1.2 * push0
 		and absf(x.push_px - push0) < 0.2, "%s peak %s at %s" % [push0, peak, x.push_px])
+	x.refresh_band()
 	neck2.render(0.0)
 	_check("her throat relaxed: nothing pushes the collar", x._throat_push(neck2, c) == 0.0)
 	neck2.throatBulgeAmount = 1.0
 	x.push_px = 0.0
 	ThroatRings.tip = c["top"] - 0.05
-	_check("above the collar nothing", ValuePoints.value(&"Her.pushBack", 0.0, her) == 0.0 and x.wall() == 0.0)
+	_check("above the collar nothing", Hooks.value(&"Her.pushBack", her, 0.0) == 0.0 and x.wall() == 0.0)
 	# breaking: off by default; on, a worn out collar snaps, rides free, and the button repairs it
 	_check("collar can break: off by default", not x.get_setting("breaks") and not is_finite(c["max_durability"]))
 	x.set_setting("breaks", true)
 	_check("collar can break on: the collar wears down", ThroatRings.collar_breaks and is_finite(c["max_durability"]))
 	c["snapped"] = true
 	ThroatRings.tip = c["top"] + 0.05
-	_check("a snapped collar holds nothing and rides along", ValuePoints.value(&"Her.pushBack", 0.0, her) == 0.0
+	_check("a snapped collar holds nothing and rides along", Hooks.value(&"Her.pushBack", her, 0.0) == 0.0
 		and at.call(mid) == 30.0 and x.wall() == 0.0 and x.rides_free())
 	ThroatRings.repair()
 	var st: float = c["stretch"]
@@ -594,7 +581,7 @@ func _test_collar_ring() -> void:
 	x.set_setting("breaks", false)
 	_check("collar can break off: never breaks again", not ThroatRings.collar_breaks and not is_finite(c["max_durability"]))
 	x.set_setting("on", false)
-	_check("collar holds off: nothing left, the picture as it was", not ValuePoints.registered().any(func(r): return r[2] == "chokercollarresistance")
+	_check("collar holds off: nothing left, the picture as it was", not not _vp_owned("chokercollarresistance").is_empty()
 		and her.collarContainer.collar.scaleX == 1.0)
 	ThroatRings.set_stiffness(0.6)
 	# the neck follows his size
@@ -602,12 +589,21 @@ func _test_collar_ring() -> void:
 	tb.set_setting("follow_size", true)
 	g.him.loadPenisScales(1.0, 1.2)
 	_check("neck follows his size: the bulge limit grows with his width",
-		is_equal_approx(ValuePoints.value(&"Neck.bulgeCap", 35.0, her.head.neck), 35.0 * g.him.getPenisWidthWithTwitch()))
+		is_equal_approx(Hooks.value(&"Neck.bulgeCap", her.head.neck, 35.0), 35.0 * g.him.getPenisWidthWithTwitch()))
 	tb.set_setting("follow_size", false)
 	g.him.loadPenisScales(1.0, 1.0)
-	_check("neck follows his size off: the game's limit", not ValuePoints.has(&"Neck.bulgeCap"))
+	_check("neck follows his size off: the game's limit", not Hooks.has_value(&"Neck.bulgeCap"))
 	ThroatRings.reset_stretch()
 	cc.select(was)
+
+
+## The value points `owner` has modifiers on (upstream's Hooks.value).
+func _vp_owned(owner: String) -> Array:
+	return Hooks._modifiers.values().filter(func(m): return m.owner == owner).map(func(m): return m.name)
+
+
+func _vp_ids(owner: String) -> Array:
+	return Hooks._modifiers.values().filter(func(m): return m.owner == owner).map(func(m): return m.id)
 
 
 ## The ring model works a game tick out once; these checks run several in one tick.
@@ -630,8 +626,10 @@ func _test_value_points_asked() -> void:
 	_check("throat loosens: the neck is drawn once per tick", _asked.get(&"Neck.throatBulge", 0) <= ticks + 1, "%s in %d ticks" % [_asked, ticks])
 	_check("throat loosens: her throat resistance setting is never changed", _resist0 == [g.throatResistance, g.her.resistance["boundary"]])
 	Extensions.get_extension("throatresiststretch").set_setting("on", false)
-	ValuePoints.remove_owner("derrdev_checks")
-	_check("value points: all off again", ValuePoints.registered().is_empty())
+	for id in _vp_ids("derrdev_checks"):
+		Hooks.remove_modifier(id)
+	_check("value points: all of ours off again", _vp_owned("derrdev_checks").is_empty() and not Hooks.has_value(&"Neck.throatBulge")
+		and not Hooks.has_value(&"Her.resistance"))
 
 
 ## Runs `fn` with a counting veto on hook `name`; returns how many times the veto was asked.

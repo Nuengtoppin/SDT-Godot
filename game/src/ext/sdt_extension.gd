@@ -92,11 +92,6 @@ func modify(name: StringName, spec: Dictionary) -> int:
 	return Hooks.add_modifier(name, spec, id)
 
 
-## derrdev: adds `fn(v, base, obj) -> float` to the value point `name` in `phase` (ValuePoints.MOOD by default).
-func value_point(name: StringName, fn: Callable, phase := ValuePoints.MOOD, priority := 0) -> void:
-	ValuePoints.add(name, fn, id, phase, priority)
-
-
 ## Her mood, including extended moods (see Moods).
 func mood() -> String:
 	return Moods.current()

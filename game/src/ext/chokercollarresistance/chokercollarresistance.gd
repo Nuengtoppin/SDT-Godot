@@ -52,9 +52,15 @@ var _band_fn := Callable()
 var _widened := false
 var _collar_x := 0.0
 var _back := {}               # collar name -> [back edge, width] in its own space (back: its left side, her nape)
+var _band_on := false        # the collar's band, worked out by refresh_band()
+var _band_inside := INF
+var _band_top := 0.0
+var _band_bottom := 0.0
 var push_px := 0.0            # how far the collar's front is pushed out now (px, a spring pushed by her throat)
 var push_speed := 0.0
 
+
+var _mods := {}            # value point -> this extension's modifier id (Hooks.value)
 
 func _init() -> void:
 	id = "chokercollarresistance"
@@ -73,13 +79,13 @@ func _setup() -> void:
 
 
 func _enable() -> void:
-	_push_fn = func(v: float, _b: float, _her) -> float:
+	_push_fn = func(v, _her) -> float:
 		return v + _band_past() * ThroatRings.DEPTH_SCALE * PUSH * ThroatRings.collar["hold"]
-	_resist_fn = func(v: float, _b: float, _her) -> float:
+	_resist_fn = func(v, _her) -> float:
 		return v + wall()
-	_limp_fn = func(v: float, _b: float, _her) -> float:
+	_limp_fn = func(v, _her) -> float:
 		return v + wall()
-	_band_fn = func(v: float, _b: float, neck) -> float:
+	_band_fn = func(v, neck) -> float:
 		return minf(v, band_limit(neck.bulgePointDepth, v))
 	on_late_tick(_tick)
 	var on := func(): return get_setting("on")
@@ -121,21 +127,19 @@ func _apply() -> void:
 		ThroatRings.collar_breaks = get_setting("breaks")
 		ThroatRings._apply_stiffness()
 	if get_setting("on"):
-		value_point(&"Her.pushBack", _push_fn)
-		value_point(&"Her.resistance", _resist_fn, ValuePoints.MOOD, 10)
-		value_point(&"Her.limpResistance", _limp_fn, ValuePoints.MOOD, 10)
-		value_point(&"Neck.pointBulge", _band_fn, ValuePoints.CLAMP)
+		_mods[&"Her.pushBack"] = modify(&"Her.pushBack", {"phase": Hooks.MOOD, "op": "fn", "fn": _push_fn})
+		_mods[&"Her.resistance"] = modify(&"Her.resistance", {"phase": Hooks.MOOD, "op": "fn", "fn": _resist_fn, "order": 10})
+		_mods[&"Her.limpResistance"] = modify(&"Her.limpResistance", {"phase": Hooks.MOOD, "op": "fn", "fn": _limp_fn, "order": 10})
+		_mods[&"Neck.pointBulge"] = modify(&"Neck.pointBulge", {"phase": Hooks.CLAMP, "op": "fn", "fn": _band_fn})
 	else:
 		_release()
 	if not get_setting("widen"):
 		_unwiden()
+	refresh_band()
 
 
 func _remove_points() -> void:
-	ValuePoints.remove(&"Her.pushBack", _push_fn)
-	ValuePoints.remove(&"Her.resistance", _resist_fn)
-	ValuePoints.remove(&"Her.limpResistance", _limp_fn)
-	ValuePoints.remove(&"Neck.pointBulge", _band_fn)
+	_drop_mods()
 
 
 func _release() -> void:
@@ -164,16 +168,24 @@ func room() -> float:
 ## between the collar's edges as far as the collar has given way (plus the slack), blending into the free bulge
 ## across BAND_SOFT past each edge, free elsewhere and while the collar rides free.
 func band_limit(f: float, free_px: float = INF) -> float:
-	var c: Dictionary = ThroatRings.collar
-	if not c["on"] or rides_free():
+	if not _band_on:
 		return INF
-	var inside: float = BAND_GAP + minf(room(), push_px + SLACK)
-	var out: float = maxf(c["top"] - f, f - c["bottom"])
+	var out: float = maxf(_band_top - f, f - _band_bottom)
 	if out <= 0.0:
-		return inside
+		return _band_inside
 	if out >= BAND_SOFT or not is_finite(free_px):
 		return INF
-	return lerpf(inside, maxf(inside, free_px), smoothstep(0.0, 1.0, out / BAND_SOFT))
+	return lerpf(_band_inside, maxf(_band_inside, free_px), smoothstep(0.0, 1.0, out / BAND_SOFT))
+
+
+## Works out the collar's band once (each tick and when a setting changes), so the neck's outline asks band_limit for
+## each of its points cheaply: whether it holds, how far its inside lets the neck out, its edges.
+func refresh_band() -> void:
+	var c: Dictionary = ThroatRings.collar
+	_band_on = get_setting("on") and c["on"] and not rides_free()
+	_band_inside = BAND_GAP + minf(room(), push_px + SLACK) if _band_on else INF
+	_band_top = c["top"]
+	_band_bottom = c["bottom"]
 
 
 ## How far (depth units) his tip is into the collar's band (0 above it, the band's height once through) while it holds.
@@ -213,6 +225,7 @@ func _tick() -> void:
 			_unwiden()
 	if get_setting("wince") and ThroatRings.push > 0.2 and wall() >= WINCE_RES:
 		her.wince()
+	refresh_band()
 
 
 ## The collar's front: a fast spring pulled toward where her throat pushes it, no further out than it can give and
@@ -263,3 +276,10 @@ func _unwiden() -> void:
 	col.scaleX = 1.0
 	col.x = _collar_x
 	_widened = false
+
+
+## Removes this extension's value point modifiers (Hooks.value).
+func _drop_mods() -> void:
+	for id in _mods.values():
+		Hooks.remove_modifier(id)
+	_mods.clear()

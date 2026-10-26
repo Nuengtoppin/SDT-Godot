@@ -5,7 +5,7 @@ extends SDTExtension
 ## A setting for all characters, like the mod's own default.
 ## derrdev (throat ring plan, stage 3): the loosening is the throat entrance ring of ThroatRings (throat_rings.gd),
 ## not the mod's own counter. The ring stretches under his pressure (his width past the entrance, more while he
-## pushes in) and tightens back at the speed set here. While it is stretched, through value points (ValuePoints):
+## pushes in) and tightens back at the speed set here. While it is stretched, through value points (Hooks.value):
 ##   - Her.resistance: the throat entrance's share of the resistance drops with the stretch (none when fully
 ##     stretched), as the mod lowered the throat resistance;
 ##   - Neck.depth: the neck is drawn at least as deep as the stretch, as the mod drew it (it rendered the neck a
@@ -17,6 +17,8 @@ var loose := 0.0          # the throat entrance ring's stretch, 0..1 (the mod's 
 var _resist_fn := Callable()
 var _depth_fn := Callable()
 
+
+var _mods := {}            # value point -> this extension's modifier id (Hooks.value)
 
 func _init() -> void:
 	id = "throatresiststretch"
@@ -33,13 +35,13 @@ func _setup() -> void:
 
 
 func _enable() -> void:
-	_resist_fn = func(v: float, _base: float, her) -> float:
+	_resist_fn = func(v, her) -> float:
 		var e: Dictionary = ThroatRings.entrance
 		if ThroatRings.tip <= e["top"] or ThroatRings.tip >= e["bottom"]:
 			return v
 		var upper: float = her.resistance["upper"]
 		return upper + (v - upper) * (1.0 - e["stretch"])
-	_depth_fn = func(v: float, _base: float, _neck) -> float:
+	_depth_fn = func(v, _neck) -> float:
 		return maxf(v, ThroatRings.entrance["stretch"])
 	on_late_tick(_tick)
 	var on := func(): return get_setting("on")
@@ -58,18 +60,16 @@ func _setting_changed(_key: String, _value) -> void:
 
 func _apply() -> void:
 	ThroatRings.entrance["recover"] = float(get_setting("recover"))
-	ValuePoints.remove(&"Her.resistance", _resist_fn)
-	ValuePoints.remove(&"Neck.depth", _depth_fn)
+	_drop_mods()
 	if get_setting("on"):
-		value_point(&"Her.resistance", _resist_fn)
-		value_point(&"Neck.depth", _depth_fn)
+		_mods[&"Her.resistance"] = modify(&"Her.resistance", {"phase": Hooks.MOOD, "op": "fn", "fn": _resist_fn})
+		_mods[&"Neck.depth"] = modify(&"Neck.depth", {"phase": Hooks.MOOD, "op": "fn", "fn": _depth_fn})
 	else:
 		_release()
 
 
 func _release() -> void:
-	ValuePoints.remove(&"Her.resistance", _resist_fn)
-	ValuePoints.remove(&"Neck.depth", _depth_fn)
+	_drop_mods()
 	ThroatRings.entrance["stretch"] = 0.0
 	loose = 0.0
 
@@ -80,3 +80,10 @@ func _tick() -> void:
 		return
 	ThroatRings.tick(her)
 	loose = ThroatRings.entrance["stretch"]
+
+
+## Removes this extension's value point modifiers (Hooks.value).
+func _drop_mods() -> void:
+	for id in _mods.values():
+		Hooks.remove_modifier(id)
+	_mods.clear()

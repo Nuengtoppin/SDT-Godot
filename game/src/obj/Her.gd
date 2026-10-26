@@ -973,19 +973,19 @@ func move(targetPos: float, tilt: float) -> float:
 	if not passedOut:
 		if penisInMouthDist > 0 and acceleration > 0:
 			var res := previousResistance
-			if ValuePoints.has(&"Her.resistance"):   # VALUE derrdev: what holds him back as he pushes in (checkPosition's)
-				res = ValuePoints.value(&"Her.resistance", res, self)
+			if Hooks.has_value(&"Her.resistance"):   # HOOK value point (derrdev): what holds him back as he pushes in (checkPosition's)
+				res = Hooks.value(&"Her.resistance", self, res)
 			speed -= res + armsPushPower * 0.001
 		if not g.handsOff:
 			speed -= pullOff
-	elif ValuePoints.has(&"Her.limpResistance") and penisInMouthDist > 0 and acceleration > 0:   # VALUE derrdev: what holds him back while she is passed out (the game: nothing)
-		speed -= ValuePoints.value(&"Her.limpResistance", 0.0, self)
+	elif Hooks.has_value(&"Her.limpResistance") and penisInMouthDist > 0 and acceleration > 0:   # HOOK value point (derrdev): what holds him back while she is passed out (the game: nothing)
+		speed -= Hooks.value(&"Her.limpResistance", self, 0.0)
 	speed *= speedFriction
 	pos = pos + speed
 	if intro and not g.penisOut:
 		pos -= maxf(0.0, (penisInMouthDist - maxIntroDist) * 0.0015)
-	if ValuePoints.has(&"Her.pushBack"):   # VALUE derrdev: pushes her head back off him (0 in the game)
-		pos -= ValuePoints.value(&"Her.pushBack", 0.0, self)
+	if Hooks.has_value(&"Her.pushBack"):   # HOOK value point (derrdev): pushes her head back off him (0 in the game)
+		pos -= Hooks.value(&"Her.pushBack", self, 0.0)
 	if not mouthFull and clenchTeeth and not g.penisOut and not gagged:
 		if penisInMouthDist > 0:
 			clenchedTeethTimer = maxi(0, clenchedTeethTimer - 1)

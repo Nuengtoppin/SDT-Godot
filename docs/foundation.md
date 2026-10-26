@@ -102,14 +102,14 @@ tick, because their callers poll (`animateBreathing`: pass-out factor at the top
 
 Checks: `game/debug/derrdev_checks.gd`.
 
-## Value points (P038, `game/src/ext/value_points.gd`, local branch `rings`)
+## Value points (upstream's `Hooks.value`; ours since P038, on his core since P047)
 
-Numbers the game reads every tick that extensions add to in phases (MOOD -> OVERRIDE -> CLAMP -> FINAL, then
-priority, then registration order) instead of writing the game's variable themselves. The maintainer's design
-(`Hooks.value`), kept small and apart (`ValuePoints`) so it can be swapped for his core when it lands. Handlers are
-`fn(v, base, obj) -> float`; `SDTExtension.value_point()` registers one under the extension's id, and switching an
-extension off removes its handlers. With no handler a point returns the game's number (one dictionary lookup).
-Marked `# VALUE` in game code.
+Numbers the game reads every tick that extensions change through modifiers instead of writing the game's variable
+themselves: upstream's value points (`Hooks.value`, `modify()`, phases GENERATE -> MOOD -> OVERRIDE -> CLAMP ->
+FINAL; see his `docs/extensions.md`, "Value points"). P038 started with a small copy of his design (`ValuePoints`);
+P047 moved everything onto his core and removed the copy. Our points are marked `# HOOK value point (derrdev)` in
+game code; the ring extensions add `op: "fn"` modifiers (MOOD, the collar's band CLAMP) and keep their ids to
+remove them when a setting goes off (`_drop_mods()`); all of an extension's modifiers go when it is switched off.
 
 | Point | Where | The game's number |
 |---|---|---|
@@ -121,7 +121,7 @@ Marked `# VALUE` in game code.
 | `Neck.depth` | `Neck.render` (P039) | his depth / 400 (where the throat bulge sits) |
 | `Neck.pointBulge` | `Neck.render`, per front outline point (P041; `Neck.bulgePointDepth` = that point's depth) | how far the point pushes out (px) |
 
-The developer panel (Body > Throat rings) shows each point's game number -> the value used.
+The developer panel (Body > Throat rings) shows who modifies each point and the value used last (`Hooks.explain`).
 
 ## Loader mods ported here (local branch `rings`, not pushed until upstream agrees)
 
@@ -191,3 +191,7 @@ The developer panel (Body > Throat rings) shows each point's game number -> the 
 | `Extensions._disable()` tells shared tables that an extension went off (an event or a callback list) | (was for `channels`, dropped) | not needed: modifiers go with their extension |
 | `Him` size limits as static vars, not constants | Extensions widen them (penisrange). | ours (P035), to send with it |
 | An event when a character code is loaded | (was for `channels`, dropped) | not needed for now |
+
+P047 (27 October): the rings moved onto upstream's value points - `ValuePoints` and `SDTExtension.value_point()`
+removed, the game code's points ask `Hooks.has_value` / `Hooks.value(name, obj, v)`, the extensions `modify()` with
+`op: "fn"` modifiers (handlers `fn(v, obj)`), the developer panel reads `Hooks.explain`. Nothing else changes.

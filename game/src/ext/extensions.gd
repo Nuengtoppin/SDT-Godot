@@ -182,7 +182,6 @@ static func _enable(ext: SDTExtension) -> void:
 static func _disable(ext: SDTExtension) -> void:
 	ext.enabled = false
 	Hooks.remove_owner(ext.id)
-	ValuePoints.remove_owner(ext.id)   # derrdev
 	CharCode.remove_owner(ext.id)
 	Moods.unregister_owner(ext.id)
 	SDTMenu.remove_owner(ext.id)
