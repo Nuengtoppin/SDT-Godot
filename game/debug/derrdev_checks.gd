@@ -214,15 +214,14 @@ func _test_throat_rings() -> void:
 	_ring_tick(her)
 	_check("another collar: its own edges", ThroatRings.collar_name == "Gem Choker" and ThroatRings.collar_top_adjust == 0.03
 		and ThroatRings.collar_bottom_adjust == -0.03)
-	ThroatRings.set_collar_material("Metal")
+	ThroatRings.set_stiffness(1.0)
 	cc.select(1)
 	_ring_tick(her)
-	_check("back to the first collar: its edges and material come back", ThroatRings.collar_top_adjust == 0.02
-		and ThroatRings.collar_bottom_adjust == -0.03 and ThroatRings.collar_material == "Leather")
-	cc.select(3)
-	_ring_tick(her)
-	_check("material kept for each collar", ThroatRings.collar_material == "Metal"
-		and PortSettings.get_value(ThroatRings.SECTION, "material_Gem_Choker") == "Metal")
+	_check("back to the first collar: its hand fit comes back", ThroatRings.collar_top_adjust == 0.02
+		and ThroatRings.collar_bottom_adjust == -0.03)
+	_check("one stiffness for every collar, kept in port.cfg", ThroatRings.collar["stiff"] == 1.0
+		and PortSettings.get_value(ThroatRings.SECTION, "stiffness") == 1.0)
+	ThroatRings.set_stiffness(0.6)
 	cc.select(2)
 	_ring_tick(her)
 	var tb: Rect2 = her.collarContainer.collar.getBounds(n)
@@ -250,9 +249,21 @@ func _test_throat_rings() -> void:
 	for i in 30:
 		ThroatRings._step(m, 1.0, n)
 	_check("a fully stiff ring does not give or break", m["stretch"] == 0.0 and not m["snapped"] and m["hold"] == 0.85)
-	ThroatRings.set_collar_material("Band")
-	_check("material sets the collar ring", c["tight"] == 0.35 and c["max_durability"] == 60.0 and c["durability"] == 60.0)
-	ThroatRings.set_collar_material("Leather")
+	ThroatRings.set_stiffness(0.0)
+	_check("stiffness 0: a soft band", is_equal_approx(c["tight"], 0.35) and c["stiff"] == 0.0 and c["max_durability"] == 60.0
+		and c["durability"] == 60.0)
+	ThroatRings.set_stiffness(1.0)
+	_check("stiffness 1: metal never breaks", is_equal_approx(c["tight"], 0.85) and not is_finite(c["max_durability"]))
+	var worn_tags: Dictionary = ThroatRings.collar_tags[ThroatRings.collar_name]   # the collar she wears (the tie here)
+	worn_tags["stiffness"] = 0.2
+	ThroatRings._apply_stiffness()
+	_check("a collar's tags may set its own stiffness", c["stiff"] == 0.2)
+	worn_tags.erase("stiffness")
+	worn_tags["can_snap"] = false
+	ThroatRings.set_stiffness(0.2)
+	_check("a collar tagged not to snap never breaks", not is_finite(c["max_durability"]))
+	worn_tags.erase("can_snap")
+	ThroatRings.set_stiffness(0.6)
 	_ring_tick(her)
 	_check("the rings change nothing in the game", game == [g.throatResistance, her.pos, n.throatBulgeAmount,
 		her.collarContainer.collar.scaleX, n.swallowScale])
@@ -508,9 +519,16 @@ func _test_collar_ring() -> void:
 	neck2.throatBulgeAmount = 1.5
 	neck2.render(0.95)
 	var push0: float = x._throat_push(neck2, c)
-	x.push_px += (push0 - x.push_px) * x.LAG
-	_check("the collar follows her throat a part of the way per tick", push0 > 0.0 and x.push_px > 0.0 and x.push_px < push0,
+	x.push_speed = 0.0
+	x._spring(push0, c)
+	_check("the collar's front is a spring: it moves only part of the way at first", push0 > 0.0 and x.push_px > 0.0 and x.push_px < push0,
 		"%s %s" % [push0, x.push_px])
+	var peak := 0.0
+	for i in 60:
+		x._spring(push0, c)
+		peak = maxf(peak, x.push_px)
+	_check("it overshoots a little, then settles where her throat pushes it", peak > push0 and absf(x.push_px - push0) < 0.2,
+		"%s peak %s at %s" % [push0, peak, x.push_px])
 	neck2.render(0.0)
 	_check("her throat relaxed: nothing pushes the collar", x._throat_push(neck2, c) == 0.0)
 	neck2.throatBulgeAmount = 1.0
@@ -530,9 +548,7 @@ func _test_collar_ring() -> void:
 	x.set_setting("on", false)
 	_check("collar holds off: nothing left, the picture as it was", not ValuePoints.registered().any(func(r): return r[2] == "chokercollarresistance")
 		and her.collarContainer.collar.scaleX == 1.0)
-	ThroatRings.set_collar_tight(0.7)
-	_check("collar tightness kept for each collar", PortSettings.get_value(ThroatRings.SECTION, "tight_Leather") == 0.7)
-	ThroatRings.set_collar_material("Leather")
+	ThroatRings.set_stiffness(0.6)
 	# the neck follows his size
 	var tb = Extensions.get_extension("throatcumbulge")
 	tb.set_setting("follow_size", true)

@@ -147,6 +147,13 @@ The developer panel (Body > Throat rings) shows each point's game number -> the 
   P042: "Collar stretches" - her throat pushes the collar's front out (measured from the drawn neck under the band)
   and the picture follows with a lag (0.15 of the way per tick), up to the ring's room (stretch x 17.5 px); her
   throat may press 3 px into it first; the back edge (her nape) stays put. Settles back when her throat does.
+  P043 (simpler): the collar's front is a spring pushed by her throat (pull 0.2 per px per tick, 30 % of its speed
+  lost per tick: it lags, overshoots a little, settles); one "Collar stiffness" (0 soft band .. 1 metal, `port.cfg`
+  `throat_rings/stiffness`, quick buttons Band 0.2 / Leather 0.6 / Metal 1.0) for every collar instead of a material
+  and tightness per collar: tightness 0.35 + 0.5 k, ring stiffness k, durability 60..300, unbreakable from 0.95.
+  `ThroatRings.collar_tags[name]`: what the picture does not tell - `band` (edge fit; the game's three collars),
+  `stiffness` (its own), `can_snap`; collars loaded from mods are to add theirs (no loader yet). Rule for collar
+  pictures: the picture is the band. The hand edge fit stays in Developer mode.
   "Collar stretches": the collar's picture widens with the stretch (x1.25 at full, as the mod); "Wince when it
   holds". Collar material and tightness in the same group, kept for each collar (`port.cfg` `throat_rings`). Pressure
   from what he does, not the mouse button. Not yet: the "collarresistance" line, the intro breath option, snapping.

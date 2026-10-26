@@ -7,9 +7,12 @@ extends RefCounted
 ## (read only, for the Body tab). The collar ring acts in a later stage.
 ##
 ## Depth is the neck's own: 0 at her lips, 1 = 400 deep (penisInMouthDist / 400, what Neck.render uses), so a ring's
-## edges are where they are drawn on the neck. The collar ring's edges come from the collar's picture (its bounds on
-## the neck, kept to the band so a hanging tie does not count), with a hand adjustment for each edge. The adjustments
-## and the material are kept for each collar (Leather, Tie, ...) in port.cfg, section throat_rings.
+## edges are where they are drawn on the neck. The collar ring's edges come from the collar's picture: its bounds on
+## the neck (P043: the rule for collar pictures is that the picture is the band; a hanging part such as the tie's
+## would be marked in the collar's tags, and the game's own collars have their fits in collar_tags). In Developer
+## mode each edge can be moved by hand (kept for each collar in port.cfg, section throat_rings).
+## P043: how a collar holds and gives is one number, its stiffness (0: a soft band .. 1: metal, one setting for all
+## collars); a collar's tags may set its own (for collars loaded from mods later).
 ##
 ## Pressure comes from what he does, not from the mouse: his width while he is past the ring's top edge, more while
 ## he pushes in, plus the swallow wave passing through the ring. Under pressure a ring stretches (faster when it is
@@ -25,15 +28,22 @@ const PUSH_FULL := 10.0       # his movement per tick that counts as a full push
 const WAVE_PRESSURE := 0.05   # pressure per unit of swallow size while the wave is inside a ring
 const COLLAR_BAND := 70.0     # the most of the collar's height (neck pixels) taken as its band
 const BOUNDS_EVERY := 15      # ticks between reading the collar's bounds again
-## material -> [tightness, stiffness, durability (INF: does not break)]
-const MATERIALS := {"Band": [0.35, 0.2, 60.0], "Leather": [0.6, 0.6, 200.0], "Metal": [0.85, 1.0, INF]}
-const SECTION := "throat_rings"   # port.cfg: edges_<collar> = [top, bottom], material_<collar> (spaces as _)
-## edge adjustments for the game's collars where the picture's bounds are not the band (seen in the game)
-const DEFAULT_EDGES := {"Leather": [0.005, -0.05], "Tie": [0.04, -0.085], "Gem Choker": [0.03, -0.03]}
+## quick settings of the stiffness
+const PRESETS := {"Band": 0.2, "Leather": 0.6, "Metal": 1.0}
+const METAL := 0.95           # this stiff or more: does not give and does not break
+const SECTION := "throat_rings"   # port.cfg: stiffness; edges_<collar> = [top, bottom] (hand fit, spaces as _)
+## Collar tags: what the picture alone does not tell. "band": [top, bottom] moves the edges found from the picture
+## (depth units) - the game's collars, fitted in the game; "stiffness": the collar's own (else the setting);
+## "can_snap": false for a collar that never breaks. Collars loaded from mods will add theirs here.
+static var collar_tags := {
+	"Leather": {"band": [0.005, -0.05]},
+	"Tie": {"band": [0.04, -0.085]},
+	"Gem Choker": {"band": [0.03, -0.03]},
+}
 
 static var entrance := _ring("Throat entrance", ENTRANCE_TOP, ENTRANCE_BOTTOM, 0.5, 0.5, INF)
 static var collar := _ring("Collar", 0.55, 0.75, 0.6, 0.6, 200.0)
-static var collar_material := "Leather"
+static var stiffness := 0.6           # the setting (0 soft band .. 1 metal)
 static var collar_top_adjust := 0.0     # added to the edge found from the collar's picture (depth units)
 static var collar_bottom_adjust := 0.0
 static var tip := 0.0                   # his tip, in depth units (0 while outside her mouth)
@@ -150,16 +160,18 @@ static func _sync_collar() -> void:
 		_load_collar(current_collar())
 
 
-## The ring settings kept for this collar: edge adjustments (else DEFAULT_EDGES) and material (else Leather).
+## The collar's tags (collar_tags; {} for one without).
+static func tags(cname: String) -> Dictionary:
+	return collar_tags.get(cname, {})
+
+
+## The ring for this collar: its edges (a hand fit, else its tags' band) and how it holds (its stiffness).
 static func _load_collar(cname: String) -> void:
 	collar_name = cname
-	var e = PortSettings.get_value(SECTION, _key("edges", cname), DEFAULT_EDGES.get(cname, [0.0, 0.0]))
+	var e = PortSettings.get_value(SECTION, _key("edges", cname), tags(cname).get("band", [0.0, 0.0]))
 	collar_top_adjust = float(e[0])
 	collar_bottom_adjust = float(e[1])
-	_set_material(str(PortSettings.get_value(SECTION, _key("material", cname), "Leather")))
-	var t = PortSettings.get_value(SECTION, _key("tight", cname))
-	if t != null:
-		collar["tight"] = float(t)
+	_apply_stiffness()
 	_bounds_collar = null
 
 
@@ -167,32 +179,31 @@ static func _key(kind: String, cname: String) -> String:
 	return kind + "_" + cname.replace(" ", "_")
 
 
-static func set_collar_material(m: String) -> void:
-	if not MATERIALS.has(m):
-		return
-	_sync_collar()
-	_set_material(m)
-	if collar_name != "":
-		PortSettings.set_value(SECTION, _key("material", collar_name), m)
-		PortSettings.set_value(SECTION, _key("tight", collar_name), collar["tight"])
+## The stiffness setting (0 a soft band .. 1 metal), for every collar; kept in port.cfg.
+static func set_stiffness(k: float) -> void:
+	stiffness = clampf(k, 0.0, 1.0)
+	PortSettings.set_value(SECTION, "stiffness", stiffness)
+	_apply_stiffness()
 
 
-static func _set_material(m: String) -> void:
-	if not MATERIALS.has(m):
-		m = "Leather"
-	collar_material = m
-	collar["tight"] = MATERIALS[m][0]
-	collar["stiff"] = MATERIALS[m][1]
-	collar["max_durability"] = MATERIALS[m][2]
+static func load_stiffness() -> void:
+	stiffness = clampf(float(PortSettings.get_value(SECTION, "stiffness", 0.6)), 0.0, 1.0)
+	_apply_stiffness()
+
+
+## The collar she wears: its stiffness (its tags', else the setting) sets how tight it holds, how hard it is to
+## stretch and how much it takes before it breaks.
+static func collar_stiffness() -> float:
+	return clampf(float(tags(collar_name).get("stiffness", stiffness)), 0.0, 1.0)
+
+
+static func _apply_stiffness() -> void:
+	var k := collar_stiffness()
+	collar["tight"] = 0.35 + 0.5 * k
+	collar["stiff"] = k
+	var unbreakable: bool = k >= METAL or not tags(collar_name).get("can_snap", true)
+	collar["max_durability"] = INF if unbreakable else lerpf(60.0, 300.0, k)
 	repair()
-
-
-## Collar tightness, kept for this collar (the material sets it too).
-static func set_collar_tight(v: float) -> void:
-	_sync_collar()
-	collar["tight"] = clampf(v, 0.0, 1.0)
-	if collar_name != "":
-		PortSettings.set_value(SECTION, _key("tight", collar_name), collar["tight"])
 
 
 static func adjust_collar(top: float, bottom: float) -> void:
