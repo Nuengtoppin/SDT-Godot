@@ -28,6 +28,8 @@ var swallowScale := Vector2(0.8, 0.5)
 ## derrdev: the last render's outline points and depth, for the developer panel's neck overlay (read only).
 var renderedPoints: Array = []
 var lastDepth: float = 0.0
+## derrdev: the depth (0..1 along the front) of the outline point Neck.pointBulge is being asked for.
+var bulgePointDepth: float = 0.0
 
 
 func _init() -> void:
@@ -109,6 +111,7 @@ func render(depth: float) -> void:
 	var bulgeCap := 35.0
 	if ValuePoints.has(&"Neck.bulgeCap"):   # VALUE derrdev: the most the bulge pushes the neck out, in pixels
 		bulgeCap = ValuePoints.value(&"Neck.bulgeCap", bulgeCap, self)
+	var pointLimit := ValuePoints.has(&"Neck.pointBulge")
 	for i in frontEndPoint:
 		var f := float(i) / frontEndPoint
 		if bulgeAmount > 0:
@@ -120,6 +123,13 @@ func render(depth: float) -> void:
 			var sw := swallowSize * maxf(0.0, 2.0 / (2.0 + pow(8.0 * (f - swallowProgress), 2.0)) - 0.2)
 			sw *= minf(1.0, minf((swallowProgress - swallowStart) * 5.0, 2.0 - swallowProgress * 2.0))
 			pts[i] = pts[i] + sw * swallowScale
+		if pointLimit:   # VALUE derrdev: how far this point of the front pushes out, in pixels (a collar holds it)
+			var d: Vector2 = pts[i] - neckPoints[i]
+			if d.x > 0.0:
+				bulgePointDepth = f
+				var lim := ValuePoints.value(&"Neck.pointBulge", d.x, self)
+				if lim < d.x:
+					pts[i] = neckPoints[i] + d * (maxf(0.0, lim) / d.x)
 	if swallowing:
 		swallowProgress += 0.05
 		if swallowProgress > 1:

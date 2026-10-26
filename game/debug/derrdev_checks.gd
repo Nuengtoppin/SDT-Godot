@@ -452,7 +452,8 @@ func _test_collar_ring() -> void:
 	_ring_tick(her)
 	x.set_setting("on", true)
 	var pts: Array = ValuePoints.registered().filter(func(r): return r[2] == "chokercollarresistance").map(func(r): return r[0])
-	_check("collar holds on: push back, resistance, neck depth", pts.has(&"Her.pushBack") and pts.has(&"Her.resistance") and pts.has(&"Neck.depth"))
+	_check("collar holds on: push back, resistance, the band on her neck", pts.has(&"Her.pushBack") and pts.has(&"Her.resistance")
+		and pts.has(&"Neck.pointBulge"))
 	ThroatRings.reset_stretch()
 	ThroatRings.repair()
 	ThroatRings.tip = c["top"] + 0.05
@@ -460,9 +461,34 @@ func _test_collar_ring() -> void:
 	_check("past the collar's top her head is pushed back by what it holds",
 		is_equal_approx(ValuePoints.value(&"Her.pushBack", 0.0, her), 0.05 * 400.0 * 0.0015 * c["tight"]))
 	_check("past the collar's top pushing in is harder", is_equal_approx(ValuePoints.value(&"Her.resistance", 0.0, her), 0.15 * c["tight"]))
-	_check("not stretched: the bulge stops at the collar", is_equal_approx(ValuePoints.value(&"Neck.depth", 0.9, her.head.neck), c["top"]))
+	var neck = her.head.neck
+	var mid: float = (c["top"] + c["bottom"]) / 2.0
+	var at := func(f: float) -> float:
+		neck.bulgePointDepth = f
+		return ValuePoints.value(&"Neck.pointBulge", 30.0, neck)
+	_check("between the collar's edges her neck pushes out only a little", at.call(mid) == 2.0)
+	_check("well above and below the collar it is free", at.call(c["top"] - 0.1) == 30.0 and at.call(c["bottom"] + 0.1) == 30.0)
+	var step: float = at.call(c["top"] - 0.02)
+	_check("a soft step at the collar's edge", step > 2.0 and step < 30.0, str(step))
 	c["stretch"] = 1.0
-	_check("fully stretched: no limit", ValuePoints.value(&"Neck.depth", 0.9, her.head.neck) == 0.9)
+	_check("fully stretched: the band holds as wide as the widened picture", is_equal_approx(at.call(mid), 2.0 + 70.0 * 0.25))
+	x.set_setting("widen", false)
+	_check("picture not widening: the band stays tight", at.call(mid) == 2.0)
+	x.set_setting("widen", true)
+	# drawn: deep, a big bulge - the outline under the collar stays in, above it bulges
+	c["stretch"] = 0.0
+	var was_bulge: float = neck.throatBulgeAmount
+	neck.throatBulgeAmount = 1.5
+	neck.render(0.95)
+	var pts_r: Array = neck.renderedPoints
+	var n: int = neck.frontEndPoint
+	var i_mid := int(round(mid * n))
+	var i_above := int(floor((c["top"] - 0.08) * n))
+	var out_mid: float = (pts_r[i_mid] - neck.neckPoints[i_mid]).x
+	var out_above: float = (pts_r[i_above] - neck.neckPoints[i_above]).x
+	_check("drawn: under the collar the neck stays in, above it bulges", out_mid <= 2.001 and out_above > 5.0,
+		"%s %s" % [out_mid, out_above])
+	neck.throatBulgeAmount = was_bulge
 	c["stretch"] = 0.5
 	x._tick()
 	_check("the collar's picture widens with the stretch", is_equal_approx(her.collarContainer.collar.scaleX, 1.0 + 0.5 * 0.25))
@@ -470,8 +496,7 @@ func _test_collar_ring() -> void:
 	_check("above the collar nothing", ValuePoints.value(&"Her.pushBack", 0.0, her) == 0.0)
 	c["snapped"] = true
 	ThroatRings.tip = c["top"] + 0.05
-	_check("a snapped collar holds nothing", ValuePoints.value(&"Her.pushBack", 0.0, her) == 0.0
-		and ValuePoints.value(&"Neck.depth", 0.9, her.head.neck) == 0.9)
+	_check("a snapped collar holds nothing", ValuePoints.value(&"Her.pushBack", 0.0, her) == 0.0 and at.call(mid) == 30.0)
 	ThroatRings.repair()
 	var st: float = c["stretch"]
 	ThroatRings._tick_done = -1

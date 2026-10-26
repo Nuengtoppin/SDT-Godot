@@ -6,8 +6,10 @@ extends SDTExtension
 ##   - Her.pushBack: past the collar's top edge her head is pushed back, by how far he is past it and how much the
 ##     ring holds (its tightness, less its stretch) - like the game's intro limit;
 ##   - Her.resistance: past the top edge pushing in is harder by what the ring holds;
-##   - Neck.depth (clamp): the throat bulge stops at the collar's top edge until the ring stretches, so her neck under
-##     the collar stays narrow; fully stretched, no limit.
+##   - Neck.pointBulge (clamp, P041): between the collar's edges her neck's outline may push out only as far as the
+##     collar allows (a little, more as it stretches and its picture widens; metal never), so the throat bulge does
+##     not go through the collar: her neck bulges above it and, when he is deeper, below it, held in by the band,
+##     with a soft step at each edge. A wide collar holds a wide band, a thin one a thin band.
 ## The ring stretches under his pressure (his width, more while he pushes, the swallow wave too) and gives way: a
 ## leather collar slowly, a band fast, metal never. "Collar stretches": the collar's picture widens with the
 ## stretch, as the mod did. "Wince when it holds": she winces while it holds him back (the mod's option).
@@ -19,10 +21,14 @@ const PUSH := 0.0015          # pos pushed back per pixel past the top edge, at 
 const RESIST := 0.15          # resistance added past the top edge at hold 1 (the game's throat entrance at most: 0.2)
 const WIDEN := 0.25           # how much wider the collar's picture gets fully stretched
 const WINCE_PUSH := 0.004     # pushed back at least this much in a tick: she winces
+const BAND_GAP := 2.0         # px the outline may push out under the collar (the collar sits on the skin)
+const BAND_WIDEN := 70.0 * WIDEN   # px more fully stretched, as much as the picture widens (the mod's 70 px)
+const BAND_SOFT := 0.04       # depth over which the hold fades out past each edge
+const BAND_SOFT_PX := 40.0    # px of room gained across that step
 
 var _push_fn := Callable()
 var _resist_fn := Callable()
-var _depth_fn := Callable()
+var _band_fn := Callable()
 var _widened := false
 var _collar_x := 0.0
 
@@ -47,11 +53,8 @@ func _enable() -> void:
 		return v + past * ThroatRings.DEPTH_SCALE * PUSH * ThroatRings.collar["hold"] if past > 0.0 else v
 	_resist_fn = func(v: float, _b: float, _her) -> float:
 		return v + RESIST * ThroatRings.collar["hold"] if _past() > 0.0 else v
-	_depth_fn = func(v: float, _b: float, _neck) -> float:
-		var c: Dictionary = ThroatRings.collar
-		if not c["on"] or c["snapped"]:
-			return v
-		return minf(v, c["top"] + c["stretch"] * (1.0 - c["top"]))
+	_band_fn = func(v: float, _b: float, neck) -> float:
+		return minf(v, band_limit(neck.bulgePointDepth))
 	on_late_tick(_tick)
 	var on := func(): return get_setting("on")
 	var after := {"after": "Throat resistance"}
@@ -82,7 +85,7 @@ func _apply() -> void:
 	if get_setting("on"):
 		value_point(&"Her.pushBack", _push_fn)
 		value_point(&"Her.resistance", _resist_fn, ValuePoints.MOOD, 10)
-		value_point(&"Neck.depth", _depth_fn, ValuePoints.CLAMP)
+		value_point(&"Neck.pointBulge", _band_fn, ValuePoints.CLAMP)
 	else:
 		_release()
 	if not get_setting("widen"):
@@ -92,12 +95,27 @@ func _apply() -> void:
 func _remove_points() -> void:
 	ValuePoints.remove(&"Her.pushBack", _push_fn)
 	ValuePoints.remove(&"Her.resistance", _resist_fn)
-	ValuePoints.remove(&"Neck.depth", _depth_fn)
+	ValuePoints.remove(&"Neck.pointBulge", _band_fn)
 
 
 func _release() -> void:
 	_remove_points()
 	_unwiden()
+
+
+## How far (px) her neck's outline may push out at depth `f`: little between the collar's edges (more as it stretches,
+## if its picture widens with it), rising across a soft step past each edge, free elsewhere.
+func band_limit(f: float) -> float:
+	var c: Dictionary = ThroatRings.collar
+	if not c["on"] or c["snapped"]:
+		return INF
+	var inside: float = BAND_GAP + (c["stretch"] * BAND_WIDEN if get_setting("widen") else 0.0)
+	var out: float = maxf(c["top"] - f, f - c["bottom"])
+	if out <= 0.0:
+		return inside
+	if out >= BAND_SOFT:
+		return INF
+	return inside + out / BAND_SOFT * BAND_SOFT_PX
 
 
 ## How far (depth units) his tip is past the collar's top edge while the collar holds.

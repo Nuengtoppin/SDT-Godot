@@ -118,6 +118,7 @@ Marked `# VALUE` in game code.
 | `Her.resistance` | `Her.move`, while he pushes in | `previousResistance` (checkPosition's zones) |
 | `Her.pushBack` | `Her.move`, after the intro push | 0 (pos pushed back per tick) |
 | `Neck.depth` | `Neck.render` (P039) | his depth / 400 (where the throat bulge sits) |
+| `Neck.pointBulge` | `Neck.render`, per front outline point (P041; `Neck.bulgePointDepth` = that point's depth) | how far the point pushes out (px) |
 
 The developer panel (Body > Throat rings) shows each point's game number -> the value used.
 
@@ -140,7 +141,9 @@ The developer panel (Body > Throat rings) shows each point's game number -> the 
 - `chokercollarresistance` (P040, new built-in, after sby's chokercollarresistanceV4, on the collar ring): Behaviour >
   Resistance > "Collar holds her throat", off by default. While she wears a collar: `Her.pushBack` past the collar's
   top edge (0.0015 pos per px past it x what the ring holds, like the intro limit), `Her.resistance` + 0.15 x hold
-  past it, `Neck.depth` clamped to the collar's top edge until the ring stretches (her neck stays narrow under it).
+  past it; P041: `Neck.pointBulge` clamped between the collar's edges to 2 px (+ up to 17.5 px as it stretches, if its
+  picture widens), rising over a 0.04 step past each edge - her neck bulges above and below the collar, held in by
+  the band (P040 clamped `Neck.depth` at the top edge instead).
   "Collar stretches": the collar's picture widens with the stretch (x1.25 at full, as the mod); "Wince when it
   holds". Collar material and tightness in the same group, kept for each collar (`port.cfg` `throat_rings`). Pressure
   from what he does, not the mouse button. Not yet: the "collarresistance" line, the intro breath option, snapping.
