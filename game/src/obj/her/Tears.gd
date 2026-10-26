@@ -118,6 +118,10 @@ func addTears() -> void:
 
 
 func addTearSpot() -> void:
+	if Hooks.has(&"Tears.addTearSpot"):   # HOOK
+		var h := Hooks.before(&"Tears.addTearSpot", self, [])
+		if h.cancelled:
+			return
 	if g.tears and tearSpotList.size() + tearList.size() < maxTears:
 		var r := randf()
 		var spot := Flash.create("TearSpot")
@@ -134,6 +138,10 @@ func addTearSpot() -> void:
 
 
 func releaseTears() -> void:
+	if Hooks.has(&"Tears.releaseTears"):   # HOOK
+		var h := Hooks.before(&"Tears.releaseTears", self, [])
+		if h.cancelled:
+			return
 	var n := tearSpotList.size()
 	var i := 0
 	while i < n:

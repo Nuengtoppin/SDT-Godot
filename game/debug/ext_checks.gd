@@ -116,6 +116,7 @@ func step(_frame: int) -> void:
 				_check("value modifier lifetime ends after its ms", not Hooks.has_value(&"T.t")
 					and Hooks.value(&"T.t", null, 7.0) == 7.0)
 				_ext.slow = false
+				_veto_checks()
 				_settings_checks()
 				_charcode_checks()
 				_mood_checks()
@@ -437,6 +438,141 @@ func _charcode_checks() -> void:
 
 ## The test plugins in tests/plugins (regress.sh copies them into the run's Mods/Plugins and leaves a loading
 ## marker for "crashy", as if it had crashed the previous start).
+## Before-hooks on one-off actions: a vetoed action changes nothing, apart from restarting its own timer where the
+## caller would otherwise ask again on every tick.
+func _veto_checks() -> void:
+	_veto_clench_teeth()
+	_veto_waggle_eyebrows()
+	_veto_open_eye()
+	_veto_tear_spot()
+	_veto_release_tears()
+	_veto_random_strand()
+	_veto_spit_drool()
+	_veto_cum_drool()
+	_veto_ejaculate()
+	_veto_sweat()
+	Hooks.remove_owner("veto")   # (end of the veto checks)
+
+
+## Runs `fn` with a counting veto on hook `name`; returns how many times the veto was asked.
+func _vetoed(name: StringName, fn: Callable) -> int:
+	var n := [0]
+	var veto := func(c): n[0] += 1; c.cancel()
+	Hooks.add_before(name, veto, "veto")
+	fn.call()
+	Hooks.remove(name, veto)
+	return n[0]
+
+
+func _veto_clench_teeth() -> void:
+	var her = g.her
+	her.clenchTeeth = false
+	var time: int = her.clenchedTeethTime
+	var free: bool = not her.gagged and not her.mouthFull
+	var n := _vetoed(&"Her.startClenchingTeeth", her.startClenchingTeeth)
+	_check("vetoed clenching: teeth not clenched", n == 1 and not her.clenchTeeth and her.clenchedTeethTime == time and free)
+
+
+func _veto_waggle_eyebrows() -> void:
+	var her = g.her
+	var queued: int = her.eyebrowOffsets.size()
+	var n := _vetoed(&"Her.waggleEyebrows", her.waggleEyebrows)
+	_check("vetoed eyebrow waggle: nothing queued", n == 1 and her.eyebrowOffsets.size() == queued)
+
+
+func _veto_open_eye() -> void:
+	var her = g.her
+	her.closeEye()
+	her.eyelidMotion["closedTimer"] = 1200
+	var n := _vetoed(&"Her.openEye", her.openEye)
+	_check("vetoed eye opening: the eye stays closed", n == 1 and her.eyelidMotion["isClosed"])
+	_check("vetoed eye opening: the 40 s check starts over", her.eyelidMotion["closedTimer"] == 0)
+	her.openEye()
+	_check("eye opens without the veto", not her.eyelidMotion["isClosed"])
+
+
+func _veto_tear_spot() -> void:
+	var tears = g.her.tears
+	var was: bool = g.tears
+	g.tears = true
+	tears.clearTearSpots()
+	var n := _vetoed(&"Tears.addTearSpot", tears.addTearSpot)
+	_check("vetoed tear spot: none added", n == 1 and tears.tearSpotList.is_empty())
+	tears.clearTearSpots()
+	g.tears = was
+
+
+func _veto_release_tears() -> void:
+	var tears = g.her.tears
+	var was: bool = g.tears
+	g.tears = true
+	tears.clearTearSpots()
+	for i in 4:
+		tears.addTearSpot()
+	var spots: int = tears.tearSpotList.size()
+	var falling: int = tears.tearList.size()
+	var n := _vetoed(&"Tears.releaseTears", tears.releaseTears)
+	_check("vetoed tear release: the spots stay", n == 1 and spots > 0 and tears.tearSpotList.size() == spots
+		and tears.tearList.size() == falling)
+	tears.clearTearSpots()
+	g.tears = was
+
+
+func _veto_random_strand() -> void:
+	var was: bool = g.spit
+	g.spit = true
+	var count := func(): return g.strandFrontLayer.numChildren + g.strandBackLayer.numChildren
+	var before: int = count.call()
+	var n := _vetoed(&"Her.generateRandomStrand", g.her.generateRandomStrand.bind("front", true))
+	_check("vetoed spit strand: none made", n == 1 and count.call() == before)
+	g.spit = was
+
+
+func _veto_spit_drool() -> void:
+	var her = g.her
+	var was: bool = g.spit
+	g.spit = true
+	her.droolingSpit = false
+	var timer: int = her.spitDroolTimer
+	var n := _vetoed(&"Her.randomSpitDrool", her.randomSpitDrool)
+	_check("vetoed spit drool: no drool", n == 1 and not her.droolingSpit and her.spitDroolTimer == timer)
+	g.spit = was
+
+
+func _veto_cum_drool() -> void:
+	var her = g.her
+	her.cumInMouth = 0
+	var asked := _vetoed(&"Her.startDroolingCum", her.startDroolingCum.bind(false))
+	_check("cum drool: not asked when it would not start", asked == 0)
+	var n := _vetoed(&"Her.startDroolingCum", her.startDroolingCum.bind(true))
+	_check("vetoed forced cum drool: no cum added, no drool", n == 1 and her.cumInMouth == 0 and not her.droolingCum)
+
+
+func _veto_ejaculate() -> void:
+	var him = g.him
+	var finishes: int = g.totalFinishes
+	var n := _vetoed(&"Him.ejaculate", him.ejaculate)
+	_check("vetoed ejaculation: none", n == 1 and not him.ejaculating and g.totalFinishes == finishes)
+	# the automatic one: at full pleasure for 60 ticks; a veto keeps his pleasure and restarts the wait
+	him.pleasure = him.ejacPleasure + 10.0
+	him.maxPleasureTimer = 60
+	n = _vetoed(&"Him.ejaculate", func(): him.move(0.0, 0.0, 0.0))
+	_check("vetoed automatic ejaculation: pleasure kept, wait restarted", n == 1 and not him.ejaculating
+		and him.pleasure >= him.ejacPleasure and him.maxPleasureTimer == 0, "%s %s" % [him.pleasure, him.maxPleasureTimer])
+	him.pleasure = 0.0
+	him.maxPleasureTimer = 0
+
+
+func _veto_sweat() -> void:
+	var before: int = Sweat.droplet_count()
+	var seen := [0]
+	var see := func(c): seen[0] = c.args.size()
+	Hooks.add_before(&"Sweat.spawn", see, "veto", -1)
+	var n := _vetoed(&"Sweat.spawn", func(): Sweat.spawn(g.her.head, Vector2(21, -65), Vector2(150, 100), []))
+	Hooks.remove(&"Sweat.spawn", see)
+	_check("vetoed sweat: no droplet", n == 1 and Sweat.droplet_count() == before and seen[0] == 4)
+
+
 func _plugin_checks() -> void:
 	var P := Extensions.plugins
 	if not P.has("example"):

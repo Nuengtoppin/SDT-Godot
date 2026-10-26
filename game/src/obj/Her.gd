@@ -889,6 +889,11 @@ func closeEye() -> void:
 
 
 func openEye() -> void:
+	if Hooks.has(&"Her.openEye"):   # HOOK
+		var h := Hooks.before(&"Her.openEye", self, [])
+		if h.cancelled:
+			eyelidMotion["closedTimer"] = 0   # vetoed: the 40 s check that opens a closed eye starts over (no retry every tick)
+			return
 	eyelidMotion["isClosed"] = false
 
 
@@ -1173,6 +1178,10 @@ func wince() -> void:
 
 
 func waggleEyebrows() -> void:
+	if Hooks.has(&"Her.waggleEyebrows"):   # HOOK
+		var h := Hooks.before(&"Her.waggleEyebrows", self, [])
+		if h.cancelled:
+			return
 	changeLookTarget(hisFace, 0, 1)
 	for i in 24:
 		eyebrowOffsets.append(int(-10.0 * (pow(4.0, cos(i * PI / 6.0 - 1.8)) - cos(i * PI / 6.0))))
@@ -1181,6 +1190,10 @@ func waggleEyebrows() -> void:
 
 
 func startClenchingTeeth() -> void:
+	if Hooks.has(&"Her.startClenchingTeeth"):   # HOOK
+		var h := Hooks.before(&"Her.startClenchingTeeth", self, [])
+		if h.cancelled:
+			return
 	if not clenchTeeth and not gagged and not mouthFull:
 		clenchTeeth = true
 		clenchedTeethTime = int(randf() * 120 + 60)
@@ -2110,6 +2123,12 @@ func generateSplat(power: float, count: int = 1, spread: float = 1.0, isCum: boo
 
 
 func generateRandomStrand(side: String = "front", long: bool = true) -> void:
+	if Hooks.has(&"Her.generateRandomStrand"):   # HOOK
+		var h := Hooks.before(&"Her.generateRandomStrand", self, [side, long])
+		if h.cancelled:
+			return
+		side = h.args[0]
+		long = h.args[1]
 	if g.spit and not g.strandControl.maxPop():
 		if side == "random":
 			side = "front" if randf() > 0.7 else "back"
@@ -2238,6 +2257,10 @@ func stopDroolingSpit() -> void:
 
 
 func randomSpitDrool() -> void:
+	if Hooks.has(&"Her.randomSpitDrool"):   # HOOK
+		var h := Hooks.before(&"Her.randomSpitDrool", self, [])
+		if h.cancelled:
+			return
 	if g.spit:
 		spitDroolTimer = int(floor(randf() * 5 + 3)) * spitDroolLinkFreq
 		droolingSpit = true
@@ -2267,6 +2290,11 @@ func tickCumDrool() -> void:
 
 
 func startDroolingCum(force: bool = false) -> void:
+	if Hooks.has(&"Her.startDroolingCum") and (cumInMouth > 5 or force):   # HOOK (only when it would start)
+		var h := Hooks.before(&"Her.startDroolingCum", self, [force])
+		if h.cancelled:
+			return
+		force = h.args[0]
 	if cumInMouth < 5 and force:
 		cumInMouth = 5 + int(ceil(randf() * 5))
 	if cumInMouth > 5:
