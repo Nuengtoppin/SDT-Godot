@@ -124,11 +124,37 @@ func step(_frame: int) -> void:
 				_extramod_checks()
 				_extramodhim_checks()
 				_leglayer_checks()
+				_swallow_veto_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
 				Flash.get_tree().quit(1 if _fail > 0 else 0)
 				_phase = 4
+
+
+## Her.swallow: a vetoed swallow restarts the wait with cum in her mouth (it would be retried every tick) and
+## changes nothing else; a handler can change the arguments.
+func _swallow_veto_checks() -> void:
+	var her = g.her
+	var calls := [0]
+	var veto := func(c): calls[0] += 1; c.cancel()
+	Hooks.add_before(&"Her.swallow", veto, "test")
+	her.swallowing = false
+	her.startSwallowTimer = 999
+	var cough: float = her.coughBuild
+	var wet: float = her.wetGenerate
+	her.swallow()
+	_check("vetoed swallow: no swallow", calls[0] == 1 and not her.swallowing)
+	_check("vetoed swallow: the wait starts over", her.startSwallowTimer == 0)
+	_check("vetoed swallow: cough and wetness untouched", her.coughBuild == cough and her.wetGenerate == wet)
+	Hooks.remove(&"Her.swallow", veto)
+	var change := func(c): c.args[0] = 0.9
+	Hooks.add_before(&"Her.swallow", change, "test")
+	var free: bool = not her.passedOut and not her.speaking
+	her.swallow()
+	_check("swallow: a handler can change the intensity", not free or (her.swallowing
+		and is_equal_approx(float(her.swallowSequence["intensity"]), 0.9)), str(her.swallowSequence.get("intensity")))
+	Hooks.remove(&"Her.swallow", change)
 
 
 ## TemplateExtension: the alternate loader template's mod types, its over-top layer and extra hair layer.
