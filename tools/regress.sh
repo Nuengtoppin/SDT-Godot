@@ -16,6 +16,10 @@ GODOT=${GODOT:-godot}
 ROOT=$(pwd)
 GOLDEN=$ROOT/tests/golden
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/sdt-regress.XXXXXX")
+# Godot's own log file goes to the work folder too, not the user data folder: parallel runs would mix their lines
+# in one godot.log there and rotate the player's logs away. Godot needs a native path (cygpath on Windows).
+LOGS=$WORK
+command -v cygpath > /dev/null && LOGS=$(cygpath -m "$WORK")
 ALL="menu idle grab costumes characters cum"
 update=0
 stress=0
@@ -35,7 +39,7 @@ mkdir -p "$WORK/mods" "$WORK/out"
 
 run_game() {   # name, extra args...
 	local name=$1; shift
-	"$GODOT" --headless --fixed-fps 30 --path game -- --deterministic --seed=1 --vanilla \
+	"$GODOT" --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_$name.log" -- --deterministic --seed=1 --vanilla \
 		--save-dir="$WORK/save_$name" --mods-dir="$WORK/mods" "$@" > "$WORK/$name.log" 2>&1
 }
 
@@ -50,16 +54,16 @@ done
 mkdir -p "$WORK/mods_ext/Plugins" "$WORK/save_ext/extensions" "$WORK/mods_da"
 cp -r tests/plugins/*/ "$WORK/mods_ext/Plugins/"
 printf crashy > "$WORK/save_ext/extensions/loading_plugin.txt"
-"$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_ext" --mods-dir="$WORK/mods_ext" \
+"$GODOT" --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_ext.log" -- --save-dir="$WORK/save_ext" --mods-dir="$WORK/mods_ext" \
 	--driver=res://debug/ext_checks.gd > "$WORK/ext_checks.log" 2>&1 &
 ext_pid=$!
 # Built-in DialogueActions checks (game/debug/da_checks.gd)
-"$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_da" --mods-dir="$WORK/mods_da" \
+"$GODOT" --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_da.log" -- --save-dir="$WORK/save_da" --mods-dir="$WORK/mods_da" \
 	--driver=res://debug/da_checks.gd > "$WORK/da_checks.log" 2>&1 &
 da_pid=$!
 # New in-game menu checks (game/debug/menu_checks.gd)
 mkdir -p "$WORK/mods_menu"
-"$GODOT" --headless --fixed-fps 30 --path game -- --save-dir="$WORK/save_menu" --mods-dir="$WORK/mods_menu" 	--driver=res://debug/menu_checks.gd > "$WORK/menu_checks.log" 2>&1 &
+"$GODOT" --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_menu.log" -- --save-dir="$WORK/save_menu" --mods-dir="$WORK/mods_menu" 	--driver=res://debug/menu_checks.gd > "$WORK/menu_checks.log" 2>&1 &
 menu_pid=$!
 for p in $pids; do wait "$p"; done
 wait "$ext_pid"; ext_status=$?
@@ -143,7 +147,7 @@ if [ -n "$mods" ]; then
 	command -v cygpath > /dev/null && mods=$(cygpath -m "$mods")
 	find "$mods" -iname '*.swf' > "$WORK/modlist.txt"
 	echo "loading $(wc -l < "$WORK/modlist.txt") mods from $mods..."
-	"$GODOT" --headless --path game res://debug/mod_load_test.tscn -- --list="$WORK/modlist.txt" > "$WORK/mods.log" 2>&1
+	"$GODOT" --headless --path game --log-file "$LOGS/godot_mods.log" res://debug/mod_load_test.tscn -- --list="$WORK/modlist.txt" > "$WORK/mods.log" 2>&1
 	grep -E "^FAIL|^done" "$WORK/mods.log"
 	grep -q "^done: .* 0 failed" "$WORK/mods.log" || fail=1
 fi
