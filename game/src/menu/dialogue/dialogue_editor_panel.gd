@@ -69,7 +69,7 @@ class Entry:
 
 var is_open := false
 var playing := false
-var _mood_before := ""         # her mood when Play was pressed: a played line's mood actions last only while it plays
+var _before: Dictionary = {}   # the scene when Play was pressed (_scene_state): a played line's actions last only while it plays
 var entries: Array = []        # [Entry]
 var library_name := ""
 var current_type := "general"
@@ -1401,7 +1401,7 @@ func _play_clicked() -> void:
 		return
 	_output()
 	playing = true
-	_mood_before = Moods.current()
+	_before = _scene_state()
 	_layout()
 	g.gamePaused = false
 	g.currentPos.x = 0
@@ -1412,10 +1412,82 @@ func _play_clicked() -> void:
 func _stop_playing() -> void:
 	playing = false
 	g.dialogueControl.instantStop()
-	if g.her != null and Moods.current() != _mood_before:   # e.g. [ANGRY_MOOD] in the line
-		g.her.setMood(_mood_before)
+	_restore_scene(_before)
 	g.gamePaused = _pause.button_pressed
 	_layout()
+
+
+## What a played line's actions and "set" can change for good: her mood, arms and eyes, his hold, the animation
+## style, tears, and the dialogue's variables (local, global and mod ones).
+func _scene_state() -> Dictionary:
+	var s := {}
+	if g.her != null:
+		var tr = g.her.tears
+		s["mood"] = Moods.current()
+		s["arms"] = [g.her.currentLeftArmPosition, g.her.currentRightArmPosition]
+		s["eyes_closed"] = g.her.eyelidMotion["isClosed"]
+		s["tears"] = [tr.tearsData.clone(), tr.mascaraData.clone(), tr.lowerEyelidData.clone(), tr.tearList.duplicate(),
+			tr.tearSpotList.duplicate(), tr.lowerEyelidClear]
+	if g.him != null:
+		s["hold"] = g.him.currentArmPosition
+	if g.animationControl != null:
+		s["animation"] = g.animationControl.currentAnimation
+	s["store"] = g.dialogueControl.advancedController._dialogueDataStore.duplicate(true)
+	var da = DialogueCatalogue._da()
+	if da != null:
+		s["globals"] = da.vars.globals.duplicate(true)
+		var mods := {}
+		for n in da.vars._write:
+			if da.vars._read.has(n):
+				mods[n] = da.vars.mod_value(n)
+		s["mod_vars"] = mods
+	return s
+
+
+func _restore_scene(s: Dictionary) -> void:
+	if s.is_empty():
+		return
+	if g.her != null and s.has("mood"):
+		if Moods.current() != s["mood"]:   # e.g. [ANGRY_MOOD] in the line
+			g.her.setMood(s["mood"])
+		if g.her.currentLeftArmPosition != s["arms"][0]:
+			g.her.setLeftArmPosition(s["arms"][0])
+		if g.her.currentRightArmPosition != s["arms"][1]:
+			g.her.setRightArmPosition(s["arms"][1])
+		if g.her.eyelidMotion["isClosed"] != s["eyes_closed"]:
+			if s["eyes_closed"]:
+				g.her.closeEye()
+			else:
+				g.her.openEye()
+		var tr = g.her.tears
+		var was: Array = s["tears"]
+		for spot in tr.tearSpotList:
+			if not was[4].has(spot):
+				tr.tearSpotsLayer.removeChild(spot)
+				spot.queue_free()
+		tr.tearSpotList = was[4].filter(func(spot): return is_instance_valid(spot) and spot._flash_parent == tr.tearSpotsLayer)
+		tr.tearList = was[3]
+		for pair in [[tr.tearsData, was[0]], [tr.mascaraData, was[1]], [tr.lowerEyelidData, was[2]]]:
+			pair[0].fillRect(pair[0].rect, 0)
+			pair[0].copyPixels(pair[1], pair[1].rect, Vector2i())
+		tr.lowerEyelidClear = was[5]
+		tr._refresh()
+	if g.him != null and s.has("hold") and g.him.currentArmPosition != s["hold"]:   # [HOLD] / [RELEASE]
+		g.him.setArmPosition(s["hold"])
+	if s.has("animation") and g.animationControl.currentAnimation != s["animation"]:   # [NORMAL_STYLE] / [FACE_FUCK_STYLE]
+		g.animationControl.setAnimation(s["animation"])
+		g.saveData.saveCharOptionsData()
+		g.inGameMenu.setStyleCheckboxes()
+	var st: Dictionary = g.dialogueControl.advancedController._dialogueDataStore
+	st.clear()
+	st.merge(s["store"])
+	var da = DialogueCatalogue._da()
+	if da != null and s.has("globals"):
+		da.vars.globals.clear()
+		da.vars.globals.merge(s["globals"])
+		for n in s["mod_vars"]:
+			if da.vars._write.has(n) and da.vars.mod_value(n) != s["mod_vars"][n]:
+				da.vars._write[n].call(s["mod_vars"][n])
 
 
 func _input(event: InputEvent) -> void:

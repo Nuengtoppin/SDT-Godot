@@ -388,10 +388,23 @@ func _dialogue_editor_checks() -> void:
 	_check("dialogue editor: play hides it and plays the line", p.playing and not g.gamePaused and p.blocks_mouse()
 		and g.dialogueControl.sayingPhrase == "[BLINK] Hello *YOU*")
 	var mood_before := Moods.current()
-	g.her.setMood(Her.ANGRY_MOOD if mood_before != Her.ANGRY_MOOD else Her.HAPPY_MOOD)   # as [ANGRY_MOOD] in the line would
+	var arms_before := [g.her.currentLeftArmPosition, g.her.currentRightArmPosition]
+	var hold_before: int = g.him.currentArmPosition
+	var store: Dictionary = g.dialogueControl.advancedController._dialogueDataStore
+	var had_var := store.has("dlgedit_check")
+	# as [ANGRY_MOOD] [ARMS_HIS_LEGS] [RELEASE] / [HOLD] [ADD_TEARS] and a "set" in the line would
+	g.her.setMood(Her.ANGRY_MOOD if mood_before != Her.ANGRY_MOOD else Her.HAPPY_MOOD)
+	g.her.setArmPosition(2 if arms_before[0] != 2 else 1)
+	g.him.setArmPosition(1 - hold_before)
+	g.her.tears.addTears()
+	store["dlgedit_check"] = 1.0
 	p._input(_press(Vector2(10, 10)))
 	_check("dialogue editor: a click brings it back", not p.playing and g.gamePaused)
 	_check("dialogue editor: a played line's mood does not last", Moods.current() == mood_before)
+	_check("dialogue editor: a played line's arms, hold, tears and variables do not last",
+		[g.her.currentLeftArmPosition, g.her.currentRightArmPosition] == arms_before
+		and g.him.currentArmPosition == hold_before and store.has("dlgedit_check") == had_var
+		and g.her.tears.tearSpotList.size() == p._before["tears"][4].size())
 	p._search.text = "hello"
 	p.query = "hello"
 	p._show_lines()
