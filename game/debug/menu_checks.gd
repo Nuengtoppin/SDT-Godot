@@ -34,6 +34,7 @@ func step(_frame: int) -> void:
 				_section_checks()
 				_control_checks()
 				_settings_checks()
+				_dev_mode_checks()
 				_extension_checks()
 				_finish()
 
@@ -212,6 +213,60 @@ func _settings_checks() -> void:
 	Extensions.set_vanilla_mode(false)
 	menu.apply_mode()
 	_check("leaving Vanilla mode brings it back", SDTMenu.active())
+
+
+## Developer mode: off by default and never built then; a collapsed panel with the menu's layout on the other side;
+## both panels open together; the FPS counter beside a left panel; switched off and remembered.
+func _dev_mode_checks() -> void:
+	menu.close_menu()
+	_check("developer mode off by default", not SDTMenu.dev_mode_enabled() and SDTMenu.dev == null)
+	var side := _spec("settings", "Menu side")
+	side["set"].call("Right")
+	_spec("settings", "Developer mode")["set"].call(true)
+	var dev = SDTMenu.dev
+	_check("developer panel made", dev is DevMenu and dev._root != null)
+	_check("developer mode remembered", bool(PortSettings.get_value("developer", "enabled", false)))
+	_check("developer panel starts collapsed", not dev.is_open and not dev._dock.visible)
+	_check("developer panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 3)
+	_check("developer tab says DEBUG", dev._tab.text.replace("\n", "") == "DEBUG")
+	_check("menu right: developer panel left", dev._left() and not menu._left())
+	dev.open_menu()
+	dev.build_now()
+	var w: float = dev._root.size.x
+	_check("developer panel at the left edge", is_zero_approx(dev._dock.get_global_rect().position.x))
+	_check("developer panel does not pause", not g.gamePaused)
+	_check("FPS counter beside a left panel", is_equal_approx(SDTMenu.left_inset(), SDTMenu.WIDTH))
+	dev.query = "frame rate"
+	dev._show()
+	_check("developer search finds its own options", dev._heading.text.begins_with("1 option"), dev._heading.text)
+	dev.query = ""
+	dev._show()
+	menu.open_menu()
+	var inside := _press(dev._dock.get_global_rect().get_center())
+	var scene := _press(Vector2(w * 0.5, 200))
+	_check("clicking the developer panel keeps the menu open", not menu.outside_click(inside) and not dev.outside_click(inside))
+	_check("clicking the scene closes both", menu.outside_click(scene) and dev.outside_click(scene))
+	menu.close_menu()
+	side["set"].call("Left")
+	_check("menu left: developer panel right", not dev._left() and is_equal_approx(dev._dock.get_global_rect().end.x, w))
+	_check("FPS counter at the left with nothing open there", is_zero_approx(SDTMenu.left_inset()))
+	Extensions.set_vanilla_mode(true)
+	menu.apply_mode()
+	_check("Vanilla mode hides the developer panel", not dev.is_open and not dev._tab.visible)
+	Extensions.set_vanilla_mode(false)
+	menu.apply_mode()
+	_spec("settings", "Developer mode")["set"].call(false)
+	_check("developer mode off closes it and hides its tab", not dev.is_open and not dev._tab.visible)
+	_check("developer mode off remembered", not bool(PortSettings.get_value("developer", "enabled", true)))
+	side["set"].call("Right")
+
+
+func _press(pos: Vector2) -> InputEventMouseButton:
+	var e := InputEventMouseButton.new()
+	e.button_index = MOUSE_BUTTON_LEFT
+	e.pressed = true
+	e.position = pos
+	return e
 
 
 func _extension_checks() -> void:

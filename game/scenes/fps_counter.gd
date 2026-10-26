@@ -1,7 +1,10 @@
 extends CanvasLayer
-## Frames-per-second overlay (not part of the original game). F3 toggles it.
+## Frames-per-second overlay (not part of the original game). F3 toggles it. It slides beside a panel open on the
+## left (the menu or the developer panel) instead of sitting on its search field.
 
 const INTERVAL_US := 250000   # the frame rate over the last quarter second (Godot's own value changes once a second)
+const LEFT := 6.0
+const SLIDE := 18.0           # how fast it follows a panel (fraction of the way per second, eased)
 
 var _label := Label.new()
 var _start := 0
@@ -10,7 +13,7 @@ var _frames := 0
 
 func _ready() -> void:
 	layer = 100
-	_label.position = Vector2(6, 4)
+	_label.position = Vector2(LEFT, 4)
 	_label.add_theme_font_size_override("font_size", 14)
 	_label.add_theme_color_override("font_color", Color(1, 1, 1))
 	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
@@ -21,7 +24,10 @@ func _ready() -> void:
 	_start = Time.get_ticks_usec()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	var x := LEFT + SDTMenu.left_inset()
+	if _label.position.x != x:
+		_label.position.x = x if absf(_label.position.x - x) < 0.5 else lerpf(_label.position.x, x, minf(1.0, delta * SLIDE))
 	_frames += 1
 	var now := Time.get_ticks_usec()
 	if now - _start >= INTERVAL_US:
