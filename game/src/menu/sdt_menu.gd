@@ -811,6 +811,8 @@ func outside_click(event: InputEvent) -> bool:
 func blocks_mouse() -> bool:
 	if self == instance and dev != null and dev.blocks_mouse():   # Flash.mouse_blocker asks the menu only
 		return true
+	if self == instance and DialogueEditorPanel.instance != null and DialogueEditorPanel.instance.blocks_mouse():
+		return true
 	if _root == null or not _enabled():
 		return false
 	var p := _root.get_global_mouse_position()

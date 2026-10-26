@@ -392,7 +392,7 @@ static func _dialogue() -> Dictionary:
 					var cur: int = _m().dialogueFileIndex + 1 if _m().dialogueFileIndex >= 0 else 0
 					_m()._stepDialogue(i - cur)),
 			actions("", "", [["Load…", func(): _m().loadDialogueClicked(), "Loads a dialogue file from anywhere."],
-				["Save…", func(): _m().saveDialogueClicked()], ["Edit…", func(): close_then(_m().editDialogueClicked)],
+				["Save…", func(): _m().saveDialogueClicked()], ["Edit…", func(): close_then(DialogueEditorPanel.open_editor), "The dialogue editor: line types, lines, actions."],
 				["Default", func(): _m().resetDefaultDialogueClicked(), "Back to the game's own dialogue."]]),
 		]},
 	]}

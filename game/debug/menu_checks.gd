@@ -1,7 +1,7 @@
 extends RefCounted
 ## Checks of the new in-game menu (src/menu): every section builds, the controls change the game through the classic
 ## menu's handlers (and the classic menu shows the same), settings (side, pause, classic menu), extension settings
-## pages and controls added by extensions. Run by tools/regress.sh (main.gd --driver); prints
+## pages and controls added by extensions, the dialogue editor. Run by tools/regress.sh (main.gd --driver); prints
 ## "MENU CHECKS: n passed, m failed" and quits.
 
 var _pass := 0
@@ -36,6 +36,7 @@ func step(_frame: int) -> void:
 				_settings_checks()
 				_dev_mode_checks()
 				_extension_checks()
+				_dialogue_editor_checks()
 				_finish()
 
 
@@ -322,3 +323,79 @@ func _extension_checks() -> void:
 	SDTMenu.remove_owner("moremoods")
 	_check("remove_owner", _spec("her", "Test toggle").is_empty())
 	menu.close_menu()
+
+
+## The dialogue editor (Dialogue > Edit…): loads every line, leaves an unchanged dialogue alone, edits reach the
+## game's dialogue, [ / * suggestions, undo, play and back.
+func _dialogue_editor_checks() -> void:
+	var before: String = g.dialogueControl.exportDialogue()
+	MenuSchema.close_then(DialogueEditorPanel.open_editor)
+	var p := DialogueEditorPanel.instance
+	_check("dialogue editor opens", p != null and p.is_open and g.gamePaused)
+	var n := 0
+	var dlg: Dictionary = g.dialogueControl.getCurrentDialogue()
+	for k in dlg:
+		if dlg[k] != null:
+			n += dlg[k].size()
+	for k in g.dialogueControl.getCurrentFinishes().values():
+		n += k.size()
+	_check("dialogue editor: every line", p.entries.size() == n, "%d of %d" % [p.entries.size(), n])
+	p.close()
+	_check("dialogue editor: closing unchanged keeps the dialogue", not g.gamePaused
+		and g.dialogueControl.exportDialogue() == before)
+
+	p.open()
+	p.current_type = "general"
+	p._select([])
+	p._add_line()
+	p._text.text = "[BLINK] Hello *YOU*"
+	p._text_changed()   # (TextEdit reports text changes at the end of the frame)
+	_check("dialogue editor: add a line and type", p._sel.size() == 1 and p._sel[0].trigger == "general"
+		and p._sel[0].phrase == "[BLINK] Hello *YOU*" and p.dirty)
+	p._set_on_selection(func(e): e._put("mood", Her.HAPPY_MOOD))
+	g.her.setMood(Her.NORMAL_MOOD)
+	_check("dialogue editor: can't play now (mood)", DialogueEditorPanel.why_not(p._sel[0]) == "not now: mood")
+	_check("dialogue editor: variables parsed", str(DialogueEditorPanel.parse_vars("a=1, b=>=3, c=x")) == str({"a": 1, "b": ">=3", "c": "x"}))
+
+	p._text.grab_focus()
+	p._text.text = "x [BL"
+	p._text.set_caret_column(5)
+	p._complete()
+	_check("dialogue editor: [ suggests actions", p._ac.visible and p._ac_items[0]["insert"] == "[BLINK]")
+	p._ac_accept(0)
+	_check("dialogue editor: a suggestion replaces what was typed", p._text.text == "x [BLINK]")
+	p._text.text = "x *YO"
+	p._text.set_caret_column(5)
+	p._complete()
+	_check("dialogue editor: * suggests wildcards", p._ac_items.any(func(a): return a["insert"] == "*YOU*"))
+	p._text.text = "[BLINK] Hello *YOU*"
+	p._text_changed()
+	p._typing_snapshot = false
+	p._text.text = "ZZZ"
+	p._text_changed()
+	p.undo()
+	_check("dialogue editor: undo", p.entries.any(func(e): return e.phrase == "[BLINK] Hello *YOU*")
+		and not p.entries.any(func(e): return e.phrase == "ZZZ"))
+	p.close()
+	_check("dialogue editor: the edit reaches the game",
+		g.dialogueControl.exportDialogue().contains("general:\"[BLINK] Hello *YOU*\"{\"mood\":\"Happy\"}"))
+
+	p.open()
+	var mine: Array = p.entries.filter(func(e): return e.phrase == "[BLINK] Hello *YOU*")
+	_check("dialogue editor: reopened with the line", mine.size() == 1)
+	p._select(mine)
+	p._play_clicked()
+	_check("dialogue editor: play hides it and plays the line", p.playing and not g.gamePaused and p.blocks_mouse()
+		and g.dialogueControl.sayingPhrase == "[BLINK] Hello *YOU*")
+	var mood_before := Moods.current()
+	g.her.setMood(Her.ANGRY_MOOD if mood_before != Her.ANGRY_MOOD else Her.HAPPY_MOOD)   # as [ANGRY_MOOD] in the line would
+	p._input(_press(Vector2(10, 10)))
+	_check("dialogue editor: a click brings it back", not p.playing and g.gamePaused)
+	_check("dialogue editor: a played line's mood does not last", Moods.current() == mood_before)
+	p._search.text = "hello"
+	p.query = "hello"
+	p._show_lines()
+	_check("dialogue editor: search finds the line", p._shown.has(mine[0]))
+	p._delete()
+	p.close()
+	_check("dialogue editor: delete", not g.dialogueControl.exportDialogue().contains("Hello *YOU*"))

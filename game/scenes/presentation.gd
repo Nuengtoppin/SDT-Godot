@@ -29,6 +29,8 @@ void fragment() {
 }
 """
 
+static var instance: Presentation = null
+
 ## The Flash stage goes in here.
 var host: Node2D
 var _ambient_vp: SubViewport
@@ -36,6 +38,10 @@ var _ambient_painter: AmbientPainter
 var _ambient_fill: ColorRect
 var _ambient_mat: ShaderMaterial
 var _size := Vector2.ZERO
+var _reserve := 0.0    # window width a panel beside the stage takes (dialogue editor): > 0 on the right, < 0 on the left
+var _reserve_to := 0.0
+var _keep_w := STAGE_SIZE.x   # the stage width (around its centre) that has to stay in view beside the panel
+const RESERVE_SPEED := 10.0   # fraction of the way per second, eased
 
 
 ## Paints the current background, scaled to cover the window, into a small render target (read only: no second
@@ -88,6 +94,7 @@ class AmbientPainter extends Node2D:
 
 func _ready() -> void:
 	name = "Presentation"
+	instance = self
 	_ambient_vp = SubViewport.new()
 	_ambient_vp.disable_3d = true
 	_ambient_vp.world_2d = World2D.new()
@@ -114,11 +121,7 @@ func _ready() -> void:
 func _layout() -> void:
 	var extent: Vector2 = get_viewport().get_visible_rect().size
 	_size = extent
-	# full height; only a window narrower than the game's own shape fits by width
-	var k: float = minf(extent.y / STAGE_SIZE.y, extent.x / STAGE_SIZE.x)
-	host.scale = Vector2(k, k)
-	host.position = ((extent - STAGE_SIZE * k) * 0.5).round()
-	Flash.presentation_rect = Rect2(-host.position / k, extent / k)
+	_place()
 	_ambient_fill.position = Vector2.ZERO
 	_ambient_fill.size = extent
 	var down: float = AMBIENT_PX / maxf(1.0, maxf(extent.x, extent.y))
@@ -127,14 +130,36 @@ func _layout() -> void:
 	_ambient_mat.set_shader_parameter("source_texel", Vector2.ONE / Vector2(_ambient_vp.size))
 
 
+## Centres the stage in the window, or in the part a panel beside it leaves free: full height; a space narrower than
+## the game's own shape (beside a panel: than the width it keeps in view) fits it by width.
+func _place() -> void:
+	var free := Rect2(maxf(0.0, -_reserve), 0, maxf(1.0, _size.x - absf(_reserve)), _size.y)
+	var keep: float = STAGE_SIZE.x if _reserve == 0.0 else _keep_w
+	var k: float = minf(free.size.y / STAGE_SIZE.y, free.size.x / keep)
+	host.scale = Vector2(k, k)
+	host.position = (free.position + (free.size - STAGE_SIZE * k) * 0.5).round()
+	Flash.presentation_rect = Rect2(-host.position / k, _size / k)
+
+
+## Fits the stage beside a panel w window units wide (on the right; negative: on the left; 0: the whole window again),
+## shrunk only as far as keeping keep_w stage units around its centre in view needs.
+static func reserve(w: float, keep_w := STAGE_SIZE.x) -> void:
+	if instance != null:
+		instance._reserve_to = w
+		instance._keep_w = keep_w
+
+
 ## The game field in the viewport's coordinates.
 func game_rect() -> Rect2:
 	return Rect2(host.position, STAGE_SIZE * host.scale)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _size != get_viewport().get_visible_rect().size:
 		_layout()
+	if _reserve != _reserve_to:
+		_reserve = _reserve_to if absf(_reserve - _reserve_to) < 0.5 else lerpf(_reserve, _reserve_to, minf(1.0, delta * RESERVE_SPEED))
+		_place()
 	var sides := Flash.presentation_rect.size.x > STAGE_SIZE.x + 1.0 or Flash.presentation_rect.size.y > STAGE_SIZE.y + 1.0
 	var blur := sides and PortSettings.blurred_sides()
 	_ambient_fill.material = _ambient_mat if blur else null
