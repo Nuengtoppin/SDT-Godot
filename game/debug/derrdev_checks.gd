@@ -46,6 +46,7 @@ func step(_frame: int) -> void:
 			_test_menu_fold()
 			_test_her_tools()
 			_test_teeth()
+			_test_tongue()
 			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
@@ -136,7 +137,7 @@ func _test_behaviour() -> void:
 		.all(func(id): return dev._nav_buttons.has(id)))
 	dev.open_menu("dev_mouth")
 	dev.build_now()
-	_check("Mouth tab: All off/on, 7 rows, 3 hand settings (P051 gulp rows, P054 Release teeth and hand settings)", dev._rows.size() == 11, str(dev._rows.size()))
+	_check("Mouth tab: All off/on, 10 rows, 3 hand settings (P051 gulp rows, P054 Release teeth, P055 tongue rows)", dev._rows.size() == 14, str(dev._rows.size()))
 	_check("everything on at first", DevBehaviour.off_count() == 0)
 	DevBehaviour.set_auto(&"Her.swallow", false)
 	her.swallowing = false
@@ -512,6 +513,67 @@ func _test_swallow_queue() -> void:
 	her.cumInMouth = 0
 	x._prev_cum = 0
 	x._prev_swallowing = false
+
+
+## P055: her tongue - the rows (Tongue out's switch vetoes only "out"), and the fix tongueguard: her tongue goes in
+## while her teeth are clenched, her teeth wait for it, out again after if she hangs it out.
+func _test_tongue() -> void:
+	var her = g.her
+	var t = her.tongue
+	var x = Extensions.get_extension("tongueguard")
+	var labels := DevBehaviour.entries().filter(func(e): return e[0] == "mouth").map(func(e): return e[1])
+	_check("tongue rows: Tongue out, Hang tongue out, Tongue in", "Tongue out" in labels and "Hang tongue out" in labels and "Tongue in" in labels)
+	var dev_was: bool = SDTMenu.dev_mode_enabled()
+	SDTMenu.set_dev_mode(true)
+	DevBehaviour.set_auto(&"Tongue.startMovingTongue", false)
+	her.clenchTeeth = false
+	her.clenchTeethRatio = 0.0
+	t.tongueOut = false
+	t.waitingForOut = false
+	t.startMovingTongue("out")
+	var out_blocked: bool = not t.waitingForOut
+	t.tongueOut = true
+	t.startMovingTongue("in")
+	var in_passes: bool = t.waitingForIn
+	DevBehaviour.set_auto(&"Tongue.startMovingTongue", true)
+	SDTMenu.set_dev_mode(dev_was)
+	_check("Tongue out off: vetoes her tongue coming out, not going in", out_blocked and in_passes)
+	_check("tongueguard: on by default, holding her teeth through Her.teethClosing", x.enabled and x.get_setting("on")
+		and Hooks.has_value(&"Her.teethClosing"))
+	t.gotoAndStop(t.tongueOutEndFrame)
+	t.tongueOut = true
+	her.clenchTeeth = true
+	x._wait = 0
+	_check("tongueguard: her teeth wait while her tongue is out", Hooks.value(&"Her.teethClosing", her, true) == false)
+	for i in tongueguard_wait():
+		Hooks.value(&"Her.teethClosing", her, true)
+	_check("tongueguard: at most WAIT ticks", Hooks.value(&"Her.teethClosing", her, true) == true)
+	var c := Hooks.Call.new()
+	c.obj = t
+	var f0: int = t.currentFrame
+	x._on_update(c)
+	_check("tongueguard: while clenched her tongue's update is skipped, it moves in 4 frames a tick", c.cancelled and t.currentFrame == f0 - 4)
+	for i in 10:
+		x._on_update(c)
+	_check("tongueguard: and comes to rest inside", t.currentLabel == "InDone" and not t.tongueOut and not t.playingAction)
+	t.hangingOut = true
+	her.clenchTeeth = false
+	her.clenchTeethRatio = 0.0
+	var c2 := Hooks.Call.new()
+	c2.obj = t
+	x._on_update(c2)
+	_check("tongueguard: her teeth open, hanging out: out again", not c2.cancelled and t.waitingForOut)
+	t.hangingOut = false
+	t.waitingForOut = false
+	x.set_setting("on", false)
+	_check("tongueguard off: no hold on her teeth", not Hooks.has_value(&"Her.teethClosing"))
+	x.set_setting("on", true)
+	t.gotoAndStop("InDone")
+	t.tongueOut = false
+
+
+func tongueguard_wait() -> int:
+	return Extensions.get_extension("tongueguard").WAIT
 
 
 ## P054: her teeth - release, clench time and taps (hand settings), teeth closing held by its value point.

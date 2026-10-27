@@ -16,7 +16,8 @@ const SECTION := "dev_behaviour"   # port.cfg section
 ## group id -> tab name, in tab order
 const GROUPS := {"eyes": "Eyes", "mouth": "Mouth", "fluids": "Fluids", "state": "State", "him": "Him"}
 
-## [group, label, hook point ("" = no automation switch), what the call button does, tip]
+## [group, label, hook point ("" = no automation switch), what the call button does, tip, optional: which calls the
+## automation switch vetoes, fn(call) -> bool (P055; all of them without it)]
 static func entries() -> Array:
 	var her := func(): return g.her
 	return [
@@ -38,6 +39,13 @@ static func entries() -> Array:
 			"Angry mood: after a hard pull-off, between actions, when he comes. Clenched teeth keep him out."],
 		["mouth", "Release teeth", &"", func(): her.call().releaseTeeth(),
 			"Unclenches her teeth now (P054; the game only lets the clench time run out). No automation of its own."],
+		["mouth", "Tongue out", &"Tongue.startMovingTongue", func(): her.call().tongue.startMovingTongue("out"),
+			"Her tongue coming out by itself (near his tip, licking, when he comes). Auto off: it never comes out by itself (a veto on its \"out\" only).",
+			func(c): return c.args[0] == "out"],
+		["mouth", "Hang tongue out", &"", func(): her.call().tongue.hangOut(),
+			"Her tongue out and staying out (as in the Ahegao mood). No automation of its own."],
+		["mouth", "Tongue in", &"", func(): her.call().tongue.stopHangingOut(),
+			"Her tongue back in now, and no longer hanging out. No automation of its own."],
 		["mouth", "Cough", &"Her.cough", func(): her.call().cough(), "Held deep for a while (needs Coughing on)."],
 		["mouth", "Open-mouth cough", &"Her.openCough", func(): her.call().openCough(), "Coughing it out after he pulls out (needs Coughing on)."],
 		["fluids", "Spit strands", &"Her.generateRandomStrand", func(): her.call().generateRandomStrand("random"),
@@ -67,6 +75,7 @@ static func _gulp_without_squint(her) -> void:
 
 
 static var _off: Dictionary = {}        # hook name -> true: automation switched off
+static var _filters: Dictionary = {}    # hook name -> fn(call) -> bool: which of its calls the switch vetoes (P055)
 static var _allow: Dictionary = {}      # hook name -> true while the panel's own call runs
 static var _seen: Dictionary = {}       # hook name -> [Hooks.Call, tick, manual]
 static var _active := false
@@ -146,7 +155,13 @@ static func _apply() -> void:
 	_watch_fns.clear()
 	if not _active:
 		return
-	_veto_fn = func(c): if _off.has(c.name) and not _allow.has(c.name): c.cancel()
+	_filters.clear()
+	for e in entries():
+		if e.size() > 5 and e[2] != &"":
+			_filters[e[2]] = e[5]
+	_veto_fn = func(c):
+		if _off.has(c.name) and not _allow.has(c.name) and (not _filters.has(c.name) or _filters[c.name].call(c)):
+			c.cancel()
 	for h in hooks():
 		var watch := func(c):
 			_seen[h] = [c, Flash.tick_count, _allow.has(h)]

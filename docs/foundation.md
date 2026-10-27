@@ -32,6 +32,7 @@ is unchanged.
 | `Her.swallow` | after (args: `[intensity, speak]`, result: whether the swallow started) | P048 | The before point is asked on every request, also those the game drops (she is already swallowing, speaking or passed out); the after point tells which started. For the swallow queue and the event log. | ours (P048) |
 | `Her.gulp` | before (args: `[]`, can cancel) and after | P048 | The moment she swallows (squint, sound, the wave down her neck, what leaves her mouth) was inside the jaw update; it is now `Her.gulp()`, same order, so it has its own point. Vetoed: no gulp this swallow; the swallow's motion still plays. | ours (P048) |
 | `Her.releaseTeeth` | before (args: `[]`, can cancel) and after | P054 | New port function: she unclenches her teeth now (the game ends a clench only by its time, her speaking or a mood change). Vetoed: they stay clenched. | ours (P054) |
+| `Tongue.startMovingTongue` | before (args: `[dir]` "out" / "in", can cancel; args can be changed) | P055 | Her tongue asked to come out or go in (near his tip, licks, when he comes, hanging out, the Tongue option). Vetoed: it does not move; nothing else changes. | ours (P055) |
 
 Not one-offs, so no before point: `Him.closeHand` (`Her.move` calls it every tick while he holds her; it is the hand's
 state, a flag for a value point) and the spit flow while she moves (`generateSpit`, every tick).
@@ -82,6 +83,9 @@ tab (P032) on top.
   setting is not the game's, for this session only (the game's again at the next start, Developer mode on or not).
   Mouth: "Clench time" (0 = the game's 2..6 s at random; else that many seconds, `Her.clenchTime`), "Taps when
   clenching" (off: `Her.clenchTaps` false). The event log writes her clenching and unclenching.
+  P055: Mouth tab rows "Tongue out" (`Tongue.startMovingTongue`; its switch vetoes only "out": an entry's optional
+  sixth element is `fn(call) -> bool`, which of the hook's calls the switch vetoes), "Hang tongue out" and "Tongue in"
+  (no automation). The event log writes her tongue coming out and going in (held 15 ticks).
 - Panel tab › Automation: Freeze all / Restore all, how many are off, and "Remember after restart"
   (`port.cfg` `dev_behaviour/remember`, the list in `dev_behaviour/off`). Off: every start is the normal game; the
   session keeps its switches.
@@ -218,6 +222,14 @@ The developer panel (Body > Throat rings) shows who modifies each point and the 
   The wall is the setting less the ring's stretch, rising across the band, 10 % of it past the bottom edge. While she
   is passed out the game applies no resistance at all; the new value point `Her.limpResistance` (`Her.move`, passed
   out, 0 in the game) carries the collar's wall then, so the collar no longer lets go when she passes out.
+- `tongueguard` (P055, new built-in, a fix of the game; Behaviour > Reactions > "Tongue in when she clenches her
+  teeth", on by default). Measured in the game (30 fps, her tongue out, then she clenches her teeth): her teeth are
+  closed over her tongue for 33 ticks (it comes in at 39), 55+ ticks with it hanging out (it never comes in:
+  `Tongue.moveTongueIn` turns back out at once while `hangingOut`), 32 in a long lick (the move in waits for the action
+  playing). With the fix: 0 in all three, her tongue in at 8-9 ticks after she clenches. While her teeth are clenched
+  or still opening, a before handler on `Tongue.update` (priority -50) skips the tongue's own update and moves it in
+  4 frames a tick (the game's fast in) to `InDone`, as the game's move in ends (no licks meanwhile); `Her.teethClosing`
+  (CLAMP) holds her teeth until it is in, at most 12 ticks. Her teeth open again and she hangs it out: out again.
 - `throatcumbulge` "Neck follows his size" (P040): `Neck.bulgeCap` = 35 x his width (the game: 35 for every width).
 - Swallowing (P037, stage 2 of the throat ring plan) inside upstream's `throatcumbulge`, after sby's swallowguzzleV2
   but on the game's own `Her.swallow` (the veto and the developer panel's switch apply), all off by default: "Swallow

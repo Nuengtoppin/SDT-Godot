@@ -181,6 +181,7 @@ static func _tick() -> void:
 		_gulp_from = -1
 	_edge("swallowing", her.swallowing, "swallow", "", "Swallow ends", 0)
 	_edge("teeth", her.clenchTeeth, "mouth", "Clenches her teeth", "Unclenches her teeth", 0)   # P054
+	_edge("tongue", her.tongue.tongueOut, "mouth", "Tongue out", "Tongue in")   # P055
 	_edge("in_mouth", her.penisInMouthDist > 0.0, "mouth", "He is in her mouth", "He is out of her mouth")
 	_edge("deep", her.penisInMouthDist > 150.0, "mouth", "Past her throat entrance", "Back above her throat entrance")
 	_edge("full", her.cumInMouth >= her.maxCumInMouth, "mouth", "Her mouth is full of cum", "", 0)
