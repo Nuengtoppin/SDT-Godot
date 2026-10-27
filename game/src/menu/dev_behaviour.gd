@@ -36,6 +36,8 @@ static func entries() -> Array:
 			"The same gulp without her squint (as Behaviour > Reactions > Squint when swallowing off). No automation of its own."],
 		["mouth", "Clench teeth", &"Her.startClenchingTeeth", func(): her.call().startClenchingTeeth(),
 			"Angry mood: after a hard pull-off, between actions, when he comes. Clenched teeth keep him out."],
+		["mouth", "Release teeth", &"", func(): her.call().releaseTeeth(),
+			"Unclenches her teeth now (P054; the game only lets the clench time run out). No automation of its own."],
 		["mouth", "Cough", &"Her.cough", func(): her.call().cough(), "Held deep for a while (needs Coughing on)."],
 		["mouth", "Open-mouth cough", &"Her.openCough", func(): her.call().openCough(), "Coughing it out after he pulls out (needs Coughing on)."],
 		["fluids", "Spit strands", &"Her.generateRandomStrand", func(): her.call().generateRandomStrand("random"),
@@ -192,6 +194,7 @@ static func sections() -> Array:
 		for e in entries():
 			if e[0] == gid:
 				rows.append(_row(e))
+		rows.append_array(DevTuning.controls(gid))   # P054: the tab's hand settings
 		out.append({"id": "dev_" + gid, "name": GROUPS[gid], "groups": [{"title": GROUPS[gid], "controls": rows}]})
 	return out
 

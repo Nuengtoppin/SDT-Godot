@@ -45,6 +45,7 @@ func step(_frame: int) -> void:
 			_test_gulp_rows()
 			_test_menu_fold()
 			_test_her_tools()
+			_test_teeth()
 			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
@@ -135,7 +136,7 @@ func _test_behaviour() -> void:
 		.all(func(id): return dev._nav_buttons.has(id)))
 	dev.open_menu("dev_mouth")
 	dev.build_now()
-	_check("Mouth tab: All off/on and 6 rows (P051: Gulp, Gulp no squint)", dev._rows.size() == 7, str(dev._rows.size()))
+	_check("Mouth tab: All off/on, 7 rows, 3 hand settings (P051 gulp rows, P054 Release teeth and hand settings)", dev._rows.size() == 11, str(dev._rows.size()))
 	_check("everything on at first", DevBehaviour.off_count() == 0)
 	DevBehaviour.set_auto(&"Her.swallow", false)
 	her.swallowing = false
@@ -511,6 +512,40 @@ func _test_swallow_queue() -> void:
 	her.cumInMouth = 0
 	x._prev_cum = 0
 	x._prev_swallowing = false
+
+
+## P054: her teeth - release, clench time and taps (hand settings), teeth closing held by its value point.
+func _test_teeth() -> void:
+	var her = g.her
+	her.clenchTeeth = false
+	her.clenchTeethRatio = 0.0
+	her.gagged = false
+	her.mouthFull = false
+	her.startClenchingTeeth()
+	_check("teeth: the game's clench time (2 to 6 s)", her.clenchTeeth and her.clenchedTeethTime >= 60 and her.clenchedTeethTime < 180)
+	her.releaseTeeth()
+	_check("teeth: Release teeth unclenches them now", not her.clenchTeeth)
+	DevTuning.set_clench_time(5.0)
+	var taps := _counted(&"Her.tapHands", func(): her.startClenchingTeeth())
+	_check("teeth: Clench time 5 s = 150 ticks, with the game's taps", her.clenchedTeethTime == 150 and taps == 1)
+	her.releaseTeeth()
+	DevTuning.set_clench_taps(false)
+	taps = _counted(&"Her.tapHands", func(): her.startClenchingTeeth())
+	_check("teeth: Taps when clenching off: no tap", her.clenchTeeth and taps == 0)
+	var n := _vetoed(&"Her.releaseTeeth", func(): her.releaseTeeth())
+	_check("teeth: Her.releaseTeeth can be vetoed", n == 1 and her.clenchTeeth)
+	var hold := Hooks.add_modifier(&"Her.teethClosing", {"phase": Hooks.OVERRIDE, "op": "set", "value": false}, "derrdev_checks")
+	her.clenchTeethRatio = 0.4
+	her.updateLips()
+	_check("teeth: Her.teethClosing false holds them", is_equal_approx(her.clenchTeethRatio, 0.4))
+	Hooks.remove_modifier(hold)
+	her.updateLips()
+	_check("teeth: and they close again without it", her.clenchTeethRatio > 0.4)
+	DevTuning.reset()
+	_check("teeth: hand settings back to the game's, no modifiers", not Hooks.has_value(&"Her.clenchTime") and not Hooks.has_value(&"Her.clenchTaps"))
+	her.releaseTeeth()
+	her.clenchTeethRatio = 0.0
+	her.updateLips()
 
 
 ## P053: Tools > Her - air and how long she lasts, for this session; the "now" sliders set the levels.
