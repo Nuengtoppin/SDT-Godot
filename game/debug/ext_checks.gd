@@ -128,6 +128,7 @@ func step(_frame: int) -> void:
 				_extramodhim_checks()
 				_leglayer_checks()
 				_aimpenis_checks()
+				_regulaterandom_checks()
 				_swallow_veto_checks()
 				_disable_checks()
 				_plugin_checks()
@@ -240,6 +241,31 @@ func _extramodhim_checks() -> void:
 	_check("ExtraModHim off: types gone", not helpers.has("HimBody"))
 	Extensions.set_enabled("extramodhim", true)
 	_check("ExtraModHim on again", helpers.has("HimBody"))
+
+
+## regulaterandom: its defaults are the game's shuffle; with every part off a shuffle changes nothing (also not
+## moremoods' mood).
+func _regulaterandom_checks() -> void:
+	var rr: SDTExtension = Extensions.get_extension("regulaterandom")
+	var seen := []
+	var spy := func(c): seen.append([c.args[0].duplicate(), c.args[1].duplicate()])
+	Hooks.add_after(&"InGameMenu.shuffle", spy, "test")
+	g.inGameMenu.shuffle()
+	var defaults_ok: bool = seen.size() == 1 and seen[0][0] == InGameMenu.SHUFFLE_PARTS and seen[0][1].keys().all(
+		func(k): return seen[0][1][k] == InGameMenu.SHUFFLE_ALPHA.get(k, false))
+	for p in rr.PARTS:
+		rr.set_setting(p[0], false)
+	var mood: String = g.her.currentMood
+	var before: String = g.inGameMenu.getSaveDataString()
+	g.inGameMenu.shuffle()
+	var after: String = g.inGameMenu.getSaveDataString()
+	var mood_after: String = g.her.currentMood
+	for p in rr.PARTS:
+		rr.set_setting(p[0], InGameMenu.SHUFFLE_PARTS.get(p[0], false))
+	Hooks.remove(&"InGameMenu.shuffle", spy)
+	_check("regulaterandom defaults: the game's shuffle", defaults_ok, str(seen[0]) if not seen.is_empty() else "")
+	_check("regulaterandom all off: shuffle changes nothing", before == after and mood == mood_after,
+		"" if before == after else "%s\n%s" % [before, after])
 
 
 ## aimpenis: the aim goes into his tilt target and the wider limits into his angle, only while it is on and he is out

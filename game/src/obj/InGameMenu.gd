@@ -1473,7 +1473,26 @@ func shuffleClicked(param1 = null):
 	shuffle()
 
 
+## Port: what shuffle() changes (all of it in the game) and which clothes also get random transparency; a
+## before-hook can change both (args [parts, alpha]), e.g. regulaterandom. "herPenis" is not in the game's shuffle.
+const SHUFFLE_PARTS := {"hair": true, "breasts": true, "bg": true, "him": true, "iris": true, "skin": true,
+	"bodyScale": true, "lipstick": true, "eyeshadow": true, "nailpolish": true, "arms": true, "mood": true,
+	"collar": true, "gag": true, "cuffs": true, "ankleCuffs": true, "eyewear": true, "panties": true, "armwear": true,
+	"legwear": true, "legwearB": true, "bottoms": true, "footwear": true, "tops": true, "bra": true,
+	"tonguePiercing": true, "nipplePiercing": true, "bellyPiercing": true, "earring": true, "headwear": true,
+	"herPenis": false}
+const SHUFFLE_ALPHA := {"legwear": true, "legwearB": true, "tops": true}
+
+
 func shuffle():
+	var parts: Dictionary = SHUFFLE_PARTS
+	var alpha: Dictionary = SHUFFLE_ALPHA
+	if Hooks.has(&"InGameMenu.shuffle"):   # HOOK
+		var h := Hooks.before(&"InGameMenu.shuffle", self, [SHUFFLE_PARTS.duplicate(), SHUFFLE_ALPHA.duplicate()])
+		if h.cancelled:
+			return
+		parts = h.args[0]
+		alpha = h.args[1]
 	var _loc1_ = []
 	var _loc2_ = int(floor(randf() * 4)) + 1
 	var _loc3_ = 0
@@ -1485,59 +1504,72 @@ func shuffle():
 	while _loc3_ < 2:
 		_loc4_.append(PaletteUtils.getHue(randf() * 190 + 170, randf(), randf() * 0.5 if randf() > 0.4 else randf()))
 		_loc3_ += 1
-	var _loc5_ = int(floor(randf() * charNames.size()))
-	g.characterControl.setHair(_loc5_)
-	g.characterControl.randomCurrentElements()
-	updateHairList()
-	var _loc6_ = int(floor(randf() * 150))
-	g.characterControl.setBreasts(_loc6_)
-	updateBreastSlider()
-	var _loc7_ = int(ceil(randf() * g.bgNum))
-	g.bg.gotoAndStop(_loc7_)
-	g.bgID = _loc7_
-	setBGCheckboxes()
-	g.him.shuffle()
-	var _loc8_ = int(floor(randf() * irisTypes.size()))
-	g.characterControl.setIris(_loc8_)
-	updateIrisList()
-	g.characterControl.setIrisFill(PaletteUtils.getHue(randf(),randf() * 0.8,PaletteUtils.midRandom() * 0.5))
-	var _loc9_ = int(floor(randf() * skinTypes.size()))
-	g.characterControl.setSkin(_loc9_)
-	updateSkinList()
-	g.her.setBodyScaleFromSlider(randf())
-	customMenu.bodySlider.setPos(g.her.bodySize)
-	g.characterControl.setLipstick(PaletteUtils.randomSwatch(_loc4_))
-	g.characterControl.setEyeShadow(PaletteUtils.randomSwatch(_loc4_))
-	g.characterControl.setNailPolish(PaletteUtils.randomSwatch(_loc4_))
-	g.her.setRandomArmPosition()
-	updateArmsList()
-	var _loc10_ = [Her.NORMAL_MOOD,Her.HAPPY_MOOD,Her.ANGRY_MOOD,Her.AHEGAO_MOOD]
-	var _loc11_ = str(_loc10_[int(floor(randf() * _loc10_.size()))])
-	g.her.setMood(_loc11_)
-	updateMoods()
-	g.characterControl.collarControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.4)
-	g.characterControl.gagControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.8)
-	g.characterControl.cuffsControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.4)
-	g.characterControl.ankleCuffsControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.4)
-	g.characterControl.eyewearControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.7)
-	g.characterControl.pantiesControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.4)
-	g.characterControl.armwearControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.5)
-	g.characterControl.legwearControl.shuffle(PaletteUtils.randomSwatch(_loc1_,true),PaletteUtils.randomSwatch(_loc1_,true))
-	g.characterControl.legwearBControl.shuffle(PaletteUtils.randomSwatch(_loc1_,true),PaletteUtils.randomSwatch(_loc1_,true),0.5)
-	g.characterControl.bottomsControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.4)
-	g.characterControl.footwearControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_))
-	g.characterControl.topControl.shuffle(PaletteUtils.randomSwatch(_loc1_,true),PaletteUtils.randomSwatch(_loc1_,true),0.4)
-	g.characterControl.braControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.4)
-	g.characterControl.tonguePiercingControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.5)
-	g.characterControl.nipplePiercingControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.5)
-	g.characterControl.bellyPiercingControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.5)
-	g.characterControl.earringControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.5)
-	g.characterControl.headwearControl.shuffle(PaletteUtils.randomSwatch(_loc1_),PaletteUtils.randomSwatch(_loc1_),0.5)
+	if parts.get("hair", false):
+		var _loc5_ = int(floor(randf() * charNames.size()))
+		g.characterControl.setHair(_loc5_)
+		g.characterControl.randomCurrentElements()
+		updateHairList()
+	if parts.get("breasts", false):
+		var _loc6_ = int(floor(randf() * 150))
+		g.characterControl.setBreasts(_loc6_)
+		updateBreastSlider()
+	if parts.get("bg", false):
+		var _loc7_ = int(ceil(randf() * g.bgNum))
+		g.bg.gotoAndStop(_loc7_)
+		g.bgID = _loc7_
+		setBGCheckboxes()
+	if parts.get("him", false):
+		g.him.shuffle()
+	if parts.get("iris", false):
+		var _loc8_ = int(floor(randf() * irisTypes.size()))
+		g.characterControl.setIris(_loc8_)
+		updateIrisList()
+		g.characterControl.setIrisFill(PaletteUtils.getHue(randf(),randf() * 0.8,PaletteUtils.midRandom() * 0.5))
+	if parts.get("skin", false):
+		var _loc9_ = int(floor(randf() * skinTypes.size()))
+		g.characterControl.setSkin(_loc9_)
+		updateSkinList()
+	if parts.get("bodyScale", false):
+		g.her.setBodyScaleFromSlider(randf())
+		customMenu.bodySlider.setPos(g.her.bodySize)
+	if parts.get("lipstick", false):
+		g.characterControl.setLipstick(PaletteUtils.randomSwatch(_loc4_))
+	if parts.get("eyeshadow", false):
+		g.characterControl.setEyeShadow(PaletteUtils.randomSwatch(_loc4_))
+	if parts.get("nailpolish", false):
+		g.characterControl.setNailPolish(PaletteUtils.randomSwatch(_loc4_))
+	if parts.get("arms", false):
+		g.her.setRandomArmPosition()
+		updateArmsList()
+	if parts.get("mood", false):
+		var _loc10_ = [Her.NORMAL_MOOD,Her.HAPPY_MOOD,Her.ANGRY_MOOD,Her.AHEGAO_MOOD]
+		var _loc11_ = str(_loc10_[int(floor(randf() * _loc10_.size()))])
+		g.her.setMood(_loc11_)
+		updateMoods()
+	var cc = g.characterControl
+	# [part, element, chance of none (-1: the element's own)], in the game's order
+	for c in [["collar", cc.collarControl, 0.4], ["gag", cc.gagControl, 0.8], ["cuffs", cc.cuffsControl, 0.4],
+			["ankleCuffs", cc.ankleCuffsControl, 0.4], ["eyewear", cc.eyewearControl, 0.7],
+			["panties", cc.pantiesControl, 0.4], ["armwear", cc.armwearControl, 0.5], ["legwear", cc.legwearControl, -1.0],
+			["legwearB", cc.legwearBControl, 0.5], ["bottoms", cc.bottomsControl, 0.4],
+			["footwear", cc.footwearControl, -1.0], ["tops", cc.topControl, 0.4], ["bra", cc.braControl, 0.4],
+			["tonguePiercing", cc.tonguePiercingControl, 0.5], ["nipplePiercing", cc.nipplePiercingControl, 0.5],
+			["bellyPiercing", cc.bellyPiercingControl, 0.5], ["earring", cc.earringControl, 0.5],
+			["headwear", cc.headwearControl, 0.5]]:
+		if parts.get(c[0], false):
+			var a: bool = alpha.get(c[0], false)
+			c[1].shuffle(PaletteUtils.randomSwatch(_loc1_, a), PaletteUtils.randomSwatch(_loc1_, a), c[2])
+	if parts.get("herPenis", false):   # from regulaterandom: her penis's costume and size
+		var hp = g.her.penisControl
+		var a: bool = alpha.get("herPenis", false)
+		hp.penisControl.shuffle(PaletteUtils.randomSwatch(_loc1_, a), PaletteUtils.randomSwatch(_loc1_, a), 0.5)
+		var size: float = randf() * (hp.MAX_PENIS_SIZE - hp.MIN_PENIS_SIZE) + hp.MIN_PENIS_SIZE
+		hp.loadPenisScales(size, size)
 	if g.resetIntroOnNewChar:
 		g.resetIntro()
 	g.saveData.saveCharData()
 	if Hooks.has(&"InGameMenu.shuffle"):   # HOOK
-		Hooks.after(&"InGameMenu.shuffle", self)
+		Hooks.after(&"InGameMenu.shuffle", self, [parts, alpha])
 
 
 func setDialogueLibraryName(param1):

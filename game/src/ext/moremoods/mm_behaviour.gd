@@ -72,7 +72,7 @@ func hook() -> void:
 	mm.hook_after(&"SoundControl.newRandomBreath", func(_c): _lowered_breath_step())
 	mm.hook_before(&"Her.ejaculating", func(_c): mm.face.angry_look_flag = false)
 	mm.hook_after(&"Her.ejaculating", func(_c): _after_ejaculating())
-	mm.hook_after(&"InGameMenu.shuffle", func(_c): _shuffle())
+	mm.hook_after(&"InGameMenu.shuffle", func(c): _shuffle(c))
 	mm.hook_after(&"Tears.drawLowerEyelidMascara", func(_c): mm.face.clear_lower_eyelid())
 	mm.hook_after(&"Tears.clearLowerEyelid", func(_c): mm.face.clear_lower_eyelid())
 	mm.hook_before(&"Tongue.update", _tongue_update)
@@ -1000,7 +1000,10 @@ func _after_movement_sounds() -> void:
 
 
 ## After shuffle: a random mood, the added ones included (setting).
-func _shuffle() -> void:
+## After the game's shuffle, unless it left her mood alone (regulaterandom).
+func _shuffle(c) -> void:
+	if not c.args.is_empty() and not c.args[0].get("mood", false):
+		return
 	if s("shufflemoods"):
 		var list: Array = mm.MOODS
 		g.her.setMood(list[int(ceil(randf() * list.size())) - 1])
