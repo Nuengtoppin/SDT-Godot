@@ -224,7 +224,8 @@ The value points in the game, with the field that keeps the result for code that
 | `Her.gazeAngle` | the angle her iris turns towards, before easing | `her.eyeMotion["target"]` |
 | `Her.eyelidShock` | how shocked her eyes are (wider, smaller iris; the game's `shock()` sets 10-85, counting down) | `her.eyelidShock` |
 | `Her.upperEyelid` | the upper eyelid's frame (2 open, 150 closed, up to 200 squeezed shut) | `her.upperLid` |
-| `Her.lowerEyelid` | the lower eyelid's frame (asked after the upper) | `her.lowerLid` | `Hooks.explain(name)` returns the last evaluation step by step (recording starts with the first call),
+| `Her.lowerEyelid` | the lower eyelid's frame (asked after the upper) | `her.lowerLid` |
+| `Her.jawAngle` | her jaw's angle this tick, after the game's easing (`Her.closedJawAngle` -12: closed, higher: open); lips, cheeks and `g.herMouthOpeness` follow it | `her.head.jaw.rotation_degrees` | `Hooks.explain(name)` returns the last evaluation step by step (recording starts with the first call),
 `Hooks.value_points()` lists the points with modifiers. A value point without modifiers costs one dictionary lookup.
 
 Rule: for behaviour that has value points, change the targets through modifiers; do not cancel the method. One-off

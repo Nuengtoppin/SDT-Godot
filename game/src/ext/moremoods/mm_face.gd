@@ -42,6 +42,7 @@ func hook() -> void:
 	# alternativePassOut's (FINAL) still apply on top. The upper is asked first: it works out both.
 	mm.modify(&"Her.upperEyelid", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(_v, _her): return eyelids()[0]})
 	mm.modify(&"Her.lowerEyelid", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(_v, _her): return _lids[1]})
+	mm.modify(&"Her.jawAngle", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, _her): return hang_jaw(v)})
 	mm.hook_before(&"Her.updateElements", func(_c): update_elements_pre())
 	mm.hook_after(&"Her.updateElements", func(_c): update_elements())
 	mm.hook_after(&"Her.updateLips", func(_c): update_lips())
@@ -296,18 +297,6 @@ func update_elements() -> void:
 		_iris(0.9 - (0.25 - em["pos"] / 400.0) - maxf(em["shock"], her.eyelidShock) / 200.0)
 	if m in ["Depressed", "Drugged", "Spent", "Elated", "Broken"]:
 		_iris(0.9 - (0.25 - em["pos"] / 400.0) - maxf(em["shock"], her.eyelidShock) / (600.0 if m == "Broken" else 300.0))
-	if m in ["Broken", "Tease", "Overwhelmed"]:
-		_hang(func(t, r): return maxf(t, maxf(r, 4)), 4.0)
-	if m in ["Frightened", "Disgusted", "Asleep"]:
-		_hang(func(t, r): return minf(t, minf(r, -8)), 4.0)
-	if m in ["Drugged", "Numb"]:
-		_hang(func(_t, _r): return -4.0, 2.0)
-	if m in ["Nervous", "Submissive"]:
-		_hang(func(t, r): return minf(t, minf(r, -5)), 4.0)
-	if m in ["Excited", "Elated", "Smug"]:
-		_hang(func(t, r): return minf(t, minf(r, -3)), 4.0)
-	if m == "Devoted":
-		_hang(func(t, r): return minf(t, minf(r, linear_scale(0, -9, g.breathLevelMax, 5, g.currentBreathLevel))), 4.0)
 	if m == "Excited" or m == "Asleep":
 		g.herMouthOpeness = minf(0.6, g.herMouthOpeness)
 	if m == "Overwhelmed" or m == "Numb":
@@ -320,18 +309,32 @@ func _iris(v: float) -> void:
 	iris.scaleY = maxf(0, v)
 
 
-## How far her mouth hangs open when nothing else moves the jaw.
-func _hang(target_fn: Callable, divisor: float) -> void:
+## How far her mouth hangs open for her mood when nothing else moves the jaw (MOOD modifier of Her.jawAngle: `r` is
+## the game's angle this tick, eased towards the mood's).
+func hang_jaw(r: float) -> float:
 	var her = g.her
 	if her.gagged or her.swallowing or (her.penisInMouthDist >= 0 and not g.penisOut) or her.speaking or her.speakStopDelay > 0 or her.clenchTeethRatio != 0:
-		return
-	var jaw = her.head.jaw
-	her.jawAngleTarget = target_fn.call(her.jawAngleTarget, jaw.rotation_degrees)
-	var r: float = jaw.rotation_degrees + (her.jawAngleTarget - jaw.rotation_degrees) / divisor
-	jaw.rotation_degrees = r
-	her.head.jawBack.rotation_degrees = r
-	her.head.headTan.jaw.rotation_degrees = r
-	her.head.headTan.jawBack.rotation_degrees = r
+		return r
+	var m: String = mm.mood_name
+	var t: float = her.jawAngleTarget
+	var divisor := 4.0
+	if m in ["Broken", "Tease", "Overwhelmed"]:
+		t = maxf(t, maxf(r, 4))
+	elif m in ["Frightened", "Disgusted", "Asleep"]:
+		t = minf(t, minf(r, -8))
+	elif m in ["Drugged", "Numb"]:
+		t = -4.0
+		divisor = 2.0
+	elif m in ["Nervous", "Submissive"]:
+		t = minf(t, minf(r, -5))
+	elif m in ["Excited", "Elated", "Smug"]:
+		t = minf(t, minf(r, -3))
+	elif m == "Devoted":
+		t = minf(t, minf(r, linear_scale(0, -9, g.breathLevelMax, 5, g.currentBreathLevel)))
+	else:
+		return r
+	her.jawAngleTarget = t
+	return r + (t - r) / divisor
 
 
 static func linear_scale(x1: float, y1: float, x2: float, y2: float, x: float) -> float:

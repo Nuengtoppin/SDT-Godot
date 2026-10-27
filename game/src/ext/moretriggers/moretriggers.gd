@@ -4,8 +4,9 @@ extends SDTExtension
 ## [SET_PROGRESSBAR_...], [SHOW_CREDITS]. Written from its documentation and behaviour; dialogues use the same syntax.
 ## Needs DialogueActions. The screen parts (progress bars, overlay, splash screen, credits) are in mt_screen.gd.
 ##
-## Timed effects ([SHOCK_<ms>], [LOOK_...], [CLOSE_MOUTH_<ms>], [WINCE_<ms>]) are re-applied every tick until their
-## time is up, after the game's own tick, as the mod did; a new trigger of the same kind replaces the running one.
+## Timed effects ([SHOCK_<ms>], [LOOK_...], [CLOSE_MOUTH_<ms>], [OPEN_MOUTH_<ms>]) hold their value until their time
+## is up, as OVERRIDE modifiers of her value points (Hooks) in the dialogue band; [WINCE_<ms>] winces every tick. A new
+## trigger of the same kind replaces the running one.
 
 const ScreenScript := preload("res://src/ext/moretriggers/mt_screen.gd")
 
@@ -27,8 +28,7 @@ var screen = null   # mt_screen.gd
 var _shock_id := 0   # the current [SHOCK_...]: a modifier of the value point Her.eyelidShock (0: none)
 var _shock_power := SHOCK_POWER
 var _look_id := 0   # the current [LOOK_...]: a modifier of the value point Her.lookTarget (0: none)
-var _mouth_until := -1.0
-var _mouth_angle := 0.0
+var _mouth_id := 0   # the current [CLOSE_MOUTH...] / [OPEN_MOUTH_...]: a modifier of the value point Her.jawAngle
 var _wince_until := -1.0
 # grow / shrink: steps left (negative = shrink)
 var _grow := {"breasts": 0, "body": 0, "his_penis": 0, "her_penis": 0, "his_balls": 0}
@@ -56,7 +56,7 @@ func _disable() -> void:
 	screen = null
 	_shock_id = 0   # (its modifier went with the extension)
 	_look_id = 0   # (its modifier went with the extension)
-	_mouth_until = -1
+	_mouth_id = 0   # (its modifier went with the extension)
 	_wince_until = -1
 	for k in _grow:
 		_grow[k] = 0
@@ -97,7 +97,7 @@ func _register(p_da) -> void:
 	t.call("SHOCK", 2, func(a): _shock(a[0], a[1]))
 	t.call("CLOSE_MOUTH", 0, func(_a): _close_mouth(INF))
 	t.call("CLOSE_MOUTH", 1, func(a): _close_mouth(_ms(a[0])))
-	t.call("OPEN_MOUTH", 0, func(_a): _mouth_until = -1)
+	t.call("OPEN_MOUTH", 0, func(_a): _release_mouth())
 	t.call("OPEN_MOUTH", 1, func(a): _hold_mouth(MOUTH_OPENING, _ms(a[0])))
 	t.call("OPEN_MOUTH", 2, func(a): _hold_mouth(AS3.Number(a[1]), _ms(a[0])))
 	t.call("WINCE", 1, func(a): _wince_until = Flash.getTimer() + _ms(a[0]))
@@ -307,9 +307,19 @@ func _close_mouth(ms: float) -> void:
 	_hold_mouth(Her.closedJawAngle * 0.95, ms)
 
 
+## Her jaw held at `angle` for `ms` (INF: until [OPEN_MOUTH]): an OVERRIDE of Her.jawAngle in the dialogue band
+## (milliseconds of game time, like [LOOK_...]).
 func _hold_mouth(angle: float, ms: float) -> void:
-	_mouth_angle = angle
-	_mouth_until = Flash.getTimer() + ms if ms != INF else INF
+	_release_mouth()
+	var spec := {"phase": Hooks.OVERRIDE, "order": LOOK_ORDER, "op": "set", "value": angle}
+	if ms != INF:
+		spec["ms"] = maxf(1.0, ms)
+	_mouth_id = modify(&"Her.jawAngle", spec)
+
+
+func _release_mouth() -> void:
+	Hooks.remove_modifier(_mouth_id)
+	_mouth_id = 0
 
 
 func _tick() -> void:
@@ -320,14 +330,6 @@ func _tick() -> void:
 	if _shock_id != 0 and not Hooks.has_modifier(_shock_id):
 		_shock_id = 0
 		her.eyelidMotion["shock"] = _shock_power   # it ends: the shock fades from here, as after the game's own
-	if _mouth_until >= 0:
-		if now > _mouth_until:
-			_mouth_until = -1
-		else:
-			var head = her.head
-			for jaw in [head.jaw, head.jawBack, head.headTan.jawBack, head.headTan.jaw]:
-				jaw.rotation_degrees = _mouth_angle
-			her.updateLips()
 	if _wince_until >= 0:
 		if now > _wince_until:
 			_wince_until = -1

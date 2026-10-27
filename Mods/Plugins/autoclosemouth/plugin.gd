@@ -1,7 +1,8 @@
 extends SDTExtension
 ## Port of sby's autoclosemouthV10 Loader mod: she closes her mouth some time after the penis left it. A button by
 ## the mood selector (Scene menu) switches it on (green) and off per character; saved in the character code as
-## autoCloseMouth:CloseMouth / Normal, like the Loader mod.
+## autoCloseMouth:CloseMouth / Normal, like the Loader mod. It closes her mouth through the value point Her.jawAngle, so
+## her lips follow (the mod's "updatelips" setting is not needed).
 
 const MOODS := ["Angry", "Normal", "Happy", "Ahegao", "Upset", "Worried", "Aggressive", "Drugged", "Frightened",
 	"Spent", "Submissive", "Depressed", "Nervous", "Elated", "Disgusted", "Broken"]
@@ -31,7 +32,6 @@ func _setup() -> void:
 	setting("maxcloseamount", 0.8, {"label": "How far she closes", "min": 0.0, "max": 1.0})
 	setting("maxclosespeed", 1.5, {"label": "Closing speed", "min": 0.0, "max": 50.0})
 	setting("breathlevelpercent", 0.7, {"label": "Breath needed before closing", "min": 0.0, "max": 1.0})
-	setting("updatelips", true, {"label": "Neutral lips when closed"})
 	setting("disableonpenisout", true, {"label": "Not while rubbing her face"})
 	setting("preventlickbobonclose", true, {"label": "No licking head bob when closed"})
 	setting("pulltongueonclose", true, {"label": "Pull the tongue in when closing"})
@@ -50,6 +50,10 @@ func _enable() -> void:
 	on = get_setting("defaultmode")
 	_button = menu_button("sceneMenu", -330 + 100 + 1 + 22 + 22, 40, "ᾑ0", func(): on = not on)
 	on_late_tick(_tick)
+	# closing: her jaw drawn towards closed by closepercent (MOOD modifier of Her.jawAngle, after moods' mouth hang;
+	# dialogue triggers such as MoreTriggers' [OPEN_MOUTH_ms] override it)
+	modify(&"Her.jawAngle", {"phase": Hooks.MOOD, "order": 10, "op": "fn", "fn": func(v, _her):
+		return v + (Her.closedJawAngle - v) * closepercent if closingmouth else v})
 	hook_after(&"Tongue.encourage", func(_c): _encourage())
 	if get_setting("registerkeys"):
 		on_key(77, func(): goclose = not goclose, "close mouth")
@@ -91,16 +95,6 @@ func _tick() -> void:
 				closingmouth = true
 				closepercent = maxf(0, minf(get_setting("maxcloseamount"),
 					closepercent + 0.01 * minf(get_setting("maxclosespeed"), dist - closedistance)))
-				her.jawAngleTarget = Her.closedJawAngle
-				var jaw: float = her.head.jaw.rotation_degrees
-				jaw = jaw + (her.jawAngleTarget - jaw) * closepercent
-				her.head.jaw.rotation_degrees = jaw
-				her.head.jawBack.rotation_degrees = jaw
-				her.head.headTan.jawBack.rotation_degrees = jaw
-				her.head.headTan.jaw.rotation_degrees = jaw
-				g.herMouthOpeness = maxf(0, minf(1, 1 - jaw / Her.closedJawAngle))
-				if get_setting("updatelips"):
-					her.updateLips()
 			else:
 				closingmouth = false
 		else:

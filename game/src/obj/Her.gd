@@ -1651,6 +1651,8 @@ func updateElements() -> void:
 		head.jaw.rotation_degrees += (-6.5 - head.jaw.rotation_degrees) * clenchTeethRatio
 	if gagged:
 		head.jaw.rotation_degrees = gaggedRotation
+	if Hooks.has_value(&"Her.jawAngle"):   # HOOK value point: her jaw's angle this tick (closedJawAngle: closed, higher: open)
+		head.jaw.rotation_degrees = Hooks.value(&"Her.jawAngle", self, head.jaw.rotation_degrees)
 	head.jawBack.rotation_degrees = head.jaw.rotation_degrees
 	head.headTan.jaw.rotation_degrees = head.jaw.rotation_degrees
 	head.headTan.jawBack.rotation_degrees = head.jaw.rotation_degrees

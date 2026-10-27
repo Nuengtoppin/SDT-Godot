@@ -466,6 +466,14 @@ func _gaze_step() -> void:
 	elif t == 150:
 		_check("after [SHOCK] her eyes ease back (frightened: not below its 60)", her.eyelidShock > 60.0
 			and her.eyelidShock < 150.0, str(her.eyelidShock))
+		da.run_code("[OPEN_MOUTH_1000_5]")
+	elif t == 160:
+		_check("[OPEN_MOUTH] holds her jaw over a frightened mood's closed mouth",
+			is_equal_approx(her.head.jaw.rotation_degrees, 5.0)
+			and is_equal_approx(her.head.headTan.jawBack.rotation_degrees, 5.0), str(her.head.jaw.rotation_degrees))
+	elif t == 200:
+		_check("after [OPEN_MOUTH] the frightened mood closes her mouth again", her.head.jaw.rotation_degrees < 0.0,
+			str(her.head.jaw.rotation_degrees))
 		mm.set_mood("Normal")
 		_finish()
 
