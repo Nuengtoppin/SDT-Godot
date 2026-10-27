@@ -214,7 +214,7 @@ A modifier is a Dictionary:
 `modify()` returns an id for `Hooks.remove_modifier(id)` (`Hooks.has_modifier(id)`: still there, e.g. a timed one);
 `unmodify(name)` removes the extension's own modifiers from one point (`unmodify()`: from all), e.g. when the setting
 that added them is switched off; an extension's modifiers go by themselves when it is switched off. Values are numbers
-or `Vector2` points. Two extensions `set`ting different values in the same phase at the same time log a warning once.
+or `Vector2` points (`Neck.band`: a Dictionary or `null`, changed with `op: "fn"`). Two extensions `set`ting different values in the same phase at the same time log a warning once.
 
 The value points in the game, with the field that keeps the result for code that reads it:
 
@@ -228,6 +228,13 @@ The value points in the game, with the field that keeps the result for code that
 | `Her.jawAngle` | her jaw's angle this tick, after the game's easing (`Her.closedJawAngle` -12: closed, higher: open); lips, cheeks and `g.herMouthOpeness` follow it | `her.head.jaw.rotation_degrees` |
 | `Him.penisTiltTarget` | the angle his penis eases towards (bukkake mode's mouse aim and her push already in), before easing | `him.penisTiltTarget` |
 | `Him.penisAngle` | his penis's angle this tick, after easing and the game's -10..25 limits (`him.penisTilt`: the eased angle before them) | `him.penis.rotation_degrees` |
+| `Her.resistance` | what holds him back as he pushes in, per tick (`checkPosition`'s throat resistance zones) | (subtracted from her speed) |
+| `Her.limpResistance` | the same while she is passed out (0: the game holds nothing then) | (subtracted from her speed) |
+| `Her.pushBack` | how far her head is pushed back off him this tick (0), before the `minPos`/`maxPos` clamp | `her.pos` |
+| `Neck.depth` | how deep the throat bulge sits (his depth / 400) | `neck.lastDepth` |
+| `Neck.throatBulge` | how much her throat bulges (her throat bulge setting) | |
+| `Neck.bulgeCap` | the most the bulge pushes the neck out, px (35) | |
+| `Neck.band` | a band that holds the front of her neck in, asked once per render: `null`, or `{top, bottom, inside, soft}` (edges as depth along the front, px her neck may push out between them, depth over which that blends into the free bulge past each edge); a second holder returns `Neck.narrower(value, its own)` | `neck.renderedPoints` |
 
 `Hooks.explain(name)` returns the last evaluation step by step (recording starts with the first call),
 `Hooks.value_points()` lists the points with modifiers. A value point without modifiers costs one dictionary lookup.

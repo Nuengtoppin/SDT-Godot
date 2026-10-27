@@ -228,7 +228,7 @@ func _dev_mode_checks() -> void:
 	_check("developer panel made", dev is DevMenu and dev._root != null)
 	_check("developer mode remembered", bool(PortSettings.get_value("developer", "enabled", false)))
 	_check("developer panel starts collapsed", not dev.is_open and not dev._dock.visible)
-	_check("developer panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 3)
+	_check("developer panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 4)
 	_check("developer tab says DEBUG", dev._tab.text.replace("\n", "") == "DEBUG")
 	_check("menu right: developer panel left", dev._left() and not menu._left())
 	dev.open_menu()

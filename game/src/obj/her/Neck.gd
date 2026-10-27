@@ -25,6 +25,9 @@ var _tanLayer: FlashSprite
 var tanAlpha: float = 1.0
 ## Port: how far the swallow bulge pushes the neck out (x) and down (y); the throatcumbulge extension changes it.
 var swallowScale := Vector2(0.8, 0.5)
+## Port: the last render's outline points and depth (a collar reads how far her throat pushes out; the developer panel).
+var renderedPoints: Array = []
+var lastDepth: float = 0.0
 
 
 func _init() -> void:
@@ -90,29 +93,72 @@ func respacePoints() -> void:
 	numPoints = neckPoints.size()
 
 
+## Port: how far (px) the band `band` (the value point Neck.band) lets the front of her neck push out at depth `f`
+## (0 at her jaw .. 1 at her chest; `free_px`: as far as it would without the band). band = {"top", "bottom": its
+## edges (depth), "inside": px her neck may push out between them, "soft": depth past each edge over which that
+## blends into the free bulge}. A second extension that holds her neck returns the narrower band (narrower(): the
+## smaller "inside" wins, like a clamp).
+static func band_limit(band: Dictionary, f: float, free_px: float) -> float:
+	var out: float = maxf(band["top"] - f, f - band["bottom"])
+	if out <= 0.0:
+		return band["inside"]
+	var soft: float = band.get("soft", 0.0)
+	if out >= soft:
+		return INF
+	return lerpf(band["inside"], maxf(band["inside"], free_px), smoothstep(0.0, 1.0, out / soft))
+
+
+## Port: of two bands (either may be null), the one that holds her neck in more.
+static func narrower(a, b):
+	if a == null:
+		return b
+	if b == null:
+		return a
+	return a if a["inside"] <= b["inside"] else b
+
+
 func swallow() -> void:
 	swallowing = true
 	swallowProgress = swallowStart
 
 
 func render(depth: float) -> void:
+	if Hooks.has_value(&"Neck.depth"):   # HOOK value point: how deep the throat bulge sits (his depth / 400)
+		depth = Hooks.value(&"Neck.depth", self, depth)
 	var pts: Array = neckPoints.duplicate()
 	bulgeSize = 35.0 * (1.0 + (g.him.getPenisWidthWithTwitch() - 1.0) * 1.5)
+	var bulgeAmount := throatBulgeAmount
+	if Hooks.has_value(&"Neck.throatBulge"):   # HOOK value point: how much the throat bulges (her throat bulge setting)
+		bulgeAmount = Hooks.value(&"Neck.throatBulge", self, bulgeAmount)
+	var bulgeCap := 35.0
+	if Hooks.has_value(&"Neck.bulgeCap"):   # HOOK value point: the most the bulge pushes the neck out, in pixels
+		bulgeCap = Hooks.value(&"Neck.bulgeCap", self, bulgeCap)
+	var band = null
+	if Hooks.has_value(&"Neck.band"):   # HOOK value point: a band that holds the front of her neck in (a collar), or null
+		band = Hooks.value(&"Neck.band", self, null)
 	for i in frontEndPoint:
 		var f := float(i) / frontEndPoint
-		if throatBulgeAmount > 0:
+		if bulgeAmount > 0:
 			var rel := f - depth
-			var bulge := 1.0 / (1.0 + pow(2.0, rel * 35.0)) * throatBulgeAmount
-			var amt := minf(1.0, 0.6 + 0.6 * depth) * minf(35.0, bulgeSize * bulge * pow(1.0 - f, 1.4))
+			var bulge := 1.0 / (1.0 + pow(2.0, rel * 35.0)) * bulgeAmount
+			var amt := minf(1.0, 0.6 + 0.6 * depth) * minf(bulgeCap, bulgeSize * bulge * pow(1.0 - f, 1.4))
 			pts[i] = pts[i] + Vector2(amt, 0.3 * amt)
 		if swallowing:
 			var sw := swallowSize * maxf(0.0, 2.0 / (2.0 + pow(8.0 * (f - swallowProgress), 2.0)) - 0.2)
 			sw *= minf(1.0, minf((swallowProgress - swallowStart) * 5.0, 2.0 - swallowProgress * 2.0))
 			pts[i] = pts[i] + sw * swallowScale
+		if band != null:
+			var d: Vector2 = pts[i] - neckPoints[i]
+			if d.x > 0.0:
+				var lim := band_limit(band, f, d.x)
+				if lim < d.x:
+					pts[i] = neckPoints[i] + d * (maxf(0.0, lim) / d.x)
 	if swallowing:
 		swallowProgress += 0.05
 		if swallowProgress > 1:
 			swallowing = false
+	renderedPoints = pts
+	lastDepth = depth
 	var gr := graphics
 	gr.clear()
 	gr.beginGradientFill("radial", [shade1, shade3], [1, 1], [209, 250], mainGradient, "pad", "rgb", 0.1)

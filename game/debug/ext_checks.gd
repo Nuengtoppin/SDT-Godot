@@ -130,6 +130,9 @@ func step(_frame: int) -> void:
 				_aimpenis_checks()
 				_regulaterandom_checks()
 				_swallow_veto_checks()
+				_rings_checks()
+				_entrance_checks()
+				_collar_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -296,6 +299,245 @@ func _aimpenis_checks() -> void:
 	_check("aimpenis on, mouse up: aims up, up to 35", up[0] > 40.0 and up[1] == 35.0, str(up))
 	_check("aimpenis in her mouth: the game's tilt", mouth == [10.0, 25.0], str(mouth))
 	_check("aimpenis: M switches it off and on", key_off and key_on)
+
+
+# ---------------------------------------------------------------- throat rings
+
+## The value points `owner` has modifiers on.
+func _owned(owner: String) -> Array:
+	return Hooks._modifiers.values().filter(func(m): return m.owner == owner).map(func(m): return m.name)
+
+
+## The rings are worked out once per game tick; these checks run several in one tick.
+func _ring_tick(her) -> void:
+	ThroatRings._tick_done = -1
+	ThroatRings.tick(her)
+
+
+## The ring model: the entrance on the game's resistance zone, the collar ring where the collar's picture covers her
+## neck, one stiffness for every collar (its profiles and tags), and rings that stretch, wear down and recover.
+func _rings_checks() -> void:
+	var her = g.her
+	var n = her.head.neck
+	var cc = g.characterControl.collarControl
+	var was: int = cc.selection
+	cc.select(0)
+	_ring_tick(her)
+	_check("rings: no collar, no collar ring", not ThroatRings.collar["on"] and ThroatRings.entrance["on"])
+	_check("rings: the entrance on the game's resistance zone", is_equal_approx(ThroatRings.entrance["top"], 75.0 / 400.0)
+		and is_equal_approx(ThroatRings.entrance["bottom"], 150.0 / 400.0))
+	var c: Dictionary = ThroatRings.collar
+	var fits := {}
+	for i in [1, 2, 3]:
+		cc.select(i)
+		_ring_tick(her)
+		fits[ThroatRings.collar_name] = [c["on"], c["top"], c["bottom"]]
+	# the edges seen in the game: front of her throat, below the top of the picture's bounds (at her nape)
+	var lb: Array = fits.get("Leather", [false, 0, 0])
+	_check("rings: the leather collar's band where it covers her throat", lb[0] and lb[1] > 0.53 and lb[1] < 0.57
+		and lb[2] > 0.72 and lb[2] < 0.77, str(fits))
+	var tie: Array = fits.get("Tie", [false, 0, 0])
+	_check("rings: the tie - only its band, not the hanging tie", tie[0] and tie[2] - tie[1] < 0.2, str(tie))
+	_check("rings: each collar its own band", fits.size() == 3 and fits.values().all(func(f): return f[0] and f[2] > f[1]))
+	ThroatRings.set_stiffness(1.0)
+	_check("rings: one stiffness for every collar, kept in port.cfg", c["stiff"] == 1.0
+		and PortSettings.get_value(ThroatRings.SECTION, "stiffness") == 1.0)
+	_check("rings: profiles by name", ThroatRings.apply_profile("Band") and ThroatRings.stiffness == 0.2
+		and not ThroatRings.apply_profile("nope"))
+	ThroatRings.set_stiffness(0.6)
+	var game := [g.throatResistance, her.pos, n.throatBulgeAmount, her.collarContainer.collar.scaleX, n.swallowScale]
+	var r := ThroatRings._ring("test", 0.2, 0.3, 0.8, 0.0, 5.0)
+	ThroatRings.tip = 0.5
+	ThroatRings.push = 1.0
+	ThroatRings._step(r, 1.0, n)
+	var hold0: float = r["hold"]
+	for i in 30:
+		ThroatRings._step(r, 1.0, n)
+	_check("rings: pressure stretches a ring and it holds less", r["stretch"] > 0.05 and r["hold"] < hold0 and r["pressure"] >= 1.0)
+	_check("rings: pressure wears a ring down until it snaps", r["snapped"] and r["hold"] == 0.0)
+	ThroatRings.tip = 0.0
+	var st: float = r["stretch"]
+	ThroatRings._step(r, 1.0, n)
+	_check("rings: at rest a ring recovers", r["stretch"] < st and r["pressure"] == 0.0)
+	var m := ThroatRings._ring("metal", 0.2, 0.3, 0.85, 1.0, INF)
+	ThroatRings.tip = 0.5
+	for i in 30:
+		ThroatRings._step(m, 1.0, n)
+	_check("rings: a fully stiff ring does not give or break", m["stretch"] == 0.0 and not m["snapped"] and m["hold"] == 0.85)
+	ThroatRings.set_stiffness(0.0)
+	_check("rings: stiffness 0 holds nothing; collars never break by default", c["tight"] == 0.0 and not is_finite(c["max_durability"]))
+	ThroatRings.collar_breaks = true
+	ThroatRings._apply_stiffness()
+	_check("rings: collars may break, a soft band easily", c["max_durability"] == 60.0)
+	ThroatRings.set_stiffness(1.0)
+	_check("rings: metal holds fully and never breaks", c["tight"] == 1.0 and not is_finite(c["max_durability"]))
+	ThroatRings.collar_tags[ThroatRings.collar_name] = {"profile": "Band"}
+	ThroatRings._apply_stiffness()
+	_check("rings: a collar's tags may name its profile", c["stiff"] == 0.2)
+	ThroatRings.collar_tags[ThroatRings.collar_name] = {"stiffness": 0.4, "can_snap": false}
+	ThroatRings._apply_stiffness()
+	_check("rings: or set its own stiffness, or never snap", c["stiff"] == 0.4 and not is_finite(c["max_durability"]))
+	ThroatRings.collar_tags.clear()
+	ThroatRings.collar_breaks = false
+	ThroatRings.set_stiffness(0.6)
+	_ring_tick(her)
+	_check("rings: they change nothing in the game by themselves", game == [g.throatResistance, her.pos, n.throatBulgeAmount,
+		her.collarContainer.collar.scaleX, n.swallowScale])
+	cc.select(was)
+	ThroatRings.reset_stretch()
+
+
+## throatresiststretch on the entrance ring: a stretched entrance lowers its share of the resistance and keeps the
+## neck drawn deep; it tightens back at the set speed; off, nothing is left.
+func _entrance_checks() -> void:
+	var x = Extensions.get_extension("throatresiststretch")
+	var her = g.her
+	var e: Dictionary = ThroatRings.entrance
+	x.set_setting("on", true)
+	var owners: Array = _owned("throatresiststretch")
+	_check("throat loosens: acts on resistance and neck depth", owners.has(&"Her.resistance") and owners.has(&"Neck.depth"))
+	e["stretch"] = 0.5
+	ThroatRings.tip = 0.3
+	var upper: float = her.resistance["upper"]
+	_check("throat loosens: a stretched entrance lowers its share of the resistance",
+		is_equal_approx(Hooks.value(&"Her.resistance", her, upper + 0.05), upper + 0.025))
+	ThroatRings.tip = 0.5
+	_check("throat loosens: past the entrance the resistance is the game's", Hooks.value(&"Her.resistance", her, 0.0) == 0.0)
+	_check("throat loosens: the neck drawn as deep as the stretch", Hooks.value(&"Neck.depth", her.head.neck, 0.1) == 0.5
+		and Hooks.value(&"Neck.depth", her.head.neck, 0.7) == 0.7)
+	x.set_setting("recover", 0.5)
+	ThroatRings.tip = 0.0
+	ThroatRings._step(e, 1.0, her.head.neck)
+	_check("throat loosens: tightens back at the set speed", is_equal_approx(e["stretch"], 0.5 - ThroatRings.RECOVER_RATE * 0.5 * (1.0 - 0.5 * e["stiff"])))
+	x.set_setting("recover", 0.25)
+	x.set_setting("on", false)
+	_check("throat loosens off: nothing left", _owned("throatresiststretch").is_empty() and e["stretch"] == 0.0)
+
+
+## chokercollarresistance: a wall across the collar's band (awake and passed out), her head pushed back in it, her neck
+## held in by the band (Neck.band) as far as the collar gives, its front a fast spring; breaking; off, nothing left.
+func _collar_checks() -> void:
+	var x = Extensions.get_extension("chokercollarresistance")
+	var her = g.her
+	var neck = her.head.neck
+	var cc = g.characterControl.collarControl
+	var was: int = cc.selection
+	var c: Dictionary = ThroatRings.collar
+	_check("collar: off by default", x != null and not x.get_setting("on") and _owned("chokercollarresistance").is_empty())
+	cc.select(1)
+	_ring_tick(her)
+	x.set_setting("on", true)
+	var pts: Array = _owned("chokercollarresistance")
+	_check("collar on: push back, resistance (awake and passed out), the band on her neck", pts.has(&"Her.pushBack")
+		and pts.has(&"Her.resistance") and pts.has(&"Her.limpResistance") and pts.has(&"Neck.band"))
+	ThroatRings.set_stiffness(0.6)
+	ThroatRings.reset_stretch()
+	ThroatRings.repair()
+	var band: float = c["bottom"] - c["top"]
+	ThroatRings.tip = c["top"] + 0.05
+	c["hold"] = c["tight"]
+	_check("collar: in its band her head is pushed back by what it holds",
+		is_equal_approx(Hooks.value(&"Her.pushBack", her, 0.0), 0.05 * 400.0 * 0.0015 * c["tight"]))
+	_check("collar: in the band going deeper gets harder, like her throat entrance",
+		is_equal_approx(Hooks.value(&"Her.resistance", her, 0.0), 0.3 * c["tight"] * 0.05 / band))
+	ThroatRings.tip = c["bottom"] - 0.0001
+	_check("collar: at its bottom edge a wall of 0.3 x the stiffness", absf(x.wall() - 0.3 * c["tight"]) < 0.001)
+	ThroatRings.set_wall(0.25)
+	_check("collar: the wall can be set apart from code", absf(x.wall() - 0.25) < 0.001)
+	_check("collar: passed out she is still held", is_equal_approx(Hooks.value(&"Her.limpResistance", her, 0.0), x.wall()))
+	ThroatRings.set_stiffness(0.2)
+	_check("collar: the stiffness sets the wall again (0.3 x stiffness)", is_equal_approx(ThroatRings.collar_wall, 0.06))
+	ThroatRings.set_stiffness(0.6)
+	c["hold"] = c["tight"]
+	ThroatRings.tip = c["bottom"] + 0.2
+	_check("collar: through it only a squeeze, no more push back than the band's", is_equal_approx(x.wall(), 0.03 * c["tight"])
+		and is_equal_approx(Hooks.value(&"Her.pushBack", her, 0.0), band * 400.0 * 0.0015 * c["tight"]))
+	ThroatRings.tip = c["top"] + 0.05
+	var mid: float = (c["top"] + c["bottom"]) / 2.0
+	var at := func(f: float) -> float:
+		x.refresh_band()
+		var b = Hooks.value(&"Neck.band", neck, null)
+		return 30.0 if b == null else minf(30.0, Neck.band_limit(b, f, 30.0))
+	var give: float = 6.0 * 0.4 / 0.6
+	_check("collar: a softer collar gives way at once", is_equal_approx(x.room(), give))
+	x.push_px = 0.0
+	_check("collar: between its edges her neck pushes out only as far as it gives", is_equal_approx(at.call(mid), 2.0 + 3.0))
+	_check("collar: well above and below it her neck is free", at.call(c["top"] - 0.1) == 30.0 and at.call(c["bottom"] + 0.1) == 30.0)
+	var s1: float = at.call(c["top"] - 0.02)
+	var s2: float = at.call(c["top"] - 0.05)
+	_check("collar: past each edge the band blends into the free bulge", s1 > 5.0 and s1 < s2 and s2 < 30.0, "%s %s" % [s1, s2])
+	_check("collar: one band value per render; a narrower band wins", Neck.narrower(null, {"inside": 4.0})["inside"] == 4.0
+		and Neck.narrower({"inside": 9.0}, {"inside": 4.0})["inside"] == 4.0)
+	c["stretch"] = 1.0
+	x.push_px = 30.0
+	_check("collar: stretched it gives further", is_equal_approx(at.call(mid), 2.0 + give + 70.0 * 0.25))
+	x.push_px = 0.0
+	x.set_setting("widen", false)
+	_check("collar: its picture not widening, the band stays tight", at.call(mid) == 2.0)
+	x.set_setting("widen", true)
+	ThroatRings.set_stiffness(1.0)
+	c["stretch"] = 0.0
+	c["hold"] = c["tight"]
+	_check("collar: metal does not give", x.room() == 0.0 and at.call(mid) == 2.0)
+	ThroatRings.set_stiffness(0.0)
+	c["hold"] = c["tight"]
+	_check("collar: stiffness 0 holds nothing and rides along", x.rides_free() and at.call(mid) == 30.0
+		and x.wall() == 0.0 and Hooks.value(&"Her.pushBack", her, 0.0) == 0.0)
+	ThroatRings.set_stiffness(1.0)
+	c["hold"] = c["tight"]
+	var was_bulge: float = neck.throatBulgeAmount
+	neck.throatBulgeAmount = 1.5
+	x.refresh_band()
+	neck.render(0.95)
+	var pr: Array = neck.renderedPoints
+	var n: int = neck.frontEndPoint
+	var i_mid := int(round(mid * n))
+	var i_above := int(floor((c["top"] - 0.1) * n))
+	var out_mid: float = (pr[i_mid] - neck.neckPoints[i_mid]).x
+	var out_above: float = (pr[i_above] - neck.neckPoints[i_above]).x
+	_check("collar drawn: under it her neck stays in, above it bulges", out_mid <= 2.001 and out_above > 5.0, "%s %s" % [out_mid, out_above])
+	ThroatRings.set_stiffness(0.6)
+	var cont = her.collarContainer
+	var col = cont.collar
+	var before: Rect2 = col.getBounds(cont)
+	x.push_px = 12.0
+	x._widen(her)
+	var after: Rect2 = col.getBounds(cont)
+	_check("collar: her throat pushes its front out by as much, the back stays put", absf((after.end.x - before.end.x) - 12.0) < 0.5
+		and absf(after.position.x - before.position.x) < 0.5, "%s -> %s" % [before, after])
+	c["stretch"] = 1.0
+	x.push_px = 0.0
+	x.refresh_band()
+	neck.render(0.95)
+	var push0: float = x._throat_push(neck, c)
+	x.push_speed = 0.0
+	x._spring(push0)
+	var first: float = x.push_px
+	x._spring(push0)
+	x._spring(push0)
+	var peak := 0.0
+	for i in 60:
+		x._spring(push0)
+		peak = maxf(peak, x.push_px)
+	_check("collar: its front a fast spring - part way at first, a little overshoot, settles", push0 > 0.0 and first > 0.0
+		and first < push0 and peak > push0 and peak < 1.2 * push0 and absf(x.push_px - push0) < 0.2, "%s %s %s" % [push0, first, peak])
+	neck.throatBulgeAmount = was_bulge
+	x.push_px = 0.0
+	_check("collar can break: off by default", not x.get_setting("breaks") and not is_finite(c["max_durability"]))
+	x.set_setting("breaks", true)
+	c["snapped"] = true
+	ThroatRings.tip = c["top"] + 0.05
+	_check("collar: snapped, it holds nothing and rides along", Hooks.value(&"Her.pushBack", her, 0.0) == 0.0
+		and at.call(mid) == 30.0 and x.wall() == 0.0 and x.rides_free())
+	ThroatRings.repair()
+	_check("collar: repaired, it holds again", not c["snapped"] and not x.rides_free())
+	x.set_setting("breaks", false)
+	x.set_setting("on", false)
+	_check("collar off: nothing left, the picture as it was", _owned("chokercollarresistance").is_empty()
+		and her.collarContainer.collar.scaleX == 1.0)
+	ThroatRings.set_stiffness(0.6)
+	ThroatRings.reset_stretch()
+	cc.select(was)
 
 
 ## Port fixes from sby's Loader patches (in the game code).
