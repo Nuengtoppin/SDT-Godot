@@ -114,6 +114,10 @@ tab (P032) on top.
   Him, Other (filter buttons). The card shows newest first; Copy (shown groups) and Save (`<save dir>/journal/`,
   everything) give oldest first. It has no listeners: extensions react through Hooks. Wince is left out (it fires
   every tick of a swallow).
+- Tools › Her (P053, `DevSchema._her_tools`): "Air" (`g.breathLevelMax`, the game's 50; `outOfBreathPoint` kept at
+  half of it), "Oxygen" (before passing out: `Her.passOutMax`, 40: about 27 s with no air), each with ↺ to the game's, and
+  "Air now" / "Oxygen now" (the current levels in %, as DialogueActions' breath / oxygen). A test tool:
+  it writes the game's numbers for this session only (back at the next start), not through value points.
 - Menu cards fold and reset (P052, `game/src/menu/menu_fold.gd`, in upstream's `SDTMenu._build_view`): a section
   that has `"fold": {group title: folded at first}` (only Behaviour for now: Resistance and Reactions folded at
   first) gets ▸/▾ on each card's heading (a click on the heading too), the number of its settings while folded, and

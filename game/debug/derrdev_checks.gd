@@ -44,6 +44,7 @@ func step(_frame: int) -> void:
 			_test_journal()
 			_test_gulp_rows()
 			_test_menu_fold()
+			_test_her_tools()
 			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
@@ -510,6 +511,31 @@ func _test_swallow_queue() -> void:
 	her.cumInMouth = 0
 	x._prev_cum = 0
 	x._prev_swallowing = false
+
+
+## P053: Tools > Her - air and how long she lasts, for this session; the "now" sliders set the levels.
+func _test_her_tools() -> void:
+	var her = g.her
+	var grp: Dictionary = DevSchema.sections()[0]["groups"].filter(func(gr): return gr["title"] == "Her")[0]
+	var rows := {}
+	for c in grp["controls"]:
+		if c.has("label"):
+			rows[c["label"]] = c
+	_check("Tools > Her: Air, Oxygen, and their now", rows.has("Air") and rows.has("Oxygen")
+		and rows.has("Air now") and rows.has("Oxygen now"))
+	_check("Her tools: the game's numbers at first", g.breathLevelMax == DevSchema.AIR and her.passOutMax == DevSchema.LAST)
+	rows["Air"]["set"].call(100.0)
+	_check("Air 100: out of breath at half of it", g.breathLevelMax == 100.0 and g.outOfBreathPoint == 50.0)
+	rows["Air now"]["set"].call(0.0)
+	_check("Air now 0%: no air left", g.currentBreathLevel == 100.0 and is_zero_approx(rows["Air now"]["get"].call()))
+	rows["Air now"]["set"].call(100.0)
+	rows["Oxygen"]["set"].call(80.0)
+	rows["Oxygen now"]["set"].call(50.0)
+	_check("Oxygen 80, now 50%", her.passOutMax == 80.0 and her.passOutFactor == 40.0)
+	rows["Oxygen now"]["set"].call(100.0)
+	rows["Air"]["reset"].call()
+	rows["Oxygen"]["reset"].call()
+	_check("Her tools ↺: the game's again", g.breathLevelMax == 50.0 and g.outOfBreathPoint == 25.0 and her.passOutMax == 40.0)
 
 
 ## P052: Behaviour's cards fold (Resistance and Reactions at first, kept) and reset to their defaults (twice).
