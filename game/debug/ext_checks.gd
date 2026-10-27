@@ -127,6 +127,7 @@ func step(_frame: int) -> void:
 				_shock_spray_veto_checks()
 				_extramodhim_checks()
 				_leglayer_checks()
+				_aimpenis_checks()
 				_swallow_veto_checks()
 				_disable_checks()
 				_plugin_checks()
@@ -239,6 +240,31 @@ func _extramodhim_checks() -> void:
 	_check("ExtraModHim off: types gone", not helpers.has("HimBody"))
 	Extensions.set_enabled("extramodhim", true)
 	_check("ExtraModHim on again", helpers.has("HimBody"))
+
+
+## aimpenis: the aim goes into his tilt target and the wider limits into his angle, only while it is on and he is out
+## of her mouth.
+func _aimpenis_checks() -> void:
+	var ap: SDTExtension = Extensions.get_extension("aimpenis")
+	var him = g.him
+	var was := [him.inMouth, him.penisTilt, g.currentPos.y, g.bukkakeMode]
+	him.inMouth = false
+	him.penisTilt = 60.0
+	g.currentPos.y = -1.0
+	g.bukkakeMode = false
+	var off := [Hooks.value(&"Him.penisTiltTarget", him, 10.0), Hooks.value(&"Him.penisAngle", him, 25.0)]
+	ap.set_setting("on", true)
+	var up := [Hooks.value(&"Him.penisTiltTarget", him, 10.0), Hooks.value(&"Him.penisAngle", him, 25.0)]
+	him.inMouth = true
+	var mouth := [Hooks.value(&"Him.penisTiltTarget", him, 10.0), Hooks.value(&"Him.penisAngle", him, 25.0)]
+	ap.set_setting("on", false)
+	him.inMouth = was[0]
+	him.penisTilt = was[1]
+	g.currentPos.y = was[2]
+	g.bukkakeMode = was[3]
+	_check("aimpenis off: the game's tilt", off == [10.0, 25.0], str(off))
+	_check("aimpenis on, mouse up: aims up, up to 35", up[0] > 40.0 and up[1] == 35.0, str(up))
+	_check("aimpenis in her mouth: the game's tilt", mouth == [10.0, 25.0], str(mouth))
 
 
 ## Port fixes from sby's Loader patches (in the game code).

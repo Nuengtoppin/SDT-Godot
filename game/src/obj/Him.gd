@@ -532,11 +532,15 @@ func move(p: float, mx: float, my: float) -> void:
 		if g.bukkakeMode:
 			penisTiltTarget += -2.5 - my * 15.0
 		penisTiltSpeed += g.her.pushPenisTilt()
+	if Hooks.has_value(&"Him.penisTiltTarget"):   # HOOK value point: the angle his penis tilts towards (my: mouse y)
+		penisTiltTarget = Hooks.value(&"Him.penisTiltTarget", self, penisTiltTarget)
 	penisPullScale *= 0.9
 	penisTiltSpeed += (penisTiltTarget - penisTilt) / 8.0
 	penisTiltSpeed *= 0.5 if inMouth else 0.8
 	penisTilt += penisTiltSpeed - inMouthTiltOffset * mouthConstraintSmoothing
 	penis.rotation_degrees = maxf(-10.0, minf(25.0, penisTilt))
+	if Hooks.has_value(&"Him.penisAngle"):   # HOOK value point: his penis's angle (penisTilt: before the -10..25 limit)
+		penis.rotation_degrees = Hooks.value(&"Him.penisAngle", self, penis.rotation_degrees)
 	currentBody.move(p, mx, my)
 	if pleasure >= ejacPleasure:
 		if maxPleasureTimer >= 60:
