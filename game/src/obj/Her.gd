@@ -173,6 +173,8 @@ const closedJawAngle := -12.0
 const swallowTilt := -0.2
 var aboveSwallowTilt := false
 var jawAngleTarget: float = 0.0
+## Port: his penis holds her jaw open over a closed sound while she speaks (her lips then open with the jaw).
+var jawHeldOpen := false
 var swallowing := false
 var lipSkinOffset: int = 0
 var jawBulgeTarget: int = 0
@@ -1597,7 +1599,14 @@ func updateElements() -> void:
 	var fullJaw := Maths.radToDeg(openAng) - 11.0
 	if speaking or speakStopDelay > 0:
 		jawAngleTarget = targetPhoneme["jaw"]
-		head.jaw.rotation_degrees += (jawAngleTarget - head.jaw.rotation_degrees) / (phonemeDelay + 1)
+		# port fix: with his penis in her mouth her jaw doesn't close tighter than its width (the game shut it around
+		# him on a closed sound mid-line); it opens as fast as when she isn't speaking
+		jawHeldOpen = penisInMouthDist > 0 and not g.penisOut and jawAngleTarget < fullJaw
+		if jawHeldOpen:
+			jawAngleTarget = fullJaw
+			head.jaw.rotation_degrees += (jawAngleTarget - head.jaw.rotation_degrees) * 0.8
+		else:
+			head.jaw.rotation_degrees += (jawAngleTarget - head.jaw.rotation_degrees) / (phonemeDelay + 1)
 	elif swallowing:
 		if swallowTimer < swallowSequence["relax"]:
 			if penisInMouthDist > 0 and mouthFull:
@@ -1869,6 +1878,10 @@ func updateLips() -> void:
 	if speaking or speakStopDelay > 0:
 		upper = lastUpperLipPos + int(Maths.round(float(targetPhoneme["upperLip"] - lastUpperLipPos) / (phonemeDelay + 1)))
 		lower = lastLowerLipPos + int(Maths.round(float(targetPhoneme["lowerLip"] - lastLowerLipPos) / (phonemeDelay + 1)))
+		if jawHeldOpen:   # port fix (see jawHeldOpen): lips no more closed than the jaw's (higher frame: more closed)
+			var open := int(minf(79.0, floor(maxf(0.0, -head.jaw.rotation_degrees * 4.5 + 30.0))))
+			upper = mini(upper, open)
+			lower = mini(lower, open)
 		if phonemeDelay > 0:
 			phonemeDelay -= 1
 		if speakStopDelay > 0:

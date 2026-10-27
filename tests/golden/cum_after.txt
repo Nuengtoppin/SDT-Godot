@@ -89,6 +89,7 @@ startSwallowTimer=77
 startSwallowTime=88
 aboveSwallowTilt=true
 jawAngleTarget=1.837
+jawHeldOpen=false
 swallowing=false
 lipSkinOffset=2
 jawBulgeTarget=11
