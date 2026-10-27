@@ -39,6 +39,7 @@ func step(_frame: int) -> void:
 			_test_throat_rings()
 			_test_penisrange()
 			_test_swallowing()
+			_test_swallow_points()
 			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
@@ -390,6 +391,66 @@ func _test_swallowing() -> void:
 	her.cumInMouth = 0
 	x._prev_cum = 0
 	x._prev_swallowing = false
+
+
+## P048: the swallow's own points - Her.swallow's after point (did it start), Her.gulp, Her.swallowSpeed and
+## Her.swallowWince.
+func _test_swallow_points() -> void:
+	var her = g.her
+	her.swallowing = false
+	her.speaking = false
+	her.passedOut = false
+	var started := []
+	var rec := func(c): started.append(c.result)
+	Hooks.add_after(&"Her.swallow", rec, "derrdev_checks")
+	her.swallow(0.8, false)
+	her.swallow(0.8, false)
+	Hooks.remove(&"Her.swallow", rec)
+	_check("Her.swallow after: tells a started swallow from a dropped one", started == [true, false], str(started))
+	var base: Dictionary = her.swallowSequence.duplicate()
+	her.swallowing = false
+	var sp := modify_test(&"Her.swallowSpeed", 2.0)
+	her.swallow(0.8, false)
+	Hooks.remove_modifier(sp)
+	var seq: Dictionary = her.swallowSequence
+	_check("Her.swallowSpeed 2: the swallow plays in half the ticks", seq["end"] == Maths.round(base["end"] / 2.0)
+		and seq["build"] < seq["swallow"] and seq["swallow"] < seq["relax"] and seq["relax"] < seq["end"], "%s -> %s" % [base, seq])
+	her.swallowing = false
+	her.swallow(0.8, false)
+	_check("Her.swallowSpeed unset: the game's lengths", her.swallowSequence == base)
+	her.swallowing = false
+	her.swallowTimer = 0
+	her.cumInMouth = 20
+	var n := _counted(&"Her.gulp", func(): her.gulp())
+	_check("Her.gulp: once, takes from her mouth", n == 1 and her.cumInMouth < 20 and her.cumInMouth >= 11)
+	her.cumInMouth = 20
+	n = _vetoed(&"Her.gulp", func(): her.gulp())
+	_check("Her.gulp vetoed: nothing leaves her mouth", n == 1 and her.cumInMouth == 20)
+	n = _counted(&"Her.wince", func(): her.gulp())
+	_check("Her.gulp: she squints (the game's)", n == 1)
+	var nw := modify_test(&"Her.swallowWince", false)
+	her.cumInMouth = 20
+	n = _counted(&"Her.wince", func(): her.gulp())
+	_check("Her.swallowWince false: the gulp without the squint", n == 0 and her.cumInMouth < 20)
+	Hooks.remove_modifier(nw)
+	her.cumInMouth = 0
+	her.head.neck.swallowing = false
+	her.swallowing = false
+	her.swallowTimer = 0
+
+
+func modify_test(name: StringName, v) -> int:
+	return Hooks.add_modifier(name, {"phase": Hooks.OVERRIDE, "op": "set", "value": v}, "derrdev_checks")
+
+
+## Runs `fn` counting the calls of hook `name` (not vetoed); returns the count.
+func _counted(name: StringName, fn: Callable) -> int:
+	var n := [0]
+	var count := func(_c): n[0] += 1
+	Hooks.add_before(name, count, "derrdev_checks")
+	fn.call()
+	Hooks.remove(name, count)
+	return n[0]
 
 
 ## Value points (upstream's Hooks.value): ours (neck, throat) are not set by default; the ring extensions' modifiers.

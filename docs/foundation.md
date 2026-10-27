@@ -29,6 +29,8 @@ is unchanged.
 | `Her.cough` (upstream's) | before, can cancel | P030 | Veto clean-up only. Vetoed and no wait of its own set by the handler (moremoods sets one): `nextCoughTime` gets a normal wait (30–239 ticks) instead of 0. | merged (main) |
 | `Her.shock` | before (args: `[amount]`, can cancel) | P031 | Switch off, weaken or replace her being startled (eyes wide, sometimes a blink): he comes, she wakes up, cum from her nose, dialogue. Vetoed: nothing changes (no shock, no blink). | merged (main) |
 | `Her.lastSpurt` | before (args: `[]`, can cancel) | P031 | Switch off or replace cum from her nose at his last spurt (her mouth over-full, Nostril spray on). Vetoed: nothing changes. | merged (main) |
+| `Her.swallow` | after (args: `[intensity, speak]`, result: whether the swallow started) | P048 | The before point is asked on every request, also those the game drops (she is already swallowing, speaking or passed out); the after point tells which started. For the swallow queue and the event log. | ours (P048) |
+| `Her.gulp` | before (args: `[]`, can cancel) and after | P048 | The moment she swallows (squint, sound, the wave down her neck, what leaves her mouth) was inside the jaw update; it is now `Her.gulp()`, same order, so it has its own point. Vetoed: no gulp this swallow; the swallow's motion still plays. | ours (P048) |
 
 Not one-offs, so no before point: `Him.closeHand` (`Her.move` calls it every tick while he holds her; it is the hand's
 state, a flag for a value point) and the spit flow while she moves (`generateSpit`, every tick).
@@ -120,6 +122,8 @@ remove them when a setting goes off (`_drop_mods()`); all of an extension's modi
 | `Her.limpResistance` | `Her.move`, while she is passed out and he pushes in (P046) | 0 (the game holds nothing then) |
 | `Neck.depth` | `Neck.render` (P039) | his depth / 400 (where the throat bulge sits) |
 | `Neck.pointBulge` | `Neck.render`, per front outline point (P041; `Neck.bulgePointDepth` = that point's depth) | how far the point pushes out (px) |
+| `Her.swallowSpeed` | `Her.swallow`, when a swallow starts (P048) | 1 (the four phases' lengths are divided by it, at least 1 tick apart) |
+| `Her.swallowWince` | `Her.gulp` and `tickSwallowing` (P048) | true (she squints around the swallow) |
 
 The developer panel (Body > Throat rings) shows who modifies each point and the value used last (`Hooks.explain`).
 
