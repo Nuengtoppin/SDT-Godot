@@ -135,7 +135,9 @@ static func _apply() -> void:
 		return
 	_veto_fn = func(c): if _off.has(c.name) and not _allow.has(c.name): c.cancel()
 	for h in hooks():
-		var watch := func(c): _seen[h] = [c, Flash.tick_count, _allow.has(h)]
+		var watch := func(c):
+			_seen[h] = [c, Flash.tick_count, _allow.has(h)]
+			Journal.observed(h, c, _allow.has(h))   # P050: the event log reads how it ended
 		_watch_fns[h] = watch
 		Hooks.add_before(h, watch, OWNER, -100000)   # first: sees every call, then reads how it ended
 		if _off.has(h):

@@ -41,6 +41,7 @@ func step(_frame: int) -> void:
 			_test_swallowing()
 			_test_swallow_points()
 			_test_swallow_queue()
+			_test_journal()
 			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
@@ -507,6 +508,124 @@ func _test_swallow_queue() -> void:
 	her.cumInMouth = 0
 	x._prev_cum = 0
 	x._prev_swallowing = false
+
+
+## P050: the event log (Tools > Log): only while Developer mode is on, folding repeats, the swallow's points, the
+## behaviour observer's vetoes, states once per tick, pause, filter, save, the last MAX lines, the tab.
+func _test_journal() -> void:
+	var her = g.her
+	var dev_was: bool = SDTMenu.dev_mode_enabled()
+	SDTMenu.set_dev_mode(false)
+	_check("log: off without Developer mode", not Journal.active and not Hooks.has(&"Her.gulp"))
+	var n0: int = Journal.lines.size()
+	Journal.log("other", "nothing")
+	_check("log: Journal.log does nothing while off", Journal.lines.size() == n0)
+	SDTMenu.set_dev_mode(true)
+	_check("log: on with Developer mode", Journal.active and Hooks.has(&"Her.gulp"))
+	Journal.clear()
+	Journal.log("other", "a")
+	Journal.log("other", "a")
+	Journal.log("other", "b")
+	_check("log: the same line again is folded", Journal.lines.size() == 2 and Journal.lines[0][3] == 2
+		and Journal.as_text().contains("a  x2"), Journal.as_text())
+	Journal.clear()
+	her.swallowing = false
+	her.speaking = false
+	her.passedOut = false
+	her.cumInMouth = 20
+	her.swallow(0.8, false)
+	her.swallow(0.8, false)
+	her.gulp()
+	Journal._tick()
+	var t := Journal.as_text()
+	_check("log: swallow starts, a dropped request, the gulp", t.contains("Swallow starts (strength 0.80, 20 in her mouth)")
+		and t.contains("Asked to swallow: dropped, already swallowing") and t.contains("Gulp: took ")
+		and t.find("Swallow starts") < t.find("dropped") and t.find("dropped") < t.find("Gulp"), t)
+	Journal.clear()
+	her.swallowing = false   # it ended and the next starts in the same tick, before the log's tick saw the end
+	her.swallow(0.8, false)
+	t = Journal.as_text()
+	_check("log: a swallow ending and the next starting in one tick: both lines", t.contains("Swallow ends")
+		and t.find("Swallow ends") < t.find("Swallow starts"), t)
+	var x = Extensions.get_extension("throatcumbulge")
+	x.set_setting("queue", 1)
+	Journal.clear()
+	her.swallow(0.8, false)
+	her.swallow(0.8, false)
+	t = Journal.as_text()
+	_check("log: the queue writes its own lines", t.contains("dropped, already swallowing") and t.contains("Queued: 1 waiting")
+		and t.contains("Queue full (1)") and t.find("dropped") < t.find("Queued"), t)
+	x.set_setting("queue", 0)
+	Journal.clear()
+	DevBehaviour.set_auto(&"Her.cough", false)
+	her.cough()
+	Journal._tick()
+	DevBehaviour.set_auto(&"Her.cough", true)
+	_check("log: a veto names who", Journal.as_text().contains("Cough vetoed by Developer mode"), Journal.as_text())
+	Journal.clear()
+	Journal._prev.clear()
+	Journal._tick()
+	var was: bool = her.breathing
+	her.breathing = not was
+	Journal._tick()
+	_check("log: a state change waits HOLD ticks", Journal.lines.is_empty())
+	Journal._since["breathing"][1] -= Journal.HOLD   # as if HOLD ticks went by
+	Journal._tick()
+	her.breathing = was
+	Journal._tick()
+	Journal._since["breathing"][1] -= Journal.HOLD
+	Journal._tick()
+	t = Journal.as_text()
+	_check("log: a state change is one line each way", t.contains("Holds her breath") and t.contains("Breathes again")
+		and Journal.lines.size() == 2, t)
+	Journal.clear()
+	her.breathing = not was
+	Journal._tick()
+	her.breathing = was
+	Journal._tick()
+	_check("log: a flicker shorter than HOLD makes no line", Journal.lines.is_empty(), Journal.as_text())
+	Journal.log("breath", "Holds her breath")
+	Journal.log("breath", "Breathes again")
+	Journal.shown["breath"] = false
+	_check("log: hidden groups are left out of the text", Journal.as_text() == "" and Journal.as_text(false) != "")
+	Journal.shown["breath"] = true
+	Journal.paused = true
+	Journal.log("other", "paused")
+	Journal.paused = false
+	_check("log: nothing while paused", not Journal.as_text().contains("paused"))
+	var path := Journal.save()
+	_check("log: saved to a file", path != "" and FileAccess.get_file_as_string(path).contains("Holds her breath"), path)
+	for i in Journal.MAX + 20:
+		Journal.log("other", "line %d" % i)
+	_check("log: keeps the last MAX lines", Journal.lines.size() == Journal.MAX and Journal.lines[-1][2] == "line %d" % (Journal.MAX + 19))
+	var spec: Dictionary = DevJournalTab.group()["controls"][1]
+	var row := MenuWidgets.build(spec, func(_s): pass)
+	row.get_meta("refresh").call()
+	var views := row.find_children("*", "TextEdit", true, false)
+	_check("log tab: shows the lines", views.size() == 1 and (views[0] as TextEdit).text == Journal.as_text(true, true)
+		and (views[0] as TextEdit).get_line(0) == Journal.line_text(Journal.lines[-1]))
+	row.free()
+	var tools: Dictionary = DevSchema.sections()[0]
+	_check("log tab: in Tools", tools["groups"].any(func(gr): return gr["title"] == "Log"))
+	Journal.clear()
+	SDTMenu.set_dev_mode(false)
+	_check("log: Developer mode off removes its hooks", not Journal.active and _hooks_of(Journal.OWNER) == 0)
+	SDTMenu.set_dev_mode(dev_was)
+	her.swallowing = false
+	her.swallowTimer = 0
+	her.cumInMouth = 0
+	her.head.neck.swallowing = false
+	x._prev_cum = 0
+	x._prev_swallowing = false
+
+
+## How many hook handlers `owner` has registered.
+func _hooks_of(owner: String) -> int:
+	var n := 0
+	for name in Hooks._hooks:
+		for phase in ["before", "after"]:
+			n += Hooks._hooks[name][phase].filter(func(h): return h[4] == owner).size()
+	return n
 
 
 func modify_test(name: StringName, v) -> int:

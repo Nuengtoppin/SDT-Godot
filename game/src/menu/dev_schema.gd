@@ -18,6 +18,7 @@ static func _tools() -> Dictionary:
 		{"title": "Workbench", "controls": [
 			MenuSchema.note("Experimental and diagnostic tools appear here."),
 		]},
+		DevJournalTab.group(),
 	]}
 
 

@@ -63,7 +63,7 @@ tab (P032) on top.
   `_default_help()`. With only the menu, they return what the menu used before.
 - Both panels can be open together: clicking one does not close the other; clicking the scene closes both.
   `Flash.mouse_blocker` still asks the menu, which also asks the developer panel.
-- Sections come from `DevSchema` (`game/src/menu/dev_schema.gd`): `dev_tools` (workbench, empty for now),
+- Sections come from `DevSchema` (`game/src/menu/dev_schema.gd`): `dev_tools` (workbench; the Log since P050),
   `dev_info` (live values), `dev_panel`. Extensions can add controls with `SDTMenu.add_control()` and one of these
   section ids. `DevSchema.value(label, tip, get_fn)` is a read-only value row.
 - The FPS counter (`game/scenes/fps_counter.gd`) slides beside an open panel docked on the left
@@ -95,6 +95,23 @@ tab (P032) on top.
   extension's counter and the collar mods (sby's chokercollarresistance and its addon). Shown in the Body tab
   (values, collar controls) and by the overlay's fifth layer, `zones` (a line across the neck at each edge, green
   to red by stretch, thicker under pressure; dots at his tip and the swallow wave).
+- Tools › Log (P050, `game/src/menu/dev_journal.gd` class `Journal`, the card `dev_journal_tab.gd`): the event log.
+  Read only, and only while Developer mode is on (`DevMenu.apply_mode` -> `Journal.sync`; its handlers have owner
+  `journal` and go when the mode goes off). Sources: the behaviour tabs' observer (`DevBehaviour` passes each call to
+  `Journal.observed`; at the end of the tick a veto is a line naming who, a run is a line for cough, open-mouth cough,
+  clenching her teeth, passing out, waking up and his ejaculation); after points `Her.swallow` (priority -100000:
+  started, or dropped and why), `Her.gulp` (how much it took, read after the extensions' tick), `Him.nextSpurt`
+  (where), `Dialogue.startSpeakingPhrase` (the line); a last before handler on `Her.lastSpurt`; states compared once
+  per tick after the game (`Flash.tick_after`): in her mouth, past her throat entrance (depth 150), mouth full, the
+  collar holding / snapping (while the rings were worked out that tick), holding her breath, out of breath (past
+  `outOfBreathPoint`), no air left, mood, hand mode, auto mode. A state's new value must hold 15 ticks before it is a
+  line, so strokes that only touch her lips and her breath level shaking at a threshold make none (mood, hand,
+  auto, swallow end, mouth full, collar snapped: at once). Extensions write with `Journal.log(group, text)` (a no-op
+  while it is off or paused); throatcumbulge writes its queue (queued / full / from the queue / cleared and why).
+  The same line again right away folds into "x N"; the last 500 lines are kept. Groups: Swallowing, Mouth, Breath,
+  Him, Other (filter buttons). The card shows newest first; Copy (shown groups) and Save (`<save dir>/journal/`,
+  everything) give oldest first. It has no listeners: extensions react through Hooks. Wince is left out (it fires
+  every tick of a swallow).
 - Info tab: her state by the same groups (gaze, eye, tears, cum in mouth, swallowing, teeth, cough build-up,
   drooling, sweat, wetness build-up, mood, breath, passing out, pace) and his pleasure.
 

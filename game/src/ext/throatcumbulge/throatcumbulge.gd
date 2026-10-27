@@ -251,7 +251,9 @@ func _on_spurt() -> void:
 ## P049: Her.swallow's after point - a swallow asked for while she is swallowing waits, up to "Swallow queue".
 func _on_swallow(c) -> void:
 	if not c.result and c.obj.swallowing and not c.obj.passedOut and not c.obj.speaking:
+		var was := queued
 		queued = mini(int(get_setting("queue")), queued + 1)
+		Journal.log("swallow", "Queued: %d waiting" % queued if queued > was else "Queue full (%d): not kept" % queued)
 
 
 ## P049: after the game's tick - the next swallow of the queue, "Pause between swallows" after the last one ended.
@@ -259,6 +261,7 @@ func _queue(her) -> void:
 	if queued == 0:
 		return
 	if her.passedOut or her.speaking or (not get_setting("dry") and her.cumInMouth <= 0):
+		Journal.log("swallow", "Queue cleared (%d): %s" % [queued, "passed out" if her.passedOut else ("speaking" if her.speaking else "her mouth is empty")])
 		queued = 0
 		_gap = 0
 		return
@@ -270,6 +273,7 @@ func _queue(her) -> void:
 		return
 	_gap = 0
 	queued -= 1
+	Journal.log("swallow", "From the queue: %d left" % queued)
 	her.swallow(0.0, false)
 
 
