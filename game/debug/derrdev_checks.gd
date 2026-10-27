@@ -40,6 +40,7 @@ func step(_frame: int) -> void:
 			_test_penisrange()
 			_test_swallowing()
 			_test_swallow_points()
+			_test_swallow_queue()
 			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
@@ -437,6 +438,75 @@ func _test_swallow_points() -> void:
 	her.head.neck.swallowing = false
 	her.swallowing = false
 	her.swallowTimer = 0
+
+
+## P049: throatcumbulge's swallow queue, speed and squint (the game's way by default).
+func _test_swallow_queue() -> void:
+	var x = Extensions.get_extension("throatcumbulge")
+	var her = g.her
+	_check("queue, speed, squint: the game's by default", x.get_setting("queue") == 0 and x.get_setting("speed") == 1.0
+		and x.get_setting("wince") and not Hooks.has_value(&"Her.swallowSpeed") and not Hooks.has_value(&"Her.swallowWince"))
+	her.swallowing = false
+	her.speaking = false
+	her.passedOut = false
+	her.cumInMouth = 30
+	her.swallow(0.8, false)
+	her.swallow(0.8, false)
+	_check("queue 0: a swallow asked for during one is dropped", x.queued == 0)
+	x.set_setting("queue", 2)
+	for i in 3:
+		her.swallow(0.8, false)
+	_check("queue 2: keeps two", x.queued == 2, str(x.queued))
+	x.set_setting("queue_gap", 3)
+	her.swallowing = false
+	x._queue(her)
+	x._queue(her)
+	_check("queue: waits the pause after a swallow ends", not her.swallowing and x.queued == 2)
+	x._queue(her)
+	_check("queue: then the next swallow", her.swallowing and x.queued == 1)
+	x._queue(her)
+	_check("queue: none while she swallows", x.queued == 1)
+	her.swallowing = false
+	her.cumInMouth = 0
+	x._gap = 0
+	for i in 3:
+		x._queue(her)
+	_check("dry swallows on: the series goes on with her mouth empty", her.swallowing and x.queued == 0)
+	her.swallowing = false
+	x.queued = 2
+	x.set_setting("dry", false)
+	x._queue(her)
+	_check("dry swallows off: an empty mouth ends the series", x.queued == 0 and not her.swallowing)
+	x.set_setting("dry", true)
+	x.queued = 2
+	her.passedOut = true
+	x._queue(her)
+	_check("queue: passing out clears it", x.queued == 0)
+	her.passedOut = false
+	# a spurt while she swallows waits its turn with a queue
+	x.set_setting("pump", "Always")
+	her.swallowing = true
+	her.mouthFull = true
+	her.held = false
+	her.cumInMouth = 10
+	x._on_spurt()
+	_check("while he cums + queue: the spurt's swallow waits", x.queued == 1)
+	x.set_setting("pump", "Off")
+	her.mouthFull = false
+	x.set_setting("queue", 0)
+	_check("queue 0 again: none wait", x.queued == 0)
+	x.set_setting("speed", 2.0)
+	x.set_setting("wince", false)
+	_check("speed and squint set the value points", Hooks.value(&"Her.swallowSpeed", her, 1.0) == 2.0
+		and Hooks.value(&"Her.swallowWince", her, true) == false)
+	x.set_setting("speed", 1.0)
+	x.set_setting("wince", true)
+	_check("speed and squint back: no modifiers", not Hooks.has_value(&"Her.swallowSpeed") and not Hooks.has_value(&"Her.swallowWince"))
+	her.swallowing = false
+	her.swallowTimer = 0
+	her.cumInMouth = 0
+	x._prev_cum = 0
+	x._prev_swallowing = false
 
 
 func modify_test(name: StringName, v) -> int:

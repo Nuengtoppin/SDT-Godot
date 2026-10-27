@@ -185,6 +185,14 @@ The developer panel (Body > Throat rings) shows who modifies each point and the 
   swallow" (0 = the game's 5-9; set from the wave's first tick, when the game has just taken its share), and swallow
   bulge mode "By amount" (the wave follows how much she swallowed: 10 = the largest of "By swallow"). Extra swallows
   pass speak = false (no SWALLOW line each time).
+  P049, on P048's swallow points, the game's way by default: "Swallow queue" 0..5 (Her.swallow's after point,
+  registered only while it is above 0: a swallow asked for while she swallows - a spurt with "Swallow while he
+  cums", `Her.ejaculating`, the dialogue, the key, another extension - waits, up to that many; each starts "Pause
+  between swallows" ticks (8) after the last one ended; passing out or speaking clears the queue; "Dry swallows" on:
+  the series goes on with her mouth empty, off: an empty mouth ends it), "Swallow speed" 0.5..2 (`Her.swallowSpeed`,
+  MOOD, x the setting), "Squint when swallowing" (off: `Her.swallowWince` false, OVERRIDE). Live (30 fps, 4 swallows
+  asked at once): queue 0 - one swallow; queue 3 - four, gulps at ticks 37 / 104 / 158 / 208; speed 2 - 19 / 55 / 86 /
+  121; dry off - one (her mouth was empty after it).
 
 ## Requests to upstream
 
