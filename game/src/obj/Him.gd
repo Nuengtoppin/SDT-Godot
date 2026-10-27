@@ -690,6 +690,8 @@ func ejaculate() -> void:
 		ejaculation = []
 		var done := 0
 		var total := int(base + extra)
+		if Hooks.has_value(&"Him.ejaculationLength"):   # HOOK value point (derrdev): how long it lasts, ticks of spurts (the game: 60..99)
+			total = maxi(6, int(Hooks.value(&"Him.ejaculationLength", self, total)))
 		var first := true
 		while true:
 			var left := total - done
@@ -722,6 +724,8 @@ func addRandomSpurt(time: int, first: bool = false) -> void:
 	}
 	if not first:
 		s["pauseTimer"] = int(floor(randf() * 4 * maxf(1.0, 3.0 - ejaculation.size()) + 5))
+		if Hooks.has_value(&"Him.spurtPause"):   # HOOK value point (derrdev): the pause before this spurt, ticks
+			s["pauseTimer"] = maxi(0, int(Hooks.value(&"Him.spurtPause", self, s["pauseTimer"])))
 	ejaculation.append(s)
 
 

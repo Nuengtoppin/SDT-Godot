@@ -86,6 +86,11 @@ tab (P032) on top.
   P055: Mouth tab rows "Tongue out" (`Tongue.startMovingTongue`; its switch vetoes only "out": an entry's optional
   sixth element is `fn(call) -> bool`, which of the hook's calls the switch vetoes), "Hang tongue out" and "Tongue in"
   (no automation). The event log writes her tongue coming out and going in (held 15 ticks).
+  P056: Him tab hand settings - "Length ×" (`Him.ejaculationLength` x it), "Pauses ×" (`Him.spurtPause` x it; 0: one
+  stream), "J adds a spurt" (J, the game's cum key, calls `Him.ejaculate`, which does nothing while he cums: a before
+  handler at -99998, after Developer mode's veto, adds a spurt then) and "Spurt now" (one more spurt; not cumming: he
+  starts). The event log writes "He starts to cum" / "He is done" from his state instead of each `Him.ejaculate` call,
+  and each spurt added.
 - Panel tab › Automation: Freeze all / Restore all, how many are off, and "Remember after restart"
   (`port.cfg` `dev_behaviour/remember`, the list in `dev_behaviour/off`). Off: every start is the normal game; the
   session keeps its switches.
@@ -169,6 +174,8 @@ remove them when a setting goes off (`_drop_mods()`); all of an extension's modi
 | `Her.clenchTime` | `Her.startClenchingTeeth` (P054) | 60..179 ticks at random (how long she keeps them clenched) |
 | `Her.clenchTaps` | `Her.startClenchingTeeth` (P054) | true (she taps him as she clenches) |
 | `Her.teethClosing` | `Her.updateLips`, while she clenches (P054) | true (her teeth close 0.2 a tick; false holds them) |
+| `Him.ejaculationLength` | `Him.ejaculate` (P056) | 60..99 ticks of spurts (60..69, plus up to 30 for a long build-up) |
+| `Him.spurtPause` | `Him.addRandomSpurt`, each spurt after the first (P056) | 5.. ticks at random (longer for the first ones) |
 
 The developer panel (Body > Throat rings) shows who modifies each point and the value used last (`Hooks.explain`).
 

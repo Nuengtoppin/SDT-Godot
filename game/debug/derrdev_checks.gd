@@ -47,6 +47,7 @@ func step(_frame: int) -> void:
 			_test_her_tools()
 			_test_teeth()
 			_test_tongue()
+			_test_his_spurts()
 			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
@@ -513,6 +514,40 @@ func _test_swallow_queue() -> void:
 	her.cumInMouth = 0
 	x._prev_cum = 0
 	x._prev_swallowing = false
+
+
+## P056: his ejaculation - length and pauses (hand settings, value points), J adds a spurt while he cums.
+func _test_his_spurts() -> void:
+	var him = g.him
+	var total := func(): return him.spurtTimerStart + him.ejaculation.reduce(func(a, s): return a + s["spurtTimer"], 0)
+	var stop := func():
+		him.ejaculating = false
+		him.ejaculation.clear()
+		him.spurtTimer = 0
+		him.pauseTimer = 0
+	stop.call()
+	him.ejaculate()
+	var t1: int = total.call()
+	_check("his spurts: the game's length (60 to 99 ticks)", t1 >= 60 and t1 <= 99, str(t1))
+	stop.call()
+	DevTuning.set_length(2.0)
+	DevTuning.set_pauses(0.0)
+	him.ejaculate()
+	var t2: int = total.call()
+	_check("Length 2x: twice as long", t2 >= 120 and t2 <= 198, str(t2))
+	_check("Pauses 0: no pause between his spurts", him.ejaculation.all(func(s): return s["pauseTimer"] == 0))
+	var n: int = him.ejaculation.size()
+	him.ejaculate()
+	_check("J while he cums: nothing more (the game's)", him.ejaculation.size() == n)
+	DevTuning.set_spam_j(true)
+	him.ejaculate()
+	_check("J adds a spurt: one more each press", him.ejaculation.size() == n + 1)
+	DevTuning.add_spurt()
+	_check("Spurt now: one more", him.ejaculation.size() == n + 2)
+	stop.call()
+	DevTuning.reset()
+	_check("his spurts: back to the game's, nothing left registered", not Hooks.has_value(&"Him.ejaculationLength")
+		and not Hooks.has_value(&"Him.spurtPause") and _hooks_of(DevTuning.OWNER) == 0)
 
 
 ## P055: her tongue - the rows (Tongue out's switch vetoes only "out"), and the fix tongueguard: her tongue goes in

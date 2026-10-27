@@ -21,7 +21,8 @@ const TAGS := {"swallow": "swallow", "mouth": "mouth", "breath": "breath", "him"
 ## behaviour table hook -> group, for the lines its observer gives (a run is logged only for these; a veto always)
 ## (not Him.openHand: in auto mode his hand opens on every stroke)
 const RUNS := {&"Her.cough": "mouth", &"Her.openCough": "mouth", &"Her.startClenchingTeeth": "mouth",
-	&"Her.passOut": "breath", &"Her.wakeUp": "breath", &"Him.ejaculate": "him"}
+	&"Her.passOut": "breath", &"Her.wakeUp": "breath"}
+## (Him.ejaculate: a state line instead, P056 - J calls it on every press, also while he cums)
 ## Ticks a state must keep its new value before it is a line (0.5 s at 30 fps), so a stroke that only touches her
 ## lips, or her breath level shaking at a threshold, makes no line each time. Mood, hand and auto: at once.
 const HOLD := 15
@@ -182,6 +183,8 @@ static func _tick() -> void:
 	_edge("swallowing", her.swallowing, "swallow", "", "Swallow ends", 0)
 	_edge("teeth", her.clenchTeeth, "mouth", "Clenches her teeth", "Unclenches her teeth", 0)   # P054
 	_edge("tongue", her.tongue.tongueOut, "mouth", "Tongue out", "Tongue in")   # P055
+	if g.him != null:
+		_edge("him_cums", g.him.ejaculating, "him", "He starts to cum", "He is done", 0)   # P056
 	_edge("in_mouth", her.penisInMouthDist > 0.0, "mouth", "He is in her mouth", "He is out of her mouth")
 	_edge("deep", her.penisInMouthDist > 150.0, "mouth", "Past her throat entrance", "Back above her throat entrance")
 	_edge("full", her.cumInMouth >= her.maxCumInMouth, "mouth", "Her mouth is full of cum", "", 0)

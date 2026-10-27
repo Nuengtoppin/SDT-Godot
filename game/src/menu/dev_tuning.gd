@@ -12,6 +12,11 @@ static var _mods := {}
 ## "Clench time" in seconds; 0: the game's (2 to 6 s)
 static var clench_s := 0.0
 static var clench_taps := true
+## P056: his ejaculation
+static var length_x := 1.0
+static var pauses_x := 1.0
+static var spam_j := false
+static var _spam_fn := Callable()
 
 
 static func _set_mod(name: StringName, on: bool, spec: Dictionary) -> void:
@@ -33,10 +38,51 @@ static func set_clench_taps(on: bool) -> void:
 	_set_mod(&"Her.clenchTaps", not on, {"phase": Hooks.OVERRIDE, "op": "set", "value": false})
 
 
+static func set_length(k: float) -> void:
+	length_x = k
+	_set_mod(&"Him.ejaculationLength", not is_equal_approx(k, 1.0), {"phase": Hooks.OVERRIDE, "op": "fn",
+		"fn": func(v, _him): return v * DevTuning.length_x})
+
+
+static func set_pauses(k: float) -> void:
+	pauses_x = k
+	_set_mod(&"Him.spurtPause", not is_equal_approx(k, 1.0), {"phase": Hooks.OVERRIDE, "op": "fn",
+		"fn": func(v, _him): return v * DevTuning.pauses_x})
+
+
+## "J adds a spurt while he cums": the J key calls his ejaculation, which does nothing while he cums; a before
+## handler on Him.ejaculate adds a spurt then.
+static func set_spam_j(on: bool) -> void:
+	spam_j = on
+	if _spam_fn.is_valid():
+		Hooks.remove(&"Him.ejaculate", _spam_fn)
+		_spam_fn = Callable()
+	if on:
+		_spam_fn = func(c):
+			if c.obj.ejaculating:
+				DevTuning.add_spurt()
+		Hooks.add_before(&"Him.ejaculate", _spam_fn, OWNER, -99998)   # after Developer mode's veto (auto off: no J)
+
+
+## One more spurt: after the ones he has left while he cums, else he starts to cum.
+static func add_spurt() -> void:
+	var him = g.him
+	if him == null:
+		return
+	if not him.ejaculating:
+		DevBehaviour.call_now(&"Him.ejaculate", func(): him.ejaculate())
+		return
+	him.addRandomSpurt(int(floor(randf() * 20.0 + 6.0)))
+	Journal.log("him", "Spurt added: %d to come" % him.ejaculation.size())
+
+
 ## All back to the game's.
 static func reset() -> void:
 	set_clench_time(0.0)
 	set_clench_taps(true)
+	set_length(1.0)
+	set_pauses(1.0)
+	set_spam_j(false)
 
 
 ## The tab's hand settings, under its rows.
@@ -49,4 +95,15 @@ static func controls(group: String) -> Array:
 					"format": func(v): return "game" if v <= 0.0 else "%.1f s" % v, "reset": func(): set_clench_time(0.0)},
 				MenuSchema.toggle("Taps when clenching", "She taps him as she clenches her teeth (the game's). Off: she clenches them without it; Tap hands stays its own.",
 					func(): return clench_taps, func(on: bool): set_clench_taps(on))]
+		"him":
+			return [MenuSchema.note("Hand settings, for this session (back to the game's at the next start)."),
+				{"type": "slider", "label": "Length ×", "tip": "How long he cums (the game: 2 to 3.3 s of spurts).",
+					"min": 0.25, "max": 3.0, "step": 0.05, "get": func(): return length_x, "set": func(v: float): set_length(v),
+					"format": func(v): return "%.2f×" % v, "reset": func(): set_length(1.0)},
+				{"type": "slider", "label": "Pauses ×", "tip": "The pauses between his spurts (0: none, one stream).",
+					"min": 0.0, "max": 3.0, "step": 0.05, "get": func(): return pauses_x, "set": func(v: float): set_pauses(v),
+					"format": func(v): return "%.2f×" % v, "reset": func(): set_pauses(1.0)},
+				MenuSchema.toggle("J adds a spurt", "While he cums, J (the game's cum key) adds one more spurt each time; otherwise J starts him as in the game.",
+					func(): return spam_j, func(on: bool): set_spam_j(on)),
+				MenuSchema.actions("", "", [["Spurt now", func(): add_spurt(), "One more spurt while he cums; otherwise he starts to cum."]])]
 	return []
