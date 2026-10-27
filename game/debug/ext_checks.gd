@@ -326,6 +326,15 @@ func _value_checks() -> void:
 	var id := Hooks.add_modifier(&"T.r", {"op": "set", "value": 9.0}, "vi")
 	Hooks.remove_modifier(id)
 	_check("remove_modifier", not Hooks.has_value(&"T.r"))
+	Hooks.add_modifier(&"T.u1", {"op": "set", "value": 1.0}, "vu")
+	Hooks.add_modifier(&"T.u2", {"op": "set", "value": 2.0}, "vu")
+	Hooks.add_modifier(&"T.u2", {"op": "bias", "value": 1.0}, "vv")
+	Hooks.remove_modifiers("vu", &"T.u2")
+	var one_point: bool = Hooks.has_value(&"T.u1") and Hooks.value(&"T.u2", o, 5.0) == 6.0
+	Hooks.remove_modifiers("vu")
+	_check("remove_modifiers: one point, then all of an owner's", one_point and not Hooks.has_value(&"T.u1")
+		and Hooks.has_value(&"T.u2"))
+	Hooks.remove_owner("vv")
 	for owner in ["va", "vb", "vc", "vd", "ve", "vf", "vg", "vh", "x", "y"]:
 		Hooks.remove_owner(owner)
 	var left := Hooks.value_points().filter(func(n): return str(n).begins_with("T."))

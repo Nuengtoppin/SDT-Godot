@@ -92,6 +92,12 @@ func modify(name: StringName, spec: Dictionary) -> int:
 	return Hooks.add_modifier(name, spec, id)
 
 
+## Removes this extension's modifiers from the value point `name`, or from every point when no name is given (e.g.
+## when a setting that added them is switched off).
+func unmodify(name: StringName = &"") -> void:
+	Hooks.remove_modifiers(id, name)
+
+
 ## Her mood, including extended moods (see Moods).
 func mood() -> String:
 	return Moods.current()

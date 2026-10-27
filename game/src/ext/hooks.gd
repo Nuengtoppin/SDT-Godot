@@ -85,8 +85,14 @@ static func remove_owner(owner: String) -> void:
 				if list[i][4] == owner:
 					list.remove_at(i)
 		_drop_if_empty(name)
+	remove_modifiers(owner)
+
+
+## Removes the modifiers of `owner`, on the value point `name` only when one is given.
+static func remove_modifiers(owner: String, name: StringName = &"") -> void:
 	for id in _modifiers.keys():
-		if _modifiers[id].owner == owner:
+		var m: Modifier = _modifiers[id]
+		if m.owner == owner and (name == &"" or m.name == name):
 			remove_modifier(id)
 
 
