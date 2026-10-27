@@ -30,6 +30,10 @@ static func entries() -> Array:
 		["eyes", "Tears appear", &"Tears.addTearSpot", func(): her.call().tears.addTearSpot(), "New tears: held deep, the hilt, coughs (needs Tears on)."],
 		["eyes", "Tears run", &"Tears.releaseTears", func(): her.call().tears.releaseTears(), "Tears running down: on a blink or a wince."],
 		["mouth", "Swallow", &"Her.swallow", func(): her.call().swallow(), "With cum in her mouth and her head up, a while after; the key; dialogue."],
+		["mouth", "Gulp", &"Her.gulp", func(): her.call().gulp(),
+			"The moment of a swallow (P048): squint, the gulp sound, the wave down her neck, what leaves her mouth. Auto off: her swallows still play, without the gulp."],
+		["mouth", "Gulp, no squint", &"", func(): _gulp_without_squint(her.call()),
+			"The same gulp without her squint (as Behaviour > Reactions > Squint when swallowing off). No automation of its own."],
 		["mouth", "Clench teeth", &"Her.startClenchingTeeth", func(): her.call().startClenchingTeeth(),
 			"Angry mood: after a hard pull-off, between actions, when he comes. Clenched teeth keep him out."],
 		["mouth", "Cough", &"Her.cough", func(): her.call().cough(), "Held deep for a while (needs Coughing on)."],
@@ -51,6 +55,13 @@ static func entries() -> Array:
 			"At full pleasure for 2 s. Off: he stays at the edge, his pleasure kept."],
 		["him", "Let go of her head", &"Him.openHand", func(): g.him.openHand(), "His hand opens when she pulls off or he lets go."],
 	]
+
+
+## The panel's "Gulp, no squint": one gulp with Her.swallowWince false for its length.
+static func _gulp_without_squint(her) -> void:
+	var id := Hooks.add_modifier(&"Her.swallowWince", {"phase": Hooks.FINAL, "op": "set", "value": false}, OWNER)
+	call_now(&"Her.gulp", func(): her.gulp())
+	Hooks.remove_modifier(id)
 
 
 static var _off: Dictionary = {}        # hook name -> true: automation switched off

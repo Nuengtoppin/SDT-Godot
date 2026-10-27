@@ -74,6 +74,8 @@ tab (P032) on top.
   (`call_now`), other extensions' vetoes still apply. An observer at -100000 on every listed point keeps the last
   `Hooks.Call`, so the status shows "ran / called from here / vetoed by <owner>" with `cancelled_by`. Vetoes and
   observers exist only while Developer mode is on (not in Vanilla mode or with the classic menu).
+  P051: Mouth tab rows "Gulp" (`Her.gulp`, P048: its switch vetoes the gulp, so swallows play without it) and
+  "Gulp, no squint" (one gulp with `Her.swallowWince` false, a FINAL modifier for the call's length).
 - Panel tab › Automation: Freeze all / Restore all, how many are off, and "Remember after restart"
   (`port.cfg` `dev_behaviour/remember`, the list in `dev_behaviour/off`). Off: every start is the normal game; the
   session keeps its switches.

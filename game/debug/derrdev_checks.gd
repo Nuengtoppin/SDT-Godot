@@ -42,6 +42,7 @@ func step(_frame: int) -> void:
 			_test_swallow_points()
 			_test_swallow_queue()
 			_test_journal()
+			_test_gulp_rows()
 			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
@@ -132,7 +133,7 @@ func _test_behaviour() -> void:
 		.all(func(id): return dev._nav_buttons.has(id)))
 	dev.open_menu("dev_mouth")
 	dev.build_now()
-	_check("Mouth tab: All off/on and 4 rows", dev._rows.size() == 5, str(dev._rows.size()))
+	_check("Mouth tab: All off/on and 6 rows (P051: Gulp, Gulp no squint)", dev._rows.size() == 7, str(dev._rows.size()))
 	_check("everything on at first", DevBehaviour.off_count() == 0)
 	DevBehaviour.set_auto(&"Her.swallow", false)
 	her.swallowing = false
@@ -508,6 +509,24 @@ func _test_swallow_queue() -> void:
 	her.cumInMouth = 0
 	x._prev_cum = 0
 	x._prev_swallowing = false
+
+
+## P051: the Mouth tab's gulp rows - Gulp (its automation switch vetoes Her.gulp), Gulp without the squint.
+func _test_gulp_rows() -> void:
+	var her = g.her
+	var rows := DevBehaviour.entries().filter(func(e): return e[0] == "mouth").map(func(e): return e[1])
+	_check("Mouth tab: Gulp and Gulp, no squint", "Gulp" in rows and "Gulp, no squint" in rows and &"Her.gulp" in DevBehaviour.hooks())
+	var gulp: Array = DevBehaviour.entries().filter(func(e): return e[1] == "Gulp")[0]
+	var plain: Array = DevBehaviour.entries().filter(func(e): return e[1] == "Gulp, no squint")[0]
+	her.cumInMouth = 20
+	var n := _counted(&"Her.wince", func(): DevBehaviour.call_now(gulp[2], gulp[3]))
+	_check("Gulp: she squints, cum leaves her mouth", n == 1 and her.cumInMouth < 20)
+	her.cumInMouth = 20
+	n = _counted(&"Her.wince", func(): DevBehaviour.call_now(plain[2], plain[3]))
+	_check("Gulp, no squint: no squint, cum leaves her mouth, the modifier gone", n == 0 and her.cumInMouth < 20
+		and not Hooks.has_value(&"Her.swallowWince"))
+	her.cumInMouth = 0
+	her.head.neck.swallowing = false
 
 
 ## P050: the event log (Tools > Log): only while Developer mode is on, folding repeats, the swallow's points, the
