@@ -470,6 +470,12 @@ func setSpeaking(v: bool) -> void:
 		tongue.startFastIn()
 		clenchTeeth = false
 		changeLookTarget(hisFace, 0, 1)
+		if not speaking:
+			# port fix: a line starts from her mouth as it is. The game kept the previous line's last mouth shape (often
+			# MM, closed) as the target with no delay, so her mouth snapped to it until the line's first sound came.
+			targetPhoneme = {"name": "", "upperLip": lastUpperLipPos, "lowerLip": lastLowerLipPos,
+				"jaw": head.jaw.rotation_degrees}
+			phonemeDelay = 0
 	elif speaking:
 		speakStopDelay = 3
 	speaking = v

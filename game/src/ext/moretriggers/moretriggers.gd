@@ -12,6 +12,7 @@ const ScreenScript := preload("res://src/ext/moretriggers/mt_screen.gd")
 
 const SHOCK_POWER := 85.0
 const MOUTH_OPENING := 1.0
+const MOUTH_EASE := 0.5   # share of the way to a held jaw angle per tick
 ## Grow / shrink steps per tick: breasts 1 size, her body 0.001 scale, his penis and balls 1/765 of their slider,
 ## her penis 1% of its slider.
 const PENIS_STEP := 1.0 / 765.0
@@ -308,10 +309,14 @@ func _close_mouth(ms: float) -> void:
 
 
 ## Her jaw held at `angle` for `ms` (INF: until [OPEN_MOUTH]): an OVERRIDE of Her.jawAngle in the dialogue band
-## (milliseconds of game time, like [LOOK_...]).
+## (milliseconds of game time, like [LOOK_...]). Port: it eases there (half the way each tick, about 5 ticks) from
+## where her jaw is, instead of the mod's jump; when it ends, the game's own easing takes her jaw back.
 func _hold_mouth(angle: float, ms: float) -> void:
 	_release_mouth()
-	var spec := {"phase": Hooks.OVERRIDE, "order": LOOK_ORDER, "op": "set", "value": angle}
+	var at: Array = [g.her.head.jaw.rotation_degrees if g.her != null else angle]
+	var spec := {"phase": Hooks.OVERRIDE, "order": LOOK_ORDER, "op": "fn", "fn": func(_v, _her):
+		at[0] += (angle - at[0]) * MOUTH_EASE
+		return at[0]}
 	if ms != INF:
 		spec["ms"] = maxf(1.0, ms)
 	_mouth_id = modify(&"Her.jawAngle", spec)
