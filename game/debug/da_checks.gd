@@ -444,14 +444,28 @@ func _gaze_step() -> void:
 		her.passOut()
 	elif t == 90:
 		_rot_before = her.eye.ball.irisContainer.rotation_degrees
+		# moremoods registered again, after alternativePassOut: the frozen eyelid must still win (by phase, not order)
+		Extensions.set_enabled("moremoods", false)
+		Extensions.set_enabled("moremoods", true)
+		mm.set_mood("Smug")
 	elif t == 120:
 		var rot: float = her.eye.ball.irisContainer.rotation_degrees
 		_check("pass-out freeze holds her eyes with moremoods on", her.passedOut and ap.option == 2
 			and absf(rot - _rot_before) < 0.01, "%s %s %.3f -> %.3f" % [her.passedOut, ap.option, _rot_before, rot])
+		_check("pass-out freeze holds her upper eyelid over moremoods, whatever the order", her.passedOut
+			and her.upperLid == ap._frozen_frame and her.eye.upperEyelid.currentFrame == ap._frozen_frame,
+			"%d %d %d" % [her.upperLid, her.eye.upperEyelid.currentFrame, ap._frozen_frame])
 		her.wakeUp()
 		ap.set_setting("on", false)
 		ap.set_setting("eyeroll_chance", 0.33)
 		ap.set_setting("freeze_chance", 0.5)
+		mm.set_mood("Frightened")
+		da.run_code("[SHOCK_500_150]")
+	elif t == 125:
+		_check("[SHOCK] wins over a frightened mood while it lasts", her.eyelidShock == 150.0, str(her.eyelidShock))
+	elif t == 150:
+		_check("after [SHOCK] her eyes ease back (frightened: not below its 60)", her.eyelidShock > 60.0
+			and her.eyelidShock < 150.0, str(her.eyelidShock))
 		mm.set_mood("Normal")
 		_finish()
 
@@ -530,7 +544,7 @@ func _mt_checks_later() -> void:
 	if mt == null or not mt.enabled:
 		return
 	var her = g.her
-	_check("SHOCK holds her shocked eyes", her.eyelidMotion["shock"] == 150.0, str(her.eyelidMotion["shock"]))
+	_check("SHOCK holds her shocked eyes", her.eyelidShock == 150.0, str(her.eyelidShock))
 	_check("LOOK holds where she looks", her.lookPoint == Vector2(10, 20), str(her.lookPoint))
 	_check("CLOSE_MOUTH holds her jaw", is_equal_approx(her.head.jaw.rotation_degrees, Her.closedJawAngle * 0.95),
 		str(her.head.jaw.rotation_degrees))

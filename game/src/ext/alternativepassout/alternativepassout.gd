@@ -50,7 +50,9 @@ func _setup() -> void:
 
 func _enable() -> void:
 	hook_before(&"Her.passOut", _pass_out, -10)   # before moremoods' (it replaces both, like the mod)
-	hook_after(&"Her.updateEyes", func(_c): _update_eyes())
+	# her upper eyelid while passed out: FINAL, over the game's and any mood's (Hooks value points)
+	modify(&"Her.upperEyelid", {"phase": Hooks.FINAL, "op": "fn", "fn": _upper_lid})
+	hook_after(&"Her.updateEyes", func(_c): _roll_eyes())
 	hook_before(&"Her.updateElements", func(_c):
 		if _active and option != 0 and g.her.passedOut:
 			g.her.winceTimer = 0)
@@ -111,30 +113,35 @@ func _choose(her) -> void:
 		g.characterControl.setIris(BLANK_IRIS)
 
 
-func _set_lids(frame: int) -> void:
-	var eye = g.her.eye
-	eye.upperEyelid.gotoAndStop(frame)
-	eye.ball.upperEyelidMask.gotoAndStop(frame)
-	eye.upperEyelid.eyeshadow.gotoAndStop(frame)
-	eye.upperEyelid.mascara.gotoAndStop(frame)
+func _passed_out(her) -> bool:
+	return _active and her.passedOut and her.winceTimer == 0
 
 
-func _update_eyes() -> void:
-	var her = g.her
-	if not _active or not her.passedOut or her.winceTimer != 0:
-		return
+## The upper eyelid's frame while passed out (FINAL modifier of Her.upperEyelid): rolling, it settles at its height
+## (unless her eye is shut); frozen, it stays where it was.
+func _upper_lid(v, her) -> int:
+	if not _passed_out(her):
+		return v
 	if option == 1:
 		_lid_frame += _lid_rate
 		var f: float = maxf(_lid_target, _lid_start - _lid_frame) if _lid_rate > 0 else minf(_lid_target, _lid_start - _lid_frame)
-		if not her.eyelidMotion["isClosed"]:
-			_set_lids(int(floor(f + 0.5)))
+		return v if her.eyelidMotion["isClosed"] else int(floor(f + 0.5))
+	if option == 2:
+		return _frozen_frame
+	return v
+
+
+## Her eyes rolling up (after Her.updateEyes, which has eased the iris towards where she looks).
+func _roll_eyes() -> void:
+	var her = g.her
+	if not _passed_out(her):
+		return
+	if option == 1:
 		_roll = minf(_roll_max, _roll + _roll_rate)
 		her.eyeMotion["target"] -= her.passOutFactor / her.passOutMax * _roll
 		her.eyeMotion["ang"] += (her.eyeMotion["target"] - her.eyeMotion["ang"]) * 0.2
 		her.eye.ball.irisContainer.rotation_degrees = her.eyeMotion["ang"] - 90.0
 		her.eye.ball.highlights.alpha -= 1.0 / HIGHLIGHT_FADE_FRAMES
-	elif option == 2:
-		_set_lids(_frozen_frame)
 
 
 func _wake() -> void:

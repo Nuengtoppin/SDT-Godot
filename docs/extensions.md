@@ -211,11 +211,20 @@ A modifier is a Dictionary:
 - `ms`: lifetime in milliseconds of game time (counted down by each tick's length, so a paused game doesn't use it
   up and it lasts as long at any tick rate; default: until removed)
 
-`modify()` returns an id for `Hooks.remove_modifier(id)`; `unmodify(name)` removes the extension's own modifiers from
-one point (`unmodify()`: from all), e.g. when the setting that added them is switched off; an extension's modifiers go
-by themselves when it is switched off. Values
-are numbers or `Vector2` points. Two extensions `set`ting different values in the same phase at the same time log a
-warning once. `Hooks.explain(name)` returns the last evaluation step by step (recording starts with the first call),
+`modify()` returns an id for `Hooks.remove_modifier(id)` (`Hooks.has_modifier(id)`: still there, e.g. a timed one);
+`unmodify(name)` removes the extension's own modifiers from one point (`unmodify()`: from all), e.g. when the setting
+that added them is switched off; an extension's modifiers go by themselves when it is switched off. Values are numbers
+or `Vector2` points. Two extensions `set`ting different values in the same phase at the same time log a warning once.
+
+The value points in the game, with the field that keeps the result for code that reads it:
+
+| Point | Value | Result in |
+|---|---|---|
+| `Her.lookTarget` | the point she looks at (scene coordinates) | `her.lookPoint` |
+| `Her.gazeAngle` | the angle her iris turns towards, before easing | `her.eyeMotion["target"]` |
+| `Her.eyelidShock` | how shocked her eyes are (wider, smaller iris; the game's `shock()` sets 10-85, counting down) | `her.eyelidShock` |
+| `Her.upperEyelid` | the upper eyelid's frame (2 open, 150 closed, up to 200 squeezed shut) | `her.upperLid` |
+| `Her.lowerEyelid` | the lower eyelid's frame (asked after the upper) | `her.lowerLid` | `Hooks.explain(name)` returns the last evaluation step by step (recording starts with the first call),
 `Hooks.value_points()` lists the points with modifiers. A value point without modifiers costs one dictionary lookup.
 
 Rule: for behaviour that has value points, change the targets through modifiers; do not cancel the method. One-off

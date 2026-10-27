@@ -252,6 +252,11 @@ static func add_modifier(name: StringName, spec: Dictionary, owner := "") -> int
 	return m.id
 
 
+## True while the modifier `id` is registered (a timed one goes when its time is up).
+static func has_modifier(id: int) -> bool:
+	return _modifiers.has(id)
+
+
 static func remove_modifier(id: int) -> void:
 	var m: Modifier = _modifiers.get(id)
 	if m == null:

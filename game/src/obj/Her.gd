@@ -266,6 +266,11 @@ var currentLookTarget := Vector2(800, -270)
 var nextLookTarget := Vector2(800, -270)
 ## Port: the point she actually looks at this tick (currentLookTarget after the Her.lookTarget value point).
 var lookPoint := Vector2(800, -270)
+## Port: her eyes' shock this tick (eyelidMotion["shock"] after the Her.eyelidShock value point), and the eyelid
+## frames last shown (after Her.upperEyelid / Her.lowerEyelid; frame 2 open, 150 closed, up to 200 squeezed shut).
+var eyelidShock: float = 0.0
+var upperLid: int = 50
+var lowerLid: int = 50
 var blankEyed := false
 
 
@@ -1687,6 +1692,9 @@ func updateElements() -> void:
 	lookAt(lookPoint)
 	if eyelidMotion["shock"] > 0:
 		eyelidMotion["shock"] -= 1
+	eyelidShock = eyelidMotion["shock"]
+	if Hooks.has_value(&"Her.eyelidShock"):   # HOOK value point: how shocked her eyes are (wider, smaller iris)
+		eyelidShock = Hooks.value(&"Her.eyelidShock", self, eyelidShock)
 	if winceTimer > 0:
 		winceTimer -= 1
 		eyelidMotion["pos"] += (eyePosWince - eyelidMotion["pos"]) * 0.75
@@ -1702,14 +1710,14 @@ func updateElements() -> void:
 			cumInEye = 0
 	else:
 		var posFrames: int = 0 if g.penisOut else int(minf(80.0, floor(pos * 80.0)))
-		eyelidMotion["target"] = 101 - posFrames - eyelidMotion["shock"] - cumInMouth * 2 + floor(swallowPoint * 100.0)
+		eyelidMotion["target"] = 101 - posFrames - eyelidShock - cumInMouth * 2 + floor(swallowPoint * 100.0)
 		eyelidMotion["target"] = maxf(2.0, minf(eyePosWince, eyelidMotion["target"]))
 		if passOutFactor > 0:
 			eyelidMotion["target"] = minf(eyePosBlink, eyelidMotion["target"] + floor(passOutFactor * 3.0))
 		eyelidMotion["pos"] += (eyelidMotion["target"] - eyelidMotion["pos"]) * 0.2
 		tears.clearLowerEyelid(200 - eyelidMotion["pos"])
 	updateEyes()
-	var irisScale: float = 0.9 - (0.25 - eyelidMotion["pos"] / 400.0) - eyelidMotion["shock"] / 200.0
+	var irisScale: float = 0.9 - (0.25 - eyelidMotion["pos"] / 400.0) - eyelidShock / 200.0
 	eye.ball.irisContainer.iris.scaleX = irisScale
 	eye.ball.irisContainer.iris.scaleY = irisScale
 	if coughing:
@@ -1772,6 +1780,12 @@ func updateEyes() -> void:
 	var lower := lid
 	if currentMood == HAPPY_MOOD:
 		lower = lid + int(maxf(0.0, (160 - lid) * 0.9))
+	if Hooks.has_value(&"Her.upperEyelid"):   # HOOK value point: the upper eyelid's frame
+		upper = int(Hooks.value(&"Her.upperEyelid", self, upper))
+	upperLid = upper
+	if Hooks.has_value(&"Her.lowerEyelid"):   # HOOK value point: the lower eyelid's frame (upperLid is already this tick's)
+		lower = int(Hooks.value(&"Her.lowerEyelid", self, lower))
+	lowerLid = lower
 	eye.upperEyelid.gotoAndStop(upper)
 	eye.lowerEyelid.gotoAndStop(lower)
 	eye.ball.upperEyelidMask.gotoAndStop(upper)

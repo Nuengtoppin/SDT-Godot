@@ -24,7 +24,7 @@ const BLEND_MODES := ["normal", "layer", "multiply", "screen", "lighten", "darke
 var da = null
 var screen = null   # mt_screen.gd
 # timed effects: time (getTimer ms) they stop at, -1 = off
-var _shock_until := -1.0
+var _shock_id := 0   # the current [SHOCK_...]: a modifier of the value point Her.eyelidShock (0: none)
 var _shock_power := SHOCK_POWER
 var _look_id := 0   # the current [LOOK_...]: a modifier of the value point Her.lookTarget (0: none)
 var _mouth_until := -1.0
@@ -54,7 +54,7 @@ func _disable() -> void:
 	if screen != null:
 		screen.remove()
 	screen = null
-	_shock_until = -1
+	_shock_id = 0   # (its modifier went with the extension)
 	_look_id = 0   # (its modifier went with the extension)
 	_mouth_until = -1
 	_wince_until = -1
@@ -266,9 +266,14 @@ func _bind(a: String, b: String) -> void:
 
 # ---------------------------------------------------------------- timed effects
 
+## [SHOCK_<ms>(_<power>)]: her eyes shocked (wider, small iris) until the time is up, then easing back as after the
+## game's own shock. A dialogue command: an OVERRIDE of Her.eyelidShock in the dialogue band (milliseconds of game
+## time, like [LOOK_...]).
 func _shock(ms, power) -> void:
-	_shock_until = Flash.getTimer() + _ms(ms)
 	_shock_power = AS3.Number(power)
+	Hooks.remove_modifier(_shock_id)
+	_shock_id = modify(&"Her.eyelidShock", {"phase": Hooks.OVERRIDE, "order": LOOK_ORDER, "op": "set",
+		"value": _shock_power, "ms": maxf(1.0, _ms(ms))})
 
 
 const LOOK_ORDER := 1000   # dialogue commands' band among OVERRIDE modifiers
@@ -312,11 +317,9 @@ func _tick() -> void:
 		return
 	var now := float(Flash.getTimer())
 	var her = g.her
-	if _shock_until >= 0:
-		if now > _shock_until:
-			_shock_until = -1
-		else:
-			her.eyelidMotion["shock"] = _shock_power
+	if _shock_id != 0 and not Hooks.has_modifier(_shock_id):
+		_shock_id = 0
+		her.eyelidMotion["shock"] = _shock_power   # it ends: the shock fades from here, as after the game's own
 	if _mouth_until >= 0:
 		if now > _mouth_until:
 			_mouth_until = -1

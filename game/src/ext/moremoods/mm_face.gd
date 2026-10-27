@@ -1,7 +1,8 @@
 extends RefCounted
 ## moremoods, her face per mood: eyebrows, eyelids, pupils (shock), where she looks, eye roll, mouth hang, lips.
-## Runs in hooks after / instead of Her.updateEyes, updateElements, updateLips, lookAt, blink, changeLookTarget and
-## wakeUp, as the Loader mod did. Numbers follow moremoods v18 (Flash rotation = rotation_degrees here).
+## Runs in hooks after Her.updateEyes, updateElements, updateLips, lookAt, blink, changeLookTarget and wakeUp, as the
+## Loader mod did, and as value point modifiers for her gaze and eyelids. Numbers follow moremoods v18 (Flash rotation =
+## rotation_degrees here).
 
 var mm   # moremoods.gd
 
@@ -24,6 +25,7 @@ var _prev_lower_lid := 0
 var _eye_fir: Array = [0]
 var _prev_upper := 0
 var _prev_upper2 := 0
+var _lids := [50, 50]         # [upper, lower] frames worked out by eyelids() this time
 
 
 func _init(p_mm) -> void:
@@ -36,6 +38,10 @@ func eyeroll_enabled() -> bool:
 
 func hook() -> void:
 	mm.hook_after(&"Her.updateEyes", func(_c): update_eyes())
+	# her eyelids through the value points (Hooks): moremoods' own lid model generates both frames, so states such as
+	# alternativePassOut's (FINAL) still apply on top. The upper is asked first: it works out both.
+	mm.modify(&"Her.upperEyelid", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(_v, _her): return eyelids()[0]})
+	mm.modify(&"Her.lowerEyelid", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(_v, _her): return _lids[1]})
 	mm.hook_before(&"Her.updateElements", func(_c): update_elements_pre())
 	mm.hook_after(&"Her.updateElements", func(_c): update_elements())
 	mm.hook_after(&"Her.updateLips", func(_c): update_lips())
@@ -53,7 +59,7 @@ func s(key: String):
 	return mm.get_setting(key)
 
 
-# ---------------------------------------------------------------- eyebrows and eyelids (after Her.updateEyes)
+# ---------------------------------------------------------------- eyebrows and eyelids (value points)
 
 func update_eyes() -> void:
 	var her = g.her
@@ -70,6 +76,20 @@ func update_eyes() -> void:
 		_set_brow(clampi(her.rightEyebrow.rightEyebrowFill.currentFrame, 100, 170))
 	if m == "Android":
 		_set_brow(clampi(int(her.rightEyebrow.rightEyebrowFill.currentFrame / 2.0), 0, 170))
+	var lower: int = her.lowerLid
+	if g.mascara:
+		lower_eyelid_level = maxi(0, int(floor((mini(_prev_lower_lid, lower) - 150) / 8.0)))
+		if _prev_lower_level != lower_eyelid_level:
+			clear_lower_eyelid()
+		_prev_lower_level = lower_eyelid_level
+	_prev_lower_lid = lower
+
+
+## moremoods' eyelid frames for her mood ([upper, lower]; GENERATE of Her.upperEyelid, which also keeps the lower
+## for Her.lowerEyelid).
+func eyelids() -> Array:
+	var her = g.her
+	var m: String = mm.mood_name
 	var lid: int = maxi(2, int(floor(her.eyelidMotion["pos"])))
 	var look: int = int(maxf(-55, minf(0, (her.eyeMotion["ang"] - 90) * 0.15 * maxf(0, 150 - lid))))
 	if m == "Excited":
@@ -110,8 +130,8 @@ func update_eyes() -> void:
 	if m == "Smug" or m == "Horny" or m == "Tease":
 		var before := upper
 		upper = _lowered_level(upper, 55, 90.0, 60)
-		if her.eyelidMotion["shock"] != 0:
-			var a := clampf(her.eyelidMotion["shock"] / 40.0, 0, 1)
+		if her.eyelidShock != 0:
+			var a := clampf(her.eyelidShock / 40.0, 0, 1)
 			upper = int(upper + (before - upper) * a)
 	if m == "Disgusted" or m == "Broken":
 		upper = _lowered_level(upper, 30, 120.0)
@@ -119,20 +139,8 @@ func update_eyes() -> void:
 		upper = _calm_jitter(upper)
 	if m == "Android":
 		upper = 0 if not her.passedOut else int(s("androidmoodpassouteyelid"))
-	if g.mascara:
-		lower_eyelid_level = maxi(0, int(floor((mini(_prev_lower_lid, lower) - 150) / 8.0)))
-		if _prev_lower_level != lower_eyelid_level:
-			clear_lower_eyelid()
-		_prev_lower_level = lower_eyelid_level
-	var eye = her.eye
-	eye.upperEyelid.gotoAndStop(upper)
-	eye.lowerEyelid.gotoAndStop(lower)
-	eye.ball.upperEyelidMask.gotoAndStop(upper)
-	eye.ball.lowerEyelidMask.gotoAndStop(lower)
-	eye.upperEyelid.eyeshadow.gotoAndStop(upper)
-	eye.upperEyelid.mascara.gotoAndStop(upper)
-	eye.lowerEyelid.mascara.gotoAndStop(lower)
-	_prev_lower_lid = lower
+	_lids = [upper, lower]
+	return _lids
 
 
 func _set_brow(f: int) -> void:
@@ -198,7 +206,7 @@ func _devoted_eyes(u: int) -> void:
 	var her = g.her
 	if her.passedOut or u > 150:
 		return
-	if (her.mouthFull and her.held and her.hilt) or (her.eyelidMotion["shock"] > 0 and not g.him.ejaculating) or g.breathLevel / g.breathLevelMax > 0.8:
+	if (her.mouthFull and her.held and her.hilt) or (her.eyelidShock > 0 and not g.him.ejaculating) or g.breathLevel / g.breathLevelMax > 0.8:
 		if her.cumInEye == 0 and her.eyelidMotion["isClosed"]:
 			her.openEye()
 	elif g.breathLevel / g.breathLevelMax < 0.7 and not her.mouthFull:
@@ -278,16 +286,16 @@ func update_elements() -> void:
 	if m in ["Frightened", "Nervous", "Excited", "Overwhelmed"]:
 		var target := 30 if m == "Excited" else 60
 		em["shock"] = maxf(em["shock"], target - 30.0 * her.passOutFactor / her.passOutMax)
-		_iris(0.9 - (0.25 - target / 400.0) - em["shock"] / 200.0)
+		_iris(0.9 - (0.25 - target / 400.0) - maxf(em["shock"], her.eyelidShock) / 200.0)
 	if m == "Android":
 		var t := 0.65 - minf(1, her.passOutFactor / her.passOutMax) / 6.0
 		iris.scaleX = t
 		iris.scaleY = t
 	if m == "Tease" and her.passOutFactor > 0:
 		em["shock"] = maxf(em["shock"], 60.0 * her.passOutFactor / her.passOutMax)
-		_iris(0.9 - (0.25 - em["pos"] / 400.0) - em["shock"] / 200.0)
+		_iris(0.9 - (0.25 - em["pos"] / 400.0) - maxf(em["shock"], her.eyelidShock) / 200.0)
 	if m in ["Depressed", "Drugged", "Spent", "Elated", "Broken"]:
-		_iris(0.9 - (0.25 - em["pos"] / 400.0) - em["shock"] / (600.0 if m == "Broken" else 300.0))
+		_iris(0.9 - (0.25 - em["pos"] / 400.0) - maxf(em["shock"], her.eyelidShock) / (600.0 if m == "Broken" else 300.0))
 	if m in ["Broken", "Tease", "Overwhelmed"]:
 		_hang(func(t, r): return maxf(t, maxf(r, 4)), 4.0)
 	if m in ["Frightened", "Disgusted", "Asleep"]:
