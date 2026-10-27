@@ -114,6 +114,15 @@ tab (P032) on top.
   Him, Other (filter buttons). The card shows newest first; Copy (shown groups) and Save (`<save dir>/journal/`,
   everything) give oldest first. It has no listeners: extensions react through Hooks. Wince is left out (it fires
   every tick of a swallow).
+- Menu cards fold and reset (P052, `game/src/menu/menu_fold.gd`, in upstream's `SDTMenu._build_view`): a section
+  that has `"fold": {group title: folded at first}` (only Behaviour for now: Resistance and Reactions folded at
+  first) gets ▸/▾ on each card's heading (a click on the heading too), the number of its settings while folded, and
+  the state in `port.cfg` `menu_fold/<section>/<group>`. ↺ on the heading, pressed twice within 3 s, sets every
+  setting of the card back: the game's sliders through their own default buttons (`reset`), extension settings to
+  their declared default (`MenuSchema.setting_control` adds `restore`), the game's checkboxes to its starting values
+  (`"default": true` on Breathing, Coughing, Gagging, Tongue: all on in `g.gd`), the collar's stiffness (0.6) and
+  resistance (0.18). "Reset resistance for each character" has no default and is left alone. Search results never
+  fold.
 - Info tab: her state by the same groups (gaze, eye, tears, cum in mouth, swallowing, teeth, cough build-up,
   drooling, sweat, wetness build-up, mood, breath, passing out, pace) and his pleasure.
 

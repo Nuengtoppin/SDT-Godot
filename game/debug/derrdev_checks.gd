@@ -43,6 +43,7 @@ func step(_frame: int) -> void:
 			_test_swallow_queue()
 			_test_journal()
 			_test_gulp_rows()
+			_test_menu_fold()
 			_test_value_points()
 			_test_hover()
 			_test_tan_and_sizes()
@@ -509,6 +510,67 @@ func _test_swallow_queue() -> void:
 	her.cumInMouth = 0
 	x._prev_cum = 0
 	x._prev_swallowing = false
+
+
+## P052: Behaviour's cards fold (Resistance and Reactions at first, kept) and reset to their defaults (twice).
+func _test_menu_fold() -> void:
+	var x = Extensions.get_extension("throatcumbulge")
+	_menu.open_menu()
+	_menu.show_section("behaviour")
+	_menu.build_now()
+	var cards := {}
+	for card in _menu._cache["behaviour"].get_children():
+		if not card is PanelContainer:
+			continue
+		var cv: VBoxContainer = card.get_child(0)
+		var h: HBoxContainer = cv.get_child(0)
+		cards[(h.get_child(1) as Label).text] = [h, cv.get_child(1)]
+	_check("fold: Behaviour cards have a fold button", cards.has("RESISTANCE") and cards.has("REACTIONS")
+		and (cards["REACTIONS"][0].get_child(0) as Button).text in ["▸", "▾"], str(cards.keys()))
+	var others_open := true
+	for k in cards:
+		if k not in ["RESISTANCE", "REACTIONS"] and not cards[k][1].visible:
+			others_open = false
+	_check("fold: Resistance and Reactions folded at first, the rest open", not cards["RESISTANCE"][1].visible
+		and not cards["REACTIONS"][1].visible and others_open)
+	var fold_btn: Button = cards["REACTIONS"][0].get_child(0)
+	fold_btn.pressed.emit()
+	_check("fold: the button opens it, and it is kept", cards["REACTIONS"][1].visible and fold_btn.text == "▾"
+		and PortSettings.get_value("menu_fold", "behaviour/Reactions", true) == false)
+	fold_btn.pressed.emit()
+	_check("fold: and folds it again", not cards["REACTIONS"][1].visible)
+	# reset: change a game checkbox, a game slider and extension settings, press ↺ once (nothing), twice (defaults)
+	var om = g.inGameMenu.optionsMenu
+	if g.breathing:
+		g.inGameMenu.cbBreathingClicked()
+	x.set_setting("queue", 3)
+	x.set_setting("speed", 1.5)
+	g.inGameMenu.mbDefaultThroatBulgeClicked()
+	var bulge0: float = g.throatBulgeAmount
+	om.throatBulgeSlider.setPos(0.9)
+	g.inGameMenu.throatBulgeSliderChanged()
+	var h: HBoxContainer = cards["REACTIONS"][0]
+	var r: Button = h.get_child(h.get_child_count() - 1)
+	r.pressed.emit()
+	_check("reset: the first press only asks", r.text == "Reset?" and not g.breathing and x.get_setting("queue") == 3)
+	r.pressed.emit()
+	_check("reset: the second sets the card back (game checkbox, game slider, extension settings)", g.breathing
+		and x.get_setting("queue") == 0 and x.get_setting("speed") == 1.0 and is_equal_approx(g.throatBulgeAmount, bulge0)
+		and r.text == "↺", "breathing %s queue %s speed %s bulge %s/%s" % [g.breathing, x.get_setting("queue"), x.get_setting("speed"), g.throatBulgeAmount, bulge0])
+	ThroatRings.set_stiffness(0.9)
+	var hr: HBoxContainer = cards["RESISTANCE"][0]
+	var rr: Button = hr.get_child(hr.get_child_count() - 1)
+	rr.pressed.emit()
+	rr.pressed.emit()
+	_check("reset Resistance: collar stiffness and resistance back", is_equal_approx(ThroatRings.stiffness, ThroatRings.DEFAULT_STIFFNESS)
+		and is_equal_approx(ThroatRings.collar_wall, ThroatRings.WALL_MAX * ThroatRings.DEFAULT_STIFFNESS))
+	_menu.query = "swallow queue"
+	_menu._show()
+	var found := _menu._search_view.find_children("*", "Button", true, false).filter(func(b): return b.text in ["▸", "▾"])
+	_check("fold: none in search results", found.is_empty())
+	_menu.query = ""
+	_menu._show()
+	_menu.close_menu()
 
 
 ## P051: the Mouth tab's gulp rows - Gulp (its automation switch vetoes Her.gulp), Gulp without the squint.

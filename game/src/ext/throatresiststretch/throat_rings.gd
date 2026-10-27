@@ -44,7 +44,8 @@ static var collar_tags := {
 
 static var entrance := _ring("Throat entrance", ENTRANCE_TOP, ENTRANCE_BOTTOM, 0.5, 0.5, INF)
 static var collar := _ring("Collar", 0.55, 0.75, 0.6, 0.6, 200.0)
-static var stiffness := 0.6           # the setting (0 soft band .. 1 metal)
+const DEFAULT_STIFFNESS := 0.6         # P052: what a card reset goes back to
+static var stiffness := DEFAULT_STIFFNESS   # the setting (0 soft band .. 1 metal)
 static var collar_breaks := false       # P044: collars may snap ("Collar can break"; off: they never do)
 static var collar_wall := 0.18          # P046: how hard the collar's wall holds at its bottom edge (0 .. WALL_MAX)
 static var collar_top_adjust := 0.0     # added to the edge found from the collar's picture (depth units)

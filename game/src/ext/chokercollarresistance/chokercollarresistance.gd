@@ -94,14 +94,16 @@ func _enable() -> void:
 	menu_control("behaviour", "Resistance", {"type": "slider", "label": "Collar stiffness", "after": "Throat resistance",
 		"tip": "One setting for every collar. 0: holds nothing, rides along with her neck. Higher: holds harder and gives less. 1: metal - a wall, never gives.",
 		"min": 0.0, "max": 1.0, "step": 0.05, "get": func(): return ThroatRings.stiffness,
-		"set": func(v: float): ThroatRings.set_stiffness(v), "format": func(v): return "%.2f" % v, "visible": on})
+		"set": func(v: float): ThroatRings.set_stiffness(v), "format": func(v): return "%.2f" % v, "visible": on,
+		"restore": func(): ThroatRings.set_stiffness(ThroatRings.DEFAULT_STIFFNESS)})
 	menu_control("behaviour", "Resistance", MenuSchema.actions("", "", ThroatRings.PRESETS.keys().map(func(k):
 		return [k, func(): ThroatRings.set_stiffness(ThroatRings.PRESETS[k]), "Collar stiffness %.1f." % ThroatRings.PRESETS[k]]),
 		{"after": "Throat resistance", "visible": on}))
 	menu_control("behaviour", "Resistance", {"type": "slider", "label": "Collar resistance", "after": "Throat resistance",
 		"tip": "How hard the collar's band stops him going deeper, like her throat resistance (the game's throat at 100: 0.2). Setting the stiffness sets it to match; then set it apart here.",
 		"min": 0.0, "max": ThroatRings.WALL_MAX, "step": 0.01, "get": func(): return ThroatRings.collar_wall,
-		"set": func(v: float): ThroatRings.set_wall(v), "format": func(v): return "%.2f" % v, "visible": on})
+		"set": func(v: float): ThroatRings.set_wall(v), "format": func(v): return "%.2f" % v, "visible": on,
+		"restore": func(): ThroatRings.set_wall(ThroatRings.WALL_MAX * ThroatRings.DEFAULT_STIFFNESS)})
 	for key in ["widen", "wince", "breaks"]:
 		menu_control("behaviour", "Resistance", MenuSchema.setting_control(self, key, {"after": "Throat resistance", "visible": on}))
 	menu_control("behaviour", "Resistance", MenuSchema.actions("", "", [["Repair collar", func(): ThroatRings.repair(),
