@@ -203,7 +203,13 @@ func _line_checks() -> void:
 	dc.stopSpeaking()
 
 
-var _drops_before := 0
+## Droplets added to the strand layer while PUSSYDRIP runs (counted as they come: each shrinks away after 10-110 ticks).
+var _drops_made := 0
+
+
+func _count_drop(n: Node) -> void:
+	if n is Droplet:
+		_drops_made += 1
 
 
 func _game_checks() -> void:
@@ -248,7 +254,7 @@ func _game_checks() -> void:
 	da.run_code("[SHOW_HIM]")
 	_check("HIDE_HIM / SHOW_HIM", hidden and g.him.visible)
 	_check("arm and cleaning triggers run", da.run_code("[ARMS_BREAST][FIX_ARMS][ARMS_HIS_CROTCH][RUB_HIS_CROTCH_ON][RUB_HIS_CROTCH_OFF][CLEAN_ALL][BOUNCE_TITS_0.3]"))
-	_drops_before = g.strandBackLayer.numChildren
+	g.strandBackLayer.child_entered_tree.connect(_count_drop)
 	da.run_code("[PUSSYDRIP_10]")
 	_check("PUSSYDRIP starts", gt._dripping)
 	da.run_code("[INSTANT_FLASH_ffffff_1]")
@@ -486,8 +492,8 @@ func _gaze_step() -> void:
 
 func _game_checks_later() -> void:
 	var gt = da.game
-	_check("PUSSYDRIP made droplets and ended", not gt._dripping and g.strandBackLayer.numChildren > _drops_before,
-		"%d -> %d" % [_drops_before, g.strandBackLayer.numChildren])
+	g.strandBackLayer.child_entered_tree.disconnect(_count_drop)
+	_check("PUSSYDRIP made its 10 droplets and ended", not gt._dripping and _drops_made >= 10, str(_drops_made))
 	_check("INSTANT_FLASH with a duration fades back", gt.fader.alpha == 0.0, str(gt.fader.alpha))
 	_check("masturbation raises her pleasure", gt.her_pleasure > 0.0)
 	da.run_code("[MASTURBATE_STOP]")
