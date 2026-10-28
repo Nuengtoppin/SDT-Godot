@@ -35,13 +35,14 @@ var leftArmContainer
 var bentPenis = null
 var bpMask = null
 var deepestPos: float = 0.0
-const MIN_PENIS_SIZE := 0.7
-const MAX_PENIS_SIZE := 1.2
+## The size limits are static vars, not constants, so an extension can widen them (penisrange); the game's values.
+static var MIN_PENIS_SIZE := 0.7
+static var MAX_PENIS_SIZE := 1.2
 var currentPenisLengthScale: float = 1.0
 var currentPenisWidthScale: float = 1.0
 var penisPullScale: float = 0.0
-const MIN_BALL_SIZE := 0.5
-const MAX_BALL_SIZE := 1.3
+static var MIN_BALL_SIZE := 0.5
+static var MAX_BALL_SIZE := 1.3
 var currentBallSize: float = 1.0
 const penisNameList := ["Penis A", "Penis B", "Strapon"]
 var currentPenis: Penis

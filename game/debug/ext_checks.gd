@@ -130,6 +130,7 @@ func step(_frame: int) -> void:
 				_aimpenis_checks()
 				_regulaterandom_checks()
 				_swallow_veto_checks()
+				_penisrange_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -296,6 +297,39 @@ func _aimpenis_checks() -> void:
 	_check("aimpenis on, mouse up: aims up, up to 35", up[0] > 40.0 and up[1] == 35.0, str(up))
 	_check("aimpenis in her mouth: the game's tilt", mouth == [10.0, 25.0], str(mouth))
 	_check("aimpenis: M switches it off and on", key_off and key_on)
+
+
+## penisrange: off by default (the game's limits); on, wider limits, sizes kept as sizes; big sizes move the mask
+## and the balls; off again, sizes and limits back inside the game's range.
+func _penisrange_checks() -> void:
+	var x = Extensions.get_extension("penisrange")
+	var him = g.him
+	var was := [him.currentPenisLengthScale, him.currentPenisWidthScale, him.currentBallSize]
+	_check("penisrange: built in, off by default, the game's limits", x != null and x.enabled and not x.get_setting("on")
+		and Him.MIN_PENIS_SIZE == 0.7 and Him.MAX_PENIS_SIZE == 1.2 and Him.MIN_BALL_SIZE == 0.5 and Him.MAX_BALL_SIZE == 1.3)
+	var balls := Vector2(him.balls.x, him.balls.y)
+	x.set_setting("on", true)
+	_check("penisrange on: wider limits", Him.MAX_PENIS_SIZE == 3.0 and is_equal_approx(Him.MIN_PENIS_SIZE, 0.35)
+		and is_equal_approx(Him.MAX_BALL_SIZE, 3.25) and is_equal_approx(Him.MIN_BALL_SIZE, 0.25))
+	him.setPenisLength(1.0)
+	_check("penisrange: the length slider reaches the new largest size", is_equal_approx(him.currentPenisLengthScale, 3.0))
+	him.loadPenisScales(2.5, 2.0)
+	_check("penisrange: sizes past the game's range load as they are", him.currentPenisLengthScale == 2.5 and him.currentPenisWidthScale == 2.0)
+	him.setBallScale(2.0)
+	x._tick()
+	_check("penisrange: big sizes, the mask follows his length", him.penisMask.scaleX == 2.5)
+	_check("penisrange: big balls move down and back", is_equal_approx(him.balls.y, balls.y + 0.7 * 22.0)
+		and is_equal_approx(him.balls.x, balls.x + 0.7 * 20.0))
+	him.loadPenisScales(1.0, 1.0)
+	him.setBallScale(1.0)
+	x._tick()
+	_check("penisrange: within the game's range, the game's mask and balls", him.penisMask.scaleX == 1.0 and him.balls.y == balls.y)
+	him.loadPenisScales(2.5, 2.0)
+	x.set_setting("on", false)
+	_check("penisrange off: the game's limits, sizes brought back", Him.MAX_PENIS_SIZE == 1.2 and Him.MIN_PENIS_SIZE == 0.7
+		and him.currentPenisLengthScale == 1.2 and him.currentPenisWidthScale == 1.2 and him.penisMask.scaleX == 1.0)
+	him.loadPenisScales(was[0], was[1])
+	him.setBallScale(was[2])
 
 
 ## Port fixes from sby's Loader patches (in the game code).
