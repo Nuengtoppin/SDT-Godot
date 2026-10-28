@@ -130,6 +130,7 @@ func step(_frame: int) -> void:
 				_aimpenis_checks()
 				_regulaterandom_checks()
 				_swallow_veto_checks()
+				_swallowing_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -296,6 +297,91 @@ func _aimpenis_checks() -> void:
 	_check("aimpenis on, mouse up: aims up, up to 35", up[0] > 40.0 and up[1] == 35.0, str(up))
 	_check("aimpenis in her mouth: the game's tilt", mouth == [10.0, 25.0], str(mouth))
 	_check("aimpenis: M switches it off and on", key_off and key_on)
+
+
+## throatcumbulge's swallowing: all off by default; per swallow, until empty (vetoable), while he cums, bulge by amount.
+func _swallowing_checks() -> void:
+	var x = Extensions.get_extension("throatcumbulge")
+	var her = g.her
+	var neck = her.head.neck
+	var was := [her.cumInMouth, her.swallowing, her.speaking, her.passedOut, her.penisInMouthDist, her.mouthFull, her.held]
+	_check("swallowing: all off by default", not x.get_setting("guzzle") and x.get_setting("pump") == "Off"
+		and x.get_setting("per_swallow") == 0)
+	her.swallowing = false
+	her.speaking = false
+	her.passedOut = false
+	# a swallow's wave starts: the game took 7 of 20; with "per swallow" 3 it takes 3
+	x.set_setting("per_swallow", 3)
+	x._prev_cum = 20
+	x._prev_wave = false
+	x._prev_swallowing = false
+	her.cumInMouth = 13
+	neck.swallowing = true
+	x._swallowing(her)
+	_check("per swallow: takes what is set", her.cumInMouth == 17 and x.last_amount == 3)
+	x.set_setting("per_swallow", 0)
+	x._prev_cum = 20
+	x._prev_wave = false
+	her.cumInMouth = 13
+	x._swallowing(her)
+	_check("per swallow 0: the game's amount", her.cumInMouth == 13 and x.last_amount == 7)
+	neck.swallowing = false
+	x.set_setting("guzzle", true)
+	x._prev_swallowing = true
+	her.swallowing = false
+	her.penisInMouthDist = -50.0
+	her.cumInMouth = 10
+	x._swallowing(her)
+	_check("until empty: she swallows again", her.swallowing)
+	her.swallowing = false
+	x._prev_swallowing = true
+	var n := _vetoed(&"Her.swallow", func(): x._swallowing(her))
+	_check("until empty: a veto on Her.swallow stops it", n == 1 and not her.swallowing)
+	x.set_setting("guzzle", false)
+	x._prev_swallowing = true
+	x._swallowing(her)
+	_check("until empty off: no extra swallow", not her.swallowing)
+	her.mouthFull = true
+	her.held = false
+	her.cumInMouth = 25
+	x._on_spurt()
+	_check("while he cums Off: nothing", not her.swallowing)
+	x.set_setting("pump", "When full")
+	x._on_spurt()
+	_check("while he cums When full: more than half full", her.swallowing)
+	her.swallowing = false
+	her.cumInMouth = 10
+	x._on_spurt()
+	_check("while he cums When full: not at a quarter", not her.swallowing)
+	x.set_setting("pump", "Always")
+	x._on_spurt()
+	_check("while he cums Always: whenever there is cum", her.swallowing)
+	her.swallowing = false
+	her.held = true
+	x._on_spurt()
+	_check("while he cums: not held deep (it goes down her throat)", not her.swallowing)
+	x.set_setting("pump", "Off")
+	x.set_setting("swallow_mode", "By amount")
+	neck.swallowing = true
+	x.last_amount = 10
+	x._swallow_scale(her)
+	var big: float = neck.swallowScale.x
+	x.last_amount = 5
+	x._swallow_scale(her)
+	_check("swallow bulge by amount: a bigger swallow, a bigger bulge", big > neck.swallowScale.x and is_equal_approx(big, 0.8 * 0.75 * 4))
+	neck.swallowing = false
+	x.set_setting("swallow_mode", "The game's")
+	x._swallow_scale(her)
+	her.cumInMouth = was[0]
+	her.swallowing = was[1]
+	her.speaking = was[2]
+	her.passedOut = was[3]
+	her.penisInMouthDist = was[4]
+	her.mouthFull = was[5]
+	her.held = was[6]
+	her.swallowTimer = 0
+	x._prev_cum = her.cumInMouth
+	x._prev_swallowing = her.swallowing
 
 
 ## Port fixes from sby's Loader patches (in the game code).
