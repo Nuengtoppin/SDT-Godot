@@ -177,6 +177,7 @@ static func data_root() -> String:
 static func _enable(ext: SDTExtension) -> void:
 	ext.enabled = true
 	ext._enable()
+	CharCode.adopt_kept(ext.id)
 
 
 static func _disable(ext: SDTExtension) -> void:

@@ -76,6 +76,25 @@ static func remove_owner(owner: String) -> void:
 			_order.erase(key)
 
 
+## Gives an extension's fields the values kept for them as unknown pairs: the character was loaded before it was
+## on (at startup the last character is restored before extensions start, or it was switched on later).
+static func adopt_kept(owner: String) -> void:
+	var l := Load.new()
+	var keys: Array = []
+	for key in _order:
+		if _fields[key]["owner"] == owner and _unknown.has(key):
+			l.pairs[key] = _unknown[key]
+			_unknown.erase(key)
+			keys.append(key)
+	var later := keys.filter(func(k): return _fields[k]["after_mods"])
+	_apply(l, keys.filter(func(k): return not _fields[k]["after_mods"]))
+	if not later.is_empty():
+		if mods_loading():
+			_pending.append([l, later])
+		else:
+			_apply(l, later)
+
+
 static func has_field(key: String) -> bool:
 	return _fields.has(key)
 
