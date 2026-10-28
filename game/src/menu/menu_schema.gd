@@ -527,12 +527,26 @@ static func extension_page(ext_id: String) -> Dictionary:
 			grp = {"title": title, "controls": []}
 			groups.append(grp)
 		grp["controls"].append(setting_control(ext, s["key"]))
+	if not groups.is_empty():
+		groups[-1]["controls"].append(reset_control(ext))
 	return {"id": "ext:" + ext_id, "name": ext.title if ext.title != "" else ext.id, "hidden": true, "parent": "mods",
 		"groups": groups}
 
 
 static func color_dict(c: Color) -> Dictionary:
 	return {"r": c.r8, "g": c.g8, "b": c.b8, "a": 1.0}
+
+
+## A "Reset to defaults" button for an extension's settings (all of them, or those in `keys`).
+static func reset_control(ext: SDTExtension, keys: Array = [], extra := {}) -> Dictionary:
+	return actions("", "", [["Reset to defaults", func(): _reset(ext, keys),
+		"Puts these settings back to their defaults."]], _with({"keywords": "default reset"}, extra))
+
+
+static func _reset(ext: SDTExtension, keys: Array) -> void:
+	ext.reset_settings(keys)
+	if SDTMenu.instance != null:
+		SDTMenu.instance._refresh_rows()
 
 
 ## The control for one extension setting (from its declaration: type of the default, min / max, options).

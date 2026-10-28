@@ -237,6 +237,12 @@ func set_setting(key: String, value) -> void:
 	_setting_changed(key, value)
 
 
+## Puts settings back to their defaults (all of them, or those in `keys`).
+func reset_settings(keys: Array = []) -> void:
+	for k in (keys if not keys.is_empty() else _setting_order):
+		set_setting(k, _settings[k]["default"])
+
+
 ## Setting keys in declaration order, with their info ("value", "default", "label", ...).
 func settings() -> Array:
 	var out := []
