@@ -369,7 +369,8 @@ func _lipstickringsmear_checks() -> void:
 func _strandlimit_checks() -> void:
 	var sl: SDTExtension = Extensions.get_extension("strandlimit")
 	var sc = g.strandControl
-	_check("strandlimit: off by default", not sl.get_setting("limit_cum") and not sl.get_setting("faint"))
+	_check("strandlimit: off by default", not sl.get_setting("limit_cum") and not sl.get_setting("limit_spit")
+		and not sl.get_setting("faint"))
 	sc.clearCumStrands()
 	for i in 8:
 		sc.newCumStrand(Vector2(300 + i * 5, 200), g.sceneLayer)
@@ -401,6 +402,26 @@ func _strandlimit_checks() -> void:
 		and after[3] == before[3], "%s -> %s" % [before, after])
 	sl.set_setting("faint", false)
 	sc.clearCumStrands()
+	var spit_before: bool = g.spit
+	g.spit = true
+	sc.clearSpitStrands()
+	for i in 8:
+		g.her.generateRandomStrand("random", true)
+	var n: int = sc.strand_count(false)
+	sc.add_strand_ages(false, PackedInt32Array([200, 200, 200, 200, 200, 200, 200, 200]))
+	before = sc.strand_alphas(false)
+	sl.set_setting("limit_spit", true)
+	sl.set_setting("max_spit", 5)
+	sl._counter = 0
+	for i in 6:
+		sl._tick()
+	after = sc.strand_alphas(false)
+	_check("strandlimit: the oldest spit strands over the limit fade faster", n == 8 and after.size() == 8
+		and after[0] < before[0] and after[5] == before[5] and sc.strand_alphas(true).is_empty(), "%d %s -> %s" % [n, before, after])
+	sl.set_setting("limit_spit", false)
+	sl.set_setting("max_spit", 20)
+	sc.clearSpitStrands()
+	g.spit = spit_before
 
 
 ## morecumspurts: its defaults give the game's spurts; the amount scales the load, no pauses with pause 0; edging:
