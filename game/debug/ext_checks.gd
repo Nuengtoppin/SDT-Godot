@@ -130,6 +130,7 @@ func step(_frame: int) -> void:
 				_aimpenis_checks()
 				_regulaterandom_checks()
 				_swallow_veto_checks()
+				_tongueguard_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -296,6 +297,56 @@ func _aimpenis_checks() -> void:
 	_check("aimpenis on, mouse up: aims up, up to 35", up[0] > 40.0 and up[1] == 35.0, str(up))
 	_check("aimpenis in her mouth: the game's tilt", mouth == [10.0, 25.0], str(mouth))
 	_check("aimpenis: M switches it off and on", key_off and key_on)
+
+
+## tongueguard: on by default; her teeth wait (Her.teethClosing) while her tongue is out, at most WAIT ticks; while
+## clenched the tongue's update is skipped and it moves in 4 frames a tick to rest; after, hanging out again.
+func _tongueguard_checks() -> void:
+	var her = g.her
+	var t = her.tongue
+	var x = Extensions.get_extension("tongueguard")
+	var was := [her.clenchTeeth, her.clenchTeethRatio, t.hangingOut, t.tongueOut]
+	_check("tongueguard: built in, on by default, holding her teeth through Her.teethClosing", x != null and x.enabled
+		and x.get_setting("on") and Hooks.has_value(&"Her.teethClosing"))
+	t.gotoAndStop(t.tongueOutEndFrame)
+	t.tongueOut = true
+	her.clenchTeeth = true
+	x._wait = 0
+	_check("tongueguard: her teeth wait while her tongue is out", Hooks.value(&"Her.teethClosing", her, true) == false)
+	for i in x.WAIT:
+		Hooks.value(&"Her.teethClosing", her, true)
+	_check("tongueguard: at most WAIT ticks", Hooks.value(&"Her.teethClosing", her, true) == true)
+	var c := Hooks.Call.new()
+	c.obj = t
+	var f0: int = t.currentFrame
+	x._on_update(c)
+	_check("tongueguard: while clenched her tongue's update is skipped, it moves in 4 frames a tick", c.cancelled and t.currentFrame == f0 - 4)
+	for i in 10:
+		x._on_update(c)
+	_check("tongueguard: and comes to rest inside", t.currentLabel == "InDone" and not t.tongueOut and not t.playingAction)
+	t.hangingOut = true
+	her.clenchTeeth = false
+	her.clenchTeethRatio = 0.0
+	var c2 := Hooks.Call.new()
+	c2.obj = t
+	x._on_update(c2)
+	_check("tongueguard: her teeth open while she hangs it out: out again", not c2.cancelled and t.waitingForOut)
+	t.waitingForOut = false
+	x.set_setting("on", false)
+	_check("tongueguard off: no hold on her teeth", not Hooks.has_value(&"Her.teethClosing"))
+	var r0: float = 0.4
+	her.clenchTeeth = true
+	her.clenchTeethRatio = r0
+	her.clenchedTeethTimer = 0
+	her.clenchedTeethTime = 100
+	her.updateLips()
+	_check("tongueguard off: her teeth close as in the game", her.clenchTeethRatio > r0)
+	x.set_setting("on", true)
+	her.clenchTeeth = was[0]
+	her.clenchTeethRatio = was[1]
+	t.hangingOut = was[2]
+	t.gotoAndStop("InDone")
+	t.tongueOut = false
 
 
 ## Port fixes from sby's Loader patches (in the game code).

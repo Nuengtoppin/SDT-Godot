@@ -1870,7 +1870,8 @@ func updateLips() -> void:
 		if clenchedTeethTimer >= clenchedTeethTime:
 			clenchTeeth = false
 		if clenchTeeth and clenchTeethRatio < 1:
-			clenchTeethRatio = minf(1.0, clenchTeethRatio + 0.2)
+			if not Hooks.has_value(&"Her.teethClosing") or Hooks.value(&"Her.teethClosing", self, true):   # HOOK value point: her teeth close further this tick (true; false holds them)
+				clenchTeethRatio = minf(1.0, clenchTeethRatio + 0.2)
 		elif not clenchTeeth:
 			clenchTeethRatio = maxf(0.0, clenchTeethRatio - 0.3)
 		topTeethTween.tween(clenchTeethRatio)
