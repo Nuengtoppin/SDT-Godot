@@ -194,6 +194,21 @@ func _control_checks() -> void:
 		and g.inGameMenu.moddingMenu.saveDataTF.text == le.text, le.text.left(40))
 	code_row.queue_free()
 
+	# a label that does not fit beside its control: a slider goes below it, a toggle's label wraps; short ones stay
+	var fits := []
+	for spec in [{"type": "slider", "label": "Short", "get": func(): return 0.5, "set": func(_v): pass},
+			{"type": "slider", "label": "A long slider label that cannot fit", "get": func(): return 0.5, "set": func(_v): pass},
+			{"type": "toggle", "label": "A long toggle label that cannot fit at all", "get": func(): return true, "set": func(_v): pass}]:
+		var r := MenuWidgets.build(spec, func(_s): pass)
+		menu.add_child(r)
+		r.size = Vector2(200, MenuWidgets.ROW_H)
+		MenuWidgets._fit(r, r.get_child(1), spec["type"])
+		var l: Label = r.get_child(0).get_child(0)
+		fits.append([r.vertical, l.autowrap_mode != TextServer.AUTOWRAP_OFF])
+		r.free()
+	_check("long labels: two lines / wrapped, short ones one line", fits == [[false, false], [true, false], [false, true]],
+		str(fits))
+
 
 func _settings_checks() -> void:
 	var side := _spec("settings", "Menu side")

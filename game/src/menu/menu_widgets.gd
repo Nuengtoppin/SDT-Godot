@@ -35,7 +35,7 @@ static func build(spec: Dictionary, on_hover: Callable) -> Control:
 	elif wide:
 		row = VBoxContainer.new()
 	else:
-		row = HBoxContainer.new()
+		row = BoxContainer.new()   # one line, or two when the label does not fit (_fit)
 	row.add_theme_constant_override("separation", 3 if wide else 6)
 	row.custom_minimum_size.y = ROW_H
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -90,6 +90,8 @@ static func build(spec: Dictionary, on_hover: Callable) -> Control:
 	if ctl != null:
 		ctl.size_flags_horizontal = Control.SIZE_EXPAND_FILL if wide else Control.SIZE_SHRINK_END
 		row.add_child(ctl)
+		if not wide and row.get_child_count() == 2:
+			row.resized.connect(func(): _fit(row, ctl, t))
 	var vis: Callable = spec.get("visible", Callable())
 	var en: Callable = spec.get("enabled", Callable())
 	row.set_meta("refresh", func():
@@ -103,6 +105,28 @@ static func build(spec: Dictionary, on_hover: Callable) -> Control:
 			r.call())
 	row.set_meta("spec", spec)
 	return row
+
+
+## A one-line row whose label does not fit beside its control: the label on its own line, the control below it at
+## full width (a toggle's label wraps instead). Decided by the row's width, which the two lines do not change.
+static func _fit(row: BoxContainer, ctl: Control, t: String) -> void:
+	var lr: Control = row.get_child(0)
+	var l: Label = lr.get_child(0)
+	var need := l.get_theme_font("font").get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		l.get_theme_font_size("font_size")).x
+	for c in lr.get_children():
+		if c != l:
+			need += c.get_combined_minimum_size().x + lr.get_theme_constant("separation")
+	need += ctl.get_combined_minimum_size().x + 6
+	var two := need > row.size.x
+	if t == "toggle":   # the switch stays beside it, the label wraps
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if two else TextServer.AUTOWRAP_OFF
+		l.clip_text = not two   # (clipping or "…" would give the wrapped label no height)
+		l.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING if two else TextServer.OVERRUN_TRIM_ELLIPSIS
+	elif two != row.vertical:
+		row.vertical = two
+		row.add_theme_constant_override("separation", 3 if two else 6)
+		ctl.size_flags_horizontal = Control.SIZE_EXPAND_FILL if two else Control.SIZE_SHRINK_END
 
 
 static func _label_row(spec: Dictionary, expand: bool) -> Control:
@@ -322,6 +346,7 @@ static func _slider(spec: Dictionary, refreshers: Array) -> Control:
 	s.max_value = spec.get("max", 1.0)
 	s.step = spec.get("step", 0.0)
 	s.custom_minimum_size = Vector2(78, 14)
+	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # the whole width when the row has two lines
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.focus_mode = Control.FOCUS_NONE
 	var val := Label.new()
