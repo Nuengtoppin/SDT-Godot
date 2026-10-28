@@ -40,6 +40,8 @@ static func build(spec: Dictionary, on_hover: Callable) -> Control:
 	row.custom_minimum_size.y = ROW_H
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.tooltip_text = spec.get("tip", "")
+	if spec.get("owner", "") != "":
+		row.tooltip_text += ("\n" if row.tooltip_text != "" else "") + "From the extension " + spec["owner"]
 	row.mouse_entered.connect(func(): on_hover.call(spec))
 	var label_text: String = spec.get("label", "")
 	if label_text != "" and t != "note":
@@ -117,8 +119,18 @@ static func _label_row(spec: Dictionary, expand: bool) -> Control:
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_child(l)
 	if spec.get("owner", "") != "" and not spec.get("tagless", false):
-		h.add_child(tag(spec["owner"]))
+		h.add_child(marker())   # a dot, so the label keeps its width; the tooltip and help line name the extension
 	return h
+
+
+## An extension's row: a small dot in the tag colour (a group of its own has the full tag on its heading).
+static func marker() -> Panel:
+	var m := Panel.new()
+	m.custom_minimum_size = Vector2(6, 6)
+	m.add_theme_stylebox_override("panel", MenuTheme.box(MenuTheme.PLUGIN, Color(0, 0, 0, 0), 3, 0, 0))
+	m.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return m
 
 
 static func tag(text: String) -> Label:

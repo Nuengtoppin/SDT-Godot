@@ -741,15 +741,16 @@ func _refresh_rows() -> void:
 			r.get_meta("refresh").call()
 
 
-const DEFAULT_HELP := "Point at an option to see what it does. Search finds options in every section; orange tags mark options added by an extension."
+const DEFAULT_HELP := "Point at an option to see what it does. Search finds options in every section; orange dots and tags mark options added by an extension."
 
 
 func _show_help(spec) -> void:
-	if spec == null or str(spec.get("tip", "")) == "":
-		_help.text = _default_help() if spec == null else str(spec.get("label", ""))
+	if spec == null:
+		_help.text = _default_help()
 		return
 	var who := " (%s)" % spec["owner"] if spec.get("owner", "") != "" else ""
-	_help.text = "%s%s: %s" % [spec.get("label", ""), who, spec["tip"]]
+	var tip := str(spec.get("tip", ""))
+	_help.text = "%s%s%s" % [spec.get("label", ""), who, ": " + tip if tip != "" else ""]
 
 
 # ---------------------------------------------------------------- every frame

@@ -331,6 +331,12 @@ func _extension_checks() -> void:
 	menu.show_section("her")
 	var found := _spec("her", "Test toggle")
 	_check("extension control in a vanilla group", not found.is_empty())
+	# its row is marked by a dot, not the full tag, so the label keeps its width; the tooltip names the extension
+	var ext_row := MenuWidgets.build(found, func(_s): pass)
+	_check("extension row: a dot, the label whole", ext_row.find_children("*", "Panel", true, false).size() == 1
+		and ext_row.find_children("*", "Label", true, false).size() == 1 and ext_row.tooltip_text.contains("moremoods"),
+		ext_row.tooltip_text)
+	ext_row.free()
 	Extensions.set_enabled("moremoods", false)
 	menu.show_section("her")
 	menu.build_now()
