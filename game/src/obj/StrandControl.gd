@@ -150,6 +150,26 @@ func maxPop() -> bool:
 	return strands.size() >= maxStrands
 
 
+## Port addition: the live spit (cum = false) or cum strands' alpha, oldest first (e.g. strandlimit).
+func strand_alphas(cum: bool) -> PackedFloat32Array:
+	if _native():
+		return fluids.alphas(cum)
+	var out := PackedFloat32Array()
+	for s in (cumStrands if cum else strands):
+		out.append(s.getAlpha())
+	return out
+
+
+## Port addition: ages the oldest live spit / cum strands, amounts[i] to the i-th oldest (they fade sooner).
+func add_strand_ages(cum: bool, amounts: PackedInt32Array) -> void:
+	if _native():
+		fluids.add_ages(cum, amounts)
+		return
+	var list: Array = cumStrands if cum else strands
+	for i in mini(amounts.size(), list.size()):
+		list[i].age += amounts[i]
+
+
 ## Number of live spit (cum = false) or cum strands (tests).
 func strand_count(cum: bool) -> int:
 	if _native():

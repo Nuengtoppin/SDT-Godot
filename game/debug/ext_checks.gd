@@ -132,6 +132,7 @@ func step(_frame: int) -> void:
 				_morespitstrands_checks()
 				_morecumspurts_checks()
 				_lipstickringsmear_checks()
+				_strandlimit_checks()
 				_swallow_veto_checks()
 				_disable_checks()
 				_plugin_checks()
@@ -361,6 +362,45 @@ func _lipstickringsmear_checks() -> void:
 		and restored == 1.0 and her.bottomLipstick.alpha == 0.0, "%s %s %s" % [back, restored, her.bottomLipstick.alpha])
 	cc.setLipstick(lip_before)
 	him.clearLipstick()
+
+
+## strandlimit: off by default (strands untouched); over the limit the oldest cum strands age, the oldest most, the
+## ones within the limit not at all; faint strands age, the others not.
+func _strandlimit_checks() -> void:
+	var sl: SDTExtension = Extensions.get_extension("strandlimit")
+	var sc = g.strandControl
+	_check("strandlimit: off by default", not sl.get_setting("limit_cum") and not sl.get_setting("faint"))
+	sc.clearCumStrands()
+	for i in 8:
+		sc.newCumStrand(Vector2(300 + i * 5, 200), g.sceneLayer)
+	var before: PackedFloat32Array = sc.strand_alphas(true)
+	sl._counter = 0
+	for i in 6:
+		sl._tick()
+	_check("strandlimit: off, strands untouched", sc.strand_alphas(true) == before, "%s %s" % [before, sc.strand_alphas(true)])
+	sc.add_strand_ages(true, PackedInt32Array([1900, 1900, 1900, 1900, 1900, 1900, 1900, 1900]))
+	before = sc.strand_alphas(true)
+	sl.set_setting("limit_cum", true)
+	sl.set_setting("max_cum", 5)
+	sl._counter = 0
+	for i in 6:
+		sl._tick()
+	var after: PackedFloat32Array = sc.strand_alphas(true)
+	_check("strandlimit: the oldest over the limit fade faster", after.size() == 8 and before[0] - after[0] > before[2] - after[2]
+		and after[2] < before[2] and after[3] == before[3] and after[7] == before[7], "%s -> %s" % [before, after])
+	sl.set_setting("limit_cum", false)
+	sl.set_setting("max_cum", 40)
+	sc.add_strand_ages(true, PackedInt32Array([0, 0, 0, 0, 0, 0, 0, 400]))
+	before = sc.strand_alphas(true)
+	sl.set_setting("faint", true)
+	sl._counter = 0
+	for i in 6:
+		sl._tick()
+	after = sc.strand_alphas(true)
+	_check("strandlimit: faint strands fade quickly", before[7] < 0.25 and before[3] >= 0.25 and after[7] < before[7]
+		and after[3] == before[3], "%s -> %s" % [before, after])
+	sl.set_setting("faint", false)
+	sc.clearCumStrands()
 
 
 ## morecumspurts: its defaults give the game's spurts; the amount scales the load, no pauses with pause 0; edging:

@@ -64,6 +64,8 @@ void SDTFluids::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("clear", "cum"), &SDTFluids::clear);
 	ClassDB::bind_method(D_METHOD("count", "cum"), &SDTFluids::count);
 	ClassDB::bind_method(D_METHOD("kill_oldest", "cum"), &SDTFluids::kill_oldest);
+	ClassDB::bind_method(D_METHOD("alphas", "cum"), &SDTFluids::alphas);
+	ClassDB::bind_method(D_METHOD("add_ages", "cum", "amounts"), &SDTFluids::add_ages);
 	ClassDB::bind_method(D_METHOD("get_points", "id"), &SDTFluids::get_points);
 	ClassDB::bind_method(D_METHOD("get_state"), &SDTFluids::get_state);
 }
@@ -967,6 +969,29 @@ int SDTFluids::count(bool cum) const {
 		}
 	}
 	return n;
+}
+
+PackedFloat32Array SDTFluids::alphas(bool cum) const {
+	PackedFloat32Array out;
+	for (int id : order) {
+		if (strands[id].alive && strands[id].listed_cum == cum) {
+			out.push_back(alpha_of(strands[id]));
+		}
+	}
+	return out;
+}
+
+void SDTFluids::add_ages(bool cum, const PackedInt32Array &amounts) {
+	int i = 0;
+	for (int id : order) {
+		if (i >= amounts.size()) {
+			break;
+		}
+		if (strands[id].alive && strands[id].listed_cum == cum) {
+			strands[id].age += amounts[i];
+			i += 1;
+		}
+	}
 }
 
 PackedVector2Array SDTFluids::get_points(int id) const {

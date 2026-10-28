@@ -4,6 +4,7 @@
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
+#include <godot_cpp/variant/packed_int32_array.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/transform2d.hpp>
 
@@ -152,6 +153,8 @@ public:
 	void clear(bool cum);
 	bool kill_oldest(bool cum); // the oldest live spit / cum strand; false when there is none
 	int count(bool cum) const;
+	PackedFloat32Array alphas(bool cum) const;               // live spit / cum strands' alpha, oldest first
+	void add_ages(bool cum, const PackedInt32Array &amounts); // ages the oldest live ones: amounts[i] to the i-th
 	PackedVector2Array get_points(int id) const; // tests
 	Array get_state() const;                     // tests / dumps: per alive strand [layer, cum, links, anchored]
 };
