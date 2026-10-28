@@ -679,30 +679,45 @@ func move(p: float, mx: float, my: float) -> void:
 		playingCumSound = g.soundControl.fadeCumVolume()
 
 
+## Port: how ejaculate() splits his cum into spurts (the game's numbers); a before-hook can change them (args
+## [params], e.g. morecumspurts). amount: times the load; build_up: the build-up adds to it; min/max_spurt: spurt
+## length in ticks (max plus 0-5 at random; 0: no limit); normal / terminal: [random, fixed] share of what is left per
+## spurt (terminal once less than 20 is left); pause: chance of a pause before each spurt after the first.
+const EJACULATION := {"amount": 1.0, "build_up": true, "min_spurt": 6, "max_spurt": 21, "normal": [0.2, 0.3],
+	"terminal": [0.5, 0.5], "pause": 1.0}
+
+
 func ejaculate() -> void:
+	var p: Dictionary = EJACULATION
 	if Hooks.has(&"Him.ejaculate"):   # HOOK
-		var h := Hooks.before(&"Him.ejaculate", self, [])
+		var h := Hooks.before(&"Him.ejaculate", self, [EJACULATION.duplicate(true)])
 		if h.cancelled:
 			maxPleasureTimer = 0   # vetoed: the pre-climax wait starts over (no retry every tick)
 			return
+		p = h.args[0]
 	if not ejaculating:
 		g.totalFinishes += 1
-		var extra := minf(30.0, maxf(0.0, (buildUp - ejacPleasure - 20.0) / 6.0))
+		var extra := minf(30.0, maxf(0.0, (buildUp - ejacPleasure - 20.0) / 6.0)) if p["build_up"] else 0.0
 		var base := floorf(60.0 + randf() * 10.0)
 		ejaculation = []
 		var done := 0
-		var total := int(base + extra)
+		var total := int((base + extra) * float(p["amount"]))
+		var normal: Array = p["normal"]
+		var terminal: Array = p["terminal"]
+		var max_spurt: int = p["max_spurt"]
+		var pause: float = p["pause"]
 		var first := true
 		while true:
 			var left := total - done
 			var size: int
 			if left < 20:
-				size = int(floor(randf() * left * 0.5 + left * 0.5))
+				size = int(floor(randf() * left * terminal[0] + left * terminal[1]))
 			else:
-				size = int(floor(randf() * left * 0.2 + left * 0.3))
-			size = int(minf(floor(randf() * 5 + 21), size))
-			var s := maxi(6, size)
-			addRandomSpurt(s, first)
+				size = int(floor(randf() * left * normal[0] + left * normal[1]))
+			if max_spurt > 0:
+				size = int(minf(floor(randf() * 5 + max_spurt), size))
+			var s := maxi(int(p["min_spurt"]), size)
+			addRandomSpurt(s, first or (pause < 1.0 and randf() > pause))
 			first = false
 			done += s
 			if done >= total:

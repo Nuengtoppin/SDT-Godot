@@ -130,6 +130,7 @@ func step(_frame: int) -> void:
 				_aimpenis_checks()
 				_regulaterandom_checks()
 				_morespitstrands_checks()
+				_morecumspurts_checks()
 				_swallow_veto_checks()
 				_disable_checks()
 				_plugin_checks()
@@ -305,6 +306,69 @@ func _morespitstrands_checks() -> void:
 	ms.set_setting("pulled_off_max", 1)
 	sc.clearSpitStrands()
 	g.spit = spit_before
+
+
+## morecumspurts: its defaults give the game's spurts; the amount scales the load, no pauses with pause 0; edging:
+## near orgasm then calm = one edge (capped), the next orgasm takes the boost, which is spent once he cums; his balls
+## grow on top of his ball size and are back at it when switched off; cum strand thickness reaches the strands.
+func _morecumspurts_checks() -> void:
+	var mc: SDTExtension = Extensions.get_extension("morecumspurts")
+	var him: Him = g.him
+	var spurts := func(amount: float, pause: float) -> Array:
+		mc.set_setting("amount", amount)
+		mc.set_setting("pause", pause)
+		seed(5)
+		him.ejaculating = false
+		him.ejaculate()
+		var e: Array = him.ejaculation.duplicate(true)
+		him.ejaculating = false
+		him.ejaculation = []
+		return e
+	var game: Array = []
+	Hooks.add_before(&"Him.ejaculate", func(c): game.append(c.args[0].duplicate(true)), "test")
+	var base: Array = spurts.call(1.0, 1.0)
+	Hooks.remove_owner("test")
+	var total := func(e: Array) -> int: return e.reduce(func(a, s): return a + int(s["spurtTimerStart"]), 0)
+	var triple: Array = spurts.call(3.0, 1.0)
+	var no_pause: Array = spurts.call(1.0, 0.0)
+	_check("morecumspurts defaults: the game's numbers", not game.is_empty() and game[0] == Him.EJACULATION, str(game))
+	var r: float = float(total.call(triple)) / total.call(base)
+	_check("morecumspurts: amount 3 triples the load", r > 2.5 and r < 4.0, str(r))   # (the last spurt overshoots)
+	_check("morecumspurts: no pauses with pause 0", no_pause.size() > 1 and no_pause.all(func(s): return s["pauseTimer"] == 0))
+	mc.set_setting("amount", 1.0)
+	mc.set_setting("pause", 1.0)
+
+	mc.set_setting("edging", true)
+	var pleasure := him.pleasure
+	for i in 30:   # 30 edges, capped at 3
+		him.pleasure = him.ejacPleasure * 0.9
+		mc._tick()
+		him.pleasure = him.ejacPleasure * 0.5
+		mc._tick()
+	var capped: bool = is_equal_approx(mc.edge, 3.0) and is_equal_approx(mc.ball_growth, 1.5)
+	for i in 400:
+		mc._tick()
+	var grown: float = him.balls.scaleX / him.currentBallSize
+	var amount := []
+	Hooks.add_before(&"Him.ejaculate", func(c): amount.append([c.args[0]["amount"], c.args[0]["build_up"]]), "test", 10)
+	seed(5)
+	him.ejaculating = false
+	him.ejaculate()
+	Hooks.remove_owner("test")
+	mc._tick()   # he cums: the edging is spent
+	_check("morecumspurts edging: capped, the next orgasm takes it, spent once he cums", capped
+		and amount == [[3.0, false]] and mc.edge == 1.0 and mc.ball_growth == 1.0, "%s %s %s" % [mc.edge, amount, capped])
+	him.ejaculating = false
+	him.ejaculation = []
+	him.pleasure = pleasure
+	_check("morecumspurts: his balls grow on top of his size", grown > 1.05, str(grown))
+	mc.set_setting("edging", false)
+	_check("morecumspurts: balls back at his size when edging is off", is_equal_approx(him.balls.scaleX, him.currentBallSize),
+		"%s %s" % [him.balls.scaleX, him.currentBallSize])
+	mc.set_setting("thickness", 2.5)
+	var thick: float = g.strandControl.cumMinThickness
+	mc.set_setting("thickness", 1.0)
+	_check("morecumspurts: cum strand thickness", thick == 2.5 and g.strandControl.cumMinThickness == 1.0)
 
 
 ## aimpenis: the aim goes into his tilt target and the wider limits into his angle, only while it is on and he is out

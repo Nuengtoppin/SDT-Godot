@@ -87,6 +87,7 @@ private:
 	float kill_y = 1e9f, floor_y = 1220.0f;
 	bool him_ejaculating = false;
 	Color cum_rgb = Color(1, 1, 1);
+	float cum_min_thickness = 1.0f; // a cum link is drawn at least this thick (the game: 1, like spit)
 	int face = -1, jaw = -1, eye_box = -1, scene = -1;
 	int64_t tick_key = 0;
 	// smear cache (g.smudgeCache): per container, the smear point in its space this tick and last tick

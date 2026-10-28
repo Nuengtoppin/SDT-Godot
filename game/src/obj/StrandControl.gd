@@ -12,6 +12,7 @@ var strands: Array = []
 var cumStrands: Array = []
 var lockedStrands: Array = []
 const maxStrands := 20
+var cumMinThickness := 1.0   # port: a cum strand link is drawn at least this thick (the game: 1; morecumspurts)
 
 static var native_enabled: bool = ClassDB.class_exists(&"SDTFluids") and not "--nonative" in OS.get_cmdline_user_args()
 
@@ -272,7 +273,8 @@ func _set_params() -> void:
 		"mass_generate_speed": g.massGenerateSpeed, "mass_flow": g.massFlow, "max_strand_length": g.maxStrandLength,
 		"kill_y": g.screenSize.y * (1.0 / g.sceneZoom) + 10.0, "floor_y": 1220.0,
 		"him_ejaculating": g.him.isEjaculating() if g.him != null else false,
-		"cum_rgb": Color.hex((g.cumRGB << 8) | 0xFF), "tick": Flash.tick_count})
+		"cum_rgb": Color.hex((g.cumRGB << 8) | 0xFF), "tick": Flash.tick_count,
+		"cum_min_thickness": cumMinThickness})
 
 
 func _tick() -> void:

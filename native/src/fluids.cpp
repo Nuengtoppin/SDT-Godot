@@ -136,6 +136,7 @@ void SDTFluids::set_params(const Dictionary &d) {
 	floor_y = d.get("floor_y", floor_y);
 	him_ejaculating = d.get("him_ejaculating", him_ejaculating);
 	cum_rgb = d.get("cum_rgb", cum_rgb);
+	cum_min_thickness = d.get("cum_min_thickness", cum_min_thickness);
 	tick_key = d.get("tick", tick_key);
 }
 
@@ -422,7 +423,7 @@ float SDTFluids::alpha_of(const Strand &s) const {
 
 float SDTFluids::thickness(const Strand &s, int li) const {
 	const Link &l = s.links[li];
-	float t = std::max(1.0f, std::pow(l.mass * 2.0f, 1.5f));
+	float t = std::max(s.cum ? cum_min_thickness : 1.0f, std::pow(l.mass * 2.0f, 1.5f));
 	if (l.anchored) {
 		t *= 1.5f;
 	}

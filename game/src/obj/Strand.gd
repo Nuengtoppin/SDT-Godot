@@ -402,7 +402,7 @@ func getRGB() -> int:
 
 
 func getLinkThickness(i: int) -> float:
-	var t := maxf(1.0, pow(links[i].mass * 2.0, 1.5))
+	var t := maxf(g.strandControl.cumMinThickness if cumStrand else 1.0, pow(links[i].mass * 2.0, 1.5))
 	if links[i].anchored:
 		t *= 1.5
 	if cumStrand:
