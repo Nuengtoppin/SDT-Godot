@@ -6,6 +6,8 @@
 # Godot
 .godot/
 *.import
+# temporary files of an interrupted import
+*.import-*
 
 # Tool environments
 /tools/.venv/
