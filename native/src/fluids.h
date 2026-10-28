@@ -149,6 +149,7 @@ public:
 	void smear(const Vector2 &p, double radius);
 	void detach_container(int container);
 	void clear(bool cum);
+	bool kill_oldest(bool cum); // the oldest live spit / cum strand; false when there is none
 	int count(bool cum) const;
 	PackedVector2Array get_points(int id) const; // tests
 	Array get_state() const;                     // tests / dumps: per alive strand [layer, cum, links, anchored]

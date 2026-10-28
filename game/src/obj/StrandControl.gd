@@ -73,6 +73,16 @@ func clearSpitStrands() -> void:
 		strands[0].killMe()
 
 
+## Port addition: removes the oldest spit strand (to make room for a new one at the limit, e.g. morespitstrands).
+func killOldestSpit() -> void:
+	if _native():
+		if fluids.kill_oldest(false):
+			_apply_events(fluids.take_events())
+			_draw()
+	elif not strands.is_empty():
+		strands[0].killMe()
+
+
 func clearCumStrands() -> void:
 	if _native():
 		fluids.clear(true)

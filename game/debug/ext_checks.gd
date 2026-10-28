@@ -129,6 +129,7 @@ func step(_frame: int) -> void:
 				_leglayer_checks()
 				_aimpenis_checks()
 				_regulaterandom_checks()
+				_morespitstrands_checks()
 				_swallow_veto_checks()
 				_disable_checks()
 				_plugin_checks()
@@ -266,6 +267,44 @@ func _regulaterandom_checks() -> void:
 	_check("regulaterandom defaults: the game's shuffle", defaults_ok, str(seen[0]) if not seen.is_empty() else "")
 	_check("regulaterandom all off: shuffle changes nothing", before == after and mood == mood_after,
 		"" if before == after else "%s\n%s" % [before, after])
+
+
+## morespitstrands: off by default; on, her lips leaving him make up to the set number of strands; at the strand
+## limit the oldest one makes room (StrandControl.killOldestSpit, native or not).
+func _morespitstrands_checks() -> void:
+	var ms: SDTExtension = Extensions.get_extension("morespitstrands")
+	var her: Her = g.her
+	var sc = g.strandControl
+	_check("morespitstrands: off by default", not ms.get_setting("pulled_off") and not ms.get_setting("pulling_up"))
+	var spit_before: bool = g.spit
+	g.spit = true
+	sc.clearSpitStrands()
+	ms.set_setting("pulled_off", true)
+	ms.set_setting("pulled_off_max", 5)
+	seed(3)
+	var made: int = ms.made
+	her.mouthFull = true
+	ms._tick()
+	her.mouthFull = false
+	ms._tick()
+	var pulled: int = ms.made - made
+	ms._tick()
+	_check("morespitstrands: strands when she pulls off (once)", pulled >= 1 and pulled <= 5 and ms.made - made == pulled,
+		str(ms.made - made))
+	var guard := 0
+	while not sc.maxPop() and guard < 100:
+		her.generateRandomStrand("random", true)
+		guard += 1
+	var full: int = sc.strand_count(false)
+	ms._strand()
+	var after_new: int = sc.strand_count(false)
+	sc.killOldestSpit()
+	_check("morespitstrands: at the limit the oldest makes room", full == sc.maxStrands and after_new == full
+		and sc.strand_count(false) == full - 1, "%d %d %d" % [full, after_new, sc.strand_count(false)])
+	ms.set_setting("pulled_off", false)
+	ms.set_setting("pulled_off_max", 1)
+	sc.clearSpitStrands()
+	g.spit = spit_before
 
 
 ## aimpenis: the aim goes into his tilt target and the wider limits into his angle, only while it is on and he is out

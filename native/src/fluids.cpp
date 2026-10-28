@@ -63,6 +63,7 @@ void SDTFluids::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("detach_container", "container"), &SDTFluids::detach_container);
 	ClassDB::bind_method(D_METHOD("clear", "cum"), &SDTFluids::clear);
 	ClassDB::bind_method(D_METHOD("count", "cum"), &SDTFluids::count);
+	ClassDB::bind_method(D_METHOD("kill_oldest", "cum"), &SDTFluids::kill_oldest);
 	ClassDB::bind_method(D_METHOD("get_points", "id"), &SDTFluids::get_points);
 	ClassDB::bind_method(D_METHOD("get_state"), &SDTFluids::get_state);
 }
@@ -944,6 +945,17 @@ void SDTFluids::clear(bool cum) {
 		}
 	}
 	cleanup();
+}
+
+bool SDTFluids::kill_oldest(bool cum) {
+	for (int id : order) {
+		if (strands[id].alive && strands[id].listed_cum == cum) {
+			kill(id);
+			cleanup();
+			return true;
+		}
+	}
+	return false;
 }
 
 int SDTFluids::count(bool cum) const {
