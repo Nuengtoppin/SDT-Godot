@@ -28,7 +28,7 @@ func _setup() -> void:
 		"desc": "Extra spit strands when her lips leave him."})
 	setting("pulled_off_max", 1, {"label": "Max strands", "min": 0, "max": 5, "step": 1,
 		"desc": "At most this many extra strands each time she pulls off (each made by chance)."})
-	setting("pulling_up", false, {"label": "Spit strands when she pulls back",
+	setting("pulling_up", false, {"label": "Spit strands as she pulls back",
 		"desc": "Extra spit strands while she slides back along him quickly, her lips still on him."})
 	setting("pulling_up_max", 3, {"label": "Max strands", "min": 0, "max": 8, "step": 1,
 		"desc": "At most this many extra strands each time she pulls back; going deeper again allows more."})
@@ -46,7 +46,7 @@ func _enable() -> void:
 	menu_control("effects", "Fluids and marks", MenuSchema.setting_control(self, "pulling_up",
 		{"after": "Spit strands when she pulls off"}))
 	menu_control("effects", "Fluids and marks", MenuSchema.setting_control(self, "pulling_up_max",
-		{"after": "Spit strands when she pulls back", "visible": up_on}))
+		{"after": "Spit strands as she pulls back", "visible": up_on}))
 
 
 func _tick() -> void:
