@@ -355,8 +355,10 @@ func _lipstickringsmear_checks() -> void:
 	var back: float = her.bottomLipstick.alpha
 	him.smearLipstick(0.5, 30000.0)
 	ls.set_setting("wear_off", false)
-	_check("lipstickringsmear: lipstick back when set again or wear-off is off", back == 1.0 and her.bottomLipstick.alpha == 1.0,
-		"%s %s" % [back, her.bottomLipstick.alpha])
+	var restored: float = her.bottomLipstick.alpha
+	cc.setLipstick(AlphaRGBObject.new(0.0, 200, 0, 0))
+	_check("lipstickringsmear: lipstick back when set again or wear-off is off, at its colour's alpha", back == 1.0
+		and restored == 1.0 and her.bottomLipstick.alpha == 0.0, "%s %s %s" % [back, restored, her.bottomLipstick.alpha])
 	cc.setLipstick(lip_before)
 	him.clearLipstick()
 

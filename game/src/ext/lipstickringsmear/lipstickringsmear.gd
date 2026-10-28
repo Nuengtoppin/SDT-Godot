@@ -6,9 +6,9 @@ extends SDTExtension
 ## Written from its source.
 ##
 ## Changes from the mod: its colour transforms set the colour of the lipstick on him from a pixel value used as a
-## multiplier (white once that pixel had lipstick); here they only scale alpha. Her lipstick goes back to full
-## (the game's value) rather than to its colour's alpha, which the game already applies. No toggle key (the settings
-## switch it).
+## multiplier (white once that pixel had lipstick); here they only scale alpha. Worn lipstick keeps its colour's
+## alpha as the starting point (the mod set the lower lip to the worn fraction alone, so faint lipstick turned strong
+## as it wore). No toggle key (the settings switch it).
 
 # the mod's settings file
 const RING_EVERY := 1              # smearRate: ticks between rings
@@ -93,19 +93,21 @@ func _setting_changed(key: String, _value) -> void:
 		_restore()
 
 
-## Her lipstick at full again, its wear budget refilled.
+## Her lipstick as set again, its wear budget refilled.
 func _restore() -> void:
 	_buffer = WEAR_BUFFER
 	_wear_left = WEAR_AMOUNT
 	_set_lip_alpha(1.0)
 
 
-func _set_lip_alpha(a: float) -> void:
+## Her lipstick at `left` (0-1) of its colour's alpha. Flash's alpha is the colour transform's alpha multiplier: the
+## lower lipstick carries the colour itself (setLipstick), the upper one's container does.
+func _set_lip_alpha(left: float) -> void:
 	var her: Her = g.her
-	if her == null:
+	if her == null or g.characterControl == null:
 		return
-	her.topLipstickContainer.topLipstick.alpha = a
-	her.bottomLipstick.alpha = a
+	her.topLipstickContainer.topLipstick.alpha = left
+	her.bottomLipstick.alpha = g.characterControl.lipstickRGB.a * left
 
 
 func _before_smear(c: Hooks.Call) -> void:
@@ -120,7 +122,7 @@ func _before_smear(c: Hooks.Call) -> void:
 			_set_lip_alpha(maxf(0.0, _wear_left / WEAR_AMOUNT))
 	if _ring:
 		c.args[1] = 0.0
-	if not _pushing and g.her.bottomLipstick.alpha <= 0:
+	if not _pushing and _wear_left <= 0:
 		c.cancel()
 
 
