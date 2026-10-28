@@ -89,6 +89,7 @@ func _enable() -> void:
 		"tip": "How fast and how much she blushes (this character; 1 = the mod's own).", "min": 0.0, "max": 3.0,
 		"step": 0.05, "get": func(): return blush_factor, "set": func(v: float): blush_factor = v,
 		"release": func(): g.saveData.saveCharData(), "format": func(v): return str(snappedf(v, 0.01)),
+		"reset": func(): blush_factor = 1.0; g.saveData.saveCharData(),
 		"visible": on})
 
 

@@ -27,6 +27,7 @@ func _enable() -> void:
 		"tip": "1 is the game's. Longer tongues tilt down and pull in as she closes her mouth.",
 		"min": 1.0, "max": 1.0 + MULTIPLIER, "step": 0.05, "get": func(): return length,
 		"set": func(v: float): set_length(v), "release": func(): g.saveData.saveCharData(),
+		"reset": func(): set_length(1.0); g.saveData.saveCharData(),
 		"format": func(v): return str(snappedf(v, 0.01))})
 
 

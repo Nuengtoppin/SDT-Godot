@@ -168,7 +168,7 @@ static func _her() -> Dictionary:
 			slider("Body size", "", func(): return _m().customMenu.bodySlider, _m().bodySliderChanged,
 				_m().bodySliderReleased, _m().mbDefaultBodyScaleClicked),
 			slider("Breast size", "", func(): return _m().customMenu.breastSlider, _m().breastSliderChanged,
-				_m().breastSliderReleased),
+				_m().breastSliderReleased, _m().defaultBreastSizeClicked),
 		]},
 		{"title": "Hair", "controls": [
 			pick("Hairstyle", "The game's hairstyles, then hair mods from the Mods folders.",
@@ -242,7 +242,7 @@ static func _clothes() -> Dictionary:
 			arrows("Tan", "", func(): return tan.call()._tanNameList, func(): return tan.call()._currentTanID,
 				func(): tan.call().tanLeftClicked(), func(): tan.call().tanRightClicked()),
 			slider("Tan strength", "", func(): return tan.call()._alphaSlider, func(): tan.call().alphaSliderChanged(),
-				func(): tan.call().alphaSliderReleased()),
+				func(): tan.call().alphaSliderReleased(), func(): tan.call().resetAlpha()),
 		]},
 		{"title": "Arms", "controls": [
 			arrows("Left arm", "Where she keeps her left arm.", func(): return Her.armPositions,
@@ -484,7 +484,8 @@ static func _settings() -> Dictionary:
 			_with({"type": "slider", "label": "Volume", "tip": "",
 				"get": func(): return om.call().volumeSlider.currentValue(),
 				"set": func(v: float): om.call().volumeSlider.setPos(v),
-				"release": func(): _m().volumeChanged()}, {}),
+				"release": func(): _m().volumeChanged(),
+				"reset": func(): om.call().volumeSlider.setPos(1.0); _m().volumeChanged()}, {}),
 			check("Intro sound", "", func(): return om.call().cbIntroSound, _m().cbIntroSoundClicked),
 		]},
 	]}
@@ -527,26 +528,12 @@ static func extension_page(ext_id: String) -> Dictionary:
 			grp = {"title": title, "controls": []}
 			groups.append(grp)
 		grp["controls"].append(setting_control(ext, s["key"]))
-	if not groups.is_empty():
-		groups[-1]["controls"].append(reset_control(ext))
 	return {"id": "ext:" + ext_id, "name": ext.title if ext.title != "" else ext.id, "hidden": true, "parent": "mods",
 		"groups": groups}
 
 
 static func color_dict(c: Color) -> Dictionary:
 	return {"r": c.r8, "g": c.g8, "b": c.b8, "a": 1.0}
-
-
-## A "Reset to defaults" button for an extension's settings (all of them, or those in `keys`).
-static func reset_control(ext: SDTExtension, keys: Array = [], extra := {}) -> Dictionary:
-	return actions("", "", [["Reset to defaults", func(): _reset(ext, keys),
-		"Puts these settings back to their defaults."]], _with({"keywords": "default reset"}, extra))
-
-
-static func _reset(ext: SDTExtension, keys: Array) -> void:
-	ext.reset_settings(keys)
-	if SDTMenu.instance != null:
-		SDTMenu.instance._refresh_rows()
 
 
 ## The control for one extension setting (from its declaration: type of the default, min / max, options).
@@ -572,7 +559,7 @@ static func setting_control(ext: SDTExtension, key: String, extra := {}) -> Dict
 	elif (d is int or d is float) and info.has("min") and info.has("max"):
 		spec = {"type": "slider", "label": label, "tip": tip, "min": float(info["min"]), "max": float(info["max"]),
 			"step": 1.0 if d is int else float(info.get("step", 0.0)), "get": func(): return float(ext.get_setting(key)),
-			"set": func(v: float): ext.set_setting(key, v),
+			"set": func(v: float): ext.set_setting(key, v), "reset": func(): ext.set_setting(key, d),
 			"format": func(v): return str(int(v)) if d is int else str(snappedf(v, 0.01))}
 	else:
 		spec = {"type": "text", "label": label, "tip": tip, "get": func(): return str(ext.get_setting(key)),

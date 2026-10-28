@@ -370,10 +370,8 @@ func _morecumspurts_checks() -> void:
 	mc.set_setting("thickness", 1.0)
 	_check("morecumspurts: cum strand thickness", thick == 2.5 and g.strandControl.cumMinThickness == 1.0)
 	mc.set_setting("amount", 2.0)
-	mc.set_setting("edging", true)
-	MenuSchema.reset_control(mc)["buttons"][0][1].call()
-	_check("reset to defaults button", mc.settings().all(func(s): return s["value"] == s["default"]),
-		str(mc.settings().filter(func(s): return s["value"] != s["default"]).map(func(s): return s["key"])))
+	MenuSchema.setting_control(mc, "amount")["reset"].call()
+	_check("setting slider: back to the default", mc.get_setting("amount") == 1.0, str(mc.get_setting("amount")))
 
 
 ## aimpenis: the aim goes into his tilt target and the wider limits into his angle, only while it is on and he is out

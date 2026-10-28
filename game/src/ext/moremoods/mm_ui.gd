@@ -124,6 +124,7 @@ func add_menu_controls() -> void:
 		"tip": "How closed her upper eyelids stay at least (Upper eyelids: Limit or Both).",
 		"get": func(): return face.eyelid_slider,
 		"set": func(v: float): face.eyelid_slider = v; g.her.updateEyes(); refresh(),
+		"reset": func(): face.eyelid_slider = mm.get_setting("startingeyelidslider"); g.her.updateEyes(); refresh(),
 		"visible": func(): return face.eyelid_mode >= 2, "keywords": "eyelid lids moremoods"})
 	mm.menu_control("behaviour", "Biting", MenuSchema.choice("Biting",
 		"By mood: she bites when angry, upset, disgusted, aggressive or teasing, more as she runs out of breath. By slider: in any mood, as much as the slider below.",
@@ -133,6 +134,7 @@ func add_menu_controls() -> void:
 		"tip": "Low: she bites when close to passing out; higher: also when out of breath; highest: also when he is deep.",
 		"get": func(): return beh.bite_slider,
 		"set": func(v: float): beh.bite_slider = v; refresh(),
+		"reset": func(): beh.bite_slider = mm.get_setting("startingbiteslider"); refresh(),
 		"visible": func(): return beh.bite_mode == 2, "keywords": "bite moremoods"})
 
 

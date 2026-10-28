@@ -142,6 +142,13 @@ func alphaSliderChanged(_e = null) -> void:
 	setTanAlpha(_alphaSlider.currentValue(100) * 0.01)
 
 
+## Port (the new menu's reset): full strength (the game starts at 0, which hides a picked tan).
+func resetAlpha() -> void:
+	setTanAlpha(1.0)
+	updateAlphaSlider()
+	g.saveData.saveCharData()
+
+
 func updateAlphaSlider() -> void:
 	if _alphaSlider:
 		_alphaSlider.setPos(_currentTanAlpha)

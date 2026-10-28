@@ -33,6 +33,7 @@ func _enable() -> void:
 		"tip": "How strong the shine on cum strands is (the game's is 0.5).", "min": -MAX_HIGHLIGHTS,
 		"max": MAX_HIGHLIGHTS, "step": 0.01, "get": func(): return highlights,
 		"set": func(v: float): set_highlights(v), "release": func(): g.saveData.saveCharData(),
+		"reset": func(): set_highlights(0.5); g.saveData.saveCharData(),
 		"format": func(v): return str(snappedf(v, 0.01))})
 	_apply()
 

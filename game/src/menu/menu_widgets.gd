@@ -345,7 +345,7 @@ static func _slider(spec: Dictionary, refreshers: Array) -> Control:
 	s.min_value = spec.get("min", 0.0)
 	s.max_value = spec.get("max", 1.0)
 	s.step = spec.get("step", 0.0)
-	s.custom_minimum_size = Vector2(78, 14)
+	s.custom_minimum_size = Vector2(64, 14)   # (room for the label and the back-to-the-default button)
 	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # the whole width when the row has two lines
 	s.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	s.focus_mode = Control.FOCUS_NONE

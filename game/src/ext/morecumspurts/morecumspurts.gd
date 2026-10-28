@@ -69,7 +69,6 @@ func _enable() -> void:
 	menu_control("him", "Cum", MenuSchema.setting_control(self, "max_edge", {"visible": edging}))
 	menu_control("him", "Cum", MenuSchema.setting_control(self, "ball_growth", {"visible": edging}))
 	menu_control("him", "Cum", MenuSchema.setting_control(self, "max_ball_growth", {"visible": balls}))
-	menu_control("him", "Cum", MenuSchema.reset_control(self))
 
 
 func _disable() -> void:

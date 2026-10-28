@@ -176,6 +176,18 @@ func _control_checks() -> void:
 		menu.build_now()
 		menu._refresh_rows()
 	_check("all rows refresh", true)
+	var no_reset := []   # every slider has its back-to-the-default button
+	for s in menu.sections + MenuSchema.extension_pages():
+		for grp in menu._groups_of(s):
+			for c in grp["controls"]:
+				if c.get("type", "") == "slider" and not c.has("reset"):
+					no_reset.append(c.get("label", ""))
+	_check("every slider can go back to its default", no_reset.is_empty(), str(no_reset))
+	g.characterControl.setBreasts(20)
+	g.inGameMenu.defaultBreastSizeClicked()
+	var cc = g.characterControl
+	_check("breast size back to the character's", cc.currentChar >= g.baseCharNum
+		or cc.breastSize == cc.characters[cc.currentChar].breastSize, "%d %d" % [cc.breastSize, cc.currentChar])
 
 	# the character code field: Load (a button that takes no focus) reads what was pasted while the field still has
 	# focus; Generate shows its code in the focused field, so losing focus does not write the old text back

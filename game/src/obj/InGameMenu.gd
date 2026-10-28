@@ -1403,6 +1403,19 @@ func breastSliderChanged(param1 = null):
 	g.characterControl.setBreasts(customMenu.breastSlider.currentValue(149))
 
 
+## Port (the new menu's reset): her own size, the stored size of a custom character or the built-in character's.
+func defaultBreastSizeClicked(param1 = null):
+	var cc = g.characterControl
+	var size: int = cc.characters[cc.currentChar].breastSize if cc.currentChar < g.baseCharNum else cc.breastSize
+	if cc.currentChar >= g.baseCharNum:
+		for pair in str(g.storedChars[cc.currentChar - g.baseCharNum].charData).split(";"):
+			if pair.begins_with("breasts:"):
+				size = clampi(int(pair.substr(8).to_float()), 1, 149)
+	cc.setBreasts(size)
+	updateBreastSlider()
+	breastSliderReleased()
+
+
 func updateBreastSlider():
 	customMenu.breastSlider.setPos(g.characterControl.breastSize / 149)
 

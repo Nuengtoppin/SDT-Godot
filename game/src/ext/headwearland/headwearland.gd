@@ -36,17 +36,19 @@ func _enable() -> void:
 	hook_after(&"CharacterControl.tryToLandHeadwear", func(_cc): _landed())
 	charcode_field("headwearland", _code, func(v, l): _load_code(v, l), func(_l): _from_code_reset(), true)
 	var worn := func(): return g.characterControl.headwearControl.inUse()
-	var row := func(label: String, tip: String, lo: float, hi: float, step: float, get_fn: Callable, set_fn: Callable):
+	var row := func(label: String, tip: String, lo: float, hi: float, step: float, get_fn: Callable, set_fn: Callable,
+			default := 0.0):
 		menu_control("clothes", "Head and neck", {"type": "slider", "label": label, "tip": tip, "min": lo, "max": hi,
 			"step": step, "get": get_fn, "visible": worn, "after": "Headwear colours", "release": func(): g.saveData.saveCharData(),
 			"set": func(v: float): _touch(); set_fn.call(v); apply(),
+			"reset": func(): _touch(); set_fn.call(default); apply(); g.saveData.saveCharData(),
 			"format": func(v): return str(int(v)) if step >= 1 else str(snappedf(v, 0.01))})
 	row.call("Headwear height", "Up (−) or down (+) from where it sits.", -300, 300, 1,
 		func(): return float(y), func(v): y = int(v))
 	row.call("Headwear sideways", "Left (−) or right (+).", -300, 300, 1, func(): return float(x), func(v): x = int(v))
 	row.call("Headwear turn", "Degrees, clockwise.", -180, 180, 1, func(): return float(angle), func(v): angle = int(v))
-	row.call("Headwear width", "", 0.1, 3, 0.01, func(): return scale_x, func(v): scale_x = snappedf(v, 0.01))
-	row.call("Headwear height scale", "", 0.1, 3, 0.01, func(): return scale_y, func(v): scale_y = snappedf(v, 0.01))
+	row.call("Headwear width", "", 0.1, 3, 0.01, func(): return scale_x, func(v): scale_x = snappedf(v, 0.01), 1.0)
+	row.call("Headwear height scale", "", 0.1, 3, 0.01, func(): return scale_y, func(v): scale_y = snappedf(v, 0.01), 1.0)
 	menu_control("clothes", "Head and neck", MenuSchema.actions("", "", [["Reset headwear placement", func():
 		reset(); g.saveData.saveCharData(), "Back on the hair the game's way."]], {"visible": worn, "after": "Headwear colours"}))
 
