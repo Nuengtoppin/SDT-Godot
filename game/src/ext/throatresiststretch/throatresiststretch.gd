@@ -43,7 +43,7 @@ func _enable() -> void:
 	on_late_tick(_tick)
 	var on := func(): return get_setting("on")
 	menu_control("behaviour", "Resistance", MenuSchema.setting_control(self, "on", {"after": "Throat resistance"}))
-	menu_control("behaviour", "Resistance", MenuSchema.setting_control(self, "recover", {"after": "Throat resistance", "visible": on}))
+	menu_control("behaviour", "Resistance", MenuSchema.setting_control(self, "recover", {"after": "Throat resistance", "visible": on, "wide": true}))
 	_apply()
 
 
