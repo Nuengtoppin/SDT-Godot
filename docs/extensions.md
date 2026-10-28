@@ -226,6 +226,8 @@ The value points in the game, with the field that keeps the result for code that
 | `Her.upperEyelid` | the upper eyelid's frame (2 open, 150 closed, up to 200 squeezed shut) | `her.upperLid` |
 | `Her.lowerEyelid` | the lower eyelid's frame (asked after the upper) | `her.lowerLid` |
 | `Her.jawAngle` | her jaw's angle this tick, after the game's easing (`Her.closedJawAngle` -12: closed, higher: open); lips, cheeks and `g.herMouthOpeness` follow it | `her.head.jaw.rotation_degrees` |
+| `Her.swallowSpeed` | how fast a swallow plays (1; the four phases' lengths are divided by it, at least a tick apart), asked when it starts | `her.swallowSequence` |
+| `Her.swallowWince` | whether she squints around the swallow (true) | |
 | `Him.penisTiltTarget` | the angle his penis eases towards (bukkake mode's mouse aim and her push already in), before easing | `him.penisTiltTarget` |
 | `Him.penisAngle` | his penis's angle this tick, after easing and the game's -10..25 limits (`him.penisTilt`: the eased angle before them) | `him.penis.rotation_degrees` |
 
