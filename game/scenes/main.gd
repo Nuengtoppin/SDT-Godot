@@ -41,8 +41,9 @@ func _ready() -> void:
 			_clicks.append([int(a.substr(at + 1)), a.substr(7, at - 7), "eval"])
 		elif a.begins_with("--driver="):
 			var ds = load(a.substr(9))
-			if ds == null:
+			if ds == null or not ds.can_instantiate():   # missing, or it failed to compile
 				push_error("--driver: cannot load %s" % a.substr(9))
+				get_tree().quit(1)   # nothing would ever quit the test run
 			else:
 				_driver = ds.new()
 		elif a.begins_with("--save-dir="):

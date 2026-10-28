@@ -9,10 +9,12 @@
 #   tools/regress.sh --stress        also run the costume stress test and report memory per round
 #   tools/regress.sh --mods=<dir>    also load every .swf mod in <dir> (and subfolders) and report failures
 #
-# Needs GODOT (path to the Godot console executable) or godot on PATH.
+# Needs GODOT (path to the Godot console executable) or godot on PATH. Each game run is stopped after REGRESS_TIMEOUT
+# seconds (default 300): a script that fails to compile leaves the game running without its driver's quit.
 set -u
 cd "$(dirname "$0")/.."
 GODOT=${GODOT:-godot}
+TIMEOUT=${REGRESS_TIMEOUT:-300}
 ROOT=$(pwd)
 GOLDEN=$ROOT/tests/golden
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/sdt-regress.XXXXXX")
@@ -37,38 +39,44 @@ done
 scenarios=${scenarios:-$ALL}
 mkdir -p "$WORK/mods" "$WORK/out"
 
+godot() {   # the game, stopped after TIMEOUT seconds (exit code 124)
+	timeout -k 10 "$TIMEOUT" "$GODOT" "$@"
+}
+
+timed_out() {   # exit code -> " (timed out after N s)" for 124
+	[ "$1" = 124 ] && echo " (timed out after ${TIMEOUT} s)"
+}
+
 run_game() {   # name, extra args...
 	local name=$1; shift
-	"$GODOT" --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_$name.log" -- --deterministic --seed=1 --vanilla \
+	godot --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_$name.log" -- --deterministic --seed=1 --vanilla \
 		--save-dir="$WORK/save_$name" --mods-dir="$WORK/mods" "$@" > "$WORK/$name.log" 2>&1
 }
 
 echo "running:$scenarios (work folder $WORK)"
-pids=""
 for s in $scenarios; do
-	run_game "$s" --driver=res://debug/regress.gd --scenario="$s" --out="$WORK/out" &
-	pids="$pids $!"
+	(run_game "$s" --driver=res://debug/regress.gd --scenario="$s" --out="$WORK/out"; echo $? > "$WORK/$s.status") &
 done
 # Extension system checks (game/debug/ext_checks.gd); not in Vanilla mode, they switch extensions on and off.
 # They load the test plugins from tests/plugins; "crashy" is marked as having crashed the previous start.
 mkdir -p "$WORK/mods_ext/Plugins" "$WORK/save_ext/extensions" "$WORK/mods_da"
 cp -r tests/plugins/*/ "$WORK/mods_ext/Plugins/"
 printf crashy > "$WORK/save_ext/extensions/loading_plugin.txt"
-"$GODOT" --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_ext.log" -- --save-dir="$WORK/save_ext" --mods-dir="$WORK/mods_ext" \
+godot --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_ext.log" -- --save-dir="$WORK/save_ext" --mods-dir="$WORK/mods_ext" \
 	--driver=res://debug/ext_checks.gd > "$WORK/ext_checks.log" 2>&1 &
 ext_pid=$!
 # Built-in DialogueActions checks (game/debug/da_checks.gd)
-"$GODOT" --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_da.log" -- --save-dir="$WORK/save_da" --mods-dir="$WORK/mods_da" \
+godot --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_da.log" -- --save-dir="$WORK/save_da" --mods-dir="$WORK/mods_da" \
 	--driver=res://debug/da_checks.gd > "$WORK/da_checks.log" 2>&1 &
 da_pid=$!
 # New in-game menu checks (game/debug/menu_checks.gd)
 mkdir -p "$WORK/mods_menu"
-"$GODOT" --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_menu.log" -- --save-dir="$WORK/save_menu" --mods-dir="$WORK/mods_menu" 	--driver=res://debug/menu_checks.gd > "$WORK/menu_checks.log" 2>&1 &
+godot --headless --fixed-fps 30 --path game --log-file "$LOGS/godot_menu.log" -- --save-dir="$WORK/save_menu" --mods-dir="$WORK/mods_menu" 	--driver=res://debug/menu_checks.gd > "$WORK/menu_checks.log" 2>&1 &
 menu_pid=$!
-for p in $pids; do wait "$p"; done
 wait "$ext_pid"; ext_status=$?
 wait "$da_pid"; da_status=$?
 wait "$menu_pid"; menu_status=$?
+wait   # the scenarios
 
 fail=0
 for s in $scenarios; do
@@ -80,7 +88,7 @@ for s in $scenarios; do
 	fi
 	got=$(ls "$WORK/out" | grep "^${s}_" || true)
 	if [ -z "$got" ]; then
-		echo "FAIL $s: no dumps written (see $WORK/$s.log)"
+		echo "FAIL $s: no dumps written$(timed_out "$(cat "$WORK/$s.status" 2> /dev/null)") (see $WORK/$s.log)"
 		fail=1
 		continue
 	fi
@@ -116,21 +124,21 @@ fi
 if [ "$ext_status" = 0 ] && grep -q "^EXT CHECKS: .* 0 failed" "$WORK/ext_checks.log"; then
 	echo "ok   extension checks ($(grep -c '^CHECK ok' "$WORK/ext_checks.log") passed)"
 else
-	echo "FAIL extension checks, exit code $ext_status (see $WORK/ext_checks.log):"
+	echo "FAIL extension checks, exit code $ext_status$(timed_out $ext_status) (see $WORK/ext_checks.log):"
 	grep -E "^CHECK FAIL|SCRIPT ERROR" "$WORK/ext_checks.log" | head -12
 	fail=1
 fi
 if [ "$da_status" = 0 ] && grep -q "^DA CHECKS: .* 0 failed" "$WORK/da_checks.log"; then
 	echo "ok   DialogueActions checks ($(grep -c '^CHECK ok' "$WORK/da_checks.log") passed)"
 else
-	echo "FAIL DialogueActions checks, exit code $da_status (see $WORK/da_checks.log):"
+	echo "FAIL DialogueActions checks, exit code $da_status$(timed_out $da_status) (see $WORK/da_checks.log):"
 	grep -E "^CHECK FAIL|SCRIPT ERROR" -A1 "$WORK/da_checks.log" | head -16
 	fail=1
 fi
 if [ "$menu_status" = 0 ] && grep -q "^MENU CHECKS: .* 0 failed" "$WORK/menu_checks.log"; then
 	echo "ok   menu checks ($(grep -c '^CHECK ok' "$WORK/menu_checks.log") passed)"
 else
-	echo "FAIL menu checks, exit code $menu_status (see $WORK/menu_checks.log):"
+	echo "FAIL menu checks, exit code $menu_status$(timed_out $menu_status) (see $WORK/menu_checks.log):"
 	grep -E "^CHECK FAIL|SCRIPT ERROR" -A1 "$WORK/menu_checks.log" | head -16
 	fail=1
 fi
@@ -147,7 +155,7 @@ if [ -n "$mods" ]; then
 	command -v cygpath > /dev/null && mods=$(cygpath -m "$mods")
 	find "$mods" -iname '*.swf' > "$WORK/modlist.txt"
 	echo "loading $(wc -l < "$WORK/modlist.txt") mods from $mods..."
-	"$GODOT" --headless --path game --log-file "$LOGS/godot_mods.log" res://debug/mod_load_test.tscn -- --list="$WORK/modlist.txt" > "$WORK/mods.log" 2>&1
+	godot --headless --path game --log-file "$LOGS/godot_mods.log" res://debug/mod_load_test.tscn -- --list="$WORK/modlist.txt" > "$WORK/mods.log" 2>&1
 	grep -E "^FAIL|^done" "$WORK/mods.log"
 	grep -q "^done: .* 0 failed" "$WORK/mods.log" || fail=1
 fi
