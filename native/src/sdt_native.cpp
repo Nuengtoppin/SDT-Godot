@@ -23,6 +23,108 @@ void SDTNative::_bind_methods() {
 	ClassDB::bind_static_method("SDTNative", D_METHOD("hit_shape_excluding", "obj", "point", "hb_gen", "exclude"),
 			&SDTNative::hit_shape_excluding);
 	ClassDB::bind_static_method("SDTNative", D_METHOD("hit_flat", "obj", "point", "tick"), &SDTNative::hit_flat);
+	ClassDB::bind_static_method("SDTNative", D_METHOD("scale_alpha", "image", "rect", "mult"), &SDTNative::scale_alpha);
+	ClassDB::bind_static_method("SDTNative", D_METHOD("draw_image", "dst", "src", "to_src", "rect", "mult", "offset"),
+			&SDTNative::draw_image);
+}
+
+void SDTNative::draw_image(const Ref<Image> &p_dst, const Ref<Image> &p_src, const Transform2D &p_to_src,
+		const Rect2i &p_rect, const Color &p_mult, const Color &p_offset) {
+	if (p_dst.is_null() || p_src.is_null() || p_dst->get_format() != Image::FORMAT_RGBA8 ||
+			p_src->get_format() != Image::FORMAT_RGBA8) {
+		return;
+	}
+	const int dw = p_dst->get_width();
+	const Rect2i r = p_rect.intersection(Rect2i(0, 0, dw, p_dst->get_height()));
+	if (r.size.x <= 0 || r.size.y <= 0) {
+		return;
+	}
+	const int iw = p_src->get_width();
+	const int ih = p_src->get_height();
+	const uint8_t *src = p_src->ptr();
+	uint8_t *dst = p_dst->ptrw();
+	// premultiplied source pixel, transparent outside the image
+	auto px = [&](int x, int y, float out[4]) {
+		if (x < 0 || y < 0 || x >= iw || y >= ih) {
+			out[0] = out[1] = out[2] = out[3] = 0.0f;
+			return;
+		}
+		const uint8_t *s = src + ((int64_t)y * iw + x) * 4;
+		const float a = s[3] / 255.0f;
+		out[0] = s[0] / 255.0f * a;
+		out[1] = s[1] / 255.0f * a;
+		out[2] = s[2] / 255.0f * a;
+		out[3] = a;
+	};
+	const float mult[4] = { p_mult.r, p_mult.g, p_mult.b, p_mult.a };
+	const float off[4] = { p_offset.r, p_offset.g, p_offset.b, p_offset.a };
+	for (int py = r.position.y; py < r.position.y + r.size.y; py++) {
+		for (int pxx = r.position.x; pxx < r.position.x + r.size.x; pxx++) {
+			const Vector2 l = p_to_src.xform(Vector2(pxx + 0.5f, py + 0.5f));
+			const double ix = l.x;
+			const double iy = l.y;
+			if (ix < -1 || iy < -1 || ix > iw || iy > ih) {
+				continue;
+			}
+			const int x0 = (int)std::floor(ix);
+			const int y0 = (int)std::floor(iy);
+			const float fx = (float)(ix - x0);
+			const float fy = (float)(iy - y0);
+			float c00[4], c10[4], c01[4], c11[4], c[4];
+			px(x0, y0, c00);
+			px(x0 + 1, y0, c10);
+			px(x0, y0 + 1, c01);
+			px(x0 + 1, y0 + 1, c11);
+			for (int ch = 0; ch < 4; ch++) {
+				c[ch] = c00[ch] * (1 - fx) * (1 - fy) + c10[ch] * fx * (1 - fy) + c01[ch] * (1 - fx) * fy + c11[ch] * fx * fy;
+			}
+			if (c[3] <= 0.0f) {
+				continue;
+			}
+			for (int ch = 0; ch < 3; ch++) {
+				c[ch] /= c[3];
+			}
+			for (int ch = 0; ch < 4; ch++) {
+				c[ch] = std::clamp(c[ch] * mult[ch] + off[ch], 0.0f, 1.0f);
+			}
+			uint8_t *d = dst + ((int64_t)py * dw + pxx) * 4;
+			const double sa = c[3];
+			const double da = d[3] / 255.0;
+			const double oa = sa + da * (1.0 - sa);
+			if (oa <= 0.0) {
+				continue;
+			}
+			for (int ch = 0; ch < 3; ch++) {
+				const double v = (c[ch] * sa + d[ch] / 255.0 * da * (1.0 - sa)) / oa * 255.0 + 0.5;
+				d[ch] = (uint8_t)std::clamp((int)v, 0, 255);
+			}
+			d[3] = (uint8_t)std::clamp((int)(oa * 255.0 + 0.5), 0, 255);
+		}
+	}
+}
+
+void SDTNative::scale_alpha(const Ref<Image> &p_image, const Rect2i &p_rect, double p_mult) {
+	if (p_image.is_null() || p_image->get_format() != Image::FORMAT_RGBA8) {
+		return;
+	}
+	const int w = p_image->get_width();
+	const Rect2i r = p_rect.intersection(Rect2i(0, 0, w, p_image->get_height()));
+	const int m = std::clamp((int)(p_mult * 256.0), 0, 256);
+	if (r.size.x <= 0 || r.size.y <= 0 || m == 256) {
+		return;
+	}
+	uint8_t *px = p_image->ptrw();
+	for (int y = r.position.y; y < r.position.y + r.size.y; y++) {
+		uint8_t *p = px + ((int64_t)y * w + r.position.x) * 4;
+		for (int x = 0; x < r.size.x; x++, p += 4) {
+			if (p[3] != 0) {
+				p[3] = (uint8_t)((p[3] * m) >> 8);
+				if (p[3] == 0) {
+					p[0] = p[1] = p[2] = 0;
+				}
+			}
+		}
+	}
 }
 
 namespace {

@@ -1,11 +1,13 @@
 #pragma once
 
+#include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/object.hpp>
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
 #include <godot_cpp/variant/packed_vector2_array.hpp>
 #include <godot_cpp/variant/color.hpp>
+#include <godot_cpp/variant/transform2d.hpp>
 
 #include <vector>
 
@@ -34,6 +36,15 @@ public:
 	// Shape hit test against obj's tree flattened once per tick (tick: the caller's tick counter), without Sweat
 	// droplets: for many tests of the same object within one tick.
 	static bool hit_flat(Object *p_obj, const Vector2 &p_point, int64_t p_tick);
+
+	// BitmapData.colorTransform on an RGBA8 image for the alpha-only case: alpha *= mult over rect (clipped), with
+	// Flash's 8.8 fixed-point multiplier; pixels that end up transparent are cleared.
+	static void scale_alpha(const Ref<Image> &p_image, const Rect2i &p_rect, double p_mult);
+	// FlashBitmapData.draw of one image (a shape's or a bitmap's): for each pixel of rect (clipped to dst), samples src
+	// bilinearly (premultiplied) at to_src * pixel centre, applies the colour transform (mult, offset in 0-1 units)
+	// and composites it over dst with normal alpha blending. Both images RGBA8.
+	static void draw_image(const Ref<Image> &p_dst, const Ref<Image> &p_src, const Transform2D &p_to_src,
+			const Rect2i &p_rect, const Color &p_mult, const Color &p_offset);
 };
 
 // Shared with the fluid simulation (fluids.cpp).

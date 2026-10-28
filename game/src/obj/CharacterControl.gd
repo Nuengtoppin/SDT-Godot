@@ -743,6 +743,8 @@ func setLipstick(c, _n: String = "rgbFill") -> void:
 	g.her.topLipstickContainer.colorTransform = ct
 	g.him.lipstickRGB = ct
 	lipstickRGB = c
+	if Hooks.has(&"CharacterControl.setLipstick"):   # HOOK
+		Hooks.after(&"CharacterControl.setLipstick", self, [c, _n])
 
 
 func setNailPolish(c, _n: String = "rgbFill") -> void:

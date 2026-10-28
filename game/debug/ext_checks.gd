@@ -131,6 +131,7 @@ func step(_frame: int) -> void:
 				_regulaterandom_checks()
 				_morespitstrands_checks()
 				_morecumspurts_checks()
+				_lipstickringsmear_checks()
 				_swallow_veto_checks()
 				_disable_checks()
 				_plugin_checks()
@@ -306,6 +307,58 @@ func _morespitstrands_checks() -> void:
 	ms.set_setting("pulled_off_max", 1)
 	sc.clearSpitStrands()
 	g.spit = spit_before
+
+
+## lipstickringsmear: off by default; multiplyAlpha scales alpha inside its rectangle only (8.8 fixed point); the ring
+## puts lipstick on him while she holds still; the fade takes one alpha step; her lipstick wears off, then smears stop,
+## and setting her lipstick (or switching wear-off off) brings it back.
+func _lipstickringsmear_checks() -> void:
+	var ls: SDTExtension = Extensions.get_extension("lipstickringsmear")
+	var her: Her = g.her
+	var him: Him = g.him
+	var cc = g.characterControl
+	_check("lipstickringsmear: off by default", not ls.get_setting("ring") and not ls.get_setting("mouth_push")
+		and not ls.get_setting("hand_push") and not ls.get_setting("fade") and not ls.get_setting("wear_off"))
+	var lip_before = cc.lipstickRGB
+	var data: FlashBitmapData = him.lipstickData
+	him.clearLipstick()
+	data.fillRect(Rect2i(10, 10, 20, 20), 0xC8FF0000)
+	data.multiplyAlpha(Rect2i(10, 10, 10, 20), 0.95)
+	_check("lipstickringsmear: multiplyAlpha in its rectangle", data.getPixel32(12, 12) >> 24 == 189
+		and data.getPixel32(25, 12) >> 24 == 200, "%x %x" % [data.getPixel32(12, 12), data.getPixel32(25, 12)])
+	ls.set_setting("fade", true)
+	ls._fade_counter = 0
+	ls._tick()
+	ls._tick()
+	_check("lipstickringsmear: fade takes one alpha step", data.getPixel32(25, 12) >> 24 == 199, "%x" % data.getPixel32(25, 12))
+	ls.set_setting("fade", false)
+	him.clearLipstick()
+	cc.setLipstick(AlphaRGBObject.new(1.0, 200, 0, 0))
+	ls.set_setting("ring", true)
+	var full_before := her.mouthFull
+	her.mouthFull = true
+	her.absMovement = 0.0
+	her.pos = 0.6
+	for i in 30:
+		ls._tick()
+	_check("lipstickringsmear: ring while she holds still", data.image.get_used_rect().has_area(), str(data.image.get_used_rect()))
+	ls.set_setting("ring", false)
+	her.mouthFull = full_before
+	ls.set_setting("wear_off", true)
+	him.smearLipstick(0.5, 30000.0)
+	var worn: float = her.bottomLipstick.alpha
+	var counter: int = him.lipstickCounter
+	him.smearLipstick(0.5, 10.0)
+	_check("lipstickringsmear: her lipstick wears off, then no more smears", worn == 0.0
+		and her.topLipstickContainer.topLipstick.alpha == 0.0 and him.lipstickCounter == counter, "%s %d %d" % [worn, counter, him.lipstickCounter])
+	cc.setLipstick(AlphaRGBObject.new(1.0, 200, 0, 0))
+	var back: float = her.bottomLipstick.alpha
+	him.smearLipstick(0.5, 30000.0)
+	ls.set_setting("wear_off", false)
+	_check("lipstickringsmear: lipstick back when set again or wear-off is off", back == 1.0 and her.bottomLipstick.alpha == 1.0,
+		"%s %s" % [back, her.bottomLipstick.alpha])
+	cc.setLipstick(lip_before)
+	him.clearLipstick()
 
 
 ## morecumspurts: its defaults give the game's spurts; the amount scales the load, no pauses with pause 0; edging:

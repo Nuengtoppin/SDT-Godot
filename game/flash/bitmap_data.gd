@@ -136,6 +136,14 @@ func fillRect(r: Rect2i, c: int) -> void:
 		_grow(r)
 
 
+## BitmapData.colorTransform(r, ct) for a transform that only scales alpha (ct.alphaMultiplier = mult).
+func multiplyAlpha(r: Rect2i, mult: float) -> void:
+	if not _bounds.intersects(r):
+		return
+	SDTNative.scale_alpha(image, r.intersection(_bounds), mult)
+	_tex_dirty = true
+
+
 func copyPixels(source: FlashBitmapData, source_rect: Rect2i, dest: Vector2i) -> void:
 	image.blit_rect(source.image, source_rect, dest)
 	_tex_dirty = true
@@ -248,13 +256,11 @@ func draw(obj: FlashDisplayObject, m: Transform2D = Transform2D.IDENTITY, ct: Fl
 		_grow(Rect2i(at, src.get_size()))
 		_tex_dirty = true
 		return
-	var dst := image.get_data()
-	_draw_rec(obj, m, ct if ct != null else FlashColorTransform.new(), dst, clip if clip.size != Vector2i.ZERO else rect)
-	image.set_data(width, height, false, Image.FORMAT_RGBA8, dst)
+	_draw_rec(obj, m, ct if ct != null else FlashColorTransform.new(), clip if clip.size != Vector2i.ZERO else rect)
 	_tex_dirty = true
 
 
-func _draw_rec(o: FlashDisplayObject, m: Transform2D, ct: FlashColorTransform, dst: PackedByteArray, clip: Rect2i) -> void:
+func _draw_rec(o: FlashDisplayObject, m: Transform2D, ct: FlashColorTransform, clip: Rect2i) -> void:
 	var img: Image = null
 	var sc := 1.0
 	var ex := 0.0
@@ -273,69 +279,26 @@ func _draw_rec(o: FlashDisplayObject, m: Transform2D, ct: FlashColorTransform, d
 			return
 		img = bd.image
 	if img != null:
-		# local -> image pixel: (p - origin) * scale ; dest pixel -> local: inverse of m
-		var inv := m.affine_inverse()
 		var r := FlashDisplayObject._xform_rect(m, Rect2(ex, ey, img.get_width() / sc, img.get_height() / sc))
 		var x0 := maxi(clip.position.x, int(floor(r.position.x)))
 		var y0 := maxi(clip.position.y, int(floor(r.position.y)))
 		var x1 := mini(clip.end.x, int(ceil(r.end.x)))
 		var y1 := mini(clip.end.y, int(ceil(r.end.y)))
 		_grow(Rect2i(x0, y0, x1 - x0, y1 - y0))
-		var iw := img.get_width()
-		var ih := img.get_height()
-		var dw := width
-		for py in range(y0, y1):
-			for px in range(x0, x1):
-				var lp := inv * Vector2(px + 0.5, py + 0.5)
-				var ix: float = (lp.x - ex) * sc - 0.5
-				var iy: float = (lp.y - ey) * sc - 0.5
-				if ix < -1 or iy < -1 or ix > iw or iy > ih:
-					continue
-				var c := _bilinear(img, ix, iy, iw, ih)
-				if c.a <= 0.0:
-					continue
-				c = Color(c.r * ct.redMultiplier + ct.redOffset / 255.0, c.g * ct.greenMultiplier + ct.greenOffset / 255.0,
-					c.b * ct.blueMultiplier + ct.blueOffset / 255.0, c.a * ct.alphaMultiplier + ct.alphaOffset / 255.0)
-				c = c.clamp()
-				var di := (py * dw + px) * 4
-				var da := dst[di + 3] / 255.0
-				var oa := c.a + da * (1.0 - c.a)
-				if oa <= 0.0:
-					continue
-				for ch in 3:
-					var sv: float = c[ch]
-					var dv := dst[di + ch] / 255.0
-					dst[di + ch] = clampi(int((sv * c.a + dv * da * (1.0 - c.a)) / oa * 255.0 + 0.5), 0, 255)
-				dst[di + 3] = clampi(int(oa * 255.0 + 0.5), 0, 255)
+		if img.get_format() != Image.FORMAT_RGBA8:
+			img = img.duplicate()
+			img.convert(Image.FORMAT_RGBA8)
+		# dest pixel centre -> local (inverse of m) -> image pixel: (local - origin) * scale - 0.5
+		var to_img := Transform2D(0.0, Vector2(sc, sc), 0.0, Vector2(-ex * sc - 0.5, -ey * sc - 0.5)) * m.affine_inverse()
+		SDTNative.draw_image(image, img, to_img, Rect2i(x0, y0, x1 - x0, y1 - y0),
+			Color(ct.redMultiplier, ct.greenMultiplier, ct.blueMultiplier, ct.alphaMultiplier),
+			Color(ct.redOffset / 255.0, ct.greenOffset / 255.0, ct.blueOffset / 255.0, ct.alphaOffset / 255.0))
 	elif o is FlashSprite:
 		for ch in (o as FlashSprite)._children:
 			if ch.visible:
 				var cct: FlashColorTransform = ch.colorTransform
 				cct.concat(ct)
-				_draw_rec(ch, m * ch.transform, cct, dst, clip)
-
-
-static func _bilinear(img: Image, x: float, y: float, w: int, h: int) -> Color:
-	var x0 := int(floor(x))
-	var y0 := int(floor(y))
-	var fx := x - x0
-	var fy := y - y0
-	var c00 := _px(img, x0, y0, w, h)
-	var c10 := _px(img, x0 + 1, y0, w, h)
-	var c01 := _px(img, x0, y0 + 1, w, h)
-	var c11 := _px(img, x0 + 1, y0 + 1, w, h)
-	# interpolate premultiplied to avoid dark fringes
-	var p := (c00 * (1 - fx) * (1 - fy)) + (c10 * fx * (1 - fy)) + (c01 * (1 - fx) * fy) + (c11 * fx * fy)
-	if p.a <= 0.0:
-		return Color(0, 0, 0, 0)
-	return Color(p.r / p.a, p.g / p.a, p.b / p.a, p.a)
-
-
-static func _px(img: Image, x: int, y: int, w: int, h: int) -> Color:
-	if x < 0 or y < 0 or x >= w or y >= h:
-		return Color(0, 0, 0, 0)
-	var c := img.get_pixel(x, y)
-	return Color(c.r * c.a, c.g * c.a, c.b * c.a, c.a)
+				_draw_rec(ch, m * ch.transform, cct, clip)
 
 
 ## Copies a region of another bitmap with an offset (BitmapData.draw(otherBitmapData, translate) case).

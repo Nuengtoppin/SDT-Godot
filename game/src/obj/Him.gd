@@ -477,6 +477,12 @@ func givePleasure(amount: float) -> void:
 
 
 func smearLipstick(p: float, movement: float) -> void:
+	if Hooks.has(&"Him.smearLipstick"):   # HOOK
+		var h := Hooks.before(&"Him.smearLipstick", self, [p, movement])
+		if h.cancelled:
+			return
+		p = h.args[0]
+		movement = h.args[1]
 	if lipstickRGB.alphaMultiplier > 0 and lipstickCounter >= 5:
 		lipstickCounter = 0
 		var ct := FlashColorTransform.new(1, 1, 1, lipstickRGB.alphaMultiplier * randf() * 0.4 + 0.2,
