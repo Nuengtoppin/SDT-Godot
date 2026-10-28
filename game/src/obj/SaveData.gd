@@ -8,6 +8,7 @@ var sdtCharShots: FlashSharedObject
 var lastCharData: String
 var loadingCharData := false
 var lastCharShotsSize: int = 0
+var _heldCharSave: Array = []   # saveCharData's arguments while it waits for her mods (port)
 
 
 func _init() -> void:
@@ -64,12 +65,32 @@ func clearAutoLoadedBGPath() -> void:
 
 func saveCharData(standard: bool = false, id: int = 0) -> void:
 	if not loadingCharData:
+		# port: her mods go on after her code has loaded (once the mod scan is done, or on the next frame), so a
+		# save now would store her without them; it waits until they are on
+		if _modsPending():
+			if _heldCharSave.is_empty():
+				Flash.add_enter_frame(self, _saveHeldCharData)
+			_heldCharSave = [standard, id]
+			return
 		sdtSave.data["lastCharData"] = g.inGameMenu.getSaveDataString()
 		sdtSave.data["standardChar"] = standard
 		if standard:
 			sdtSave.data["standardCharID"] = id
 		else:
 			g.inGameMenu.updateCharMenu(0, true)
+
+
+func _modsPending() -> bool:
+	return (g.modCatalog != null and g.modCatalog.is_pending()) or g.customElementLoader.readingMods
+
+
+func _saveHeldCharData() -> void:
+	if _modsPending():
+		return
+	Flash.remove_enter_frame(self, _saveHeldCharData)
+	var a := _heldCharSave
+	_heldCharSave = []
+	saveCharData(a[0], a[1])
 
 
 func saveOptionsData() -> void:

@@ -44,6 +44,7 @@ var _busy := false
 var _names: Dictionary = {}   # lower-case file path -> [name, slot] from names.txt
 var _scanned := false         # every mod has been looked at
 var _wanted: Array = []       # [picker, name, callback] asked for before the scan finished (find_named)
+var _due := 0                 # find_named answers found but not called yet (they run deferred)
 var _known: Dictionary = {}   # lower-case paths of the files scanned, so rescan() only adds new ones
 
 
@@ -342,8 +343,19 @@ func find_named(picker, name: String, found: Callable) -> void:
 		if n in e.get("names", []) and (picker == null or is_same(e.get("helper", e.get("picker")), picker)):
 			# after the code has finished loading, as the original's mods arrived (loading its hair clears hair
 			# costumes, e.g. an earring made as one)
-			found.call_deferred(e)
+			_due += 1
+			_answer.call_deferred(found, e)
 			return
+
+
+func _answer(found: Callable, e: Dictionary) -> void:
+	found.call(e)
+	_due -= 1
+
+
+## Whether mods a character code named are still to be put on (find_named): her code lacks them until then.
+func is_pending() -> bool:
+	return _due > 0 or not _wanted.is_empty()
 
 
 ## Looks at the mods folders again (files added since, e.g. by LoaderImport): new mods are added, names.txt is read
