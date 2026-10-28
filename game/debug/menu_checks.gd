@@ -114,6 +114,29 @@ func _control_checks() -> void:
 	spit["set"].call(true)
 	_check("toggle: Spit on", g.spit and spit["get"].call())
 
+	# Show his body (ToggleHim): off leaves only his penis, keeps his skin, keeps balls hidden when they change; on
+	# brings back exactly what showed
+	var him: Him = g.him
+	var body := _spec("him", "Show his body")
+	var shown := func() -> Array:
+		var out := []
+		for i in him.numChildren:
+			if him.getChildAt(i).visible:
+				out.append(him.getChildAt(i))
+		return out
+	var before: Array = shown.call()
+	var skin: int = him.currentBody.currentSkinID
+	var balls: int = him.currentBalls
+	body["set"].call(false)
+	var hidden: Array = shown.call()
+	him.setBalls(1)
+	_check("Show his body off: only his penis", hidden == [him.penis] and not body["get"].call() and not him.balls.visible
+		and not him.armContainer.visible and him.currentBody.currentSkinID == skin, str(hidden))
+	him.setBalls(balls)
+	body["set"].call(true)
+	_check("Show his body on: as before", shown.call() == before and body["get"].call() and him.armContainer.visible,
+		"%s %s" % [before, shown.call()])
+
 	var res := _spec("behaviour", "Resistance")
 	res["set"].call(0.25)
 	res["release"].call()

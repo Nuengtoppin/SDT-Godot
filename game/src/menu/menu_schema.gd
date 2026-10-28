@@ -280,10 +280,8 @@ static func _him() -> Dictionary:
 			hsl("Skin tint", "Shifts his skin's hue, saturation, lightness and contrast.",
 				func(): return g.characterControl.hisSkinHSL, func(c): g.characterControl.applyHisSkinHSL(c),
 				func(): g.characterControl.removeHisSkinHSL()),
-			toggle("Show him", "Hides or shows him (H).", func(): return g.him.visible,
-				func(on: bool):
-					if on != g.him.visible:
-						g.characterControl.toggleHim()),
+			toggle("Show his body", "Off: only his penis shows.", func(): return not g.him.bodyHidden,
+				func(on: bool): g.him.setBodyHidden(not on)),
 		]},
 		{"title": "Clothes", "controls": clothes},
 		{"title": "Arms", "controls": [

@@ -256,6 +256,7 @@ bmSpurtAngle=3.342
 bmTimerStart=30
 bmTimer=0
 lipstickCounter=0
+bodyHidden=false
 baseA=(-5.000,37.000)
 baseB=(-13.000,-36.000)
 tipA=(-317.000,7.000)

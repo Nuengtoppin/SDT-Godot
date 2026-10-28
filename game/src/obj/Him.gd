@@ -89,6 +89,9 @@ var bmTimer: int = 0
 var lipstickData: FlashBitmapData
 var lipstickLayer: FlashBitmap
 var lipstickCounter: int = 0
+## Port addition: see setBodyHidden().
+var bodyHidden := false
+var _shownParts: Array = []
 var lipstickBlur: FlashFilter = FlashFilter.blur(3.5, 1)
 var lipstickRGB: FlashColorTransform = FlashColorTransform.new()
 var smearGraphic: FlashDisplayObject
@@ -215,8 +218,39 @@ func setBody(id: int) -> void:
 	g.inGameMenu.updateHisBodyList()
 	g.inGameMenu.updateHimMenuContent()
 	g.her.setArmPosition()
+	if bodyHidden:   # port: the new body's parts hidden too
+		setBodyHidden(false)
+		setBodyHidden(true)
 	if Hooks.has(&"Him.setBody"):   # HOOK
 		Hooks.after(&"Him.setBody", self, [id])
+
+
+## Port addition (the Loader mod ToggleHim, Him > Body "Show his body"): hides all of him but his penis. The game's own
+## visibility changes (strap-on straps, balls, left arm) keep them hidden meanwhile and showing him again restores them.
+func setBodyHidden(on: bool) -> void:
+	if on == bodyHidden:
+		return
+	bodyHidden = on
+	if on:
+		_shownParts = []
+		for i in numChildren:
+			var c = getChildAt(i)
+			if c != penis and c.visible:
+				_shownParts.append(c)
+				c.visible = false
+		for c in [armContainer, overLayer, leftArmContainer]:
+			if c != null and c.visible:
+				_shownParts.append(c)
+				c.visible = false
+		return
+	for c in _shownParts:
+		if is_instance_valid(c):
+			c.visible = true
+	_shownParts = []
+	straponStraps.visible = currentPenisID == penisNameList.find("Strapon")
+	balls.visible = currentBalls != 0
+	if leftArmContainer != null:
+		leftArmContainer.visible = currentLeftArmPosition == 1
 
 
 func animationChanged() -> void:
@@ -283,7 +317,7 @@ func setPenis(id: int) -> void:
 	currentPenis = penisTypes[id]
 	if currentPenisID == penisNameList.find("Strapon"):
 		characterMenu.rgbPenis.visible = true
-		straponStraps.visible = true
+		straponStraps.visible = not bodyHidden
 		penisControl.resetFills()
 	else:
 		characterMenu.rgbPenis.visible = false
@@ -374,7 +408,7 @@ var currentPenisBaseWidth: float:
 
 
 func setBalls(v: int) -> void:
-	balls.visible = v != 0
+	balls.visible = v != 0 and not bodyHidden
 	currentBalls = v
 	if g.inGameMenu:
 		g.inGameMenu.updateBallsList()
@@ -431,7 +465,7 @@ func findLeftArmPosition(n: String) -> void:
 
 func setLeftArmPosition(p: int) -> void:
 	currentLeftArmPosition = p
-	leftArmContainer.visible = currentLeftArmPosition == 1
+	leftArmContainer.visible = currentLeftArmPosition == 1 and not bodyHidden
 	g.inGameMenu.updateHisLeftArmList()
 
 
