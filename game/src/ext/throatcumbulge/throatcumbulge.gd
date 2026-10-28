@@ -73,7 +73,7 @@ func _enable() -> void:
 	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "swallow_amount",
 		{"after": "Throat bulge", "visible": func(): return get_setting("swallow_mode") in SWALLOW_MODES.slice(2, 4)}))
 	for key in ["guzzle", "pump", "per_swallow"]:
-		menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, key, {"after": "Throat bulge", "wide": key == "pump"}))
+		menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, key, {"after": "Throat bulge", "wide": key in ["pump", "per_swallow"]}))
 	hook_after(&"Him.nextSpurt", func(_c): _on_spurt())
 	_prev_cum = g.her.cumInMouth if g.her != null else 0
 
