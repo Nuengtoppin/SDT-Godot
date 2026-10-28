@@ -418,7 +418,7 @@ static func _mods() -> Dictionary:
 			_with({"type": "text", "label": "Code", "placeholder": "paste a character code",
 				"tip": "Her whole look and settings as text: paste one and press Load, or Generate one from her current look.",
 				"get": func(): return md.call().saveDataTF.text, "set": func(t: String): md.call().saveDataTF.text = t,
-				"wide": true}, {}),
+				"wide": true, "live": true}, {}),   # live: Load / Copy read it without the field losing focus first
 			actions("", "", [["Load", func(): _m().loadClicked()], ["Generate", func(): _m().generateClicked()],
 				["Copy", func(): DisplayServer.clipboard_set(str(md.call().saveDataTF.text)), "Copies the code."]]),
 		]},

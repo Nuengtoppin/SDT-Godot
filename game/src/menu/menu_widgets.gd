@@ -366,14 +366,20 @@ static func _text(spec: Dictionary, refreshers: Array) -> Control:
 	e.placeholder_text = spec.get("placeholder", "")
 	e.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	e.focus_entered.connect(func(): g.inTextField = true)
-	var commit := func(): spec["set"].call(e.text)
+	var live: bool = spec.get("live", false)
+	var commit := func():
+		if not live:   # a live field has already sent it
+			spec["set"].call(e.text)
 	e.focus_exited.connect(func(): g.inTextField = false; commit.call())
 	e.text_submitted.connect(func(_t): commit.call(); e.release_focus())
-	if spec.get("live", false):
+	if live:
 		e.text_changed.connect(func(t): spec["set"].call(t))
+	# a live field already holds the value, so one that differs was set elsewhere (Generate): shown even while typing,
+	# or losing focus would write the old text back
 	refreshers.append(func():
-		if not e.has_focus():
-			e.text = str(spec["get"].call()))
+		var v := str(spec["get"].call())
+		if (live or not e.has_focus()) and e.text != v:
+			e.text = v)
 	return e
 
 

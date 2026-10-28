@@ -177,6 +177,23 @@ func _control_checks() -> void:
 		menu._refresh_rows()
 	_check("all rows refresh", true)
 
+	# the character code field: Load (a button that takes no focus) reads what was pasted while the field still has
+	# focus; Generate shows its code in the focused field, so losing focus does not write the old text back
+	var code_row := MenuWidgets.build(_spec("mods", "Code"), func(_s): pass)
+	menu.add_child(code_row)
+	var le: LineEdit = code_row.find_children("*", "LineEdit", true, false)[0]
+	le.grab_focus()
+	le.text = "charName:pasted"
+	le.text_changed.emit(le.text)
+	_check("code field: pasted text reaches Load", g.inGameMenu.moddingMenu.saveDataTF.text == "charName:pasted",
+		g.inGameMenu.moddingMenu.saveDataTF.text.left(40))
+	g.inGameMenu.generateClicked()
+	code_row.get_meta("refresh").call()
+	le.release_focus()
+	_check("code field: Generate shown while focused", le.text.begins_with("charName:") and le.text != "charName:pasted"
+		and g.inGameMenu.moddingMenu.saveDataTF.text == le.text, le.text.left(40))
+	code_row.queue_free()
+
 
 func _settings_checks() -> void:
 	var side := _spec("settings", "Menu side")
