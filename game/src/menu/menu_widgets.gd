@@ -455,7 +455,19 @@ static func _color(spec: Dictionary, refreshers: Array) -> Control:
 		SDTMenu.open_popups += 1
 		pop.popup(Rect2i(_popup_pos(b, Vector2(230, 300)), Vector2i(0, 0))))
 	refreshers.append(func(): sw.color = to_color.call(spec["get"].call()))
-	return b
+	if not spec.has("reset"):
+		return b
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 3)
+	h.add_child(b)
+	var r := _icon_button("↺", "Back to the default")
+	r.pressed.connect(func():
+		spec["reset"].call()
+		sw.color = to_color.call(spec["get"].call())
+		if spec.has("release"):
+			spec["release"].call())
+	h.add_child(r)
+	return h
 
 
 static func _popup_pos(anchor: Control, size: Vector2) -> Vector2i:
