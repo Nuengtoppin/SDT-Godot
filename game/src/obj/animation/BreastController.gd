@@ -28,8 +28,13 @@ func accelerate(v: float) -> void:
 
 
 func update(push: float = 0.0, rot: float = 0.0, ox: float = 0.0, oy: float = 0.0) -> void:
+	if Hooks.has_value(&"BreastController.push"):   # HOOK value point: the force her movement gives the breast
+		push = Hooks.value(&"BreastController.push", self, push)
+	var damping := 0.7
+	if Hooks.has_value(&"BreastController.damping"):   # HOOK value point: how much of its speed the breast keeps
+		damping = Hooks.value(&"BreastController.damping", self, damping)
 	_speed += -_skew * _breastFirmness + push
-	_speed *= 0.7 + randf() * 0.1
+	_speed *= damping + randf() * 0.1
 	_skew += _speed
 	# Flash: identity, rotate, translate, scale(sx, 1), then b = skew.
 	var r := rot / 180.0 * PI
@@ -46,3 +51,5 @@ func updateFirmness(size: int, costumeOn: bool = false) -> void:
 	_costumeOn = costumeOn
 	if _costumeOn:
 		_breastFirmness = maxf(0.2, _breastFirmness + 0.1)
+	if Hooks.has_value(&"BreastController.firmness"):   # HOOK value point: how firmly the breast springs back
+		_breastFirmness = Hooks.value(&"BreastController.firmness", self, _breastFirmness)
