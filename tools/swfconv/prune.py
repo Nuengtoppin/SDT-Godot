@@ -3,14 +3,33 @@
 Usage: python prune.py <library dir> <Class> [<Class> ...]
 
 Keeps the named classes and every character they place (recursively), deletes the other characters' images and
-files, and rebuilds hitmasks.bin for what is left.
+files, and repacks hitmasks.bin with the kept masks (copied as they are: fix_hitmasks.py's geometry masks stay).
 """
 import json
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from convert import build_hitmasks  # noqa: E402
+
+def repack_hitmasks(lib_dir, chars):
+    """Copies each kept image's mask bits into a new hitmasks.bin and updates the offsets."""
+    old = open(os.path.join(lib_dir, 'hitmasks.bin'), 'rb').read()
+    blob = bytearray()
+
+    def move(entry):
+        off, w, h = entry['hm']
+        n = (w * h + 7) // 8
+        entry['hm'] = [len(blob), w, h]
+        blob.extend(old[off:off + n])
+
+    for e in chars.values():
+        if e.get('t') == 'shape' and 'hm' in e:
+            move(e)
+        elif e.get('t') == 'morph':
+            for r in e['ratios'].values():
+                if r and 'hm' in r:
+                    move(r)
+    with open(os.path.join(lib_dir, 'hitmasks.bin'), 'wb') as f:
+        f.write(bytes(blob))
 
 
 def refs(entry):
@@ -86,7 +105,7 @@ def main():
                     removed += 1
     lib['chars'] = {k: v for k, v in chars.items() if k in keep}
     lib['classes'] = {k: v for k, v in classes.items() if k in keep_classes}
-    build_hitmasks(lib_dir, lib['chars'], lib.get('scale', 2))
+    repack_hitmasks(lib_dir, lib['chars'])
     json.dump(lib, open(path, 'w', encoding='utf-8'), separators=(',', ':'))
     print('kept %d of %d characters, %d images; removed %d files' % (len(keep), len(chars), len(imgs), removed))
 

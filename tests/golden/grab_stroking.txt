@@ -2,35 +2,35 @@ tick 300
 ---- her
 initialised=true
 userHasClicked=0
-heldTimer=45
+heldTimer=16
 currentMood=Normal
 hiltDistance=290.000
-pos=0.754
-speed=-0.007
-acceleration=0.014
+pos=0.646
+speed=0.046
+acceleration=0.051
 speedFriction=0.500
 moveSmoothing=3.000
 mouseHeld=false
 penisOutDelay=0
 lastPenisDirection=1.000
-penisInMouthDist=208.187
+penisInMouthDist=170.781
 currentPenisTipPos=0.160
-mouthLength=82.458
-penisTipMouthOffset=43.123
-intro=false
+mouthLength=81.754
+penisTipMouthOffset=40.724
+intro=true
 introStartDist=80.000
-maxIntroDist=155.000
+maxIntroDist=142.500
 introRelaxDist=12.500
-introPosToBeMoved=false
+introPosToBeMoved=true
 firstDT=true
-movement=-1.928
-absMovement=1.928
-previousMovement=-1.928
-lastYPos=313.753
-absYMovement=-0.092
+movement=1.075
+absMovement=1.075
+previousMovement=1.075
+lastYPos=305.426
+absYMovement=0.074
 vigour=0.000
-downTravel=0.000
-upTravel=16.221
+downTravel=5.144
+upTravel=0.000
 HAND_JOB_HAND_WIDTH=70.000
 movingHeadWithHandJob=false
 handJobDistance=315.000
@@ -42,21 +42,21 @@ handJobHeadPadding=0.000
 lastHeadPos=(0.000,0.000)
 rightHandAngleOffset=0.000
 leftHandAngleOffset=0.000
-torsoJointAng=4.187
-torsoJointDist=156.380
+torsoJointAng=4.120
+torsoJointDist=152.626
 bodyScale=1.000
-headTilt=-0.016
-headTiltScaling=0.062
-headTiltTarget=-0.019
-headTiltAngle=-0.156
+headTilt=-0.057
+headTiltScaling=0.186
+headTiltTarget=-0.056
+headTiltAngle=-0.565
 breathingFactor=0.000
-previousPos=0.754
+previousPos=0.646
 cheekBulgeTarget=0.377
-cheekSuckTarget=0.096
+cheekSuckTarget=0.000
 suckPower=0.000
 neckSkinOffset=2.000
-offActionTimer=3
-offActionTime=132
+offActionTimer=4
+offActionTime=346
 noseSquashAmount=0.000
 lastNoseSquash=false
 leftLegStartPoint=(-295.550,448.900)
@@ -77,22 +77,22 @@ armIKOffsetSpeed=(0.000,0.000)
 gagged=false
 gaggedRotation=6.000
 previousResistance=0.000
-pullOff=0.024
+pullOff=0.006
 pullingOff=false
 released=false
 coughing=false
 coughFactor=0.000
-coughBuild=8.862
-nextCoughTime=148
+coughBuild=3.718
+nextCoughTime=110
 justCoughed=false
 startSwallowTimer=0
 startSwallowTime=30
 aboveSwallowTilt=true
-jawAngleTarget=4.373
+jawAngleTarget=4.121
 jawHeldOpen=false
 swallowing=false
 lipSkinOffset=2
-jawBulgeTarget=18
+jawBulgeTarget=16
 swallowTimer=0
 swallowPoint=0.000
 clenchTeeth=false
@@ -102,14 +102,14 @@ clenchedTeethTime=0
 speaking=false
 speakStopDelay=0
 phonemeDelay=0
-lastUpperLipPos=10
-lastLowerLipPos=10
+lastUpperLipPos=11
+lastLowerLipPos=11
 eyePosBlink=150
 eyePosWince=200
-blinkTime=41
+blinkTime=118
 blinkTimer=0
 winceTimer=4
-lookChangeTimer=-1
+lookChangeTimer=2
 cumInEye=0
 passedOut=false
 passOutFactor=0.000
@@ -139,7 +139,7 @@ hilt=false
 justHilt=false
 downPlayed=false
 upPlayed=false
-breatheDelay=3
+breatheDelay=4
 breatheDelayTime=10
 breathing=false
 topLipA=(141.000,-60.000)
@@ -166,7 +166,7 @@ blankEyed=false
 bodySize=0.400
 teethClenched=false
 currentHiltDistance=290.000
-currentPenisDistance=208.187
+currentPenisDistance=170.781
 mood=Normal
 breathingAnimationAmount=0.000
 penisOn=false
@@ -195,43 +195,43 @@ mouseEnabled=true
 cacheAsBitmap=false
 _blend_mode=normal
 _clip_depth=0
-x=177.831
-y=313.753
+x=149.880
+y=305.426
 scaleX=1.000
 scaleY=1.000
 alpha=1.000
 _had_offsets=false
 blendMode=normal
 _mask_hidden=false
-_gxf_epoch=68273
-mouseX=194.898
-mouseY=-28.615
+_gxf_epoch=67948
+mouseX=218.625
+mouseY=-12.013
 _gclean=false
 _gb_ok=false
 _hb_gen=20
-width=1044.697
-height=1408.944
+width=1042.583
+height=1416.741
 ---- him
 currentBodyID=0
 currentArmPosition=0
 lastSelectedArmPosition=0
 currentLeftArmPosition=1
-deepestPos=0.817
+deepestPos=0.663
 currentPenisLengthScale=1.000
 currentPenisWidthScale=1.000
 penisPullScale=0.000
 currentBallSize=1.000
 currentBalls=0
-penisTilt=9.246
-penisTiltSpeed=-0.207
-penisTiltTarget=7.624
-inMouthTiltOffset=-0.233
+penisTilt=10.404
+penisTiltSpeed=-0.249
+penisTiltTarget=8.458
+inMouthTiltOffset=-0.239
 mouthConstraintSmoothing=1.000
 twitchFactor=0.000
 twitching=false
-pleasure=16.302
+pleasure=12.691
 ejacPleasure=140.000
-buildUp=26.368
+buildUp=22.757
 maxPleasureTimer=0
 inMouth=true
 handOpen=false
@@ -298,7 +298,7 @@ mouseEnabled=true
 cacheAsBitmap=false
 _blend_mode=layer
 _clip_depth=0
-x=359.995
+x=367.931
 y=135.000
 scaleX=1.000
 scaleY=1.000
@@ -306,14 +306,14 @@ alpha=1.000
 _had_offsets=false
 blendMode=layer
 _mask_hidden=false
-_gxf_epoch=68273
-mouseX=-8.212
-mouseY=88.430
+_gxf_epoch=67948
+mouseX=-16.606
+mouseY=88.241
 _gclean=false
 _gb_ok=false
 _hb_gen=20
-width=834.339
-height=1873.290
+width=886.493
+height=1875.173
 ---- display list
 root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
    [DT#-1] f=3/3 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -324,25 +324,25 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
          [FlashMovieClip#189] f=3/5 'classroom' pos=(0.0,-0.3) sc=(1.00,1.00) rot=0.0
            [FlashShape#186] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
        [FlashSprite#-1] pos=(200.0,50.0) sc=(0.85,0.85) rot=0.0 mask=(FlashRectClip)
-         [FlashMovieClip#481] f=1/2 'Male' pos=(360.0,135.0) sc=(1.00,1.00) rot=-0.7
-          arm [FlashMovieClip#460] f=1/1 pos=(-260.0,-31.5) sc=(1.00,1.00) rot=-18.8
-            upperArm [FlashMovieClip#451] f=1/2 'MaleLight' pos=(319.1,10.5) sc=(1.00,1.00) rot=45.8
+         [FlashMovieClip#481] f=1/2 'Male' pos=(367.9,135.0) sc=(1.00,1.00) rot=-1.0
+          arm [FlashMovieClip#460] f=1/1 pos=(-295.3,-41.9) sc=(1.00,1.00) rot=-16.1
+            upperArm [FlashMovieClip#451] f=1/2 'MaleLight' pos=(319.1,10.5) sc=(1.00,1.00) rot=44.8
                [FlashShape#449] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               shoulderPoint [FlashMovieClip#226] f=1/1 pos=(0.0,-450.0) sc=(1.00,1.00) rot=0.0
             lowerArm [FlashMovieClip#454] f=1/3 'MaleLight' pos=(149.6,8.6) sc=(1.00,1.00) rot=0.0
                [FlashShape#452] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            hand [FlashMovieClip#459] f=1/10 'holdingMaleLight' pos=(-19.0,-3.2) sc=(1.00,1.00) rot=-0.2
+            hand [FlashMovieClip#459] f=1/10 'holdingMaleLight' pos=(-19.0,-3.2) sc=(1.00,1.00) rot=-2.7
                [FlashShape#455] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
          [FlashMovieClip#598] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          hairBack [FlashMovieClip#597] f=3/41 'SDChan' pos=(177.8,313.8) sc=(1.00,1.00) rot=-18.9
+          hairBack [FlashMovieClip#597] f=3/41 'SDChan' pos=(149.9,305.4) sc=(1.00,1.00) rot=-18.8
           hairBackLayer [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [Rope#-1] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashMovieClip#2082] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                segment2 [FlashMovieClip#2077] f=1/1 pos=(77.8,374.8) sc=(1.00,0.99) rot=366.1
+                segment2 [FlashMovieClip#2077] f=1/1 pos=(49.7,366.3) sc=(1.00,0.99) rot=365.1
                    [FlashShape#2076] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                segment1 [FlashMovieClip#2079] f=1/1 pos=(83.0,291.3) sc=(1.00,1.05) rot=363.6
+                segment1 [FlashMovieClip#2079] f=1/1 pos=(54.5,282.8) sc=(1.00,1.05) rot=363.3
                    [FlashShape#2078] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                segment0 [FlashMovieClip#2081] f=1/1 pos=(85.0,206.0) sc=(1.00,1.07) rot=361.3
+                segment0 [FlashMovieClip#2081] f=1/1 pos=(57.2,197.5) sc=(1.00,1.07) rot=361.8
                    [FlashShape#2080] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
        [FlashMovieClip#2053] f=1/1 pos=(-0.0,-50.0) sc=(1.00,1.17) rot=0.0
          [FlashShape#2052] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -352,7 +352,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
        [FlashMovieClip#2053] f=1/1 pos=(-0.0,-50.0) sc=(1.00,1.17) rot=0.0
          [FlashShape#2052] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
        [SceneLayer#-1] pos=(200.0,50.0) sc=(0.85,0.85) rot=0.0 mask=(FlashRectClip)
-         [FlashMovieClip#581] f=1/1 pos=(75.3,431.8) sc=(1.00,1.00) rot=-7.9
+         [FlashMovieClip#581] f=1/1 pos=(57.5,426.9) sc=(1.00,1.00) rot=-9.6
           upperArm [FlashMovieClip#547] f=1/10 'light' HIDDEN pos=(-13.7,-9.4) sc=(1.00,1.00) rot=-31.8
              [FlashShape#515] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             tan [FlashMovieClip#518] f=2/6 'None' HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
@@ -375,25 +375,25 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                    [FlashShape#568] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#570] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             top [FlashMovieClip#96] f=4/16 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-         [FlashMovieClip#2425] f=1/1 pos=(177.8,313.8) sc=(1.00,1.00) rot=-18.9
+         [FlashMovieClip#2425] f=1/1 pos=(149.9,305.4) sc=(1.00,1.00) rot=-18.8
           headwear [FlashMovieClip#2424] f=3/10 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-         [Him#448] f=1/2 'Male' pos=(360.0,135.0) sc=(1.00,1.00) rot=-0.7 blend=layer
+         [Him#448] f=1/2 'Male' pos=(367.9,135.0) sc=(1.00,1.00) rot=-1.0 blend=layer
           topBack [FlashMovieClip#194] f=1/2 'Shirt' pos=(43.3,192.1) sc=(1.00,1.00) rot=0.0
             rgbFill [FlashMovieClip#192] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|238,242,245)
                [FlashShape#191] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [FlashShape#193] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          rightLeg [FlashMovieClip#206] f=1/2 'MaleLight' pos=(174.0,127.0) sc=(0.90,0.90) rot=9.2
-            calf [FlashMovieClip#203] f=1/2 'MaleLight' pos=(32.5,519.2) sc=(1.00,1.00) rot=-20.6
+          rightLeg [FlashMovieClip#206] f=1/2 'MaleLight' pos=(174.0,127.0) sc=(0.90,0.90) rot=10.0
+            calf [FlashMovieClip#203] f=1/2 'MaleLight' pos=(32.5,519.2) sc=(1.00,1.00) rot=-20.5
                [FlashShape#195] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              foot [FlashMovieClip#201] f=1/2 'MaleLight' pos=(31.5,508.9) sc=(1.00,1.00) rot=12.1
+              foot [FlashMovieClip#201] f=1/2 'MaleLight' pos=(31.5,508.9) sc=(1.00,1.00) rot=11.5
                  [FlashShape#196] pos=(-305.1,4.9) sc=(22.35,6.32) rot=0.0
                  [FlashMovieClip#198] f=1/1 pos=(-81.6,68.2) sc=(0.47,0.83) rot=0.0 blend=subtract
                    [FlashShape#197] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#199] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [FlashShape#204] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          rightLegCostume [FlashMovieClip#221] f=1/2 'Slacks' pos=(174.0,127.0) sc=(0.90,0.90) rot=9.2
-            calf [FlashMovieClip#217] f=1/2 'Slacks' pos=(32.5,519.2) sc=(1.00,1.00) rot=-20.6
-              foot [FlashMovieClip#213] f=1/3 'Loafers' pos=(31.5,508.9) sc=(1.00,1.00) rot=12.1
+          rightLegCostume [FlashMovieClip#221] f=1/2 'Slacks' pos=(174.0,127.0) sc=(0.90,0.90) rot=10.0
+            calf [FlashMovieClip#217] f=1/2 'Slacks' pos=(32.5,519.2) sc=(1.00,1.00) rot=-20.5
+              foot [FlashMovieClip#213] f=1/3 'Loafers' pos=(31.5,508.9) sc=(1.00,1.00) rot=11.5
                 rgbFill [FlashMovieClip#208] f=1/1 pos=(-89.8,5.3) sc=(1.00,1.00) rot=0.0
                    [FlashShape#207] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#209] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -403,39 +403,39 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             rgbFill [FlashMovieClip#219] f=1/1 pos=(16.4,241.7) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|27,29,29)
                [FlashShape#218] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [FlashShape#220] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          penis [FlashMovieClip#248] f=1/15 'MaleLightPenis A' pos=(29.3,134.3) sc=(1.00,1.00) rot=9.2 mask=(FlashRectClip)
+          penis [FlashMovieClip#248] f=1/15 'MaleLightPenis A' pos=(29.3,134.3) sc=(1.00,1.00) rot=10.4 mask=(FlashRectClip)
              [FlashShape#222] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             lipstickElements [FlashMovieClip#227] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               lipstickMask [FlashMovieClip#225] f=1/3 'Penis A' pos=(-152.4,-3.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#223] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               lipstickContainer [FlashMovieClip#226] f=1/1 pos=(-325.6,-45.9) sc=(1.00,1.00) rot=0.0 blend=hardlight
                  [FlashBitmap#-1] a=0.80 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            wetMask [FlashMovieClip#229] f=1/1 pos=(-273.0,-22.0) sc=(1.00,1.00) rot=0.0
+            wetMask [FlashMovieClip#229] f=1/1 pos=(-334.8,-22.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#228] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             wet [FlashMovieClip#232] f=1/3 'Penis A' pos=(0.0,0.0) sc=(1.00,1.00) rot=-11.0
                [FlashShape#230] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          balls [Balls#265] f=1/1 HIDDEN pos=(39.5,180.0) sc=(0.90,0.90) rot=5.1
-            rightOutline [FlashMovieClip#250] f=1/1 pos=(0.0,0.0) sc=(1.00,1.18) rot=0.2
+          balls [Balls#265] f=1/1 HIDDEN pos=(39.5,180.0) sc=(0.90,0.90) rot=5.8
+            rightOutline [FlashMovieClip#250] f=1/1 pos=(0.0,0.0) sc=(1.00,1.18) rot=0.0
                [FlashShape#249] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            leftOutline [FlashMovieClip#250] f=1/1 pos=(6.5,8.5) sc=(1.00,1.18) rot=0.1
+            leftOutline [FlashMovieClip#250] f=1/1 pos=(6.5,8.5) sc=(1.00,1.18) rot=-0.4
                [FlashShape#249] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            rightFill [FlashMovieClip#257] f=1/6 'MaleLight' pos=(0.0,0.0) sc=(1.00,1.18) rot=0.2
+            rightFill [FlashMovieClip#257] f=1/6 'MaleLight' pos=(0.0,0.0) sc=(1.00,1.18) rot=0.0
                [FlashShape#251] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            leftFill [FlashMovieClip#257] f=1/6 'MaleLight' pos=(6.5,8.5) sc=(1.00,1.18) rot=0.1
+            leftFill [FlashMovieClip#257] f=1/6 'MaleLight' pos=(6.5,8.5) sc=(1.00,1.18) rot=-0.4
                [FlashShape#251] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            rightHighlight [FlashMovieClip#264] f=1/6 'MaleLight' pos=(0.0,3.0) sc=(1.00,1.18) rot=0.2
+            rightHighlight [FlashMovieClip#264] f=1/6 'MaleLight' pos=(0.0,3.0) sc=(1.00,1.18) rot=0.0
                [FlashShape#258] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            leftHighlight [FlashMovieClip#264] f=1/6 'MaleLight' pos=(6.5,3.0) sc=(1.00,1.18) rot=0.1
+            leftHighlight [FlashMovieClip#264] f=1/6 'MaleLight' pos=(6.5,3.0) sc=(1.00,1.18) rot=-0.4
                [FlashShape#258] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           torsoLayer [FlashMovieClip#271] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            torso [FlashMovieClip#270] f=1/2 'MaleLight' pos=(177.4,173.9) sc=(1.00,1.00) rot=-2.2
+            torso [FlashMovieClip#270] f=1/2 'MaleLight' pos=(177.4,173.9) sc=(1.00,1.00) rot=-2.3
                [FlashShape#266] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashMovieClip#268] f=1/1 pos=(-131.8,-503.9) sc=(1.35,1.35) rot=0.0
                  [FlashShape#267] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          leftLeg [FlashMovieClip#279] f=1/3 'MaleLight' pos=(165.0,163.0) sc=(1.00,1.00) rot=5.1
-            calf [FlashMovieClip#275] f=1/2 'MaleLight' pos=(32.5,519.2) sc=(1.00,1.00) rot=-12.6
+          leftLeg [FlashMovieClip#279] f=1/3 'MaleLight' pos=(165.0,163.0) sc=(1.00,1.00) rot=5.8
+            calf [FlashMovieClip#275] f=1/2 'MaleLight' pos=(32.5,519.2) sc=(1.00,1.00) rot=-12.5
                [FlashShape#195] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              foot [FlashMovieClip#274] f=1/2 'MaleLight' pos=(31.5,508.9) sc=(1.00,1.00) rot=8.3
+              foot [FlashMovieClip#274] f=1/2 'MaleLight' pos=(31.5,508.9) sc=(1.00,1.00) rot=7.8
                  [FlashShape#196] pos=(-305.1,4.9) sc=(22.35,6.32) rot=0.0
                  [FlashMovieClip#198] f=1/1 pos=(-81.6,68.2) sc=(0.47,0.83) rot=0.0 blend=subtract
                    [FlashShape#197] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -443,9 +443,9 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [FlashShape#276] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           straponStraps [FlashMovieClip#281] f=1/1 HIDDEN pos=(177.4,100.7) sc=(1.05,1.00) rot=0.0
              [FlashShape#280] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          leftLegCostume [FlashMovieClip#296] f=1/2 'Slacks' pos=(165.0,163.0) sc=(1.00,1.00) rot=5.1
-            calf [FlashMovieClip#292] f=1/2 'Slacks' pos=(32.5,519.2) sc=(1.00,1.00) rot=-12.6
-              foot [FlashMovieClip#288] f=1/3 'Loafers' pos=(31.5,508.9) sc=(1.00,1.00) rot=8.3
+          leftLegCostume [FlashMovieClip#296] f=1/2 'Slacks' pos=(165.0,163.0) sc=(1.00,1.00) rot=5.8
+            calf [FlashMovieClip#292] f=1/2 'Slacks' pos=(32.5,519.2) sc=(1.00,1.00) rot=-12.5
+              foot [FlashMovieClip#288] f=1/3 'Loafers' pos=(31.5,508.9) sc=(1.00,1.00) rot=7.8
                 rgbFill [FlashMovieClip#283] f=1/1 pos=(-90.3,13.1) sc=(1.00,1.00) rot=0.0
                    [FlashShape#282] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#284] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -456,11 +456,11 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#293] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [FlashShape#295] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           midLayer [FlashMovieClip#301] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            hips [FlashMovieClip#300] f=1/2 'Slacks' pos=(177.4,173.9) sc=(1.00,1.00) rot=-2.2
+            hips [FlashMovieClip#300] f=1/2 'Slacks' pos=(177.4,173.9) sc=(1.00,1.00) rot=-2.3
               rgbFill [FlashMovieClip#298] f=1/1 pos=(6.7,-95.3) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|27,29,29)
                  [FlashShape#297] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#299] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-           [FlashMovieClip#190] f=1/1 pos=(50.0,0.0) sc=(1.00,1.00) rot=0.0
+           [FlashMovieClip#190] f=1/1 pos=(30.2,0.0) sc=(1.00,1.00) rot=0.0
              [FlashShape#136] pos=(-279.0,196.1) sc=(6.12,113.02) rot=0.0
            [FlashMovieClip#98] f=1/1 HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=erase
             upperArm [FlashMovieClip#81] f=1/1 pos=(-3.7,-9.4) sc=(1.00,1.00) rot=-31.8
@@ -468,19 +468,19 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             upperArmCostume [FlashMovieClip#97] f=1/1 pos=(-3.7,-9.4) sc=(1.00,1.00) rot=-31.8
               glove [FlashMovieClip#88] f=1/6 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               top [FlashMovieClip#96] f=4/16 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=layer
-         [Her#1982] f=1/1 pos=(177.8,313.8) sc=(1.00,1.00) rot=-18.9
-          leftLegContainer [FlashMovieClip#733] f=1/1 pos=(-135.3,78.5) sc=(1.00,1.00) rot=11.0
-            leg [FlashMovieClip#732] f=1/1 pos=(-295.5,448.9) sc=(0.95,0.95) rot=12.0
-              calf [FlashMovieClip#605] f=1/5 'light' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
+         [Her#1982] f=1/1 pos=(149.9,305.4) sc=(1.00,1.00) rot=-18.8
+          leftLegContainer [FlashMovieClip#733] f=1/1 pos=(-126.6,85.2) sc=(1.00,1.00) rot=9.2
+            leg [FlashMovieClip#732] f=1/1 pos=(-295.5,448.9) sc=(0.95,0.95) rot=13.3
+              calf [FlashMovieClip#605] f=1/5 'light' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
                  [FlashMovieClip#198] f=1/1 pos=(-283.7,104.7) sc=(1.00,1.00) rot=0.0 blend=subtract
                    [FlashShape#197] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#599] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 tan [FlashMovieClip#601] f=2/6 'None' HIDDEN pos=(-328.8,30.0) sc=(1.00,1.00) rot=0.0 blend=overlay
-              calfStocking [FlashMovieClip#643] f=15/17 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
-              calfStockingB [FlashMovieClip#643] f=15/17 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
-              footwear [FlashMovieClip#655] f=2/4 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
-              cuffs [FlashMovieClip#666] f=2/7 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
-              leftCalfBottoms [FlashMovieClip#671] f=2/11 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
+              calfStocking [FlashMovieClip#643] f=15/17 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
+              calfStockingB [FlashMovieClip#643] f=15/17 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
+              footwear [FlashMovieClip#655] f=2/4 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
+              cuffs [FlashMovieClip#666] f=2/7 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
+              leftCalfBottoms [FlashMovieClip#671] f=2/11 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
               thigh [FlashMovieClip#613] f=1/5 'light' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#606] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#607] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -492,9 +492,9 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 panties [FlashMovieClip#684] f=2/12 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                   rgbFill [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|255,255,255)
               leftThighBottoms [FlashMovieClip#731] f=2/11 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          torsoUnderCostume [FlashMovieClip#741] f=1/1 pos=(-135.3,78.5) sc=(1.00,1.00) rot=11.0
+          torsoUnderCostume [FlashMovieClip#741] f=1/1 pos=(-126.6,85.2) sc=(1.00,1.00) rot=9.2
             top [FlashMovieClip#740] f=3/9 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          torsoBack [FlashMovieClip#764] f=1/1 pos=(-135.3,78.5) sc=(1.00,1.00) rot=11.0
+          torsoBack [FlashMovieClip#764] f=1/1 pos=(-126.6,85.2) sc=(1.00,1.00) rot=9.2
             backside [FlashMovieClip#748] f=1/5 'light' pos=(-346.3,383.8) sc=(1.00,1.00) rot=0.0
                [FlashShape#742] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               tan [FlashMovieClip#744] f=2/6 'None' HIDDEN pos=(0.9,-0.6) sc=(1.00,1.00) rot=0.0 blend=overlay
@@ -506,7 +506,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#756] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#757] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               tan [FlashMovieClip#759] f=2/6 'None' HIDDEN pos=(1.4,66.7) sc=(1.00,1.00) rot=0.0 blend=overlay
-            leftBreast [FlashMovieClip#420] f=72/750 'light_medium' pos=(36.9,183.7) sc=(1.05,1.00) rot=0.3
+            leftBreast [FlashMovieClip#420] f=72/750 'light_medium' pos=(36.9,183.7) sc=(1.05,1.00) rot=-0.7
                [FlashShape#373] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#374] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               tan [FlashMovieClip#351] f=2/6 'None' HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
@@ -520,18 +520,18 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#375] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               hitArea [FlashMovieClip#366] f=72/151 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#363] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          torsoBackCostume [FlashMovieClip#870] f=1/1 pos=(-135.3,78.5) sc=(1.00,1.00) rot=11.0
+          torsoBackCostume [FlashMovieClip#870] f=1/1 pos=(-126.6,85.2) sc=(1.00,1.00) rot=9.2
             backsideCostume [FlashMovieClip#778] f=1/1 pos=(-346.3,383.8) sc=(1.00,1.00) rot=0.0
               panties [FlashMovieClip#773] f=2/11 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 rgbFill [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|255,255,255)
               stocking [FlashMovieClip#776] f=12/13 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               stockingB [FlashMovieClip#776] f=12/13 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               bottoms [FlashMovieClip#777] f=2/11 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            breastCostume [FlashMovieClip#869] f=1/1 pos=(36.9,183.7) sc=(1.05,1.00) rot=0.3
+            breastCostume [FlashMovieClip#869] f=1/1 pos=(36.9,183.7) sc=(1.05,1.00) rot=-0.7
               bra [FlashMovieClip#822] f=2/8 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               top [FlashMovieClip#868] f=2/8 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 filters=1 node=/root/Main/Presentation/GameFrame/Stage/@Node2D@15/@Node2D@18/@Control@386/content/@Node2D@383/@Node2D@411/torsoBackCostume/breastCostume/top
-          tongueContainer [FlashMovieClip#976] f=12/81 pos=(-29.1,-71.3) sc=(1.00,1.00) rot=4.4
-            tongue [Tongue#975] f=2/206 'InDone' pos=(124.8,53.8) sc=(1.00,1.00) rot=-16.8
+          tongueContainer [FlashMovieClip#976] f=13/81 pos=(-29.1,-71.3) sc=(1.00,1.00) rot=4.1
+            tongue [Tongue#975] f=2/206 'InDone' pos=(124.9,53.5) sc=(1.00,1.00) rot=-16.3
               piercingBack [FlashMovieClip#880] f=2/4 'None' pos=(3.7,10.9) sc=(1.00,1.00) rot=161.2
                [FlashShape#893] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               tipPoint [FlashMovieClip#882] f=1/1 pos=(3.7,10.9) sc=(1.00,1.00) rot=-45.0
@@ -543,10 +543,10 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           leftHandOverContainer [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           gagBack [FlashMovieClip#986] f=1/4 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           head [FlashMovieClip#1123] f=1/1 pos=(-0.6,-156.1) sc=(1.00,1.00) rot=0.0
-            jawBack [FlashMovieClip#991] f=1/1 pos=(-28.6,84.8) sc=(1.00,1.00) rot=4.4
-              jawBulgeOutline [FlashMovieClip#990] f=18/81 pos=(67.8,50.2) sc=(1.00,1.00) rot=0.0
+            jawBack [FlashMovieClip#991] f=1/1 pos=(-28.6,84.8) sc=(1.00,1.00) rot=4.1
+              jawBulgeOutline [FlashMovieClip#990] f=16/81 pos=(67.8,50.2) sc=(1.00,1.00) rot=0.0
                  [FlashShape#988] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            neck [Neck#992] f=1/1 pos=(-32.0,131.8) sc=(1.00,1.00) rot=405.0
+            neck [Neck#992] f=1/1 pos=(-32.0,131.8) sc=(1.00,1.00) rot=400.6
               outline0 [FlashMovieClip#226] f=1/1 pos=(77.3,-74.7) sc=(1.00,1.00) rot=0.0
               outline2 [FlashMovieClip#226] f=1/1 pos=(59.3,-26.9) sc=(1.00,1.00) rot=0.0
               outline3 [FlashMovieClip#226] f=1/1 pos=(57.5,16.8) sc=(1.00,1.00) rot=0.0
@@ -585,20 +585,20 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               nose [FlashMovieClip#1013] f=1/20 'lightNormal' pos=(119.5,34.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1001] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 tip [FlashMovieClip#226] f=1/1 pos=(37.8,16.0) sc=(1.00,1.00) rot=0.0
-              lipOutline [FlashMovieClip#1017] f=10/80 pos=(130.0,100.0) sc=(1.00,1.00) rot=0.0
+              lipOutline [FlashMovieClip#1017] f=11/80 pos=(130.0,100.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1014] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              lipFill [FlashMovieClip#1021] f=10/80 pos=(120.0,100.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|227,189,168)
+              lipFill [FlashMovieClip#1021] f=11/80 pos=(120.0,100.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|227,189,168)
                  [FlashShape#1018] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              lipShading [FlashMovieClip#1025] f=10/80 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
+              lipShading [FlashMovieClip#1025] f=11/80 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1022] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              lipHighlight [FlashMovieClip#1028] f=10/80 pos=(130.0,90.0) sc=(1.00,1.00) rot=0.0
+              lipHighlight [FlashMovieClip#1028] f=11/80 pos=(130.0,90.0) sc=(1.00,1.00) rot=0.0
                  [FlashMovieClip#1027] f=1/1 pos=(6.1,4.9) sc=(1.00,1.00) rot=0.0 blend=add
                    [FlashShape#1026] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            jaw [FlashMovieClip#1101] f=12/321 pos=(-28.6,84.8) sc=(1.00,1.00) rot=4.4
+            jaw [FlashMovieClip#1101] f=13/321 pos=(-28.6,84.8) sc=(1.00,1.00) rot=4.1
               teeth [FlashMovieClip#1043] f=1/1 pos=(126.0,58.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1042] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#1044] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              jawBulge [FlashMovieClip#1054] f=20/319 pos=(67.8,50.2) sc=(1.00,1.00) rot=0.0 ct=(0.69,0.69,0.69|71,59,52)
+              jawBulge [FlashMovieClip#1054] f=18/319 pos=(67.8,50.2) sc=(1.00,1.00) rot=0.0 ct=(0.74,0.74,0.74|58,48,43)
                  [FlashShape#1046] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#1056] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#1057] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -609,31 +609,31 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1061] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             scalpHair [FlashMovieClip#1104] f=1/2 pos=(-43.8,-12.8) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|227,189,168)
                [FlashShape#1102] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            cheekMask [FlashMovieClip#1109] f=130/144 pos=(63.3,85.6) sc=(1.00,1.00) rot=0.0
+            cheekMask [FlashMovieClip#1109] f=128/144 pos=(63.3,85.6) sc=(1.00,1.00) rot=0.0
                [FlashShape#1107] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            cheekBulge [FlashMovieClip#1114] f=1/5 'light' a=0.41 pos=(63.3,85.6) sc=(1.00,1.00) rot=0.0
+            cheekBulge [FlashMovieClip#1114] f=1/5 'light' a=0.37 pos=(63.3,85.6) sc=(1.00,1.00) rot=0.0
                [FlashShape#1110] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            cheekSuck [FlashMovieClip#1119] f=1/5 'light' a=0.08 pos=(63.3,85.6) sc=(1.00,1.00) rot=0.0
+            cheekSuck [FlashMovieClip#1119] f=1/5 'light' a=0.01 pos=(63.3,85.6) sc=(1.00,1.00) rot=0.0
                [FlashShape#1115] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             headTan [FlashMovieClip#1122] f=6/6 'Highleg' HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay ct=(0.00,0.00,0.00|0,0,0)
-              jawBack [FlashMovieClip#991] f=1/1 pos=(-28.6,84.8) sc=(1.00,1.00) rot=4.4
-                jawBulgeOutline [FlashMovieClip#990] f=18/81 pos=(67.8,50.2) sc=(1.00,1.00) rot=0.0
+              jawBack [FlashMovieClip#991] f=1/1 pos=(-28.6,84.8) sc=(1.00,1.00) rot=4.1
+                jawBulgeOutline [FlashMovieClip#990] f=16/81 pos=(67.8,50.2) sc=(1.00,1.00) rot=0.0
                    [FlashShape#988] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               face [FlashMovieClip#1121] f=1/5 'Normal' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1120] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 nose [FlashMovieClip#1013] f=1/20 'lightNormal' pos=(119.5,34.0) sc=(1.00,1.00) rot=0.0
                    [FlashShape#1001] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                   tip [FlashMovieClip#226] f=1/1 pos=(37.8,16.0) sc=(1.00,1.00) rot=0.0
-                lipOutline [FlashMovieClip#1017] f=10/80 pos=(130.0,100.0) sc=(1.00,1.00) rot=0.0
+                lipOutline [FlashMovieClip#1017] f=11/80 pos=(130.0,100.0) sc=(1.00,1.00) rot=0.0
                    [FlashShape#1014] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                lipFill [FlashMovieClip#1021] f=10/80 pos=(120.0,100.0) sc=(1.00,1.00) rot=0.0 ct=(0.00,0.00,0.00|227,189,168)
+                lipFill [FlashMovieClip#1021] f=11/80 pos=(120.0,100.0) sc=(1.00,1.00) rot=0.0 ct=(0.00,0.00,0.00|227,189,168)
                    [FlashShape#1018] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              jaw [FlashMovieClip#1101] f=12/321 pos=(-28.6,84.8) sc=(1.00,1.00) rot=4.4
+              jaw [FlashMovieClip#1101] f=13/321 pos=(-28.6,84.8) sc=(1.00,1.00) rot=4.1
                 teeth [FlashMovieClip#1043] f=1/1 pos=(126.0,58.0) sc=(1.00,1.00) rot=0.0
                    [FlashShape#1042] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1044] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                jawBulge [FlashMovieClip#1054] f=20/319 pos=(67.8,50.2) sc=(1.00,1.00) rot=0.0
+                jawBulge [FlashMovieClip#1054] f=18/319 pos=(67.8,50.2) sc=(1.00,1.00) rot=0.0
                    [FlashShape#1046] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1056] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1057] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -643,12 +643,12 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashMovieClip#1062] f=1/1 pos=(137.6,53.8) sc=(1.00,1.00) rot=0.0 blend=add
                    [FlashShape#1061] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [SweatBatch#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
-          bottomLipstick [FlashMovieClip#1128] f=12/81 a=0.00 pos=(-29.1,-71.3) sc=(1.00,1.00) rot=4.4 blend=hardlight
+          bottomLipstick [FlashMovieClip#1128] f=13/81 a=0.00 pos=(-29.1,-71.3) sc=(1.00,1.00) rot=4.1 blend=hardlight
              [FlashShape#1125] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [FlashMovieClip#1062] f=1/1 pos=(137.6,53.8) sc=(1.00,1.00) rot=0.0 blend=add
                [FlashShape#1061] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           topLipstickContainer [FlashMovieClip#1139] f=1/4 'Normal' a=0.00 pos=(123.3,-51.8) sc=(1.00,1.00) rot=0.0
-            topLipstick [FlashMovieClip#1133] f=12/81 pos=(-123.8,-104.3) sc=(1.00,1.00) rot=0.0 blend=hardlight
+            topLipstick [FlashMovieClip#1133] f=13/81 pos=(-123.8,-104.3) sc=(1.00,1.00) rot=0.0 blend=hardlight
                [FlashShape#1130] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashMovieClip#1027] f=1/1 pos=(136.1,94.9) sc=(1.00,1.00) rot=0.0 blend=add
                  [FlashShape#1026] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -664,7 +664,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 overlay [FlashMovieClip#1146] f=1/1 pos=(-2.8,0.0) sc=(1.00,1.00) rot=0.0 blend=multiply ct=(1.00,1.00,1.00|255,255,255)
                    [FlashShape#1145] pos=(2.8,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#1145] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              irisContainer [FlashMovieClip#1161] f=1/1 pos=(-50.7,-5.8) sc=(1.00,1.00) rot=17.5
+              irisContainer [FlashMovieClip#1161] f=1/1 pos=(-50.7,-5.8) sc=(1.00,1.00) rot=18.1
                 iris [FlashMovieClip#1160] f=1/9 'normal' pos=(76.2,-2.0) sc=(1.15,1.15) rot=0.0
                    [FlashShape#1148] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                   irisFill [FlashMovieClip#1150] f=1/9 'normal' pos=(-3.6,0.2) sc=(1.00,1.00) rot=0.0 blend=hardlight ct=(1.00,1.00,1.00|56,100,137)
@@ -713,7 +713,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             rightEyebrowFill [FlashMovieClip#1284] f=199/200 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|89,67,51)
                [FlashShape#1282] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           gagFront [FlashMovieClip#1316] f=1/4 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          collarContainer [FlashMovieClip#1342] f=1/1 pos=(-32.5,-24.4) sc=(1.00,1.00) rot=405.0
+          collarContainer [FlashMovieClip#1342] f=1/1 pos=(-32.5,-24.4) sc=(1.00,1.00) rot=400.6
             collar [FlashMovieClip#1341] f=2/4 'Leather' pos=(12.1,79.8) sc=(1.00,1.00) rot=-3.0
               rgbFill [FlashMovieClip#1318] f=1/1 pos=(-18.1,-5.4) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1317] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -721,22 +721,22 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           hairMidContainer [FlashMovieClip#1376] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             hairBottom [FlashMovieClip#1359] f=3/41 'SDChan' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#1344] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            hairUnderLayer [FlashMovieClip#226] f=1/1 pos=(-66.6,-354.4) sc=(1.00,1.00) rot=18.9
+            hairUnderLayer [FlashMovieClip#226] f=1/1 pos=(-43.3,-337.4) sc=(1.00,1.00) rot=18.8
                [Rope#-1] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashMovieClip#2075] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                  segment3 [FlashMovieClip#2068] f=1/1 pos=(-43.2,457.7) sc=(1.00,0.99) rot=373.2
+                  segment3 [FlashMovieClip#2068] f=1/1 pos=(-64.0,449.8) sc=(1.00,0.98) rot=371.2
                      [FlashShape#2067] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                  segment2 [FlashMovieClip#2070] f=1/1 pos=(-22.5,364.7) sc=(1.00,1.05) rot=372.5
+                  segment2 [FlashMovieClip#2070] f=1/1 pos=(-46.1,356.4) sc=(1.00,1.04) rot=370.9
                      [FlashShape#2069] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                  segment1 [FlashMovieClip#2072] f=1/1 pos=(-2.8,269.7) sc=(1.00,1.07) rot=371.7
+                  segment1 [FlashMovieClip#2072] f=1/1 pos=(-28.7,261.1) sc=(1.00,1.06) rot=370.4
                      [FlashShape#2071] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                  segment0 [FlashMovieClip#2074] f=1/1 pos=(16.0,173.8) sc=(1.00,1.07) rot=371.1
+                  segment0 [FlashMovieClip#2074] f=1/1 pos=(-11.9,165.2) sc=(1.00,1.07) rot=369.9
                      [FlashShape#2073] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             hairUnder [FlashMovieClip#1375] f=3/41 'SDChan' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#1361] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           hairCostumeUnderLayer [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          torso [FlashMovieClip#1917] f=1/1 pos=(-135.3,78.5) sc=(1.00,1.00) rot=11.0
-            leftNipplePiercing [RigidBodyTest#1389] f=2/5 'None' pos=(158.6,204.3) sc=(1.00,1.00) rot=0.0
+          torso [FlashMovieClip#1917] f=1/1 pos=(-126.6,85.2) sc=(1.00,1.00) rot=9.2
+            leftNipplePiercing [RigidBodyTest#1389] f=2/5 'None' pos=(158.5,202.3) sc=(1.00,1.00) rot=0.0
             penisContainer [FlashMovieClip#1390] f=1/1 pos=(-281.4,509.2) sc=(0.85,0.85) rot=0.0
               penis [FlashMovieClip#248] f=1/15 'MaleLightPenis A' HIDDEN pos=(-37.8,8.1) sc=(1.00,-1.00) rot=180.0
                  [FlashShape#222] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -754,7 +754,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1400] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1401] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 tan [FlashMovieClip#1395] f=2/6 'None' HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
-              rightBreast [FlashMovieClip#420] f=72/750 'light_medium' pos=(30.0,185.5) sc=(1.05,1.00) rot=0.2
+              rightBreast [FlashMovieClip#420] f=72/750 'light_medium' pos=(30.0,185.5) sc=(1.05,1.00) rot=-0.9
                  [FlashShape#373] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#374] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 tan [FlashMovieClip#351] f=2/6 'None' HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
@@ -799,7 +799,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             backside [FlashMovieClip#1512] f=1/5 'light' pos=(-312.5,354.8) sc=(1.00,1.00) rot=0.0
                [FlashShape#1506] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               tan [FlashMovieClip#1508] f=2/6 'None' HIDDEN pos=(0.6,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
-            leg [FlashMovieClip#1524] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=12.0 blend=layer
+            leg [FlashMovieClip#1524] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=13.3 blend=layer
               thigh [FlashMovieClip#1522] f=1/6 'light' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1513] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 tan [FlashMovieClip#1517] f=2/7 'None' HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
@@ -808,33 +808,32 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             back [FlashMovieClip#1535] f=1/6 'light' pos=(-134.0,219.1) sc=(1.00,1.00) rot=0.0 mask=backMask(FlashProxy)
                [FlashShape#1525] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               tan [FlashMovieClip#1530] f=2/6 'None' HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
-               [SweatBatch#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
             backModContainer [FlashSprite#-1] pos=(-134.0,219.1) sc=(1.00,1.00) rot=0.0
             backMask [FlashMovieClip#1537] f=1/1 pos=(-126.4,174.3) sc=(1.00,1.00) rot=0.0
                [FlashShape#1536] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             backHighlight [FlashMovieClip#1539] f=1/1 pos=(-14.8,-45.5) sc=(1.00,1.00) rot=0.0
                [FlashShape#1538] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            nipplePiercing [RigidBodyTest#1389] f=2/5 'None' pos=(151.3,206.0) sc=(1.00,1.00) rot=0.0
+            nipplePiercing [RigidBodyTest#1389] f=2/5 'None' pos=(151.2,203.6) sc=(1.00,1.00) rot=0.0
             braStrap [FlashMovieClip#1579] f=2/8 'None' pos=(-168.4,169.0) sc=(1.00,1.00) rot=27.6
             shoulderStrap [FlashMovieClip#1586] f=2/8 'None' pos=(54.5,-26.2) sc=(1.00,1.00) rot=75.0
             upperChestCostume [FlashMovieClip#1592] f=1/1 pos=(-128.6,260.6) sc=(1.00,1.00) rot=27.6
               bra [FlashMovieClip#1591] f=2/8 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            breastCostume [FlashMovieClip#1646] f=1/1 pos=(30.0,185.5) sc=(1.05,1.00) rot=0.2
+            breastCostume [FlashMovieClip#1646] f=1/1 pos=(30.0,185.5) sc=(1.05,1.00) rot=-0.9
               bra [FlashMovieClip#1645] f=2/9 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
              [FlashMovieClip#1650] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=0.0
                [FlashShape#1647] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               legMask [FlashMovieClip#1649] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=layer
                  [FlashShape#1648] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            rightThighCostume [FlashMovieClip#685] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=12.0
+            rightThighCostume [FlashMovieClip#685] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=13.3
               panties [FlashMovieClip#684] f=2/12 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 rgbFill [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|255,255,255)
             backUnderCostume [FlashMovieClip#1673] f=1/1 pos=(-134.0,219.1) sc=(1.00,1.00) rot=0.0
               panties [FlashMovieClip#1672] f=2/12 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 rgbFill [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|255,255,255)
-            rightThighStocking [FlashMovieClip#1726] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=12.0
+            rightThighStocking [FlashMovieClip#1726] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=13.3
               stocking [FlashMovieClip#1717] f=14/17 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1676] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                hipLayer [FlashMovieClip#1691] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-12.0
+                hipLayer [FlashMovieClip#1691] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-13.3
                   chestStocking [FlashMovieClip#1686] f=14/14 'None' pos=(188.6,-197.4) sc=(1.00,1.00) rot=27.6
                      [FlashShape#1683] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                     penisCostumeContainer [FlashMovieClip#1682] f=1/1 HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -843,18 +842,18 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                            [FlashShape#1475] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                          [FlashShape#1680] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                   backStocking [FlashMovieClip#1690] f=14/15 'None' pos=(-38.8,-270.1) sc=(1.00,1.00) rot=0.0
-                hipOverLayer [FlashMovieClip#1702] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-12.0
+                hipOverLayer [FlashMovieClip#1702] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-13.3
                   backStocking [FlashMovieClip#1696] f=15/16 'None' pos=(-38.8,-270.1) sc=(1.00,1.00) rot=0.0
                   chestStocking [FlashMovieClip#1701] f=15/15 'None' pos=(188.6,-197.4) sc=(1.00,1.00) rot=27.6
               stocking2 [FlashMovieClip#1725] f=12/15 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1718] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                hipLayer [FlashMovieClip#1723] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-12.0
+                hipLayer [FlashMovieClip#1723] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-13.3
                   chestStocking [FlashMovieClip#1719] f=12/12 'None' pos=(188.6,-197.4) sc=(1.00,1.00) rot=27.6
                   backStocking [FlashMovieClip#1722] f=12/13 'None' pos=(-38.8,-270.1) sc=(1.00,1.00) rot=0.0
-            rightThighStockingB [FlashMovieClip#1726] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=12.0
+            rightThighStockingB [FlashMovieClip#1726] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=13.3
               stocking [FlashMovieClip#1717] f=14/17 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1676] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                hipLayer [FlashMovieClip#1691] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-12.0
+                hipLayer [FlashMovieClip#1691] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-13.3
                   chestStocking [FlashMovieClip#1686] f=14/14 'None' pos=(188.6,-197.4) sc=(1.00,1.00) rot=27.6
                      [FlashShape#1683] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                     penisCostumeContainer [FlashMovieClip#1682] f=1/1 HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -863,16 +862,16 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                            [FlashShape#1475] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                          [FlashShape#1680] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                   backStocking [FlashMovieClip#1690] f=14/15 'None' pos=(-38.8,-270.1) sc=(1.00,1.00) rot=0.0
-                hipOverLayer [FlashMovieClip#1702] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-12.0
+                hipOverLayer [FlashMovieClip#1702] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-13.3
                   backStocking [FlashMovieClip#1696] f=15/16 'None' pos=(-38.8,-270.1) sc=(1.00,1.00) rot=0.0
                   chestStocking [FlashMovieClip#1701] f=15/15 'None' pos=(188.6,-197.4) sc=(1.00,1.00) rot=27.6
               stocking2 [FlashMovieClip#1725] f=12/15 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1718] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                hipLayer [FlashMovieClip#1723] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-12.0
+                hipLayer [FlashMovieClip#1723] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=-13.3
                   chestStocking [FlashMovieClip#1719] f=12/12 'None' pos=(188.6,-197.4) sc=(1.00,1.00) rot=27.6
                   backStocking [FlashMovieClip#1722] f=12/13 'None' pos=(-38.8,-270.1) sc=(1.00,1.00) rot=0.0
             chestCostume [FlashMovieClip#1772] f=1/1 pos=(-128.6,260.6) sc=(1.00,1.00) rot=27.6
-              legMask [FlashMovieClip#1728] f=1/1 pos=(-74.6,263.1) sc=(1.00,1.00) rot=-15.6
+              legMask [FlashMovieClip#1728] f=1/1 pos=(-74.6,263.1) sc=(1.00,1.00) rot=-14.3
                  [FlashShape#1727] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               bottoms [FlashMovieClip#1763] f=2/12 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1474] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -890,32 +889,32 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               bellyPiercing [BellyPiercing#1771] f=2/4 'None' pos=(77.8,157.4) sc=(1.00,1.00) rot=0.0
             rightThighCostumeMask [FlashMovieClip#1650] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=0.0
                [FlashShape#1647] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              legMask [FlashMovieClip#1649] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=12.0 blend=layer
+              legMask [FlashMovieClip#1649] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=13.3 blend=layer
                  [FlashShape#1648] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            rightThighBottoms [FlashMovieClip#1793] f=2/12 'None' pos=(-317.3,458.1) sc=(1.00,1.00) rot=12.0
-            rightThighBottomsOver [FlashMovieClip#1807] f=2/11 'None' pos=(-317.3,458.1) sc=(1.00,1.00) rot=12.0
+            rightThighBottoms [FlashMovieClip#1793] f=2/12 'None' pos=(-317.3,458.1) sc=(1.00,1.00) rot=13.3
+            rightThighBottomsOver [FlashMovieClip#1807] f=2/11 'None' pos=(-317.3,458.1) sc=(1.00,1.00) rot=13.3
             backCostume [FlashMovieClip#1824] f=1/1 pos=(-134.0,219.1) sc=(1.00,1.00) rot=0.0
               bottoms [FlashMovieClip#1823] f=2/11 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             topContainer [FlashMovieClip#1865] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 filters=1 node=/root/Main/Presentation/GameFrame/Stage/@Node2D@15/@Node2D@18/@Control@386/content/@Node2D@383/@Node2D@411/torso/topContainer
               chestTop [FlashMovieClip#1840] f=3/9 'None' pos=(-128.6,260.6) sc=(1.00,1.00) rot=27.6
                [FlashShape#1841] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              breastTop [FlashMovieClip#1842] f=3/10 'None' pos=(30.0,185.5) sc=(1.05,1.00) rot=0.2
+              breastTop [FlashMovieClip#1842] f=3/10 'None' pos=(30.0,185.5) sc=(1.05,1.00) rot=-0.9
               backTop [FlashMovieClip#1859] f=3/9 'None' pos=(-134.0,219.1) sc=(1.00,1.00) rot=0.0
               topStrap [FlashMovieClip#1864] f=2/4 'None' pos=(-157.5,126.6) sc=(0.71,1.00) rot=33.1
-            rightCalfContainer [FlashMovieClip#1916] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=12.0
-              calf [FlashMovieClip#1877] f=1/9 'light' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
+            rightCalfContainer [FlashMovieClip#1916] f=1/1 pos=(-317.3,458.1) sc=(1.00,1.00) rot=13.3
+              calf [FlashMovieClip#1877] f=1/9 'light' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
                  [FlashShape#1866] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 tan [FlashMovieClip#1868] f=2/6 'None' HIDDEN pos=(-327.5,30.3) sc=(1.00,1.00) rot=0.0 blend=overlay
                    [FlashShape#1867] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1869] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-              calfStocking [FlashMovieClip#1905] f=16/18 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
-              calfStockingB [FlashMovieClip#1905] f=16/18 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
-              footwear [FlashMovieClip#655] f=2/4 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
-              cuffs [FlashMovieClip#1911] f=2/7 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
-              bottoms [FlashMovieClip#1915] f=2/11 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-4.1
+              calfStocking [FlashMovieClip#1905] f=16/18 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
+              calfStockingB [FlashMovieClip#1905] f=16/18 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
+              footwear [FlashMovieClip#655] f=2/4 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
+              cuffs [FlashMovieClip#1911] f=2/7 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
+              bottoms [FlashMovieClip#1915] f=2/11 'None' pos=(357.4,286.1) sc=(1.00,1.00) rot=-3.6
           eyewear [FlashMovieClip#1931] f=1/6 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             rgbFill [FlashMovieClip#226] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          hairBetweenLayer [FlashMovieClip#226] f=1/1 pos=(-66.6,-354.4) sc=(1.00,1.00) rot=18.9
+          hairBetweenLayer [FlashMovieClip#226] f=1/1 pos=(-43.3,-337.4) sc=(1.00,1.00) rot=18.8
           ear [FlashMovieClip#1950] f=1/15 'lightNormal' pos=(-89.4,-157.3) sc=(0.81,0.81) rot=0.0
              [FlashShape#1932] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             tan [FlashMovieClip#1936] f=1/3 'Normal' HIDDEN a=0.00 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
@@ -932,7 +931,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
        [FlashMovieClip#2053] f=1/1 pos=(-0.0,-50.0) sc=(1.00,1.17) rot=0.0
          [FlashShape#2052] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
        [FlashSprite#-1] pos=(200.0,50.0) sc=(0.85,0.85) rot=0.0 mask=(FlashRectClip)
-         [FlashMovieClip#1998] f=1/1 pos=(75.3,431.8) sc=(1.00,1.00) rot=-7.9 blend=layer
+         [FlashMovieClip#1998] f=1/1 pos=(57.5,426.9) sc=(1.00,1.00) rot=-9.6 blend=layer
           upperArm [FlashMovieClip#1995] f=1/10 'light' pos=(-3.7,-9.4) sc=(1.00,1.00) rot=53.0
              [FlashShape#1983] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             tan [FlashMovieClip#1986] f=2/6 'None' HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=overlay
@@ -941,7 +940,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             top [FlashMovieClip#96] f=4/16 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 blend=layer
           upperArmMask [FlashMovieClip#1997] f=1/1 pos=(-3.7,-9.4) sc=(1.00,1.00) rot=53.0 blend=alpha
              [FlashShape#1996] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-         [FlashMovieClip#2036] f=1/1 pos=(75.3,431.8) sc=(1.00,1.00) rot=-7.9
+         [FlashMovieClip#2036] f=1/1 pos=(57.5,426.9) sc=(1.00,1.00) rot=-9.6
           upperArm [FlashMovieClip#2023] f=4/8 'dark' pos=(-3.7,-9.4) sc=(1.00,1.00) rot=-31.8
             foreArm [FlashMovieClip#2022] f=1/10 'light' HIDDEN pos=(10.5,386.5) sc=(1.00,1.00) rot=-45.0
               tan [FlashMovieClip#520] f=2/6 'None' HIDDEN pos=(1.5,151.6) sc=(1.00,1.00) rot=0.0 blend=overlay
@@ -960,12 +959,12 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                 rgbFill [FlashMovieClip#569] f=1/1 pos=(-1.6,0.3) sc=(1.00,1.00) rot=0.0
                    [FlashShape#568] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                  [FlashShape#570] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-         [FlashSprite#-1] pos=(177.8,313.8) sc=(1.00,1.00) rot=-18.9
+         [FlashSprite#-1] pos=(149.9,305.4) sc=(1.00,1.00) rot=-18.8
          [FlashSprite#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          hairTop [FlashMovieClip#1981] f=3/41 'SDChan' pos=(177.8,313.8) sc=(1.00,1.00) rot=-18.9
+          hairTop [FlashMovieClip#1981] f=3/41 'SDChan' pos=(149.9,305.4) sc=(1.00,1.00) rot=-18.8
              [FlashShape#1967] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
            [FlashSprite#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-         [FlashMovieClip#2455] f=1/1 pos=(177.8,313.8) sc=(1.00,1.00) rot=-18.9
+         [FlashMovieClip#2455] f=1/1 pos=(149.9,305.4) sc=(1.00,1.00) rot=-18.8
           headwear [FlashMovieClip#2454] f=3/10 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
          [FlashMovieClip#2051] f=1/1 HIDDEN pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           hand [FlashMovieClip#2050] f=1/1 pos=(9.3,140.0) sc=(1.00,1.00) rot=0.0
@@ -975,18 +974,18 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             nailPolish [FlashMovieClip#2045] f=1/1 a=0.00 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#2044] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             glove [FlashMovieClip#2049] f=1/3 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-         [FlashMovieClip#487] f=1/1 pos=(360.0,135.0) sc=(1.00,1.00) rot=-0.7
-          torso [FlashMovieClip#486] f=1/1 pos=(177.4,173.9) sc=(1.00,1.00) rot=-2.2
+         [FlashMovieClip#487] f=1/1 pos=(367.9,135.0) sc=(1.00,1.00) rot=-1.0
+          torso [FlashMovieClip#486] f=1/1 pos=(177.4,173.9) sc=(1.00,1.00) rot=-2.3
             costume [FlashMovieClip#485] f=1/3 'Shirt' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               rgbFill [FlashMovieClip#483] f=1/1 pos=(4.1,-225.9) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|238,242,245)
                  [FlashShape#482] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
                [FlashShape#484] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
            [FlashMovieClip#514] f=1/2 'Male' pos=(136.0,-516.0) sc=(1.00,1.00) rot=0.0
-            arm [FlashMovieClip#498] f=1/3 'MaleLight' pos=(-20.0,-20.0) sc=(1.00,1.00) rot=-6.8
+            arm [FlashMovieClip#498] f=1/3 'MaleLight' pos=(-20.0,-20.0) sc=(1.00,1.00) rot=-6.9
                [FlashShape#490] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               foreArm [FlashMovieClip#496] f=1/3 'MaleLight' pos=(105.1,443.5) sc=(1.00,1.00) rot=20.4
                  [FlashShape#491] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-                hand [FlashMovieClip#494] f=1/3 'MaleLight' pos=(0.0,321.5) sc=(1.00,1.00) rot=-13.6
+                hand [FlashMovieClip#494] f=1/3 'MaleLight' pos=(0.0,321.5) sc=(1.00,1.00) rot=-13.4
                    [FlashShape#492] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
        [FlashMovieClip#2053] f=1/1 pos=(-0.0,-50.0) sc=(1.00,1.17) rot=0.0
          [FlashShape#2052] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
