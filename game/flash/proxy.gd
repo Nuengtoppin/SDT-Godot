@@ -122,15 +122,22 @@ func _space_object() -> FlashDisplayObject:
 	return _container if _container != null else (_wrapped._flash_parent if _wrapped else null)
 
 
+## How a render target updates after a tick: off while hidden, every frame while an interpolated object inside it
+## moves (Flash.moved_viewports), else once (nothing in it changes until the next tick).
+static func target_mode(vp: SubViewport, on: bool) -> SubViewport.UpdateMode:
+	if not on:
+		return SubViewport.UPDATE_DISABLED
+	return SubViewport.UPDATE_ALWAYS if Flash.moved_viewports.has(vp) else SubViewport.UPDATE_ONCE
+
+
 ## Called by the runtime every tick: sizes both viewports to the mask's bounds (in container space).
 func refresh() -> void:
 	if _mask_obj == null or not is_instance_valid(_mask_obj) or not is_inside_tree():
 		return
 	var on := FlashProxy.shown(self)
-	var mode := SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
-	if _vp.render_target_update_mode != mode:
-		_vp.render_target_update_mode = mode
-		_mask_vp.render_target_update_mode = mode
+	_vp.render_target_update_mode = FlashProxy.target_mode(_vp, on)
+	# the mask's shapes are drawn at their tick positions (not interpolated): once per tick is enough
+	_mask_vp.render_target_update_mode = SubViewport.UPDATE_ONCE if on else SubViewport.UPDATE_DISABLED
 	if not on:
 		return
 	var cont := _space_object()

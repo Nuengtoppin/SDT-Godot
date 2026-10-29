@@ -577,6 +577,8 @@ func _invoke_listeners(event: FlashEvent, capture: bool) -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED:
 		xf_epoch += 1
+		if is_physics_interpolated():   # it glides there between ticks: its render target must redraw every frame
+			Flash.note_moved(get_viewport())
 		if _flash_parent != null:
 			_flash_parent._bounds_changed()
 			_hb_notify_parent()

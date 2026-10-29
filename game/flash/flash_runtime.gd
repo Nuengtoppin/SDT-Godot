@@ -416,6 +416,7 @@ func _physics_process(_delta: float) -> void:
 		for ch in _active_channels.keys():
 			ch._tick_deterministic()
 	_slowest_listener_us = 0
+	moved_viewports.clear()
 	_flush_mouse_move()
 	# 0. Callbacks that run before the game's tick (port extensions, see tick_before).
 	for cb in tick_before:
@@ -1148,6 +1149,19 @@ func _dispatch_mouse(target: FlashDisplayObject, type: String) -> void:
 	var e := FlashEvent.mouse(type)
 	_fill_local(e, target)
 	target.dispatchEvent(e)
+
+
+## Render targets (mask / group viewports) holding an interpolated object that moved this tick: they redraw every
+## frame until the next tick, while Godot's physics interpolation glides the object; the others draw once after
+## the tick (see FlashProxy.target_mode). Nested targets mark the ones around them too.
+var moved_viewports := {}
+
+
+func note_moved(vp: Viewport) -> void:
+	while vp is SubViewport and not moved_viewports.has(vp):
+		moved_viewports[vp] = true
+		var outer := vp.get_parent()
+		vp = outer.get_viewport() if outer != null else null
 
 
 ## Mouse motion is handled once per tick (and before a press), not per motion event: Godot sends about one a frame,
