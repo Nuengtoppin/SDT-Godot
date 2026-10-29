@@ -123,8 +123,9 @@ func update_layout() -> void:
 	visible = _obj.visible
 	# hidden or transparent (a closed menu dropdown at alpha 0): stop rendering the target every frame
 	var on := FlashProxy.shown(self)
-	# Drawn once after each tick (the display list only changes in ticks): the frames between reuse the picture.
-	_vp.render_target_update_mode = SubViewport.UPDATE_ONCE if on else SubViewport.UPDATE_DISABLED
+	var mode := SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
+	if _vp.render_target_update_mode != mode:
+		_vp.render_target_update_mode = mode
 	if not on:
 		return
 	var b := _obj._local_bounds()
