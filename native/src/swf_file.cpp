@@ -1940,11 +1940,13 @@ Dictionary SWFFile::render(int p_id, int p_ratio, double p_scale) {
 	px.resize((int64_t)w * h * 4);
 	uint8_t *o = px.ptrw();
 	bool empty = true;
+	float top = 0.0f;   // the most opaque pixel: masks use the geometry, whatever the fill's alpha (see "ma")
 	for (size_t i = 0; i < (size_t)w * h; i++) {
 		const float *c = r.img.data() + i * 4;
 		float a = c[3];
 		if (a > 1e-6f) {
 			empty = false;
+			top = std::max(top, a);
 			o[i * 4 + 0] = (uint8_t)std::clamp((int)(c[0] / a * 255.0f + 0.5f), 0, 255);
 			o[i * 4 + 1] = (uint8_t)std::clamp((int)(c[1] / a * 255.0f + 0.5f), 0, 255);
 			o[i * 4 + 2] = (uint8_t)std::clamp((int)(c[2] / a * 255.0f + 0.5f), 0, 255);
@@ -1988,6 +1990,9 @@ Dictionary SWFFile::render(int p_id, int p_ratio, double p_scale) {
 	out["hw"] = hw;
 	out["hh"] = hh;
 	out["empty"] = empty;
+	if (!empty && top < 0.999f) {
+		out["ma"] = std::round(top * 10000.0f) / 10000.0f;
+	}
 	return out;
 }
 

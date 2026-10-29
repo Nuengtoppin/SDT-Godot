@@ -7,7 +7,7 @@ extends RefCounted
 
 const CACHE_ROOT := "user://modcache"
 ## Bump when the converter output changes, so cached conversions are redone.
-const CONVERTER_VERSION := 1
+const CONVERTER_VERSION := 2   # 2: "ma" (a shape's most opaque alpha, masks use the geometry)
 ## Classes of the SDT mod kit implemented natively (the mod's compiled copies are ignored).
 const KIT_CLASSES := {"SDTMods.ModPackage": "res://src/SDTMods/ModPackage.gd"}
 
@@ -165,6 +165,8 @@ static func convert_swf(bytes: PackedByteArray, out_dir: String, scale: float) -
 		(r["image"] as Image).save_png(out_dir.path_join("shapes/%s.png" % img_name))
 		var entry := {"img": img_name, "x": r["x"], "y": r["y"], "w": r["w"], "h": r["h"],
 			"hm": [blob.size(), r["hw"], r["hh"]]}
+		if r.has("ma"):
+			entry["ma"] = r["ma"]
 		blob.append_array(r["hit"])
 		return entry
 	for cid in all_chars:

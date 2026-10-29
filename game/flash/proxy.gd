@@ -191,8 +191,9 @@ static func draw_mask_object(d: CanvasItem, o: FlashDisplayObject, inv: Transfor
 			return
 		d.draw_set_transform_matrix(inv * s.flash_global_transform())
 		var sc: float = s._library.scale
+		# Flash masks with the geometry: a fill below full alpha ("ma", from the converter) still masks fully
 		d.draw_texture_rect(s._texture, Rect2(s._draw_entry["x"], s._draw_entry["y"], s._texture.get_width() / sc,
-			s._texture.get_height() / sc), false)
+			s._texture.get_height() / sc), false, Color(1, 1, 1, 1.0 / s._draw_entry.get("ma", 1.0)))
 	elif o is FlashSprite:
 		var sp: FlashSprite = o
 		if sp._graphics != null and sp._graphics.has_content():

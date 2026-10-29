@@ -192,7 +192,10 @@ def run_ffdec(ffdec, args):
 
 
 def build_hitmasks(out_dir, chars, scale):
-    """Packs a 1x, 1-bit alpha mask per rasterised image into hitmasks.bin for shape-accurate hitTestPoint."""
+    """Packs a 1x, 1-bit alpha mask per rasterised image into hitmasks.bin for shape-accurate hitTestPoint.
+
+    Flash hit-tests and masks with the geometry, whatever the fill's alpha: an image whose most opaque pixel is
+    below 1 gets 'ma' (that alpha), and its coverage is divided by it."""
     import numpy as np
     from PIL import Image
     blob = bytearray()
@@ -200,6 +203,11 @@ def build_hitmasks(out_dir, chars, scale):
     def mask_for(entry):
         path = os.path.join(out_dir, 'shapes', entry['img'] + '.png')
         a = np.asarray(Image.open(path).convert('RGBA'))[:, :, 3].astype(np.float32) / 255.0
+        top = float(a.max()) if a.size else 1.0
+        entry.pop('ma', None)
+        if 0.0 < top < 0.999:
+            entry['ma'] = round(top, 4)
+            a = np.minimum(a / top, 1.0)
         w = max(1, int(np.ceil(a.shape[1] / scale)))
         h = max(1, int(np.ceil(a.shape[0] / scale)))
         s = int(round(scale))
