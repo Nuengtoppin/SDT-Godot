@@ -1,6 +1,7 @@
 extends SDTExtension
 ## Port of sby's eyeMakeupV1 Loader mod (art: Rod and SClover13's Eyelid Line, Smokey Eye Make Up, Tear Stained Eyes
-## and Glitter Eyeshadow mods): eye liner, smoky eye shadow and tear stains, each with a colour in Her > Colours
+## and Glitter Eyeshadow mods): eye liner, smoky eye shadow and the lower one (the mod's "tear stains": a soft shadow
+## under the eye), each with a colour in Her > Colours
 ## (fully transparent = off, the default), and eye glitter. Saved in the character code as eyelinemakeup,
 ## eyesmokemakeup, eyestainmakeup (r,g,b,alpha 0-255) and eyeglitter (1 / 0), like the Loader mod.
 ## Adapted: the parts follow her eyelid frames after Her.updateEyes instead of every frame; the art (art/, trimmed to
@@ -16,14 +17,14 @@ var glitter := false
 var _line      # eye liner on her upper eyelid
 var _smoke     # smoky shadow behind her eye
 var _ridge     # its part on her eye ridge
-var _tear      # tear stains behind her eye
+var _tear      # smoky shadow under her eye (the mod's "tear stains")
 var _sparkles  # glitter on her upper eyelid
 var _all_glitter: FlashSprite
 
 
 func _init() -> void:
 	title = "Eye makeup"
-	description = "Eye liner, smoky eye shadow, tear stains and eye glitter (art by Rod and SClover13)."
+	description = "Eye liner, smoky eye shadow (upper and lower) and eye glitter (art by Rod and SClover13)."
 
 
 func _setup() -> void:
@@ -63,10 +64,10 @@ func _enable() -> void:
 	lid.addChildAt(_sparkles, lid.getChildIndex(_line) + 1)
 	_apply_colours()
 	hook_after(&"Her.updateEyes", func(_c): _follow())
-	for c in [["Eye liner", "line"], ["Smoky eye shadow", "smoke"], ["Tear stains", "tear"]]:
+	for c in [["Eye liner", "line"], ["Smoky eye shadow", "smoke"], ["Smoky eye shadow lower", "tear"]]:
 		menu_control("her", "Colours", MenuSchema.colour(c[0], "Fully transparent: none (the default, also the reset).",
 			func(): return get(c[1] + "_rgb"), func(rgb, _fill): _set_colour(c[1], rgb), "rgbFill", true,
-			{"after": "Mascara", "keywords": "eye makeup eyemakeup " + c[1], "reset": func(): _set_colour(c[1], BLANK)}))
+			{"after": "Mascara", "keywords": "eye makeup eyemakeup smoky " + c[1], "reset": func(): _set_colour(c[1], BLANK)}))
 	menu_control("her", "Colours", MenuSchema.toggle("Eye glitter", "Glitter on her eye shadow. Saved with the character.",
 		func(): return glitter, func(v: bool): glitter = v; _follow(), {"after": "Mascara", "keywords": "eye makeup glitter sparkle"}))
 	if get_setting("enablevanillasaving"):
