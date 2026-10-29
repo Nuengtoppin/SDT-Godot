@@ -76,6 +76,7 @@ func _enable() -> void:
 		"tip": "One setting for every collar. 0: holds nothing, rides along with her neck. Higher: holds harder and gives less. 1: metal - a wall, never gives.",
 		"min": 0.0, "max": 1.0, "step": 0.05, "get": func(): return ThroatRings.stiffness,
 		"set": func(v: float): ThroatRings.set_stiffness(v), "format": func(v): return "%.2f" % v, "visible": on,
+		"reset": func(): ThroatRings.set_stiffness(ThroatRings.DEFAULT_STIFFNESS),
 		"wide": true})   # the label above the slider: beside the extension's tag it would not fit
 	for key in ["widen", "wince", "breaks"]:
 		menu_control("behaviour", "Resistance", MenuSchema.setting_control(self, key, {"after": "Throat resistance", "visible": on}))

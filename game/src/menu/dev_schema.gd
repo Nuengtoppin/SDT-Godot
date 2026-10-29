@@ -50,7 +50,8 @@ static func _throat() -> Dictionary:
 		value("Collar ring", "Acting: Collar holds her throat is on.", func(): return acting.call("chokercollarresistance")),
 		{"type": "slider", "label": "Stiffness", "tip": "The same setting as Behaviour > Resistance > Collar stiffness (0 soft band .. 1 metal); it sets the wall too.",
 			"min": 0.0, "max": 1.0, "step": 0.05, "get": func(): return ThroatRings.stiffness,
-			"set": func(v: float): ThroatRings.set_stiffness(v), "format": func(v): return "%.2f" % v},
+			"set": func(v: float): ThroatRings.set_stiffness(v), "format": func(v): return "%.2f" % v,
+			"reset": func(): ThroatRings.set_stiffness(ThroatRings.DEFAULT_STIFFNESS)},
 		MenuSchema.actions("", "", ThroatRings.PROFILES.keys().map(func(k):
 			return [k, func(): ThroatRings.apply_profile(k), "Profile %s: stiffness %.1f." % [k, ThroatRings.PROFILES[k]]])),
 		{"type": "slider", "label": "Wall", "tip": "How hard the collar's band stops him going deeper (the game's throat at resistance 100: 0.2), apart from the stiffness, as code may set it (ThroatRings.set_wall). Setting the stiffness sets it again; not kept.",
