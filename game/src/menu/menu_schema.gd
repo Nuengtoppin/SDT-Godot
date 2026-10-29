@@ -103,10 +103,12 @@ static func element(label: String, tip: String, helper: Callable, alpha := false
 			var h: CharacterElementHelper = helper.call()
 			var cur: int = h.elementNameList.size() + h.modEntryIndex if h.modEntryIndex >= 0 else h.selection
 			h._step(i - cur), {"keywords": "clothes costume", "wide": true}))
-	var vis1 := func(): return helper.call().haveRGBFill and helper.call().inUse()
+	# a worn mod without colourable parts gets the whole-piece tint and opacity instead of the colours
+	var whole := func(): return helper.call().canTintWhole()
+	var vis1 := func(): return helper.call().haveRGBFill and helper.call().inUse() and not whole.call()
 	var vis2 := func():
 		var h: CharacterElementHelper = helper.call()
-		return h.haveRGBFill2 and h.inUse() and (not h.rgbFill2ForMods or h.modEntryIndex >= 0)
+		return h.haveRGBFill2 and h.inUse() and (not h.rgbFill2ForMods or h.modEntryIndex >= 0) and not whole.call()
 	alpha = alpha or CharacterElementHelper.all_alpha
 	out.append({"type": "colors", "label": label + " colours", "tip": "", "keywords": "clothes costume colour",
 		"visible": func(): return vis1.call() or vis2.call(), "colors": [
@@ -114,6 +116,17 @@ static func element(label: String, tip: String, helper: Callable, alpha := false
 				"rgbFill", alpha, {"visible": vis1}),
 			colour(label + " second colour", "", func(): return helper.call().rgb2, func(c, f): helper.call().setFill(c, f),
 				"rgbFill2", alpha, {"visible": vis2})]})
+	out.append(_with(hsl(label + " tint", "This mod has no colourable parts: shifts the whole piece's hue, saturation, lightness and contrast.",
+		func(): return helper.call().wholeHSL,
+		func(c): var h: CharacterElementHelper = helper.call(); h.setWholeTint(c, h.wholeAlpha),
+		func(): var h: CharacterElementHelper = helper.call(); h.setWholeTint(CharacterElementHelper.BLANK_HSL, h.wholeAlpha)),
+		{"visible": whole, "keywords": "clothes costume colour tint hue"}))
+	out.append({"type": "slider", "label": label + " opacity", "tip": "How visible the whole piece is.",
+		"min": 0.0, "max": 1.0, "visible": whole, "keywords": "clothes costume alpha opacity transparent",
+		"get": func(): return helper.call().wholeAlpha,
+		"set": func(v: float): var h: CharacterElementHelper = helper.call(); h.setWholeTint(h.wholeHSL, v),
+		"release": _save_char,
+		"reset": func(): var h: CharacterElementHelper = helper.call(); h.setWholeTint(h.wholeHSL, 1.0); _save_char()})
 	return out
 
 

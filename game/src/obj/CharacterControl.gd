@@ -221,6 +221,46 @@ func registerComponents() -> void:
 	bellyPiercingControl.registerComponents([h.torso.chestCostume.bellyPiercing], ModTypes.BELLY_PIERCING)
 	earringControl.registerComponents([h.earrings], ModTypes.EAR_PIERCING)
 	componentsRegistered = true
+	CharCode.add_field("wholeTint", "port", _wholeTintField, _loadWholeTint, func(_l): _loadWholeTint("", _l), true)
+
+
+## Port: the clothing slots by their character-code key.
+func costumeSlots() -> Dictionary:
+	return {"collar": collarControl, "cuffs": cuffsControl, "ankleCuffs": ankleCuffsControl, "gag": gagControl,
+		"panties": pantiesControl, "top": braControl, "armwear": armwearControl, "tops": topControl,
+		"bottoms": bottomsControl, "legwear": legwearControl, "legwearB": legwearBControl, "footwear": footwearControl,
+		"eyewear": eyewearControl, "headwear": headwearControl, "tonguePiercing": tonguePiercingControl,
+		"nipplePiercing": nipplePiercingControl, "bellyPiercing": bellyPiercingControl, "earring": earringControl}
+
+
+## Code field "wholeTint": the slots whose mod has a whole-piece tint (CharacterElementHelper.wholeHSL / wholeAlpha),
+## as "tops=hue|saturation|lightness|contrast|opacity,collar=...".
+func _wholeTintField():
+	var slots := costumeSlots()
+	var out: Array = []
+	for k in slots:
+		var h: CharacterElementHelper = slots[k]
+		if h.isWholeTinted():
+			var t := h.wholeHSL
+			var n: Array = [t["h"], t["s"], t["l"], t["c"], h.wholeAlpha].map(func(x): return AS3.toString(g.sigRound(3, x)))
+			out.append(k + "=" + "|".join(PackedStringArray(n)))
+	return ",".join(out) if not out.is_empty() else null
+
+
+func _loadWholeTint(v: String, _load) -> void:
+	var tints := {}
+	for part in v.split(",", false):
+		var kv := part.split("=")
+		var n := kv[1].split("|") if kv.size() == 2 else PackedStringArray()
+		if n.size() == 5:
+			tints[kv[0]] = [{"h": clampf(n[0].to_float(), -180, 180), "s": clampf(n[1].to_float(), 0, 4),
+				"l": clampf(n[2].to_float(), 0, 4), "c": clampf(n[3].to_float(), 0, 4)}, n[4].to_float()]
+	var slots := costumeSlots()
+	for k in slots:
+		if tints.has(k):
+			slots[k].setWholeTint(tints[k][0], tints[k][1])
+		elif slots[k].isWholeTinted():
+			slots[k].clearWholeTint()
 
 
 func tick() -> void:

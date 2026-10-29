@@ -35,6 +35,15 @@ var listeners: Array = []
 ## one currently applied through this picker (-1: a built-in option is selected).
 var modEntries: Array = []
 var modEntryIndex := -1
+## Port: a worn mod without rgbFill parts (the colours do nothing on it) gets a tint of the whole piece instead: hue,
+## saturation, lightness and contrast like the hair tint, and an opacity. Saved in the code field "wholeTint"; a
+## new item in the slot starts untinted.
+const BLANK_HSL := {"h": 0, "s": 1, "l": 1, "c": 1}
+var wholeHSL := BLANK_HSL.duplicate()
+var wholeAlpha := 1.0
+var _tinted: Array = []
+var _tintableFor: Array = []
+var _tintable := false
 
 
 func _init(names: Array, selecter: Callable = Callable(), filler: Callable = Callable(), finder: Callable = Callable()) -> void:
@@ -175,6 +184,7 @@ func getDataString() -> String:
 
 
 func loadDataString(s: String) -> void:
+	clearWholeTint()
 	var vals := s.split(",")
 	findFunction.call(String(vals[0]))
 	# port: a name that is not one of this slot's (a Loader character's MoreClothing item) is the installed mod of
@@ -257,6 +267,7 @@ func _step(d: int) -> void:
 	var i := maxi(0, mini(n + modEntries.size() - 1, cur + d))
 	if i == cur and i >= n:
 		return
+	clearWholeTint()
 	if associatedModType:
 		g.customElementLoader.clearModTypes([associatedModType])
 	if modEntryIndex >= 0 and modEntryIndex < modEntries.size():
@@ -320,6 +331,88 @@ func setFill(c, fillName: String) -> void:
 			rgb2 = c
 
 
+## Port: a mod is worn in this slot and none of its pieces has rgbFill or rgbFill2 parts (the menu then offers the
+## whole-piece tint instead of the colours). Cached until the slot's mod pieces change.
+func canTintWhole() -> bool:
+	var pieces := _modPieces()
+	if pieces != _tintableFor:
+		_tintableFor = pieces
+		_tintable = not pieces.is_empty() and not pieces.any(_hasFillParts)
+	return _tintable
+
+
+func isWholeTinted() -> bool:
+	return not _blank(wholeHSL) or wholeAlpha < 1.0
+
+
+static func _blank(hsl: Dictionary) -> bool:
+	return float(hsl["h"]) == 0.0 and float(hsl["s"]) == 1.0 and float(hsl["l"]) == 1.0 and float(hsl["c"]) == 1.0
+
+
+## hsl: {h, s, l, c} as the hair tint. From a code the mod may still be loading: its pieces take the tint when
+## they are placed (resetFills).
+func setWholeTint(hsl: Dictionary, a: float) -> void:
+	wholeHSL = hsl.duplicate()
+	wholeAlpha = clampf(a, 0.0, 1.0)
+	_applyWholeTint()
+
+
+func clearWholeTint() -> void:
+	wholeHSL = BLANK_HSL.duplicate()
+	wholeAlpha = 1.0
+	_untint()
+
+
+func _untint() -> void:
+	for p in _tinted:
+		if is_instance_valid(p):
+			p.filters = p.get_meta(&"wholeTintFilters", [])
+			p.remove_meta(&"wholeTintFilters")
+			p.alpha = 1.0
+	_tinted = []
+
+
+func _applyWholeTint() -> void:
+	_untint()
+	if not isWholeTinted() or not canTintWhole():
+		return
+	var f := FlashFilter.colorMatrix(g.getCMFMatrix(wholeHSL["h"], wholeHSL["s"], wholeHSL["l"], wholeHSL["c"]))
+	_tinted = _modPieces()
+	for p in _tinted:
+		var own: Array = p.filters
+		p.set_meta(&"wholeTintFilters", own)
+		p.filters = own if _blank(wholeHSL) else own + [f]
+		p.alpha = wholeAlpha
+
+
+## The display objects of the mods worn in this slot (those placed in the targets of its mod types).
+func _modPieces() -> Array:
+	var cel = g.customElementLoader
+	if cel == null:
+		return []
+	var targets := {}
+	for h in cel.modTargetHelpers.values():
+		if h.characterElementHelper == self:
+			for t in h.targetDictionary.values():
+				targets[t] = true
+	var out: Array = []
+	for lm in cel.instancedModElements:
+		var m = lm.modElement
+		if is_instance_valid(m) and m is FlashDisplayObject and targets.has(m.parent):
+			out.append(m)
+	return out
+
+
+static func _hasFillParts(mc) -> bool:
+	if not mc is FlashSprite:
+		return false
+	for i in mc.numChildren:
+		var c = mc.getChildAt(i)
+		if c.flash_name == "rgbFill" or c.flash_name == "rgbFill2" or _hasFillParts(c):
+			return true
+	return false
+
+
 func findName(n: String) -> void:
 	findFunction.call(n)
 
@@ -333,6 +426,8 @@ func resetFills() -> void:
 		setFill(rgb1, "rgbFill")
 	if haveRGBFill2:
 		setFill(rgb2, "rgbFill2")
+	if isWholeTinted():
+		_applyWholeTint()
 
 
 var nameList: Array:
