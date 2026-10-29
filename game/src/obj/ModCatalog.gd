@@ -18,6 +18,9 @@ extends RefCounted
 ## earring made as a hair accessory; "> body": MoreClothing's body slot, the "Body pieces" list in Clothes, where
 ## several can be on); "#" starts a comment.
 const BODY_LIST := "body"
+## Mods of body parts only (ThickerThighs, HardBod, breast mods): the "Body mods" list in Her > Body. A body part that
+## comes with clothing stays a companion of the clothing's picker entry.
+const BODY_MODS_LIST := "bodymods"
 
 const SCAN_FOLDERS := ["Clothing", "Hair", "Backgrounds"]
 const IMAGE_EXTENSIONS := ["png", "jpg", "jpeg", "gif", "bmp"]
@@ -50,6 +53,7 @@ var _known: Dictionary = {}   # lower-case paths of the files scanned, so rescan
 
 func start() -> void:
 	picker_entries[BODY_LIST] = []
+	picker_entries[BODY_MODS_LIST] = []
 	for sub in SCAN_FOLDERS:
 		_scan(Flash.mods_dir(sub))
 	Flash.add_enter_frame(self, _tick)
@@ -233,13 +237,19 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 	# off with the mod's picker entries, as loading the whole mod in the original did
 	var companions: Array = []
 	var companion_types: Array = []
-	for it in cat.get("items", []):
-		if _picker_key(it) == null and it["modType"] != ModTypes.DIALOGUE:
+	var items: Array = cat.get("items", [])
+	var body_only := items.any(func(it): return it["modType"] == ModTypes.BODY) \
+		and not items.any(func(it): return _picker_key(it) != null)
+	for it in items:
+		if _picker_key(it) == null and it["modType"] != ModTypes.DIALOGUE \
+				and not (body_only and it["modType"] == ModTypes.BODY):
 			companions.append(int(it["item"]))
 			if not companion_types.has(it["modType"]):
 				companion_types.append(it["modType"])
-	for it in cat.get("items", []):
+	for it in items:
 		var key = _picker_key(it)
+		if key == null and body_only and it["modType"] == ModTypes.BODY:
+			key = BODY_MODS_LIST
 		if key == null or (only_key != null and not is_same(key, only_key)):
 			continue
 		if moved is CharacterElementHelper and key is CharacterElementHelper:

@@ -182,6 +182,9 @@ static func _her() -> Dictionary:
 				_m().bodySliderReleased, _m().mbDefaultBodyScaleClicked),
 			slider("Breast size", "", func(): return _m().customMenu.breastSlider, _m().breastSliderChanged,
 				_m().breastSliderReleased, _m().defaultBreastSizeClicked),
+			{"type": "custom", "label": "Body mods", "wide": true, "keywords": "body mod thighs breasts shape",
+				"tip": "Mods that change her body (thicker thighs, other breasts...) from Mods/Clothing. Several can be on.",
+				"build": func(): return ModSwitchList.build(ModCatalog.BODY_MODS_LIST, _toggle_body, "None found in Mods/Clothing.")},
 		]},
 		{"title": "Hair", "controls": [
 			pick("Hairstyle", "The game's hairstyles, then hair mods from the Mods folders.",
