@@ -83,6 +83,11 @@ func _enable() -> void:
 				parts[p] = o
 			else:
 				push_warning("TemplateExtension: no %s for %s.%s" % [TYPES[t][p], t, p])
+		# port fix: second-layer stockings whose parts have the first layer's names (backside, chest, ...); the
+		# Loader took only the B names, so those parts were lost there
+		if t == "CostumeLegwearB":
+			for p in parts.keys():
+				parts[p.trim_suffix("B")] = parts[p]
 		if cel.modTargetHelpers.has(t):
 			_saved[t] = cel.modTargetHelpers[t]
 		cel.modTargetHelpers[t] = CustomElementHelper.new(parts, cc.get(CONTROLS[t]))
@@ -108,7 +113,7 @@ func _disable() -> void:
 	var cel = g.customElementLoader
 	if cel == null:
 		return
-	for t in ["CostumeOverTop", "costumeovertop", HAIR_OVER_EXTENDED] + TYPES.keys():
+	for t in ["CostumeOverTop", HAIR_OVER_EXTENDED] + TYPES.keys():
 		cel.modTargetHelpers.erase(t)
 	for t in _saved:
 		cel.modTargetHelpers[t] = _saved[t]
@@ -160,7 +165,6 @@ func _make_over_top() -> void:
 	over_top.rgb1 = {"r": 0, "g": 0, "b": 0, "a": 1}
 	var helper := CustomElementHelper.new(parts, over_top)
 	g.customElementLoader.modTargetHelpers["CostumeOverTop"] = helper
-	g.customElementLoader.modTargetHelpers["costumeovertop"] = helper   # some mods write "CostumeOvertop"
 
 
 ## A hair layer over the other hair (and strands), under his arm.
@@ -244,7 +248,7 @@ static func _has_cutout(o) -> bool:
 
 func _mod_added(m) -> void:
 	var t: String = str(m.get("modType")) if m != null else ""
-	if t.to_lower() == "costumeovertop":
+	if t == "CostumeOverTop":
 		g.characterControl.setBreastCostumeSize()
 	elif t == "CostumePanties":
 		# her chest part of the panties shows from the start (the game left it on the wrong frame)

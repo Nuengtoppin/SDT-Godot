@@ -21,7 +21,7 @@ const BODY_LIST := "body"
 
 const SCAN_FOLDERS := ["Clothing", "Hair", "Backgrounds"]
 const IMAGE_EXTENSIONS := ["png", "jpg", "jpeg", "gif", "bmp"]
-const CATALOG_VERSION := 1
+const CATALOG_VERSION := 2   # 2: misspelt mod types normalised (CustomElementLoader.normalModType)
 const HAIR_TYPES := [ModTypes.HAIR, ModTypes.DYNAMIC_HAIR]
 ## A mod with pieces for several costume slots (a vest with its shirt, sleeves and collar) is one option, in the
 ## first of these slots it has a piece for; its other pieces go on and off with it.
@@ -164,7 +164,8 @@ func _inspect(path: String, bytes: PackedByteArray) -> void:
 		for i in (mods.size() if mods is Array else 0):
 			var m = mods[i]
 			if m is FlashDisplayObject:
-				cat["items"].append({"item": i, "name": m.flash_name, "modType": str(m.get("modType")),
+				cat["items"].append({"item": i, "name": m.flash_name,
+					"modType": CustomElementLoader.normalModType(str(m.get("modType"))),
 					"targetElement": str(m.get("targetElement")) if m.get("targetElement") else ""})
 	if root != null:
 		root.queue_free()

@@ -210,7 +210,19 @@ func modDataInit(e: FlashEvent) -> void:
 	loadNextModFile()
 
 
+## Port fix: mod types some mods misspell, by their lower-case spelling. The Loader's lookups were exact, so these
+## items were lost there.
+const MOD_TYPE_SPELLINGS := {"costumeovertop": "CostumeOverTop"}
+
+
+static func normalModType(t: String) -> String:
+	return MOD_TYPE_SPELLINGS.get(t.to_lower(), t)
+
+
 func parseMod(m) -> void:
+	var mt = _p(m, "modType")
+	if mt != null and normalModType(str(mt)) != str(mt):
+		m.set("modType", normalModType(str(mt)))
 	match str(_p(m, "modType")):
 		ModTypes.MOD_PACKAGE:
 			if _p(m, "charData") and not blockSwfCharData:

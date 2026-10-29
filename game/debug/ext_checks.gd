@@ -175,11 +175,17 @@ func _template_checks() -> void:
 	var helpers: Dictionary = g.customElementLoader.modTargetHelpers
 	var missing: Array = []
 	for t in te.TYPES:
-		if not helpers.has(t) or helpers[t].targetDictionary.size() != te.TYPES[t].size():
+		if not helpers.has(t) or not te.TYPES[t].keys().all(func(p): return helpers[t].targetDictionary.has(p)):
 			missing.append(t)
 	_check("mod types registered with all their parts", missing.is_empty(), str(missing))
+	var lb: Dictionary = helpers["CostumeLegwearB"].targetDictionary if helpers.has("CostumeLegwearB") else {}
+	_check("legwear B takes the legwear A part names too", lb.get("backside") != null
+		and lb.get("backside") == lb.get("backsideB") and lb.get("chestOver") == lb.get("chestOverB"))
 	_check("over-top layer: 8 parts above the top's", te._layers.size() == 8 and helpers.has("CostumeOverTop")
-		and helpers.has("costumeovertop") and te._layers.values().all(func(l): return l._flash_parent != null))
+		and te._layers.values().all(func(l): return l._flash_parent != null))
+	_check("misspelt CostumeOvertop is read as CostumeOverTop",
+		CustomElementLoader.normalModType("CostumeOvertop") == "CostumeOverTop"
+		and CustomElementLoader.normalModType("CostumeTop") == "CostumeTop")
 	_check("over-top breast moves with her breast", g.her.rightBreastController._costumeLayers.has(te._layers["rightBreast"]))
 	var hl: FlashSprite = te.hair_over_extended
 	_check("extra hair layer under his arm", hl != null and hl._flash_parent == g.frontLayer
