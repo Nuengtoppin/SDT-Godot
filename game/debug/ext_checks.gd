@@ -230,6 +230,36 @@ func _extramod_checks() -> void:
 	Extensions.set_enabled("extramod", true)
 	_check("ExtraMod on again", helpers.has("BodyEye") and em.c.size() == em.CONTAINERS.size()
 		and cat.picker_entries.has("extramod"))
+	# overlays, dialogue boxes, her penis, piercings
+	_check("ExtraMod overlay, dialogue box, futa and piercing types", helpers.has("Overlay") and helpers.has("DialogueBox")
+		and helpers.has("CostumeBrowPiercing") and helpers.has("CostumeNosePiercing")
+		and helpers["Overlay"].targetDictionary.size() == 6
+		and helpers["Futa"].targetDictionary["target"] == her.torso.penisContainer
+		and cat.picker_types.get("Futa") == "extramod_futa" and cat.picker_types.get("Overlay") == "extramod_overlays")
+	var dc = g.dialogueControl
+	var field = dc.tfContainer.dialogueField
+	var box = dc.getChildAt(0)
+	var color0: int = field.textColor
+	var cel = g.customElementLoader
+	var pkg := LoadedModPackage.new("swfMod")
+	pkg.setFilePath("test/em_stage3.swf|0")
+	cel.loadedModPackages.append(pkg)
+	cel.loadingModPackage = pkg
+	var dbox := FlashMovieClip.new()
+	dbox.set("modType", "DialogueBox")
+	dbox.set("newColor", "ff0000")
+	cel.parseMod(dbox)
+	var futa := FlashMovieClip.new()
+	futa.set("modType", "Futa")
+	cel.parseMod(futa)
+	cel.loadingModPackage = null
+	_check("ExtraMod dialogue box mod: behind the text, the game's box hidden, red text",
+		dbox._flash_parent == dc and dc.getChildIndex(dbox) == 0 and not box.visible and field.textColor == 0xff0000,
+		"%s %s %x" % [dc.getChildIndex(dbox), box.visible, field.textColor])
+	_check("ExtraMod futa mod: in her penis container, hidden without her penis",
+		futa._flash_parent == her.torso.penisContainer and futa.visible == (her._penisControl.currentPenisID != 0))
+	cel.clearInstancedMods()
+	_check("ExtraMod cleared: the game's dialogue box and text colour back", box.visible and field.textColor == color0)
 
 
 ## ExtraModHim (his body and penis so far): types registered, follow his body change, off removes them.

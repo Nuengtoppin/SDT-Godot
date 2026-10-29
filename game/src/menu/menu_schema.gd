@@ -182,6 +182,13 @@ static func _her() -> Dictionary:
 				_m().bodySliderReleased, _m().mbDefaultBodyScaleClicked),
 			slider("Breast size", "", func(): return _m().customMenu.breastSlider, _m().breastSliderChanged,
 				_m().breastSliderReleased, _m().defaultBreastSizeClicked),
+		] + element("Penis", "Gives her a penis (futa) or a strapon.", func(): return g.her._penisControl.penisControl) + [
+			slider("Penis length", "", func(): return g.her._penisControl.penisMenu.penisLengthSlider,
+				func(): g.her._penisControl.penisLengthSliderChanged(), func(): g.her._penisControl.penisLengthSliderReleased(),
+				func(): g.her._penisControl.mbDefaultPenisLengthClicked(), {"visible": func(): return g.her._penisControl.currentPenisID != 0}),
+			slider("Penis width", "", func(): return g.her._penisControl.penisMenu.penisWidthSlider,
+				func(): g.her._penisControl.penisWidthSliderChanged(), func(): g.her._penisControl.penisWidthSliderReleased(),
+				func(): g.her._penisControl.mbDefaultPenisWidthClicked(), {"visible": func(): return g.her._penisControl.currentPenisID != 0}),
 			{"type": "custom", "label": "Body mods", "wide": true, "keywords": "body mod thighs breasts shape",
 				"tip": "Mods that change her body (thicker thighs, other breasts...) from Mods/Clothing. Several can be on.",
 				"build": func(): return ModSwitchList.build(ModCatalog.BODY_MODS_LIST, _toggle_body, "None found in Mods/Clothing.")},

@@ -180,6 +180,8 @@ func updatePenis() -> void:
 		penis.wet.gotoAndStop(penisNameList[currentPenisID])
 		penis.lipstickElements.lipstickMask.gotoAndStop(penisNameList[currentPenisID])
 	updateCostumeVisibility()
+	if Hooks.has(&"HerPenisControl.updatePenis"):   # HOOK
+		Hooks.after(&"HerPenisControl.updatePenis", self, [])
 
 
 func capitalise(s: String) -> String:

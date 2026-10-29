@@ -2,7 +2,7 @@ extends SDTExtension
 ## Built-in reimplementation of the Loader mod ExtraMod Core (SClover13, v1.51): mod types for nearly every visible
 ## part of her, so mods made with the ExtraMod template load. Needs TemplateExtension. Written from its behaviour.
 ##
-## Stage 1 (this file so far): her head and eyes.
+## Her head and eyes:
 ##   BodyHead  face, nose, ear, eyeridge, jaw, upperlip, brows (line / fill), lipstick, teeth, neck. Flags on the mod:
 ##             hideVanillaFace (hide her own parts it replaces), hideVanillaEyebrows, hideScalp, hideCheekBulge,
 ##             hideVanillaHeadTan, useSkinPalette (parts have a frame per skin: "light", "pale", "tan", "dark").
@@ -11,6 +11,18 @@ extends SDTExtension
 ##   Parts with a "mood" child show the frame named after her mood (moremoods' too, else its vanilla group).
 ## Every tick the mod parts follow her own: eyelid / mask / brow frames, jaw frame and position, lip shape, the
 ## mascara / eyeshadow colours. Anything it hid comes back when the mods are cleared or the extension is off.
+##
+## Scene, dialogue, her penis, piercings:
+##   Overlay              art on the screen effects, front, back, scene or mist layer; a "diabox" part replaces the
+##                        dialogue box picture.
+##   DialogueBox          a new dialogue box picture (the game's own is hidden while one is on).
+##   Overlay and DialogueBox mods may set the dialogue text: newColor (hex), newFontSize, dialogueFontName (a font
+##   installed on the computer). Dialogue words do the same: [EM_FCOLORff0000], [EM_FSIZE20], [EM_FONTComic_Sans_MS]
+##   (underscores are spaces), [EM_FCLEAR] (the game's own font, colour and size again).
+##   Futa                 art in her penis container, shown while she has a penis.
+##   CostumeBrowPiercing  rightbrowpierce / leftbrowpierce: follow her eyebrows (position and frame).
+##   CostumeNosePiercing  on her nose.
+##   With overwrite = true a mod of these types takes off the others of its type.
 
 ## Containers next to her own parts, for mod parts that replace them: name -> [path of her part it sits next to,
 ## copy that part's transform, blend mode]
@@ -21,6 +33,8 @@ const CONTAINERS := {
 	"lowereyelidmask": ["eye.ball.lowerEyelidMask", true, "erase"],
 	"jaw": ["head.jaw", true, ""], "upperlip": ["head.face", true, ""], "overjaw": ["head.jaw", false, ""],
 	"backeyelash": ["head", true, ""],
+	"rightbrowpierce": ["rightEyebrow", true, ""], "leftbrowpierce": ["leftEyebrow", true, ""],
+	"nosepierce": ["head.face.nose", true, ""],
 }
 const HEAD_PARTS := {"nosemask": "head.face.nose", "neckmask": "head.neck", "neck": "head.neck",
 	"face": "head.face.skull", "eyeridge": "eye.eyebrowUnderMask", "ear": "ear", "nose": "head.face.nose",
@@ -33,6 +47,18 @@ const EYE_PARTS := {"placeholder": "eye", "eyeerasemask": "eye", "altsclera": "e
 	"altUpperEyelidMask": "#uppereyelidmask", "altLowerEyelidMask": "#lowereyelidmask",
 	"altuppereyelid": "#uppereyelid", "altlowereyelid": "#lowereyelid", "backeye": "#backeyelash",
 	"simpleEyeReplacer": "eye"}
+## Targets of the other types ("#": a container above, "@": a member of g, else a path under her)
+const OTHER_TYPES := {
+	"CostumeBrowPiercing": {"rightbrowpierce": "#rightbrowpierce", "leftbrowpierce": "#leftbrowpierce"},
+	"CostumeNosePiercing": {"target": "#nosepierce"},
+	"Overlay": {"screenlayer": "@screenEffects", "frontlayer": "@frontLayer", "backlayer": "@backLayer",
+		"scenelayer": "@sceneLayer", "mistlayer": "@mistLayer", "diabox": "@dialogueControl"},
+	"DialogueBox": {"target": "@dialogueControl"},
+	"Futa": {"target": "torso.penisContainer"},
+}
+const ALL_TYPES := ["BodyHead", "BodyEye", "CostumeBrowPiercing", "CostumeNosePiercing", "Overlay", "DialogueBox",
+	"Futa"]
+
 ## Her own parts a hideVanillaFace head mod covers: their first child is hidden (on load and skin changes)
 const FACE_COVERS := {"nose": "head.face.nose", "ear": "ear", "eyeridge": "eye.eyebrowUnderMask",
 	"face": "head.face.skull", "upperteeth": "head.teeth"}
@@ -43,6 +69,10 @@ const MOOD_GROUPS := {"happy": ["happy", "elated", "excited", "smug", "tease"],
 	"ahegao": ["ahegao", "horny", "overwhelmed", "devoted", "broken", "drugged"]}
 
 const LIST := "extramod"   # the mod catalog's list of ExtraMod mods (Her > Face in the new menu)
+const PIERCING_LIST := "extramod_piercings"   # Clothes > Piercings
+const FUTA_LIST := "extramod_futa"            # Her > Body
+const OVERLAY_LIST := "extramod_overlays"     # Scene > Overlays
+const DIABOX_LIST := "extramod_diabox"        # Dialogue > Dialogue
 
 var c := {}               # container name -> FlashSprite
 var _mood_parts: Array = []    # parts with a "mood" child
@@ -56,6 +86,14 @@ var _lip_offset := 0           # her lip / jaw frames: 81 per skin
 ## Every ExtraMod mod placed: {"pkg": its LoadedModPackage, "type", "flags": {flag: value}}, replayed when one of them
 ## is taken off alone (the others keep what they need hidden)
 var _records: Array = []
+var _dia_box = null            # the game's own dialogue box picture
+var _dia_mods := false         # a mod replaces the dialogue box picture
+var _dia_color = null          # dialogue text colour / size set by a mod or an EM_ word (null: the game's)
+var _dia_size = null
+var _dia_font := false         # a mod or an EM_ word set a font
+var _futa := false
+var _others: Array = []        # [package, mod] of the mods of the other types, replayed like _records
+var _brow_pierce := false
 const FLAG_KEYS := ["overwrite", "hideVanillaFace", "hideVanillaEye", "hideVanillaEyebrows", "hideVanillaHeadTan",
 	"hideScalp", "hideCheekBulge", "useSkinPalette"]
 
@@ -63,7 +101,7 @@ const FLAG_KEYS := ["overwrite", "hideVanillaFace", "hideVanillaEye", "hideVanil
 func _init() -> void:
 	id = "extramod"
 	title = "ExtraMod"
-	description = "ExtraMod Core (SClover13): mod types for her head and eyes (more to come), for mods made with the ExtraMod template. Needs TemplateExtension."
+	description = "ExtraMod Core (SClover13): mod types for her head and eyes, overlays, dialogue boxes, her penis and brow / nose piercings, for mods made with the ExtraMod template. Needs TemplateExtension."
 	default_enabled = true
 
 
@@ -87,6 +125,11 @@ func _enable() -> void:
 		c["backeyelash"]._flash_parent.setChildIndex(c["backeyelash"], 0)   # behind her head
 	_register("BodyHead", HEAD_PARTS)
 	_register("BodyEye", EYE_PARTS)
+	for t in OTHER_TYPES:
+		_register(t, OTHER_TYPES[t])
+	var dc = g.dialogueControl
+	if dc != null and dc.numChildren > 0:
+		_dia_box = dc.getChildAt(0)
 	_lip_offset = g.characterControl.currentSkin * 81
 	hook_after(&"CustomElementLoader.addStaticModElement", func(h): _placed(h.args[0]))
 	hook_after(&"CustomElementLoader.clearInstancedMods", func(_h): _reset())
@@ -95,23 +138,47 @@ func _enable() -> void:
 	hook_after(&"CharacterControl.setSkin", func(h): _skin_changed(h.args[0]))
 	hook_after(&"CharacterControl.setEyebrowFill", func(h): _brow_colour("fill", h.args[0]))
 	hook_after(&"CharacterControl.setEyebrowLine", func(h): _brow_colour("line", h.args[0]))
+	hook_after(&"HerPenisControl.updatePenis", func(_h): _update_futa())
+	hook_after(&"Dialogue.startSpeakingPhrase", func(_h): _update_dia())
+	hook_before(&"Dialogue.checkWordAction", _on_word)
 	on_event("mood_changed", func(_m): _update_moods())
 	on_late_tick(_tick)
 	if g.modCatalog != null:
 		g.modCatalog.add_picker(LIST, ["BodyHead", "BodyEye"])
+		g.modCatalog.add_picker(PIERCING_LIST, ["CostumeBrowPiercing", "CostumeNosePiercing"])
+		g.modCatalog.add_picker(FUTA_LIST, ["Futa"])
+		g.modCatalog.add_picker(OVERLAY_LIST, ["Overlay"])
+		g.modCatalog.add_picker(DIABOX_LIST, ["DialogueBox"])
 	menu_control("her", "Face", {"type": "custom", "label": "ExtraMod face and eye mods", "wide": true,
 		"tip": "Face, eye and eyebrow mods made with ExtraMod, from Mods/Clothing. Several can be on: they stack.",
 		"build": func(): return ModSwitchList.build(LIST, _toggle), "keywords": "extramod em emc face eyes eyebrows anime"})
+	menu_control("clothes", "Piercings", {"type": "custom", "label": "Brow and nose piercing mods", "wide": true,
+		"tip": "Eyebrow and nose piercings made with ExtraMod, from Mods/Clothing.",
+		"build": func(): return ModSwitchList.build(PIERCING_LIST, _toggle, "None found in Mods/Clothing."),
+		"keywords": "extramod piercing brow eyebrow nose"})
+	menu_control("her", "Body", {"type": "custom", "label": "Penis mods", "wide": true,
+		"tip": "Art for her penis made with ExtraMod (Futa mods), from Mods/Clothing. Shown while she has a penis (Penis above).",
+		"build": func(): return ModSwitchList.build(FUTA_LIST, _toggle, "None found in Mods/Clothing."),
+		"keywords": "extramod futa penis"})
+	menu_control("scene", "Overlays", {"type": "custom", "label": "Overlay mods", "wide": true,
+		"tip": "Art over or behind the scene made with ExtraMod (Overlay mods), from Mods/Clothing. Some also change the dialogue box or its text.",
+		"build": func(): return ModSwitchList.build(OVERLAY_LIST, _toggle, "None found in Mods/Clothing."),
+		"keywords": "extramod overlay screen layer mist frame"})
+	menu_control("dialogue", "Dialogue", {"type": "custom", "label": "Dialogue box mods", "wide": true,
+		"tip": "Dialogue box pictures made with ExtraMod, from Mods/Clothing; some also change the text colour, size or font.",
+		"build": func(): return ModSwitchList.build(DIABOX_LIST, _toggle, "None found in Mods/Clothing."),
+		"keywords": "extramod dialogue box font text colour"})
 	her.updateEyes()
 
 
 func _disable() -> void:
 	if g.modCatalog != null:
-		g.modCatalog.remove_picker(LIST)
+		for k in [LIST, PIERCING_LIST, FUTA_LIST, OVERLAY_LIST, DIABOX_LIST]:
+			g.modCatalog.remove_picker(k)
 	var cel = g.customElementLoader
 	if cel != null:
-		cel.clearModTypes(["BodyHead", "BodyEye"])
-		for t in ["BodyHead", "BodyEye"]:
+		cel.clearModTypes(ALL_TYPES)
+		for t in ALL_TYPES:
 			cel.modTargetHelpers.erase(t)
 	_reset()
 	for n in c:
@@ -124,7 +191,13 @@ func _register(type: String, parts: Dictionary) -> void:
 	var d := {}
 	for p in parts:
 		var path: String = parts[p]
-		var o = c.get(path.substr(1)) if path.begins_with("#") else _node(path)
+		var o
+		if path.begins_with("#"):
+			o = c.get(path.substr(1))
+		elif path.begins_with("@"):
+			o = g.get(path.substr(1))
+		else:
+			o = _node(path)
 		if o != null:
 			d[p] = o
 	g.customElementLoader.modTargetHelpers[type] = CustomElementHelper.new(d)
@@ -194,10 +267,14 @@ func _rebuild() -> void:
 	for lm in g.customElementLoader.instancedModElements:
 		live[lm.sourcePackage] = true
 	var keep: Array = _records.filter(func(r): return live.has(r["pkg"]))
+	var others: Array = _others.filter(func(o): return live.has(o[0]) and is_instance_valid(o[1]))
 	_reset()
 	_records = keep
+	_others = others
 	for r in keep:
 		_apply(r, false)
+	for o in others:
+		_other_placed(str(o[1].get("modType")), o[1], false)
 
 
 # ---------------------------------------------------------------- a mod was placed
@@ -206,7 +283,11 @@ func _placed(m) -> void:
 	if m == null or not m is FlashDisplayObject:
 		return
 	var t := str(m.get("modType"))
+	if not t in ALL_TYPES:
+		return
 	if t != "BodyHead" and t != "BodyEye":
+		_others.append([g.customElementLoader.loadingModPackage, m])
+		_other_placed(t, m, true)
 		return
 	var r := {"pkg": g.customElementLoader.loadingModPackage, "type": t, "flags": {}}
 	for f in FLAG_KEYS:
@@ -333,6 +414,114 @@ func _hide_face() -> void:
 		her.head.headTan.visible = false
 
 
+# ---------------------------------------------------------------- scene, dialogue, her penis, piercings
+
+func _other_placed(t: String, m, first: bool) -> void:
+	if first and m.get("overwrite") and t != "Futa":
+		g.customElementLoader.clearModTypes([t])
+	match t:
+		"Futa":
+			_futa = true
+			_update_futa()
+		"CostumeBrowPiercing":
+			_brow_pierce = true
+			_follow_eyes()
+		"Overlay", "DialogueBox":
+			_dia_text_from(m)
+			_update_dia()
+
+
+## A mod's dialogue text settings (newColor: hex string or number, newFontSize, dialogueFontName).
+func _dia_text_from(m) -> void:
+	var col = m.get("newColor")
+	if col != null and str(col) != "":
+		var n: int = _hex(str(col)) if col is String else int(col)
+		_dia_color = n if n >= 0 else 9030   # ExtraMod's fallback for a bad colour code
+	var font = m.get("dialogueFontName")
+	if font != null and str(font) != "":
+		g.dialogueControl.setCustomFont(str(font))
+		_dia_font = true
+	var size = m.get("newFontSize")
+	if size != null and float(size) > 0:
+		_dia_size = float(size)
+	_dia_format()
+
+
+## "ff0000" or "0xff0000" -> the number, -1 if it is not one.
+static func _hex(t: String) -> int:
+	t = t.strip_edges().trim_prefix("_").trim_prefix("#")
+	if t.to_lower().begins_with("0x"):
+		t = t.substr(2)
+	return t.hex_to_int() if t != "" and t.is_valid_hex_number() else -1
+
+
+## The dialogue text gets the mods' colour and size (the game's own font changes put them back otherwise).
+func _dia_format() -> void:
+	if _dia_color == null and _dia_size == null:
+		return
+	var field = g.dialogueControl.tfContainer.dialogueField
+	var fmt := {}
+	if _dia_color != null and field.textColor != _dia_color:
+		fmt["color"] = _dia_color
+	if _dia_size != null and field._font_size != _dia_size:
+		fmt["size"] = _dia_size
+	if not fmt.is_empty():
+		field.setTextFormat(fmt)
+
+
+## The dialogue box picture: a mod's replaces the game's.
+func _update_dia() -> void:
+	var dc = g.dialogueControl
+	var mods: Array = _parts("Overlay", "diabox") + _parts("DialogueBox")   # ExtraMod's order
+	_dia_mods = not mods.is_empty()
+	for p in mods:
+		if p._flash_parent == dc:
+			dc.setChildIndex(p, 0)
+	if _dia_box != null and is_instance_valid(_dia_box):
+		_dia_box.visible = not _dia_mods
+
+
+## Dialogue words [EM_FCLEAR], [EM_FONT<name>], [EM_FSIZE<n>], [EM_FCOLOR<hex>]: done at once, the line goes on.
+func _on_word(h) -> void:
+	var raw: String = h.args[0]
+	if not raw.begins_with("[EM_F"):
+		return
+	var a := raw.substr(1, raw.length() - 2)
+	var dc = g.dialogueControl
+	if a == "EM_FCLEAR":
+		_dia_color = null
+		_dia_size = null
+		_dia_font = false
+		dc.setDefaultFont()
+	elif a.begins_with("EM_FONT"):
+		var font_name := a.substr(7).trim_prefix("_").replace("_slash5C_", "\\").replace("_", " ")
+		if font_name != "":
+			dc.setCustomFont(font_name)
+			_dia_font = true
+	elif a.begins_with("EM_FSIZE"):
+		var v := a.substr(8).trim_prefix("_")
+		if v.is_valid_float() and float(v) > 0:
+			_dia_size = float(v)
+	elif a.begins_with("EM_FCOLOR"):
+		var n := _hex(a.substr(9))
+		if n >= 0:
+			_dia_color = n
+	else:
+		return
+	_dia_format()
+	dc.nextWord()
+	h.cancel()
+
+
+## Futa parts show while she has a penis.
+func _update_futa() -> void:
+	if not _futa:
+		return
+	var on: bool = g.her._penisControl.currentPenisID != 0
+	for p in _parts("Futa"):
+		p.visible = on
+
+
 # ---------------------------------------------------------------- skin, moods, brow colours
 
 func _skin_changed(skin: int) -> void:
@@ -390,6 +579,10 @@ func _follow_eyes() -> void:
 				continue
 			for p in _parts("BodyHead", side[0] + "brow" + which.to_lower()):
 				_frame(p, hers.currentFrame)
+			if which == "Fill" and _brow_pierce:
+				c[side[0] + "browpierce"].transform = side[1].transform
+				for p in _parts("CostumeBrowPiercing", side[0] + "browpierce"):
+					_frame(p, hers.currentFrame)
 	var eye = her.eye
 	var ball = eye.ball
 	ball.upperEyelidMask.visible = not _eye_masks
@@ -464,7 +657,11 @@ func _tan_child(part) -> void:
 
 
 func _tick() -> void:
+	if _dia_color != null or _dia_size != null:
+		_dia_format()
 	if _hide.is_empty() and _skin_parts.is_empty() and not _eye_set:
+		if _brow_pierce and g.gamePaused:
+			_follow_eyes()
 		return
 	var her = g.her
 	if _hide.get("jaw", false):
@@ -480,6 +677,7 @@ func _tick() -> void:
 
 ## Everything the mods hid comes back.
 func _reset() -> void:
+	_reset_other()
 	var her = g.her
 	if her == null or (_hide.is_empty() and not _eye_set and _skin_parts.is_empty() and _mood_parts.is_empty()):
 		return   # nothing was changed: the game's own clearing stays as it is
@@ -519,3 +717,19 @@ func _reset() -> void:
 	_eye_set = false
 	her._tan.updateSkin()
 	her.updateEyes()
+
+
+## The dialogue box and text, her penis parts and brow piercings back to the game's.
+func _reset_other() -> void:
+	if _dia_mods and _dia_box != null and is_instance_valid(_dia_box):
+		_dia_box.visible = true
+	_dia_mods = false
+	var dc = g.dialogueControl
+	if dc != null and (_dia_font or _dia_color != null or _dia_size != null):
+		dc.setDefaultFont()
+	_dia_color = null
+	_dia_size = null
+	_dia_font = false
+	_futa = false
+	_brow_pierce = false
+	_others.clear()
