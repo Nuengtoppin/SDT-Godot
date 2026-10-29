@@ -11,7 +11,8 @@ var eyeroll_mode := 0
 var eyelid_mode := 0          # 0 normal, 1 auto lower, 2 slider limit, 3 both
 var eyelid_slider := 0.5
 # state
-var prev_rot := 0.0
+var _held_look = null          # see held_look()
+var _seen_look := Vector2.INF
 var toggle_out_eyes := false
 var trying_face := false
 var trying_penis := false
@@ -365,6 +366,8 @@ func update_lips() -> void:
 
 
 # ---------------------------------------------------------------- looking (value points Her.lookTarget, Her.gazeAngle)
+# (moremoods' iris speed limits for some moods clamped the iris rotation before the game set it again from the eased
+# angle, so they never showed; not carried over)
 
 func _change_look_target(target: Vector2) -> void:
 	trying_face = target == g.her.hisFace
@@ -376,79 +379,64 @@ func _look_point(x: float, y: float) -> Vector2:
 	return g.sceneLayer.globalToLocal(g.her.localToGlobal(Vector2(x, y)))
 
 
-func _limit_rot(step: float) -> void:
-	var her = g.her
-	var ic = her.eye.ball.irisContainer
-	if not eyeroll_enabled():
-		ic.rotation_degrees = clampf(ic.rotation_degrees, prev_rot - step, prev_rot + step)
-	prev_rot = ic.rotation_degrees
+## The point the mood holds her look at (moremoods' own state, never written into hers), null: none. The game's
+## next look change ends it, as its own assignment replaced the mod's in the original.
+func held_look():
+	var cur: Vector2 = g.her.currentLookTarget
+	if cur != _seen_look:
+		_seen_look = cur
+		_held_look = null
+	return _held_look
 
 
-func _target_local() -> Vector2:
-	return g.her.globalToLocal(g.sceneLayer.localToGlobal(g.her.currentLookTarget))
+func hold_look(p: Vector2) -> void:
+	held_look()
+	_held_look = p
 
 
-## The mood's look point (MOOD modifier of Her.lookTarget): the point the game chose, or the mood's own.
+## The mood's look point (MOOD modifier of Her.lookTarget): the point the game chose, or the mood's own. Only returns
+## it: her own look state is the game's (dialogue looks, OVERRIDE, and pass-out states, FINAL, still apply on top).
 func mood_point(point: Vector2) -> Vector2:
 	var her = g.her
 	var him = g.him
 	var m: String = mm.mood_name
-	var chosen := point
+	var held = held_look()
+	var cur: Vector2 = held if held != null else point
 	if m == "Submissive":
-		her.currentLookTarget = _look_point(800, s("submissivehimeye") if trying_face else s("submissivenormaleye"))
-		chosen = her.currentLookTarget
-		_limit_rot(0.25)
-	if m == "Drugged":
-		if her.currentLookTarget == her.hisFace:
-			her.currentLookTarget = her.eyesUnfocused
-			chosen = her.currentLookTarget
-		if her.nextLookTarget == her.hisFace:
-			her.nextLookTarget = her.eyesUnfocused
+		return _look_point(800, s("submissivehimeye") if trying_face else s("submissivenormaleye"))
+	if m == "Drugged" and cur == her.hisFace:
+		return her.eyesUnfocused
 	if m == "Spent" or m == "Numb":
-		her.currentLookTarget = _look_point(816, -138)
-		chosen = her.currentLookTarget
-		_limit_rot(1.0 / 9.0)
+		return _look_point(816, -138)
 	if m == "Depressed":
-		her.currentLookTarget = _look_point(800, 75)
-		chosen = her.currentLookTarget
-		_limit_rot(1.0 / 6.0)
-	if m == "Android":
-		if her.passedOut:
-			her.currentLookTarget = _look_point(800, s("androidmoodpassouteyeycord"))
-			chosen = her.currentLookTarget
-			if not eyeroll_enabled():
-				var ic = her.eye.ball.irisContainer
-				ic.rotation_degrees = clampf(ic.rotation_degrees, prev_rot - 1.0 / 6.0, prev_rot + 1.0 / 6.0)
-		prev_rot = her.eye.ball.irisContainer.rotation_degrees
+		return _look_point(800, 75)
+	if m == "Android" and her.passedOut:
+		return _look_point(800, s("androidmoodpassouteyeycord"))
+	var want = null
 	if m == "Nervous" and not g.gamePaused and her.mouthFull and not her.passedOut:
-		var want: Vector2 = her.eyesDown if him.ejaculating else her.hisFace
-		if her.currentLookTarget != want:
-			her.currentLookTarget = want
-			chosen = her.currentLookTarget
+		want = her.eyesDown if him.ejaculating else her.hisFace
 	if m == "Smug" and not g.gamePaused and not her.passedOut:
 		if her.mouthFull:
-			if him.ejaculating and her.currentLookTarget != her.eyesDown:
-				her.currentLookTarget = her.eyesDown
-				chosen = her.currentLookTarget
-		elif her.currentLookTarget != her.hisFace:
-			her.currentLookTarget = her.hisFace
-			chosen = her.currentLookTarget
+			if him.ejaculating:
+				want = her.eyesDown
+		else:
+			want = her.hisFace
 	if m == "Professional" and not g.gamePaused and not her.passedOut:
-		if (him.pleasure + 10 > him.ejacPleasure or him.ejaculating) and her.currentLookTarget != her.hisFace:
-			her.currentLookTarget = her.hisFace
-			chosen = her.currentLookTarget
+		if him.pleasure + 10 > him.ejacPleasure or him.ejaculating:
+			want = her.hisFace
 	if m == "Tease" or m == "Overwhelmed":
 		if not g.gamePaused and not her.passedOut:
 			if (her.mouthFull and him.ejaculating) or (her.mouthFull and her.passOutFactor > 0) or (her.held and mm.bite_timer() > 20):
-				if her.currentLookTarget != her.eyesDown:
-					her.currentLookTarget = her.eyesDown
-					chosen = her.currentLookTarget
+				if cur != her.eyesDown:
+					want = her.eyesDown
 					eye_look_timer = 80 if him.ejaculating else 30
-			elif eye_look_timer == 0 and her.currentLookTarget != her.hisFace:
-				her.currentLookTarget = her.hisFace
-				chosen = her.currentLookTarget
+			elif eye_look_timer == 0:
+				want = her.hisFace
 		eye_look_timer = maxi(0, eye_look_timer - 1)
-	return chosen
+	if want != null and want != cur:
+		hold_look(want)
+		cur = want
+	return cur
 
 
 ## moremoods' iris angle (GENERATE modifier of Her.gazeAngle), towards the point she looks at.
@@ -531,7 +519,6 @@ func wake_up() -> void:
 	if m == "Spent":
 		her.eyeMotion["ang"] = 80.0
 		her.eye.ball.irisContainer.rotation_degrees = her.eyeMotion["ang"] - 90
-		prev_rot = her.eye.ball.irisContainer.rotation_degrees
 		her.eyelidMotion["shock"] = 25
 	if m == "Submissive":
 		her.eyeMotion["ang"] = 110.0

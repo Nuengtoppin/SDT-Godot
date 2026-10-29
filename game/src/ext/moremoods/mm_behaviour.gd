@@ -965,15 +965,17 @@ func _after_movement_sounds() -> void:
 		if her.vigour > her.VIGOUR_WINCE_LEVEL / 3.0 and randf() > 0.5:
 			her.startClenchingTeeth()
 	if m == "Nervous":
-		if her.currentLookTarget != _eye_change_holder:
-			_eye_change_holder = her.currentLookTarget
+		var look = mm.face.held_look()
+		if look == null:
+			look = her.currentLookTarget
+		if look != _eye_change_holder:
+			_eye_change_holder = look
 			_eye_change_timer = 0
 		else:
 			_eye_change_timer = mini(500, _eye_change_timer + 1)
 		if _eye_change_timer > 60 and her.offActionTimer == 0 and _action_tracker != 0:
-			if her.currentLookTarget != her.eyesDown:
-				her.currentLookTarget = her.eyesDown
-				her.lookAt(her.currentLookTarget)
+			if look != her.eyesDown:
+				mm.face.hold_look(her.eyesDown)   # given out through the look value point (mood_point)
 	if her.offActionTimer == 0 and _action_tracker != 0:
 		if m in ["Aggressive", "Elated", "Excited", "Smug", "Horny"]:
 			her.waggleEyebrows()
