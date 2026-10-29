@@ -1,8 +1,8 @@
 extends SDTExtension
-## Port of sby's autoclosemouthV10 Loader mod: she closes her mouth some time after the penis left it. A button by
-## the mood selector (Scene menu) switches it on (green) and off per character; saved in the character code as
-## autoCloseMouth:CloseMouth / Normal, like the Loader mod. It closes her mouth through the value point Her.jawAngle, so
-## her lips follow (the mod's "updatelips" setting is not needed).
+## Port of sby's autoclosemouthV10 Loader mod: she closes her mouth some time after the penis left it. The Behaviour >
+## Reactions toggle or a button by the mood selector (classic Scene menu) switches it on (green) and off per character;
+## saved in the character code as autoCloseMouth:CloseMouth / Normal, like the Loader mod. It closes her mouth through
+## the value point Her.jawAngle, so her lips follow (the mod's "updatelips" setting is not needed).
 
 const MOODS := ["Angry", "Normal", "Happy", "Ahegao", "Upset", "Worried", "Aggressive", "Drugged", "Frightened",
 	"Spent", "Submissive", "Depressed", "Nervous", "Elated", "Disgusted", "Broken"]
@@ -50,6 +50,9 @@ func _enable() -> void:
 	on = get_setting("defaultmode")
 	_button = menu_button("sceneMenu", -330 + 100 + 1 + 22 + 22, 40, "ᾑ0", func(): on = not on)
 	on_late_tick(_tick)
+	menu_control("behaviour", "Reactions", MenuSchema.toggle("Close her mouth after sucking",
+		"She closes her mouth a while after the penis left it. Saved with the character.",
+		func(): return on, func(v: bool): on = v, {"keywords": "mouth close autoclosemouth"}))
 	# closing: her jaw drawn towards closed by closepercent (MOOD modifier of Her.jawAngle, after moods' mouth hang;
 	# dialogue triggers such as MoreTriggers' [OPEN_MOUTH_ms] override it)
 	modify(&"Her.jawAngle", {"phase": Hooks.MOOD, "order": 10, "op": "fn", "fn": func(v, _her):

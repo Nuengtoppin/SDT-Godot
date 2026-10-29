@@ -1552,6 +1552,8 @@ func animateBreathing() -> void:
 		breathingFactor *= 0.8
 		pos += getRandomMotion()
 	breathingFactor += coughFactor * 0.8
+	if Hooks.has(&"Her.animateBreathing"):   # HOOK
+		Hooks.after(&"Her.animateBreathing", self, [])
 
 
 func tickCoughBuild() -> void:
