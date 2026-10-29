@@ -127,10 +127,10 @@ func refresh() -> void:
 	if _mask_obj == null or not is_instance_valid(_mask_obj) or not is_inside_tree():
 		return
 	var on := FlashProxy.shown(self)
-	var mode := SubViewport.UPDATE_ALWAYS if on else SubViewport.UPDATE_DISABLED
-	if _vp.render_target_update_mode != mode:
-		_vp.render_target_update_mode = mode
-		_mask_vp.render_target_update_mode = mode
+	# Drawn once after each tick (the display list only changes in ticks): the frames between reuse the picture.
+	var mode := SubViewport.UPDATE_ONCE if on else SubViewport.UPDATE_DISABLED
+	_vp.render_target_update_mode = mode
+	_mask_vp.render_target_update_mode = mode
 	if not on:
 		return
 	var cont := _space_object()
