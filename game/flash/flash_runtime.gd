@@ -416,6 +416,7 @@ func _physics_process(_delta: float) -> void:
 		for ch in _active_channels.keys():
 			ch._tick_deterministic()
 	_slowest_listener_us = 0
+	_flush_mouse_move()
 	# 0. Callbacks that run before the game's tick (port extensions, see tick_before).
 	for cb in tick_before:
 		cb.call()
@@ -473,7 +474,7 @@ func _physics_process(_delta: float) -> void:
 	_perf_add("#masks", t3 - t2)
 	_perf_add("#groups", t4 - t3)
 	# objects moving under a still mouse: a hit search costs up to ~0.2 ms, so look every few ticks (mouse motion
-	# updates it at once, see _handle_input)
+	# updates it at the next tick, see _flush_mouse_move)
 	if tick_count % MOUSE_OVER_TICKS == 0:
 		_update_mouse_over()
 	if tick_count % 3600 == 0 and base_library != null:   # every 2 minutes: the warm-up list survives a crash
@@ -987,11 +988,28 @@ func _input(event: InputEvent) -> void:
 		return
 	var t0 := Time.get_ticks_usec()
 	_handle_input(event)
+	if event is InputEventMouseMotion and not _gui_wants_motion(event):
+		get_viewport().set_input_as_handled()
 	var dt := Time.get_ticks_usec() - t0
 	_frame_input_us += dt
 	if dt > _frame_input_max_us:
 		_frame_input_max_us = dt
 		_frame_input_max = _describe_input(event)
+
+
+## Godot's GUI looks for the Control under the mouse on every motion event (~80 µs: the game's text fields are
+## ~250 Labels, each a GUI root). Motion goes on to the GUI only where a Control can use it: over the menus and
+## popups (mouse_blocker), while a button is held (drags), while a text field has focus, and once more after
+## leaving them (their hover ends).
+var _gui_motion := true
+
+
+func _gui_wants_motion(m: InputEventMouseMotion) -> bool:
+	var want: bool = m.button_mask != 0 or (mouse_blocker.is_valid() and mouse_blocker.call()) \
+		or get_viewport().gui_get_focus_owner() != null
+	var pass_on := want or _gui_motion
+	_gui_motion = want
+	return pass_on
 
 
 var _frame_input_us := 0        # time spent in _input during the current frame
@@ -1017,6 +1035,7 @@ func _handle_input(event: InputEvent) -> void:
 			and mouse_blocker.call():
 		return
 	if event is InputEventMouseButton:
+		_flush_mouse_move()   # the move before the press, as in Flash
 		var mb := event as InputEventMouseButton
 		var target := _mouse_target_at(mouse_position())
 		if mb.button_index == MOUSE_BUTTON_LEFT:
@@ -1035,9 +1054,9 @@ func _handle_input(event: InputEvent) -> void:
 			_fill_local(e, target)
 			target.dispatchEvent(e)
 	elif event is InputEventMouseMotion:
-		var target := _mouse_target_at(mouse_position())
-		_dispatch_mouse(target, FlashEvent.MOUSE_MOVE)
-		_update_mouse_over(target, true)
+		_mouse_moved = true
+		if paused:
+			_flush_mouse_move()
 	elif event is InputEventKey:
 		var k := event as InputEventKey
 		if k.echo and not k.pressed:
@@ -1129,6 +1148,21 @@ func _dispatch_mouse(target: FlashDisplayObject, type: String) -> void:
 	var e := FlashEvent.mouse(type)
 	_fill_local(e, target)
 	target.dispatchEvent(e)
+
+
+## Mouse motion is handled once per tick (and before a press), not per motion event: Godot sends about one a frame,
+## and each costs a hit search of the scene (~0.2 ms; at 1000 fps a fifth of the frame time). The game sees the
+## mouse in its ticks, and the picture changes only in ticks.
+var _mouse_moved := false
+
+
+func _flush_mouse_move() -> void:
+	if not _mouse_moved:
+		return
+	_mouse_moved = false
+	var target := _mouse_target_at(mouse_position())
+	_dispatch_mouse(target, FlashEvent.MOUSE_MOVE)
+	_update_mouse_over(target, true)
 
 
 func _update_mouse_over(target: FlashDisplayObject = null, searched := false) -> void:
