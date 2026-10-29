@@ -137,6 +137,9 @@ func step(_frame: int) -> void:
 				_rings_checks()
 				_entrance_checks()
 				_collar_checks()
+				_swallowing_checks()
+				_swallow_points_checks()
+				_swallow_queue_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -796,6 +799,223 @@ func _collar_checks() -> void:
 	ThroatRings.set_stiffness(0.6)
 	ThroatRings.reset_stretch()
 	cc.select(was)
+
+
+## throatcumbulge's swallowing: all off by default; per swallow, until empty (vetoable), while he cums, bulge by amount.
+func _swallowing_checks() -> void:
+	var x = Extensions.get_extension("throatcumbulge")
+	var her = g.her
+	var neck = her.head.neck
+	var was := [her.cumInMouth, her.swallowing, her.speaking, her.passedOut, her.penisInMouthDist, her.mouthFull, her.held]
+	_check("swallowing: all off by default", not x.get_setting("guzzle") and x.get_setting("pump") == "Off"
+		and x.get_setting("per_swallow") == 0)
+	her.swallowing = false
+	her.speaking = false
+	her.passedOut = false
+	# a swallow's wave starts: the game took 7 of 20; with "per swallow" 3 it takes 3
+	x.set_setting("per_swallow", 3)
+	x._prev_cum = 20
+	x._prev_wave = false
+	x._prev_swallowing = false
+	her.cumInMouth = 13
+	neck.swallowing = true
+	x._swallowing(her)
+	_check("per swallow: takes what is set", her.cumInMouth == 17 and x.last_amount == 3)
+	x.set_setting("per_swallow", 0)
+	x._prev_cum = 20
+	x._prev_wave = false
+	her.cumInMouth = 13
+	x._swallowing(her)
+	_check("per swallow 0: the game's amount", her.cumInMouth == 13 and x.last_amount == 7)
+	neck.swallowing = false
+	x.set_setting("guzzle", true)
+	x._prev_swallowing = true
+	her.swallowing = false
+	her.penisInMouthDist = -50.0
+	her.cumInMouth = 10
+	x._swallowing(her)
+	_check("until empty: she swallows again", her.swallowing)
+	her.swallowing = false
+	x._prev_swallowing = true
+	var n := _vetoed(&"Her.swallow", func(): x._swallowing(her))
+	_check("until empty: a veto on Her.swallow stops it", n == 1 and not her.swallowing)
+	x.set_setting("guzzle", false)
+	x._prev_swallowing = true
+	x._swallowing(her)
+	_check("until empty off: no extra swallow", not her.swallowing)
+	her.mouthFull = true
+	her.held = false
+	her.cumInMouth = 25
+	x._on_spurt()
+	_check("while he cums Off: nothing", not her.swallowing)
+	x.set_setting("pump", "When full")
+	x._on_spurt()
+	_check("while he cums When full: more than half full", her.swallowing)
+	her.swallowing = false
+	her.cumInMouth = 10
+	x._on_spurt()
+	_check("while he cums When full: not at a quarter", not her.swallowing)
+	x.set_setting("pump", "Always")
+	x._on_spurt()
+	_check("while he cums Always: whenever there is cum", her.swallowing)
+	her.swallowing = false
+	her.held = true
+	x._on_spurt()
+	_check("while he cums: not held deep (it goes down her throat)", not her.swallowing)
+	x.set_setting("pump", "Off")
+	x.set_setting("swallow_mode", "By amount")
+	neck.swallowing = true
+	x.last_amount = 10
+	x._swallow_scale(her)
+	var big: float = neck.swallowScale.x
+	x.last_amount = 5
+	x._swallow_scale(her)
+	_check("swallow bulge by amount: a bigger swallow, a bigger bulge", big > neck.swallowScale.x and is_equal_approx(big, 0.8 * 0.75 * 4))
+	neck.swallowing = false
+	x.set_setting("swallow_mode", "The game's")
+	x._swallow_scale(her)
+	her.cumInMouth = was[0]
+	her.swallowing = was[1]
+	her.speaking = was[2]
+	her.passedOut = was[3]
+	her.penisInMouthDist = was[4]
+	her.mouthFull = was[5]
+	her.held = was[6]
+	her.swallowTimer = 0
+	x._prev_cum = her.cumInMouth
+	x._prev_swallowing = her.swallowing
+
+
+## Runs `fn` counting the calls of hook `name` (not vetoed); returns the count.
+func _counted(name: StringName, fn: Callable) -> int:
+	var n := [0]
+	var count := func(_c): n[0] += 1
+	Hooks.add_before(name, count, "count")
+	fn.call()
+	Hooks.remove(name, count)
+	return n[0]
+
+
+func _set_test(name: StringName, v) -> int:
+	return Hooks.add_modifier(name, {"phase": Hooks.OVERRIDE, "op": "set", "value": v}, "ext_checks")
+
+
+## The swallow's own points: Her.swallow's after point (did it start), Her.gulp, Her.swallowSpeed, Her.swallowWince.
+func _swallow_points_checks() -> void:
+	var her = g.her
+	var was := [her.cumInMouth, her.swallowing, her.speaking, her.passedOut]
+	her.swallowing = false
+	her.speaking = false
+	her.passedOut = false
+	var started := []
+	var rec := func(c): started.append(c.result)
+	Hooks.add_after(&"Her.swallow", rec, "ext_checks")
+	her.swallow(0.8, false)
+	her.swallow(0.8, false)
+	Hooks.remove(&"Her.swallow", rec)
+	_check("Her.swallow after: tells a started swallow from a dropped one", started == [true, false], str(started))
+	var base: Dictionary = her.swallowSequence.duplicate()
+	her.swallowing = false
+	var sp := _set_test(&"Her.swallowSpeed", 2.0)
+	her.swallow(0.8, false)
+	Hooks.remove_modifier(sp)
+	var seq: Dictionary = her.swallowSequence
+	_check("Her.swallowSpeed 2: the swallow plays in half the ticks", seq["end"] == Maths.round(base["end"] / 2.0)
+		and seq["build"] < seq["swallow"] and seq["swallow"] < seq["relax"] and seq["relax"] < seq["end"], "%s -> %s" % [base, seq])
+	her.swallowing = false
+	her.swallow(0.8, false)
+	_check("Her.swallowSpeed unset: the game's lengths", her.swallowSequence == base)
+	her.swallowing = false
+	her.swallowTimer = 0
+	her.cumInMouth = 20
+	var n := _counted(&"Her.gulp", func(): her.gulp())
+	_check("Her.gulp: once, takes from her mouth", n == 1 and her.cumInMouth < 20 and her.cumInMouth >= 11)
+	her.cumInMouth = 20
+	n = _vetoed(&"Her.gulp", func(): her.gulp())
+	_check("Her.gulp vetoed: nothing leaves her mouth", n == 1 and her.cumInMouth == 20)
+	n = _counted(&"Her.wince", func(): her.gulp())
+	_check("Her.gulp: she squints (the game's)", n == 1)
+	var nw := _set_test(&"Her.swallowWince", false)
+	her.cumInMouth = 20
+	n = _counted(&"Her.wince", func(): her.gulp())
+	_check("Her.swallowWince false: the gulp without the squint", n == 0 and her.cumInMouth < 20)
+	Hooks.remove_modifier(nw)
+	her.head.neck.swallowing = false
+	her.cumInMouth = was[0]
+	her.swallowing = was[1]
+	her.speaking = was[2]
+	her.passedOut = was[3]
+	her.swallowTimer = 0
+
+
+## throatcumbulge's swallow queue, speed and squint (the game's way by default).
+func _swallow_queue_checks() -> void:
+	var x = Extensions.get_extension("throatcumbulge")
+	var her = g.her
+	var was := [her.cumInMouth, her.swallowing, her.speaking, her.passedOut, her.mouthFull, her.held]
+	_check("queue, speed, squint: the game's by default", x.get_setting("queue") == 0 and x.get_setting("speed") == 1.0
+		and x.get_setting("wince") and not Hooks.has_value(&"Her.swallowSpeed") and not Hooks.has_value(&"Her.swallowWince"))
+	her.swallowing = false
+	her.speaking = false
+	her.passedOut = false
+	her.cumInMouth = 30
+	her.swallow(0.8, false)
+	her.swallow(0.8, false)
+	_check("queue 0: a swallow asked for during one is dropped", x.queued == 0)
+	x.set_setting("queue", 2)
+	for i in 3:
+		her.swallow(0.8, false)
+	_check("queue 2: keeps two", x.queued == 2, str(x.queued))
+	x.set_setting("queue_gap", 3)
+	her.swallowing = false
+	x._queue(her)
+	x._queue(her)
+	_check("queue: waits the pause after a swallow ends", not her.swallowing and x.queued == 2)
+	x._queue(her)
+	_check("queue: then the next swallow", her.swallowing and x.queued == 1)
+	her.swallowing = false
+	her.cumInMouth = 0
+	x._gap = 0
+	for i in 3:
+		x._queue(her)
+	_check("dry swallows on: the series goes on with her mouth empty", her.swallowing and x.queued == 0)
+	her.swallowing = false
+	x.queued = 2
+	x.set_setting("dry", false)
+	x._queue(her)
+	_check("dry swallows off: an empty mouth ends the series", x.queued == 0 and not her.swallowing)
+	x.set_setting("dry", true)
+	x.queued = 2
+	her.passedOut = true
+	x._queue(her)
+	_check("queue: passing out clears it", x.queued == 0)
+	her.passedOut = false
+	x.set_setting("pump", "Always")
+	her.swallowing = true
+	her.mouthFull = true
+	her.held = false
+	her.cumInMouth = 10
+	x._on_spurt()
+	_check("while he cums + queue: the spurt's swallow waits", x.queued == 1)
+	x.set_setting("pump", "Off")
+	x.set_setting("queue", 0)
+	_check("queue 0 again: none wait, no hook on Her.swallow", x.queued == 0 and not Hooks.has(&"Her.swallow"))
+	x.set_setting("speed", 2.0)
+	x.set_setting("wince", false)
+	_check("speed and squint set the value points", Hooks.value(&"Her.swallowSpeed", her, 1.0) == 2.0
+		and Hooks.value(&"Her.swallowWince", her, true) == false)
+	x.set_setting("speed", 1.0)
+	x.set_setting("wince", true)
+	_check("speed and squint back: no modifiers", not Hooks.has_value(&"Her.swallowSpeed") and not Hooks.has_value(&"Her.swallowWince"))
+	her.cumInMouth = was[0]
+	her.swallowing = was[1]
+	her.speaking = was[2]
+	her.passedOut = was[3]
+	her.mouthFull = was[4]
+	her.held = was[5]
+	her.swallowTimer = 0
+	x._prev_cum = her.cumInMouth
+	x._prev_swallowing = her.swallowing
 
 
 ## Port fixes from sby's Loader patches (in the game code).

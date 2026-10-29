@@ -1310,7 +1310,9 @@ func swallow(intensity: float = 0.0, speak: bool = true) -> void:
 			return
 		intensity = h.args[0]
 		speak = h.args[1]
+	var started := false   # for the after hook (a request while she swallows, speaks or is out is dropped)
 	if not swallowing and not passedOut and not speaking:
+		started = true
 		if intensity <= 0.5:
 			swallowSequence["intensity"] = randf() * 0.3 + 0.5 * (float(cumInMouth) / maxCumInMouth) + 0.4
 		else:
@@ -1320,6 +1322,12 @@ func swallow(intensity: float = 0.0, speak: bool = true) -> void:
 		swallowSequence["swallow"] = Maths.round(swallowSequence["build"] + 16 * si)
 		swallowSequence["relax"] = Maths.round(swallowSequence["swallow"] + 16 * si)
 		swallowSequence["end"] = Maths.round(swallowSequence["relax"] + 30 * si)
+		if Hooks.has_value(&"Her.swallowSpeed"):   # HOOK value point: how fast the swallow plays (1 in the game)
+			var sp: float = maxf(0.1, Hooks.value(&"Her.swallowSpeed", self, 1.0))
+			var last := 0.0
+			for k in ["build", "swallow", "relax", "end"]:
+				last = maxf(last + 1.0, Maths.round(swallowSequence[k] / sp))
+				swallowSequence[k] = last
 		swallowTimer = 0
 		startSwallowTime = int(floor(randf() * 60 + 50))
 		startSwallowTimer = 0
@@ -1331,6 +1339,8 @@ func swallow(intensity: float = 0.0, speak: bool = true) -> void:
 			wetGenerate += si * 100
 		coughBuild += si * 10
 		swallowing = true
+	if Hooks.has(&"Her.swallow"):   # HOOK: result = whether the swallow started
+		Hooks.after(&"Her.swallow", self, [intensity, speak], started)
 
 
 func checkMovementSounds() -> void:
@@ -1624,10 +1634,7 @@ func updateElements() -> void:
 			else:
 				jawAngleTarget = closedJawAngle
 			if swallowTimer == swallowSequence["swallow"]:
-				wince()
-				g.soundControl.playSwallow(pos)
-				head.neck.swallow()
-				swallowFromMouth()
+				gulp()   # port: the swallow's moment, split out for its own hook point
 		elif swallowTimer >= swallowSequence["end"]:
 			swallowing = false
 			swallowTimer = 0
@@ -2236,7 +2243,8 @@ func tickSwallowing() -> void:
 		jawBulgeTarget = mini(49, jawBulgeTarget + int(floor(swallowPoint * 40.0)))
 		var fromSwallow := absi(swallowTimer - int(swallowSequence["swallow"]))
 		if fromSwallow < 10:
-			wince()
+			if not Hooks.has_value(&"Her.swallowWince") or Hooks.value(&"Her.swallowWince", self, true):   # HOOK value point: she squints around the swallow (true in the game)
+				wince()
 			headTiltTarget += 0.2 * headTiltScaling - 0.02 * fromSwallow * headTiltScaling
 			jawBulgeTarget = maxi(0, jawBulgeTarget - int(floor(35 * 0.1 * (10 - fromSwallow))))
 	updateJawBulge()
@@ -2256,6 +2264,22 @@ func fillMouth(force: bool = false) -> void:
 		else:
 			g.dialogueControl.buildState(Dialogue.CUM_IN_MOUTH, Dialogue.TICK_BUILD * 2)
 			cumInMouth = mini(maxCumInMouth, cumInMouth + 1)
+
+
+## Port: the moment she swallows (the jaw update's, split out so it has its own hook point): she squints,
+## the gulp sound, the wave down her neck, and what it takes from her mouth. Same order as the game's.
+func gulp() -> void:
+	if Hooks.has(&"Her.gulp"):   # HOOK
+		var h := Hooks.before(&"Her.gulp", self, [])
+		if h.cancelled:
+			return
+	if not Hooks.has_value(&"Her.swallowWince") or Hooks.value(&"Her.swallowWince", self, true):   # HOOK value point
+		wince()
+	g.soundControl.playSwallow(pos)
+	head.neck.swallow()
+	swallowFromMouth()
+	if Hooks.has(&"Her.gulp"):   # HOOK
+		Hooks.after(&"Her.gulp", self, [])
 
 
 func swallowFromMouth() -> void:
