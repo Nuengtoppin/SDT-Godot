@@ -455,6 +455,13 @@ func _behaviour_checks() -> void:
 	_teeth_tongue_checks()
 	_spurt_checks()
 	_journal_checks()
+	var parts := {}
+	for k in ["legs", "arms", "breasts"]:
+		parts[k] = DevBodyOverlay.parts()[k].call()
+	_check("body layers: legs 3 bones + knee target, arms 4 bones + 2 targets, breasts 2 lines + 2 pivots",
+		parts["legs"]["axes"].size() == 3 and parts["legs"]["points"].size() == 1 and parts["arms"]["axes"].size() == 4
+		and parts["arms"]["points"].size() == 2 and parts["breasts"]["axes"].size() == 2, str(parts.keys()))
+	DevBodyOverlay.set_on("legs", "axis", true)
 	DevTuning.set_clench_time(5.0)
 	DevTuning.set_spam_j(true)
 	var tools: Array = dev.sections.filter(func(sec): return sec["id"] == "dev_tools")[0]["groups"]
@@ -490,6 +497,7 @@ func _behaviour_checks() -> void:
 	_check("Developer mode off: no vetoes or observers left", not DevBehaviour._active and DevBehaviour._watch_fns.is_empty())
 	_check("Developer mode off: hand settings back to the game's", DevTuning._mods.is_empty() and not DevTuning._spam_fn.is_valid()
 		and DevTuning.clench_s == 0.0 and not Hooks.has_value(&"Her.clenchTime"))
+	_check("Developer mode off: the body's debug layers off", not DevBodyOverlay.any_on())
 	_check("Developer mode off: her air and oxygen the game's again", g.breathLevelMax == 50.0 and g.outOfBreathPoint == 25.0
 		and g.her.passOutMax == 40.0)
 	_check("Developer mode off: the event log stops, no hooks or tick of its own", not Journal.active

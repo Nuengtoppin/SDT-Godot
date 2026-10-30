@@ -53,7 +53,7 @@ static func _body() -> Dictionary:
 	var neck := func(): return g.her.head.neck
 	return {"id": "dev_body", "name": "Body", "groups": [
 		{"title": "Debug layers", "controls": [
-			MenuSchema.note("Drawn over the game, read only: straight lines through the points (the game draws curves through them). The same layers for every body part; legs and breasts come next."),
+			MenuSchema.note("Drawn over the game, read only: straight lines through the points (the game draws curves through them). The same layers for every body part."),
 			{"type": "slider", "label": "Line width", "tip": "Width of the outlines and axes, in screen pixels.", "min": 0.5, "max": 3.0, "step": 0.25,
 				"get": func(): return DevBodyOverlay.line_width, "set": func(v: float): DevBodyOverlay.line_width = v,
 				"format": func(v): return "%.2f" % v, "reset": func(): DevBodyOverlay.line_width = 1.0},
@@ -61,6 +61,19 @@ static func _body() -> Dictionary:
 				"get": func(): return DevBodyOverlay.point_radius, "set": func(v: float): DevBodyOverlay.point_radius = v,
 				"format": func(v): return "%.2f" % v, "reset": func(): DevBodyOverlay.point_radius = 1.5},
 			MenuSchema.actions("", "", [["Hide all layers", func(): DevBodyOverlay.clear(), "Switch every debug layer off."]]),
+			MenuSchema.note("Bones: yellow = the game's, orange = ours (our body layer, when it is on)."),
+		]},
+		{"title": "Legs", "controls": [
+			_layer("legs", "axis", "Bones", "Right leg: the IK chain torso -> thigh -> calf. Left leg: a copy of the right thigh's rotation (x0.95), not a chain of its own."),
+			_layer("legs", "points", "Knee target", "Where the pose aims her right knee (the left knee follows the copy)."),
+		]},
+		{"title": "Arms", "controls": [
+			_layer("arms", "axis", "Bones", "Both arms: IK chains upper arm -> forearm -> hand."),
+			_layer("arms", "points", "Hand targets", "Where each hand is aimed (her legs, his legs, him)."),
+		]},
+		{"title": "Breasts", "controls": [
+			_layer("breasts", "axis", "Sway", "A line down each breast from its pivot, leaning with its sway. Both get the same push in the game."),
+			_layer("breasts", "points", "Pivots", "Each breast's pivot."),
 		]},
 		{"title": "Neck", "controls": [
 			_layer("neck", "base", "Source outline", "Cyan: the neck's outline from the symbol, respaced, before the throat bulge and swallow wave."),
