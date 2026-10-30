@@ -491,12 +491,14 @@ static func _arm(get_fn: Callable, step: Callable, want: int, back := Callable()
 ## (the left one x0.95), so the left knee is the right one's point and the left hip the right hip's place in its
 ## thigh put on the left thigh (the old fit checks out: -342,461 gives -319,452, fitted by hand -320,451); the left
 ## calf's skin is the right one's (the left calf also holds the far foot, hence its larger bounds), so the same ankle.
-## Not yet: the breasts (their pivots for now).
+## The knees stay at the calf pictures' own pivots (357, 286): a knee ring turns the calf about its knee point, and
+## about any other point the calf slides off the thigh (Dima tried 387, 280: a gap at the knee). Not yet: the
+## breasts (their pivots for now).
 const FIT := {"hip_r": Vector2(-361, 457), "hip_l": Vector2(-337, 448), "lumbar": Vector2(-169, 340),
 	"thoracic": Vector2(-56, 180), "neck_base": Vector2(-1, 0), "shoulder_r": Vector2(12, -5),
 	"shoulder_l": Vector2(-13, 5), "head_pivot": Vector2(-28, 31), "jaw": Vector2(-29, 85),
 	"throat_top": Vector2(55, 66), "nape_top": Vector2(-21, 31), "throat_bottom": Vector2(65, 48),
-	"nape_bottom": Vector2(-56, 134), "knee_r": Vector2(387, 280), "knee_l": Vector2(387, 280),
+	"nape_bottom": Vector2(-56, 134), "knee_r": Vector2(357, 286), "knee_l": Vector2(357, 286),
 	"ankle_r": Vector2(-486, 61), "ankle_l": Vector2(-486, 61)}
 static var marks := {}
 static var editing := false        # Body > Her body > "Edit points": drag them with the left mouse button
