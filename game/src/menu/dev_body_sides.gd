@@ -78,8 +78,8 @@ static func _firm(v, obj):
 ## The game has no physics, no gravity: every part follows its own rule (her arms "loose" are an IK aimed at a
 ## point below her shoulder). A loose leg here is a small one of its own: two bones, thigh (hip -> knee, where
 ## the calf turns) and calf (knee -> our ankle point), each pulled down and thrown by its joint's movement
-## (inertia), the knee bending only within its ring's range (straight .. folded), the thigh within a range of
-## where it knelt, and the floor (the pose's knee target) under her knee and foot. Worked out in the scene's
+## (inertia), the knee and the thigh (from where it knelt) within their rings' ranges, and the floor (the pose's
+## knee target) under her knee and foot. Worked out in the scene's
 ## space (the camera's zoom doesn't move it), once after the game's updateElements has placed her legs.
 const LEG_MODES := ["Kneeling", "Loose"]
 static var leg_l := "Kneeling"
@@ -87,7 +87,11 @@ static var leg_r := "Kneeling"
 static var loose_gravity := 0.02   # pull down, radians per tick squared (at a level bone)
 static var loose_damp := 0.08      # share of its swing lost per tick
 static var loose_push := 1.0       # how much her movement throws it (1: as a real weight would)
-static var loose_limit := 60.0     # how far the thigh may turn from where it knelt (degrees either way)
+## The floor under a loose leg, from her kneeling (the game's, unchanged): the right knee sits on the pose's knee
+## target, the left one (the far leg, drawn higher) 0.077 of its thigh above it; the ankles lie lower than that line
+## by 0.125 / 0.052 of their calves. Parts of the bones' lengths, so they hold at any body size.
+const KNEE_FLOOR := {"r": 0.0, "l": -0.077}
+const ANKLE_FLOOR := {"r": 0.125, "l": 0.052}
 static var loose_floor := true     # the floor holds her knee and foot (off: they hang through it)
 static var _after := Callable()
 static var _st := {}               # "l" / "r" -> the leg's state (angles in the scene's space, radians)
@@ -171,7 +175,7 @@ static func _leg(side: String, thigh, calf, scene: Transform2D, floor_y: float) 
 		var p2: float = cg.basis_xform(d2).angle()
 		_st[side] = {"p1": p1, "o1": p1, "p2": p2, "o2": p2, "hip": [hip, hip], "knee": [cg.origin, cg.origin],
 			"rest": thigh.transform.get_rotation(),
-			"floor": cg.origin.y - floor_y, "ankle": (cg * d2).y - cg.origin.y}
+}
 	var s: Dictionary = _st[side]
 	# the thigh: gravity and her hip's movement
 	var ha: Vector2 = hip - 2.0 * s["hip"][0] + s["hip"][1]
@@ -182,11 +186,11 @@ static func _leg(side: String, thigh, calf, scene: Transform2D, floor_y: float) 
 		n1 = held[0]
 	var a: float = _turn_for(pg, thigh.transform, d1, n1)
 	var da: float = wrapf(a - s["rest"], -PI, PI)
-	var lim := deg_to_rad(loose_limit)
-	if absf(da) > lim:   # her hip joint's range
-		a = s["rest"] + clampf(da, -lim, lim)
+	var lim: Vector2 = DevBodyRings.limit("hip_" + side) * (PI / 180.0)   # her hip joint's range (its ring's)
+	if da < lim.x or da > lim.y:
+		a = s["rest"] + clampf(da, lim.x, lim.y)
 		n1 = (pg * _rot(thigh.transform, a)).basis_xform(d1).angle()
-	var fk: float = floor_y + s["floor"]
+	var fk: float = floor_y + KNEE_FLOOR[side] * l1
 	if loose_floor and hip.y + sin(n1) * l1 > fk:   # her knee on the floor
 		n1 = _onto(hip.y, l1, fk, n1)
 	var tm := _rot(thigh.transform, _turn_for(pg, thigh.transform, d1, n1))
@@ -199,7 +203,7 @@ static func _leg(side: String, thigh, calf, scene: Transform2D, floor_y: float) 
 	s["knee"] = [knee, s["knee"][0]]
 	var fold := _knee_range("knee_" + side, tg)
 	var n2: float = _bend(n1, held[1] if not is_nan(held[1]) else _step(s["p2"], s["o2"], ka, l2), fold)
-	var fa: float = fk + s["ankle"]
+	var fa: float = floor_y + ANKLE_FLOOR[side] * l2
 	if loose_floor and knee.y + sin(n2) * l2 > fa:   # her foot on the floor
 		n2 = _bend(n1, _onto(knee.y, l2, fa, n2), fold)
 	var cm := _rot(calf.transform, _turn_for(tg2, calf.transform, d2, n2))

@@ -183,7 +183,7 @@ static func _body() -> Dictionary:
 			_layer("legs", "points", "Knee target", "Where the pose aims her right knee (the left knee follows the copy)."),
 			_layer("legs_ours", "axis", "Thighs and calves (ours)", "Orange: our thighs from our hip points to the knees (they replace the game's thighs while this is on) and our calves, knee to ankle - the game has no bone there: the calf is one rigid picture with her foot.",
 				{"enabled": ours}),
-			MenuSchema.choice("Left leg (ours)", "Kneeling: as in the game, her knee stays where the pose puts it. Loose: thigh and calf hang from her hip by gravity and swing with her movement; the knee bends only one way, the floor holds her knee and foot.",
+			MenuSchema.choice("Left leg (ours)", "Kneeling: as in the game, her knee stays where the pose puts it. Loose: thigh and calf hang from her hip by gravity and swing with her movement, within the hip's and the knee's ranges (their rings' limits); the floor holds her knee and foot.",
 				DevBodySides.LEG_MODES, func(): return DevBodySides.leg_l, func(v: String): DevBodySides.set_leg(false, v), {"enabled": ours}),
 			MenuSchema.choice("Right leg (ours)", "As the left one. The game hangs her torso on her right leg: loose, her torso stays where the game puts it, only the leg moves.",
 				DevBodySides.LEG_MODES, func(): return DevBodySides.leg_r, func(v: String): DevBodySides.set_leg(true, v), {"enabled": ours}),
@@ -195,8 +195,6 @@ static func _body() -> Dictionary:
 				func(): return DevBodySides.loose_push, func(v: float): DevBodySides.loose_push = v, 1.0, "%.2f", loose),
 			MenuSchema.toggle("The floor holds them", "A loose leg's knee and foot stay on the floor (the pose's knee height). Off: no floor for them - the leg hangs from her hip, to see the gravity alone.",
 				func(): return DevBodySides.loose_floor, func(on: bool): DevBodySides.loose_floor = on, {"enabled": loose}),
-			_slider("Hip range", "How far the thigh may turn from where it knelt (degrees either way).", 10.0, 150.0, 1.0,
-				func(): return DevBodySides.loose_limit, func(v: float): DevBodySides.loose_limit = v, 60.0, "%d°", loose),
 		]},
 		{"title": "Him body", "controls": [
 			_layer("him", "axis", "Bones", "His IK chains: both legs thigh -> calf -> foot, his right arm, his left arm (the hand on her head); and his penis, base to tip."),

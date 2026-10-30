@@ -560,7 +560,7 @@ func _behaviour_checks() -> void:
 		var st: Dictionary = DevBodySides._st["l"]
 		var tg: Transform2D = sc * leg.flash_global_transform()
 		var knee: Vector2 = tg * leg.calf.transform.origin
-		worst = maxf(worst, knee.y - (floor_y + st["floor"]))
+		worst = maxf(worst, knee.y - (floor_y + DevBodySides.KNEE_FLOOR["l"] * (knee - tg.origin).length()))
 		var r: float = wrapf(st["p2"] - st["p1"], -PI, PI)
 		var kr: Vector2 = DevBodySides._knee_range("knee_l", tg)
 		bend_ok = bend_ok and r >= kr.x - 0.001 and r <= kr.y + 0.001
