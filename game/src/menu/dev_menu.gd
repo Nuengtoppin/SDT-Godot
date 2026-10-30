@@ -53,6 +53,8 @@ func _default_help() -> String:
 func apply_mode() -> void:
 	DevBehaviour.sync(_enabled())
 	Journal.sync(_enabled())
+	if not _enabled():
+		DevBodyOverlay.clear()   # derrdev (P032): the Body tab's debug layers go off with Developer mode
 	if _root == null:
 		return
 	if not _enabled():

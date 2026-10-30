@@ -48,8 +48,41 @@ static func _her_tools() -> Dictionary:
 	]}
 
 
+## derrdev (P032): debug layers over body parts (DevBodyOverlay), the neck first, then her throat's rings.
 static func _body() -> Dictionary:
-	return {"id": "dev_body", "name": "Body", "groups": [_throat()]}
+	var neck := func(): return g.her.head.neck
+	return {"id": "dev_body", "name": "Body", "groups": [
+		{"title": "Debug layers", "controls": [
+			MenuSchema.note("Drawn over the game, read only: straight lines through the points (the game draws curves through them). The same layers for every body part; legs and breasts come next."),
+			{"type": "slider", "label": "Line width", "tip": "Width of the outlines and axes, in screen pixels.", "min": 0.5, "max": 3.0, "step": 0.25,
+				"get": func(): return DevBodyOverlay.line_width, "set": func(v: float): DevBodyOverlay.line_width = v,
+				"format": func(v): return "%.2f" % v, "reset": func(): DevBodyOverlay.line_width = 1.0},
+			{"type": "slider", "label": "Point size", "tip": "Radius of the control points, in screen pixels.", "min": 0.5, "max": 4.0, "step": 0.25,
+				"get": func(): return DevBodyOverlay.point_radius, "set": func(v: float): DevBodyOverlay.point_radius = v,
+				"format": func(v): return "%.2f" % v, "reset": func(): DevBodyOverlay.point_radius = 1.5},
+			MenuSchema.actions("", "", [["Hide all layers", func(): DevBodyOverlay.clear(), "Switch every debug layer off."]]),
+		]},
+		{"title": "Neck", "controls": [
+			_layer("neck", "base", "Source outline", "Cyan: the neck's outline from the symbol, respaced, before the throat bulge and swallow wave."),
+			_layer("neck", "rendered", "Rendered outline", "Pink: the outline drawn this tick (throat bulge, swallow wave). Blue: the highlight."),
+			_layer("neck", "points", "Control points", "The outline points (cyan) and highlight points (blue) the neck is drawn through."),
+			_layer("neck", "axis", "Neck to torso axis", "Yellow: from the neck's origin to her torso's."),
+			value("Points", "Outline points (the front of the neck is resampled into 30) / highlight points.",
+				func(): return "-" if g.her == null else "%d / %d" % [neck.call().neckPoints.size(), neck.call().highlightPoints.size()]),
+			value("Throat depth", "How deep he is, as the neck's bulge sees it (0 at her lips, 1 = 400 deep; below 0: outside her mouth).",
+				func(): return "-" if g.her == null else "%.2f" % neck.call().lastDepth),
+			value("Swallow wave", "Where the swallow bulge is along the neck while she swallows.",
+				func(): return "-" if g.her == null else ("%.0f%%" % (neck.call().swallowProgress * 100.0) if neck.call().swallowing else "no")),
+			value("Neck angle", "The neck's rotation.",
+				func(): return "-" if g.her == null else "%.1f°" % wrapf(neck.call().rotation_degrees, -180.0, 180.0)),
+		]},
+		_throat(),
+	]}
+
+
+static func _layer(part: String, layer: String, label: String, tip: String) -> Dictionary:
+	return MenuSchema.toggle(label, tip, func(): return DevBodyOverlay.is_on(part, layer),
+		func(on: bool): DevBodyOverlay.set_on(part, layer, on), {"keywords": "debug overlay " + part})
 
 
 ## Her throat's rings (ThroatRings): what they work out, the collar's settings, and the value points they act through.
@@ -61,6 +94,7 @@ static func _throat() -> Dictionary:
 		return "acting" if x != null and x.enabled and x.get_setting("on") else "read only"
 	return {"title": "Throat rings", "controls": [
 		MenuSchema.note("Depth: 0 at her lips, 1 = 400 deep. Read only unless Behaviour > Resistance > Throat loosens (the entrance) or Collar holds her throat (the collar) is on."),
+		_layer("throat", "zones", "Rings on the neck", "A line across the neck at each ring's top and bottom edge: green (not stretched) to red (fully stretched), thicker while he presses on it, grey once it snapped. White dot: his tip; blue dot: the swallow wave."),
 		value("Tip / push", "How deep his tip is, and how hard he pushes in this tick (0..1, from his movement).",
 			func(): return "%.2f / %.2f" % [ThroatRings.tip, ThroatRings.push]),
 		value("Entrance edges", "The throat entrance ring: the game's resistance zone at the way into her throat. Its tightness is her throat resistance slider.",
