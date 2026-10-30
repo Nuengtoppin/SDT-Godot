@@ -459,7 +459,20 @@ func _behaviour_checks() -> void:
 	DevBodyOverlay.set_pose(true)
 	var posed := [g.gamePaused, g.her.currentLeftArmPosition == Her.armPositions.find("Loose"),
 		g.him.currentArmPosition == Him.armPositions.find("Free"), g.him.bodyHidden, g.him.visible]
+	var alive := [Hooks.has(&"Her.cough"), Hooks.has_value(&"Her.resistance") and Hooks.value(&"Her.resistance", g.her, 1.0) == 0.0,
+		not g.her.intro, DevBodyOverlay.wants_mouse(), g.gamePaused]
+	var ct0: Transform2D = Flash.get_viewport().canvas_transform
+	DevBodyOverlay.instance._zoom(Vector2(400, 300), 2.0)
+	var zoomed: bool = not Flash.get_viewport().canvas_transform.is_equal_approx(ct0)
 	DevBodyOverlay.set_pose(false)
+	_check("pose alive: reactions vetoed, nothing pushes back, no intro, the mouse is ours, not paused; the zoom; off: all back",
+		alive == [true, true, true, true, false] and zoomed and Flash.get_viewport().canvas_transform.is_equal_approx(ct0)
+		and not Hooks.has_value(&"Her.resistance"), str(alive))
+	DevBodyOverlay.pose_mode = "Frozen"
+	DevBodyOverlay.set_pose(true)
+	posed[0] = g.gamePaused
+	DevBodyOverlay.set_pose(false)
+	DevBodyOverlay.pose_mode = "Alive"
 	_check("pose mode: frozen, her arms loose, his hand free, his penis only; off: all back", posed == [true, true, true, true, true]
 		and [g.gamePaused, g.her.currentLeftArmPosition, g.him.currentArmPosition, g.him.bodyHidden] == was_p,
 		"%s %s" % [posed, [g.gamePaused, g.her.currentLeftArmPosition, g.him.currentArmPosition, g.him.bodyHidden]])
@@ -495,8 +508,23 @@ func _behaviour_checks() -> void:
 	g.characterControl.setBreasts(mini(size0 + 40, 150))
 	var len1: float = (DevBodyOverlay.parts()["breasts_ours"].call()["axes_ours"][0][1] - DevBodyOverlay.mark_at("breast_r")).length()
 	g.characterControl.setBreasts(size0)
+	var live0: int = DevBodyOverlay.live_marks().size()
+	DevBodyOverlay.set_on("neck_lines_ours", "axis", true)
+	var live1: int = DevBodyOverlay.live_marks().size()
+	DevBodyOverlay.set_on("neck_lines_ours", "axis", false)
+	var rest: Transform2D = g.her.head.transform
+	var ours_was: bool = DevBodyOverlay.ours
+	DevBodyOverlay.ours = true
+	DevBodyOverlay.set_spring(true)
+	DevBodyOverlay._speed = 3.0
+	DevBodyOverlay._spring_tick()
+	var swung: bool = not g.her.head.transform.is_equal_approx(rest)
+	DevBodyOverlay.set_spring(false)
+	_check("throat and nape points only with their layer on; the neck spring swings her head and puts it back",
+		live1 == live0 + 4 and swung and g.her.head.transform.is_equal_approx(rest), "%d %d" % [live0, live1])
+	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
-		ho["axes_ours"].size() == 3 and DevBodyOverlay.parts()["head_ours"].call()["axes_ours"].size() == 1 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])
+		ho["axes_ours"].size() == 1 and DevBodyOverlay.parts()["neck_lines_ours"].call()["axes_ours"].size() == 2 and DevBodyOverlay.parts()["head_ours"].call()["axes_ours"].size() == 1 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])
 	_check("our torso: hip axis + 3 spine bones; it hides the game's torso bone", to["axes_ours"].size() == 4
 		and lg["axes"].size() == 2 and DevBodyOverlay.mark("lumbar") == Vector2(10, 20)
 		and DevBodyOverlay.numbers().contains('"lumbar": Vector2(10, 20)') and DevBodyOverlay.mark("ankle_r") == Vector2(-500, 59))

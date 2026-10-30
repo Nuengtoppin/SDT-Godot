@@ -37,7 +37,8 @@ static func parts() -> Dictionary:
 		"breasts": func(): return DevBodyOverlay.breasts(), "head": func(): return DevBodyOverlay.head(),
 		"legs_ours": func(): return DevBodyOverlay.legs_ours(), "him": func(): return DevBodyOverlay.him(),
 		"torso_ours": func(): return DevBodyOverlay.torso_ours(), "arms_ours": func(): return DevBodyOverlay.arms_ours(),
-		"head_ours": func(): return DevBodyOverlay.head_ours(), "neck_ours": func(): return DevBodyOverlay.neck_ours(), "breasts_ours": func(): return DevBodyOverlay.breasts_ours()}
+		"head_ours": func(): return DevBodyOverlay.head_ours(), "neck_ours": func(): return DevBodyOverlay.neck_ours(),
+		"neck_lines_ours": func(): return DevBodyOverlay.neck_lines_ours(), "breasts_ours": func(): return DevBodyOverlay.breasts_ours()}
 
 
 static func is_on(part: String, layer: String) -> bool:
@@ -56,9 +57,22 @@ static func any_on() -> bool:
 	return not _on.is_empty()
 
 
+## Every bone layer of ours (and our layer on), or every bone layer of the game's.
+const OURS_PARTS := ["torso_ours", "legs_ours", "arms_ours", "neck_ours", "head_ours", "breasts_ours"]
+const GAME_PARTS := ["legs", "arms", "breasts", "head", "neck", "him"]
+
+
+static func show_skeleton(mine: bool) -> void:
+	if mine:
+		ours = true
+	for p in (OURS_PARTS if mine else GAME_PARTS):
+		set_on(p, "axis", true)
+
+
 static func clear() -> void:
 	_on.clear()
 	set_pose(false)
+	set_spring(false)
 
 
 static func _ensure() -> void:
@@ -87,11 +101,17 @@ func _draw_parts() -> void:
 		var xf := _her_xf()
 		var hover := _drag if _drag != "" else _mark_under(get_viewport().get_mouse_position())
 		var font := ThemeDB.fallback_font
-		for id in mark_defs():
+		for id in live_marks():
 			var p: Vector2 = xf * mark_at(id)
 			_canvas.draw_circle(p, point_radius * (4.0 if id == hover else 3.0), COLORS["ours"])
 			if id == hover:
 				_canvas.draw_string(font, p + Vector2(8, -6), mark_defs()[id][0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
+		var mouse := get_viewport().get_mouse_position()
+		for j in joint_labels():
+			var q: Vector2 = xf * j[0]
+			_canvas.draw_circle(q, point_radius * 2.0, COLORS["axis"])
+			if hover == "" and q.distance_to(mouse) < GRAB_PX:
+				_canvas.draw_string(font, q + Vector2(8, -6), j[1], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
 	for part in parts():
 		if not LAYERS.any(func(l): return is_on(part, l)):
 			continue
@@ -179,11 +199,64 @@ static func legs() -> Dictionary:
 	return {"node": h, "axes": bones, "points": [c[2]]}
 
 
+# ---------------------------------------------------------------- our neck spring (Body > Neck)
+
+## Her head sways on her neck: a damped spring turns her head about our head pivot, pushed by her body's own turn and
+## up-and-down movement each tick (the game moves her whole body, head first; the torso follows by IK). Set before
+## the game's updateElements (Her.updateElements, before the neck turns to her torso), from the head's own resting
+## transform, so nothing piles up; off: the head is put back. Only with our layer on; off by default.
+static var spring_on := false
+static var spring_k := 0.12        # pull back to rest per tick
+static var spring_damp := 0.25     # share of its speed lost per tick
+static var spring_push := 1.0      # how hard her body's movement pushes it
+static var spring_limit := 15.0    # degrees either way
+static var _spring_fn := Callable()
+static var _head_rest = null       # the head's own transform at rest
+static var _angle := 0.0
+static var _speed := 0.0
+static var _last_rot := NAN
+
+
+static func set_spring(on: bool) -> void:
+	spring_on = on
+	if _spring_fn.is_valid():
+		Hooks.remove(&"Her.updateElements", _spring_fn)
+		_spring_fn = Callable()
+	if _head_rest != null and g.her != null:
+		g.her.head.transform = _head_rest
+	_head_rest = null
+	_angle = 0.0
+	_speed = 0.0
+	_last_rot = NAN
+	if on and ours and g.her != null:
+		_head_rest = g.her.head.transform
+		_spring_fn = func(_c): DevBodyOverlay._spring_tick()
+		Hooks.add_before(&"Her.updateElements", _spring_fn, "neckspring", 100)
+
+
+static func _spring_tick() -> void:
+	var h = g.her
+	if not ours or _head_rest == null:
+		set_spring(false)
+		return
+	var rot: float = h.rotation_degrees
+	var turn: float = 0.0 if is_nan(_last_rot) else rot - _last_rot
+	_last_rot = rot
+	_speed += -_angle * spring_k - _speed * spring_damp - (turn * 2.0 + h.absYMovement * 0.1) * spring_push
+	_angle = clampf(_angle + _speed, -spring_limit, spring_limit)
+	var p := mark("head_pivot")
+	h.head.transform = _head_rest * Transform2D(deg_to_rad(_angle), p - p.rotated(deg_to_rad(_angle)))
+
+
 # ---------------------------------------------------------------- pose mode (Body > Scene)
 
 ## Pose mode: the game frozen (paused) with her arms loose and his hand free, him shown / penis only / hidden, to
 ## place points and pose her; leaving it puts back everything it changed. Later this moves to our own scene.
 const HIM_MODES := ["Shown", "Penis only", "Hidden"]
+const POSE_MODES := ["Alive", "Frozen"]
+static var pose_mode := "Alive"   # Alive: the game runs (she breathes), her head stays, no reactions; Frozen: paused
+const QUIET := [&"Her.cough", &"Her.openCough", &"Her.wince", &"Her.passOut", &"Her.tapHands",
+	&"Her.startClenchingTeeth"]   # her reactions switched off while posing alive
 static var posing := false
 static var pose_him := "Penis only"
 static var pose_loose := true
@@ -195,8 +268,10 @@ static func set_pose(on: bool) -> void:
 	if on == posing or g.her == null or g.him == null:
 		return
 	if on:
+		_ensure()   # the zoom and the mouse go through the overlay
 		_saved = {"paused": g.gamePaused, "body_hidden": g.him.bodyHidden, "him_visible": g.him.visible,
-			"left": g.her.currentLeftArmPosition, "right": g.her.currentRightArmPosition, "his": g.him.currentArmPosition}
+			"left": g.her.currentLeftArmPosition, "right": g.her.currentRightArmPosition, "his": g.him.currentArmPosition,
+			"intro": g.her.intro, "gagging": g.gagging, "canvas": Flash.get_viewport().canvas_transform}
 		posing = true
 		apply_pose()
 	else:
@@ -207,6 +282,10 @@ static func set_pose(on: bool) -> void:
 		_arm(func(): return g.him.currentArmPosition, func(): g.inGameMenu.hisArmRightClicked(), _saved["his"], func(): g.inGameMenu.hisArmLeftClicked())
 		g.him.setBodyHidden(_saved["body_hidden"])
 		g.him.visible = _saved["him_visible"]
+		Hooks.remove_owner("pose")
+		g.her.intro = _saved["intro"]
+		g.gagging = _saved["gagging"]
+		Flash.get_viewport().canvas_transform = _saved["canvas"]
 		g.gamePaused = _saved["paused"]
 
 
@@ -224,7 +303,27 @@ static func apply_pose() -> void:
 		Him.armPositions.find("Free") if pose_free else _saved["his"], func(): g.inGameMenu.hisArmLeftClicked())
 	g.him.setBodyHidden(pose_him != "Shown")
 	g.him.visible = pose_him != "Hidden"
-	g.gamePaused = true
+	Hooks.remove_owner("pose")
+	if pose_mode == "Frozen":
+		g.gamePaused = true
+		return
+	# alive: she breathes and blinks, but nothing pushes back, no intro, and she does not react to him
+	g.her.intro = false
+	g.gagging = false
+	var veto := func(c): c.cancel()
+	for h in QUIET:
+		Hooks.add_before(h, veto, "pose", -99990)
+	Hooks.add_modifier(&"Her.resistance", {"phase": Hooks.FINAL, "op": "set", "value": 0.0}, "pose")
+
+
+## Pose mode's zoom: about the mouse, from a third of the scene's size to four times (not the game's zoom).
+func _zoom(at: Vector2, k: float) -> void:
+	var vp := get_viewport()
+	var ct: Transform2D = vp.canvas_transform
+	var base: Transform2D = _saved.get("canvas", Transform2D.IDENTITY)
+	var now := ct.get_scale().x / maxf(0.001, base.get_scale().x)
+	k = clampf(now * k, 0.33, 4.0) / now
+	vp.canvas_transform = Transform2D(0.0, Vector2(k, k), 0.0, at - at * k) * ct
 
 
 ## Steps an arrow list until `get` is `want`: its right arrow `step` while below, `back` (its left arrow) while above.
@@ -333,6 +432,22 @@ static func mark_at(id: String) -> Vector2:
 	return _at(mark_defs()[id][1].call(), mark(id))
 
 
+## The points that can be dragged now: the neck lines' ends only while their layer is on.
+static func live_marks() -> Array:
+	var lines_on := is_on("neck_lines_ours", "axis")
+	return mark_defs().keys().filter(func(id): return lines_on or not (id.begins_with("throat_") or id.begins_with("nape_")))
+
+
+## Named joints of the game's that are not our points, for the labels while editing: elbows, wrists, nipples.
+static func joint_labels() -> Array:
+	if g.her == null or g.her.leftArmIK == null:
+		return []
+	var h = g.her
+	return [[_at(h.rightArmIK.s2), "Right elbow"], [_at(h.rightArmIK.s3), "Right wrist"],
+		[_at(h.leftArmIK.s2), "Left elbow"], [_at(h.leftArmIK.s3), "Left wrist"],
+		[nipple_at(true), "Right nipple"], [nipple_at(false), "Left nipple"]]
+
+
 static func numbers() -> String:
 	var out := PackedStringArray()
 	for id in mark_defs():
@@ -344,6 +459,8 @@ static func numbers() -> String:
 ## The menus ask whether the mouse is ours (Flash.mouse_blocker, through DevMenu): while editing, over a point or
 ## dragging one, the game does not get the press.
 static func wants_mouse() -> bool:
+	if posing and pose_mode == "Alive":
+		return true   # posing alive: the scene's mouse is ours (her head stays where it was; points, zoom)
 	if not (editing and ours and instance != null and g.her != null):
 		return false
 	return _drag != "" or instance._mark_under(instance.get_viewport().get_mouse_position()) != ""
@@ -357,7 +474,7 @@ func _mark_under(screen: Vector2) -> String:
 	var xf := _her_xf()
 	var best := ""
 	var best_d := GRAB_PX
-	for id in mark_defs():
+	for id in live_marks():
 		var d := (xf * mark_at(id)).distance_to(screen)
 		if d < best_d:
 			best_d = d
@@ -366,6 +483,11 @@ func _mark_under(screen: Vector2) -> String:
 
 
 func _input(e: InputEvent) -> void:
+	if posing and e is InputEventMouseButton and e.pressed and e.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN] \
+			and not (SDTMenu.dev != null and SDTMenu.dev._dock.get_global_rect().has_point(e.position)):
+		_zoom(e.position, 1.1 if e.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1)
+		get_viewport().set_input_as_handled()
+		return
 	if not (editing and ours and g.her != null and SDTMenu.dev != null and SDTMenu.dev._enabled()):
 		_drag = ""
 		return
@@ -386,8 +508,16 @@ func _input(e: InputEvent) -> void:
 static func neck_ours() -> Dictionary:
 	if g.her == null or g.her.head == null:
 		return {}
-	return {"node": g.her, "axes_ours": [[mark_at("neck_base"), mark_at("head_pivot")],
-		[mark_at("throat_top"), mark_at("throat_bottom")], [mark_at("nape_top"), mark_at("nape_bottom")]]}
+	return {"node": g.her, "axes_ours": [[mark_at("neck_base"), mark_at("head_pivot")]]}
+
+
+## The neck's skin as two lines with their own ends (its own layer, so it is out of the way until we draw the neck
+## from them): the throat (chin -> its bottom) and the nape (skull -> its bottom). Their points can be dragged only
+## while this layer is on.
+static func neck_lines_ours() -> Dictionary:
+	if g.her == null or g.her.head == null:
+		return {}
+	return {"node": g.her, "axes_ours": [[mark_at("throat_top"), mark_at("throat_bottom")], [mark_at("nape_top"), mark_at("nape_bottom")]]}
 
 
 ## Our head (orange): from the head pivot to the jaw's pivot (a first guess; a joint's turn will be a ring with its
