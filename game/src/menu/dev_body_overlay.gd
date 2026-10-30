@@ -492,11 +492,13 @@ static func _arm(get_fn: Callable, step: Callable, want: int, back := Callable()
 ## thigh put on the left thigh (the old fit checks out: -342,461 gives -319,452, fitted by hand -320,451); the left
 ## calf's skin is the right one's (the left calf also holds the far foot, hence its larger bounds), so the same ankle.
 ## The knees stay at the calf pictures' own pivots (357, 286): a knee ring turns the calf about its knee point, and
-## about any other point the calf slides off the thigh (Dima tried 387, 280: a gap at the knee). Not yet: the
-## breasts (their pivots for now).
+## about any other point the calf slides off the thigh (Dima tried 387, 280: a gap at the knee).
+## The head pivot where the skull nods on the spine: under the ear canal, at the top of the lobe, in the neck's
+## back half (her ear spans x -88..-35, y 0..92 in her head); -28, 31 sat at the ear's top front and swung her chin
+## through too big an arc. Not yet: the breasts (their pivots for now).
 const FIT := {"hip_r": Vector2(-361, 457), "hip_l": Vector2(-337, 448), "lumbar": Vector2(-169, 340),
 	"thoracic": Vector2(-56, 180), "neck_base": Vector2(-1, 0), "shoulder_r": Vector2(12, -5),
-	"shoulder_l": Vector2(-13, 5), "head_pivot": Vector2(-28, 31), "jaw": Vector2(-29, 85),
+	"shoulder_l": Vector2(-13, 5), "head_pivot": Vector2(-50, 65), "jaw": Vector2(-29, 85),
 	"throat_top": Vector2(55, 66), "nape_top": Vector2(-21, 31), "throat_bottom": Vector2(65, 48),
 	"nape_bottom": Vector2(-56, 134), "knee_r": Vector2(357, 286), "knee_l": Vector2(357, 286),
 	"ankle_r": Vector2(-486, 61), "ankle_l": Vector2(-486, 61)}
