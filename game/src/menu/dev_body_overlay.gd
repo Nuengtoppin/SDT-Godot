@@ -90,13 +90,18 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	_canvas.visible = (any_on() or (editing and ours)) and g.gameRunning and SDTMenu.dev != null and SDTMenu.dev._enabled()
+	_canvas.visible = (any_on() or (editing and ours) or posing) and g.gameRunning and SDTMenu.dev != null and SDTMenu.dev._enabled()
 	if _canvas.visible:
 		_canvas.queue_redraw()
 
 
 func _draw_parts() -> void:
 	var stage: Transform2D = Flash.stage.get_global_transform_with_canvas()
+	if posing and g.her != null:   # a plain floor at her knees' height (the pose's knee target), until a real one
+		var knee: Vector2 = stage * g.sceneLayer.flash_global_transform() * g.animationControl.getHerKneeTarget()
+		var y := knee.y + 30.0 * g.sceneLayer.currentZoom
+		_canvas.draw_rect(Rect2(-20000, y, 40000, 20000), Color(0.5, 0.55, 0.65, 0.12))
+		_canvas.draw_line(Vector2(-20000, y), Vector2(20000, y), Color(0.7, 0.75, 0.85, 0.8), 2.0)
 	if editing and ours and g.her != null:
 		var xf := _her_xf()
 		var hover := _drag if _drag != "" else _mark_under(get_viewport().get_mouse_position())
@@ -311,7 +316,8 @@ static func set_pose(on: bool) -> void:
 		_ensure()   # the zoom and the mouse go through the overlay
 		_saved = {"paused": g.gamePaused, "body_hidden": g.him.bodyHidden, "him_visible": g.him.visible,
 			"left": g.her.currentLeftArmPosition, "right": g.her.currentRightArmPosition, "his": g.him.currentArmPosition,
-			"intro": g.her.intro, "gagging": g.gagging, "canvas": Flash.get_viewport().canvas_transform}
+			"intro": g.her.intro, "gagging": g.gagging, "bg": g.bg.modulate}
+		g.bg.modulate = Color(0.12, 0.13, 0.16)   # the background darkened while posing (the floor is drawn over it)
 		posing = true
 		apply_pose()
 	else:
@@ -325,7 +331,8 @@ static func set_pose(on: bool) -> void:
 		Hooks.remove_owner("pose")
 		g.her.intro = _saved["intro"]
 		g.gagging = _saved["gagging"]
-		Flash.get_viewport().canvas_transform = _saved["canvas"]
+		g.bg.modulate = _saved["bg"]
+		g.sceneLayer.zoomTo(g.sceneZoom, true)   # the game's own camera back (the pose zoom moved it)
 		g.gamePaused = _saved["paused"]
 
 
@@ -356,14 +363,25 @@ static func apply_pose() -> void:
 	Hooks.add_modifier(&"Her.resistance", {"phase": Hooks.FINAL, "op": "set", "value": 0.0}, "pose")
 
 
-## Pose mode's zoom: about the mouse, from a third of the scene's size to four times (not the game's zoom).
+## Pose mode's zoom: the scene's own camera (its zoom and position), about the mouse, from a third to four times the
+## game's usual zoom - inside the scene, so nothing is cut off at the stage's edges. The game's camera only moves
+## when its zoom changes, so ours stays; leaving pose mode puts the game's back.
 func _zoom(at: Vector2, k: float) -> void:
-	var vp := get_viewport()
-	var ct: Transform2D = vp.canvas_transform
-	var base: Transform2D = _saved.get("canvas", Transform2D.IDENTITY)
-	var now := ct.get_scale().x / maxf(0.001, base.get_scale().x)
-	k = clampf(now * k, 0.33, 4.0) / now
-	vp.canvas_transform = Transform2D(0.0, Vector2(k, k), 0.0, at - at * k) * ct
+	var sl: SceneLayer = g.sceneLayer
+	var p: Vector2 = Flash.stage.get_global_transform_with_canvas().affine_inverse() * at   # stage coordinates
+	var old: float = sl.currentZoom
+	var z := clampf(old * k, 0.15, 6.0)
+	k = z / old
+	sl.currentZoom = z
+	sl.targetZoom = z
+	sl.zooming = false
+	sl.scaleX = -z if g.mirrored else z
+	sl.scaleY = z
+	sl.camera = Vector2(p.x - (p.x - sl.x) * k, p.y - (p.y - sl.y) * k)
+	sl.x = sl.camera.x
+	sl.y = sl.camera.y
+	sl.updateExternalLayerScales()
+	sl.updateExternalLayerPositions()
 
 
 ## Steps an arrow list until `get` is `want`: its right arrow `step` while below, `back` (its left arrow) while above.
@@ -388,7 +406,7 @@ static func _arm(get_fn: Callable, step: Callable, want: int, back := Callable()
 ## left hip, while not fitted itself, moves with the right one (the game's left start plus the right hip's shift).
 const FIT := {"hip_r": Vector2(-342, 461), "hip_l": Vector2(-320, 451), "lumbar": Vector2(-169, 340),
 	"thoracic": Vector2(-56, 180), "neck_base": Vector2(-1, 0), "shoulder_r": Vector2(12, -5),
-	"shoulder_l": Vector2(-13, 5), "head_pivot": Vector2(-1, 0), "knee_r": Vector2(357, 286),
+	"shoulder_l": Vector2(-13, 5), "head_pivot": Vector2(-28, 31), "knee_r": Vector2(357, 286),
 	"knee_l": Vector2(357, 286), "ankle_r": Vector2(-500, 59), "ankle_l": Vector2(-500, 59)}
 static var marks := {}
 static var editing := false        # Body > Her body > "Edit points": drag them with the left mouse button
@@ -525,7 +543,7 @@ func _mark_under(screen: Vector2) -> String:
 func _input(e: InputEvent) -> void:
 	if posing and e is InputEventMouseButton and e.pressed and e.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN] \
 			and not (SDTMenu.dev != null and SDTMenu.dev._dock.get_global_rect().has_point(e.position)):
-		_zoom(e.position, 1.1 if e.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1)
+		_zoom(get_viewport().get_mouse_position(), 1.1 if e.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1)
 		get_viewport().set_input_as_handled()
 		return
 	if not (editing and ours and g.her != null and SDTMenu.dev != null and SDTMenu.dev._enabled()):

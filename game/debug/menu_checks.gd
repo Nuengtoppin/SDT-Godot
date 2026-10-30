@@ -461,12 +461,12 @@ func _behaviour_checks() -> void:
 		g.him.currentArmPosition == Him.armPositions.find("Free"), g.him.bodyHidden, g.him.visible]
 	var alive := [Hooks.has(&"Her.cough"), Hooks.has_value(&"Her.resistance") and Hooks.value(&"Her.resistance", g.her, 1.0) == 0.0,
 		not g.her.intro, DevBodyOverlay.wants_mouse(), g.gamePaused]
-	var ct0: Transform2D = Flash.get_viewport().canvas_transform
+	var z0: float = g.sceneLayer.currentZoom
 	DevBodyOverlay.instance._zoom(Vector2(400, 300), 2.0)
-	var zoomed: bool = not Flash.get_viewport().canvas_transform.is_equal_approx(ct0)
+	var zoomed: bool = not is_equal_approx(g.sceneLayer.currentZoom, z0) and g.bg.modulate != Color.WHITE
 	DevBodyOverlay.set_pose(false)
 	_check("pose alive: reactions vetoed, nothing pushes back, no intro, the mouse is ours, not paused; the zoom; off: all back",
-		alive == [true, true, true, true, false] and zoomed and Flash.get_viewport().canvas_transform.is_equal_approx(ct0)
+		alive == [true, true, true, true, false] and zoomed and is_equal_approx(g.sceneLayer.currentZoom, z0)
 		and not Hooks.has_value(&"Her.resistance"), str(alive))
 	DevBodyOverlay.pose_mode = "Frozen"
 	DevBodyOverlay.set_pose(true)
