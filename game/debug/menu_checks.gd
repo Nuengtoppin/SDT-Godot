@@ -562,15 +562,26 @@ func _behaviour_checks() -> void:
 		var knee: Vector2 = tg * leg.calf.transform.origin
 		worst = maxf(worst, knee.y - (floor_y + st["floor"]))
 		var r: float = wrapf(st["p2"] - st["p1"], -PI, PI)
-		bend_ok = bend_ok and r >= minf(0.0, st["bend"]) - 0.001 and r <= maxf(0.0, st["bend"]) + 0.001
+		var kr: Vector2 = DevBodySides._knee_range("knee_l", tg)
+		bend_ok = bend_ok and r >= kr.x - 0.001 and r <= kr.y + 0.001
 	var same: bool = leg.transform.origin.is_equal_approx(lt0.origin) and leg.transform.get_scale().is_equal_approx(lt0.get_scale())
 	h.leftLegContainer.transform = lc_box
 	leg.transform = lt0
 	leg.calf.transform = lc0
+	DevBodySides.loose_floor = false
+	for k in 60:
+		DevBodySides._legs_after()
+	DevBodyRings.turns["knee_l"] = -90.0   # unfold more than a hanging, straight leg can
+	DevBodyRings._knee("knee_l", [leg.calf])
+	var never_back: float = DevBodyRings.knee_fold("knee_l")
+	DevBodyRings.turns.clear()
+	DevBodySides.loose_floor = true
+	leg.transform = lt0
+	leg.calf.transform = lc0
 	DevBodySides.set_leg(false, "Kneeling")
-	_check("a loose left leg: hooked, its knee never under the floor (her hips lowered too), the knee bends one way, the thigh in place; the right leg the game's; kneeling: unhooked",
-		hooked and worst < 0.5 and bend_ok and same and h.torso.leg.transform.is_equal_approx(rt0)
-		and not DevBodySides._after.is_valid(), "%.2f" % worst)
+	_check("a loose left leg: hooked, its knee never under the floor (her hips lowered too), the knee bends one way (hanging, a ring can't unfold it past straight), the thigh in place; the right leg the game's; kneeling: unhooked",
+		hooked and worst < 0.5 and bend_ok and same and never_back > -0.5 and h.torso.leg.transform.is_equal_approx(rt0)
+		and not DevBodySides._after.is_valid(), "%.2f %.2f" % [worst, never_back])
 	DevBodyOverlay.ours = true
 	h.updateElements()
 	var knee0: Vector2 = DevBodyOverlay.mark_at("knee_l")
@@ -586,12 +597,12 @@ func _behaviour_checks() -> void:
 	var head_ok: bool = DevBodyOverlay.mark_at("head_pivot").distance_to(hp0) < 0.05 and DevBodyOverlay.mark_at("jaw").distance_to(jaw0) > 5.0
 	var neck_kept: bool = h.head.neck.flash_global_transform().is_equal_approx(neck0)
 	DevBodyRings.set_turn("knee_l", -500.0)
-	var clamped: float = DevBodyRings.turn("knee_l")
+	var clamped: float = DevBodyRings.turn("knee_l") + DevBodyRings.fold_game("knee_l")   # straight: 0
 	DevBodyRings.reset_turns()
 	h.updateElements()
 	var back: bool = DevBodyOverlay.mark_at("jaw").distance_to(jaw0) < 0.05 and not DevBodyRings._after.is_valid() and not DevBodyOverlay._before_fn.is_valid()
-	_check("rings: the left knee turns its calf about the knee (-40), the head about its pivot with the neck picture kept, a turn stops at its limit, reset puts all back",
-		knee1.distance_to(knee0) < 0.05 and absf(calf_turn + 40.0) < 0.5 and head_ok and neck_kept and is_equal_approx(clamped, -135.0) and back,
+	_check("rings: the left knee unfolds 40 (its calf turns about the knee), the head about its pivot with the neck picture kept, a turn stops at its limit, reset puts all back",
+		knee1.distance_to(knee0) < 0.05 and absf(calf_turn + 40.0) < 0.5 and head_ok and neck_kept and absf(clamped) < 0.01 and back,
 		"%.2f %s %s %.1f %s" % [calf_turn, head_ok, neck_kept, clamped, back])
 	DevBodyOverlay._ensure()
 	DevBodyOverlay.set_mouse("Rotate")

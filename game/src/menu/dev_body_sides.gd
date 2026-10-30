@@ -78,7 +78,7 @@ static func _firm(v, obj):
 ## The game has no physics, no gravity: every part follows its own rule (her arms "loose" are an IK aimed at a
 ## point below her shoulder). A loose leg here is a small one of its own: two bones, thigh (hip -> knee, where
 ## the calf turns) and calf (knee -> our ankle point), each pulled down and thrown by its joint's movement
-## (inertia), the knee bending only between straight and as folded as she knelt, the thigh within a range of
+## (inertia), the knee bending only within its ring's range (straight .. folded), the thigh within a range of
 ## where it knelt, and the floor (the pose's knee target) under her knee and foot. Worked out in the scene's
 ## space (the camera's zoom doesn't move it), once after the game's updateElements has placed her legs.
 const LEG_MODES := ["Kneeling", "Loose"]
@@ -160,7 +160,7 @@ static func _leg(side: String, thigh, calf, scene: Transform2D, floor_y: float) 
 		var p1: float = tg.basis_xform(d1).angle()
 		var p2: float = cg.basis_xform(d2).angle()
 		_st[side] = {"p1": p1, "o1": p1, "p2": p2, "o2": p2, "hip": [hip, hip], "knee": [cg.origin, cg.origin],
-			"rest": thigh.transform.get_rotation(), "bend": wrapf(p2 - p1, -PI, PI),
+			"rest": thigh.transform.get_rotation(),
 			"floor": cg.origin.y - floor_y, "ankle": (cg * d2).y - cg.origin.y}
 	var s: Dictionary = _st[side]
 	# the thigh: gravity and her hip's movement
@@ -184,10 +184,11 @@ static func _leg(side: String, thigh, calf, scene: Transform2D, floor_y: float) 
 	var knee: Vector2 = tg2 * d1
 	var ka: Vector2 = knee - 2.0 * s["knee"][0] + s["knee"][1]
 	s["knee"] = [knee, s["knee"][0]]
-	var n2: float = _bend(n1, _step(s["p2"], s["o2"], ka, l2), s["bend"])
+	var fold := _knee_range("knee_" + side, tg)
+	var n2: float = _bend(n1, _step(s["p2"], s["o2"], ka, l2), fold)
 	var fa: float = fk + s["ankle"]
 	if loose_floor and knee.y + sin(n2) * l2 > fa:   # her foot on the floor
-		n2 = _bend(n1, _onto(knee.y, l2, fa, n2), s["bend"])
+		n2 = _bend(n1, _onto(knee.y, l2, fa, n2), fold)
 	var cm := _rot(calf.transform, _turn_for(tg2, calf.transform, d2, n2))
 	s["o2"] = s["p2"]
 	s["p2"] = n2
@@ -201,9 +202,18 @@ static func _step(p: float, o: float, acc: Vector2, l: float) -> float:
 	return p + v
 
 
-## The knee bends one way only: from straight (calf in line with the thigh) to as folded as she knelt.
-static func _bend(thigh: float, calf: float, folded: float) -> float:
-	return thigh + clampf(wrapf(calf - thigh, -PI, PI), minf(0.0, folded), maxf(0.0, folded))
+## The knee's range (the ring's: 0 straight .. folded) as a scene-space turn of the calf from the thigh's line
+## (radians, [lo, hi]); a knee folds the other way on screen when her thigh is mirrored there.
+static func _knee_range(id: String, thigh_scene: Transform2D) -> Vector2:
+	var l := DevBodyRings.limit(id) * (PI / 180.0)
+	if DevBodyRings._sgn(thigh_scene) < 0.0:
+		return Vector2(-l.y, -l.x)
+	return l
+
+
+## The knee bends one way only: within its range from straight (calf in line with the thigh).
+static func _bend(thigh: float, calf: float, fold: Vector2) -> float:
+	return thigh + clampf(wrapf(calf - thigh, -PI, PI), fold.x, fold.y)
 
 
 ## The angle that puts a bone of length `l` from height `py` onto the height `fy`, on the side it points to.

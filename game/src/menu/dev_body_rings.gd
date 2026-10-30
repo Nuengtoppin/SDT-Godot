@@ -18,9 +18,12 @@ const JOINTS := {
 	"knee_r": ["Right knee", "knee_r", "ankle_r"],
 	"knee_l": ["Left knee", "knee_l", "ankle_l"],
 }
-## Allowed turn from the game's angle, degrees [min, max] (in her space: the knee unfolds to negative).
+## Allowed turn, degrees [min, max]: from the game's angle; the knees from a straight leg - their fold (0: straight,
+## 140: folded as far as she kneels and a little more), the same range the loose leg keeps to. A knee's turn is in
+## fold degrees too (more: folded more), so it never bends a knee the wrong way whatever the game or the loose
+## leg has done to it.
 const LIMITS := {"neck": Vector2(-25, 25), "head": Vector2(-35, 35), "hip_r": Vector2(-60, 60),
-	"hip_l": Vector2(-60, 60), "knee_r": Vector2(-135, 10), "knee_l": Vector2(-135, 10)}
+	"hip_l": Vector2(-60, 60), "knee_r": Vector2(0, 140), "knee_l": Vector2(0, 140)}
 const MODES := ["Off", "Points", "Rotate", "Limits"]
 const RING_PX := 26.0      # ring radius on screen (the left side's rings are larger: both knees sit together)
 const LEFT_PX := 36.0
@@ -34,6 +37,8 @@ static var _grab_end := -1     # Limits: 0 min, 1 max
 static var _grab_from := 0.0   # Rotate: the mouse's angle when pressed (her space, radians)
 static var _grab_turn := 0.0
 static var _after := Callable()
+static var _fold_game := {}    # knee id -> its fold before our turn (last applied)
+static var _fold_turn := {}    # knee id -> the turn that fitted in its range (last applied)
 
 
 static func radius(id: String) -> float:
@@ -50,8 +55,51 @@ static func turn(id: String) -> float:
 
 static func set_turn(id: String, deg: float) -> void:
 	var l := limit(id)
-	turns[id] = clampf(deg, l.x, l.y)
+	if is_knee(id):   # the fold it would make must stay in range
+		var f0 := fold_game(id)
+		turns[id] = clampf(deg, l.x - f0, l.y - f0)
+	else:
+		turns[id] = clampf(deg, l.x, l.y)
 	refresh()
+
+
+static func is_knee(id: String) -> bool:
+	return id.begins_with("knee")
+
+
+## +1 / -1: whether `xf` keeps or mirrors the turning sense.
+static func _sgn(xf: Transform2D) -> float:
+	return 1.0 if xf.x.cross(xf.y) >= 0.0 else -1.0
+
+
+static func _scene() -> Transform2D:
+	return g.sceneLayer.flash_global_transform().affine_inverse()
+
+
+## A knee's thigh and calf pictures.
+static func _knee_nodes(id: String) -> Array:
+	var h = g.her
+	if id == "knee_r":
+		return [h.torso.leg, h.torso.rightCalfContainer.calf]
+	return [h.leftLegContainer.leg, h.leftLegContainer.leg.calf]
+
+
+## How far a knee is folded now, degrees (0: the calf in line with the thigh; she kneels at about 130). Thigh: from
+## its pivot to the knee (where the calf turns); calf: knee -> our ankle point. Positive folds the way a knee does
+## (as she kneels), in whatever way her pictures are turned or mirrored on screen.
+static func knee_fold(id: String) -> float:
+	var n: Array = _knee_nodes(id)
+	var calf = n[1]
+	var d1: Vector2 = calf.transform.origin
+	var bend: float = wrapf(calf.transform.basis_xform(DevBodyOverlay.mark("ankle_" + id.right(1))).angle() - d1.angle(), -PI, PI)
+	return rad_to_deg(bend) * _sgn(_scene() * n[0].flash_global_transform())
+
+
+## The fold before our turn: as last applied, else as it is now.
+static func fold_game(id: String) -> float:
+	if turn(id) != 0.0 and _fold_game.has(id):
+		return _fold_game[id]
+	return knee_fold(id)
 
 
 static func reset_turns() -> void:
@@ -98,16 +146,29 @@ static func _legs_after() -> void:
 		var tm := _about(t.leg.transform, DevBodyOverlay.mark("hip_r"), turn("hip_r"))
 		DevBodySides._right(h, tm, deg_to_rad(turn("hip_r")), cc.calf.transform)
 	if turn("knee_r") != 0.0:
-		var cm := _about(cc.calf.transform, DevBodyOverlay.mark("knee_r"), turn("knee_r"))
-		for c in [cc.calf, cc.calfStocking, cc.calfStockingB, cc.footwear, cc.bottoms, cc.cuffs]:
-			c.transform = cm
+		_knee("knee_r", [cc.calf, cc.calfStocking, cc.calfStockingB, cc.footwear, cc.bottoms, cc.cuffs])
 	var leg = h.leftLegContainer.leg
 	if turn("hip_l") != 0.0:
 		leg.transform = _about(leg.transform, DevBodyOverlay.mark("hip_l"), turn("hip_l"))
 	if turn("knee_l") != 0.0:
-		var cm := _about(leg.calf.transform, DevBodyOverlay.mark("knee_l"), turn("knee_l"))
-		for c in [leg.calf, leg.calfStocking, leg.calfStockingB, leg.footwear, leg.leftCalfBottoms, leg.cuffs]:
-			c.transform = cm
+		_knee("knee_l", [leg.calf, leg.calfStocking, leg.calfStockingB, leg.footwear, leg.leftCalfBottoms, leg.cuffs])
+
+
+## A knee's turn: the fold the game (or the loose leg) made plus ours, kept in the knee's range; the calf turns
+## about its own pivot (where it hangs on the thigh), so it never slides off.
+static func _knee(id: String, layers: Array) -> void:
+	var n: Array = _knee_nodes(id)
+	var calf = n[1]
+	var f0 := knee_fold(id)
+	var l := limit(id)
+	var f := clampf(f0 + turns.get(id, 0.0), l.x, l.y)
+	_fold_game[id] = f0
+	_fold_turn[id] = f - f0
+	var r := deg_to_rad(f - f0) * _sgn(_scene() * n[0].flash_global_transform())
+	var p: Vector2 = calf.transform.origin
+	var cm: Transform2D = Transform2D(r, p - p.rotated(r)) * calf.transform
+	for c in layers:
+		c.transform = cm
 
 
 # ---------------------------------------------------------------- drawing and the mouse (her space unless named)
@@ -116,11 +177,22 @@ static func shown() -> bool:
 	return mode != "" and DevBodyOverlay.ours and g.her != null
 
 
-## [centre, the bone's angle now, the game's angle] in her space.
+## [centre, the bone's angle now, the game's angle, the limits' zero, k] in her space: a limit `d` sits at
+## zero + k * d (k: 1; a knee's zero is the thigh's line and k the way it folds on screen).
 static func geometry(id: String) -> Array:
 	var c: Vector2 = DevBodyOverlay.mark_at(JOINTS[id][1])
 	var a: float = (DevBodyOverlay.mark_at(JOINTS[id][2]) - c).angle()
-	return [c, a, a - deg_to_rad(turn(id))]
+	if not is_knee(id):
+		var a0 := a - deg_to_rad(turn(id))
+		return [c, a, a0, a0, 1.0]
+	var n: Array = _knee_nodes(id)
+	var thigh = n[0]
+	var d1: Vector2 = n[1].transform.origin
+	var zero: float = (DevBodyOverlay._at(thigh, d1) - DevBodyOverlay._at(thigh)).angle()
+	var tg: Transform2D = thigh.flash_global_transform()
+	var k := _sgn(_scene() * tg) * _sgn(g.her.flash_global_transform().affine_inverse() * tg)
+	var done: float = _fold_turn.get(id, 0.0) if turn(id) != 0.0 else 0.0
+	return [c, a, a - deg_to_rad(done) * k, zero, k]
 
 
 ## The point on ring `id` at her-space angle `a`, on screen.
@@ -141,7 +213,7 @@ static func draw(canvas: CanvasItem, xf: Transform2D, mouse: Vector2, width: flo
 		var l := limit(id)
 		var arc := PackedVector2Array()
 		for i in 25:
-			arc.append(ring_pt(xf, id, c, gm[2] + deg_to_rad(lerpf(l.x, l.y, i / 24.0))))
+			arc.append(ring_pt(xf, id, c, gm[3] + gm[4] * deg_to_rad(lerpf(l.x, l.y, i / 24.0))))
 		canvas.draw_polyline(arc, orange if lit else orange.darkened(0.25), width * (3.0 if lit else 2.0), true)
 		if mode == "Limits":
 			canvas.draw_circle(arc[0], 4.0, orange)
@@ -151,6 +223,8 @@ static func draw(canvas: CanvasItem, xf: Transform2D, mouse: Vector2, width: flo
 		canvas.draw_line(s, ring_pt(xf, id, c, gm[1]), Color.WHITE if lit else orange, width * 1.5, true)
 		if lit:
 			var text := "%s  %+.0f°  (%+.0f..%+.0f)" % [JOINTS[id][0], turn(id), l.x, l.y]
+			if is_knee(id):
+				text = "%s  folded %.0f°  (%.0f..%.0f)  turn %+.0f°" % [JOINTS[id][0], knee_fold(id), l.x, l.y, turn(id)]
 			canvas.draw_string(font, s + Vector2(radius(id) + 6.0, -6.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
 
 
@@ -202,8 +276,8 @@ static func input(e: InputEvent, xf: Transform2D) -> bool:
 		_grab_turn = turn(id)
 		if mode == "Limits":
 			var l := limit(id)
-			var lo := ring_pt(xf, id, gm[0], gm[2] + deg_to_rad(l.x))
-			var hi := ring_pt(xf, id, gm[0], gm[2] + deg_to_rad(l.y))
+			var lo := ring_pt(xf, id, gm[0], gm[3] + gm[4] * deg_to_rad(l.x))
+			var hi := ring_pt(xf, id, gm[0], gm[3] + gm[4] * deg_to_rad(l.y))
 			_grab_end = 0 if lo.distance_to(e.position) <= hi.distance_to(e.position) else 1
 		return true
 	if e is InputEventMouseMotion and _grab != "":
@@ -211,12 +285,12 @@ static func input(e: InputEvent, xf: Transform2D) -> bool:
 		var m: Vector2 = xf.affine_inverse() * e.position
 		var a: float = (m - gm[0]).angle()
 		if mode == "Rotate":
-			var deg := _grab_turn + rad_to_deg(wrapf(a - _grab_from, -PI, PI))
+			var deg: float = _grab_turn + rad_to_deg(wrapf(a - _grab_from, -PI, PI)) * gm[4]
 			if Input.is_key_pressed(KEY_SHIFT):
 				deg = snappedf(deg, 5.0)
 			set_turn(_grab, deg)
 		else:
-			var deg := roundf(rad_to_deg(wrapf(a - gm[2], -PI, PI)))
+			var deg: float = roundf(rad_to_deg(wrapf(a - gm[3], -PI, PI)) * gm[4])
 			var l := limit(_grab)
 			if _grab_end == 0:
 				l.x = minf(deg, l.y)
