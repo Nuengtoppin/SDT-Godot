@@ -58,6 +58,7 @@ static func any_on() -> bool:
 
 static func clear() -> void:
 	_on.clear()
+	set_pose(false)
 
 
 static func _ensure() -> void:
@@ -176,6 +177,66 @@ static func legs() -> Dictionary:
 	if not (ours and is_on("legs_ours", "axis")):   # our thighs (from our hips) replace the game's
 		bones.append_array([c[1], [_at(left), _at(left.calf)]])
 	return {"node": h, "axes": bones, "points": [c[2]]}
+
+
+# ---------------------------------------------------------------- pose mode (Body > Scene)
+
+## Pose mode: the game frozen (paused) with her arms loose and his hand free, him shown / penis only / hidden, to
+## place points and pose her; leaving it puts back everything it changed. Later this moves to our own scene.
+const HIM_MODES := ["Shown", "Penis only", "Hidden"]
+static var posing := false
+static var pose_him := "Penis only"
+static var pose_loose := true
+static var pose_free := true
+static var _saved := {}
+
+
+static func set_pose(on: bool) -> void:
+	if on == posing or g.her == null or g.him == null:
+		return
+	if on:
+		_saved = {"paused": g.gamePaused, "body_hidden": g.him.bodyHidden, "him_visible": g.him.visible,
+			"left": g.her.currentLeftArmPosition, "right": g.her.currentRightArmPosition, "his": g.him.currentArmPosition}
+		posing = true
+		apply_pose()
+	else:
+		posing = false
+		g.gamePaused = false   # the arm lists do nothing while paused
+		_arm(func(): return g.her.currentLeftArmPosition, func(): g.inGameMenu.leftArmRightClicked(), _saved["left"], func(): g.inGameMenu.leftArmLeftClicked())
+		_arm(func(): return g.her.currentRightArmPosition, func(): g.inGameMenu.rightArmRightClicked(), _saved["right"], func(): g.inGameMenu.rightArmLeftClicked())
+		_arm(func(): return g.him.currentArmPosition, func(): g.inGameMenu.hisArmRightClicked(), _saved["his"], func(): g.inGameMenu.hisArmLeftClicked())
+		g.him.setBodyHidden(_saved["body_hidden"])
+		g.him.visible = _saved["him_visible"]
+		g.gamePaused = _saved["paused"]
+
+
+## The pose settings as they are now (while posing).
+static func apply_pose() -> void:
+	if not posing:
+		return
+	g.gamePaused = false   # the arm lists do nothing while paused
+	var loose := Her.armPositions.find("Loose")
+	_arm(func(): return g.her.currentLeftArmPosition, func(): g.inGameMenu.leftArmRightClicked(),
+		loose if pose_loose else _saved["left"], func(): g.inGameMenu.leftArmLeftClicked())
+	_arm(func(): return g.her.currentRightArmPosition, func(): g.inGameMenu.rightArmRightClicked(),
+		loose if pose_loose else _saved["right"], func(): g.inGameMenu.rightArmLeftClicked())
+	_arm(func(): return g.him.currentArmPosition, func(): g.inGameMenu.hisArmRightClicked(),
+		Him.armPositions.find("Free") if pose_free else _saved["his"], func(): g.inGameMenu.hisArmLeftClicked())
+	g.him.setBodyHidden(pose_him != "Shown")
+	g.him.visible = pose_him != "Hidden"
+	g.gamePaused = true
+
+
+## Steps an arrow list until `get` is `want`: its right arrow `step` while below, `back` (its left arrow) while above.
+static func _arm(get_fn: Callable, step: Callable, want: int, back := Callable()) -> void:
+	for _i in 12:
+		var now: int = get_fn.call()
+		if now == want:
+			return
+		if now > want and back.is_valid():
+			back.call()
+		else:
+			step.call()
 
 
 # ---------------------------------------------------------------- our skeleton points (marks)

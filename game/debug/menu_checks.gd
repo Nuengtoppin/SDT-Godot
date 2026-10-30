@@ -455,6 +455,14 @@ func _behaviour_checks() -> void:
 	_teeth_tongue_checks()
 	_spurt_checks()
 	_journal_checks()
+	var was_p := [g.gamePaused, g.her.currentLeftArmPosition, g.him.currentArmPosition, g.him.bodyHidden]
+	DevBodyOverlay.set_pose(true)
+	var posed := [g.gamePaused, g.her.currentLeftArmPosition == Her.armPositions.find("Loose"),
+		g.him.currentArmPosition == Him.armPositions.find("Free"), g.him.bodyHidden, g.him.visible]
+	DevBodyOverlay.set_pose(false)
+	_check("pose mode: frozen, her arms loose, his hand free, his penis only; off: all back", posed == [true, true, true, true, true]
+		and [g.gamePaused, g.her.currentLeftArmPosition, g.him.currentArmPosition, g.him.bodyHidden] == was_p,
+		"%s %s" % [posed, [g.gamePaused, g.her.currentLeftArmPosition, g.him.currentArmPosition, g.him.bodyHidden]])
 	var parts := {}
 	for k in ["legs", "arms", "breasts"]:
 		parts[k] = DevBodyOverlay.parts()[k].call()
@@ -523,10 +531,10 @@ func _behaviour_checks() -> void:
 	DevBodyOverlay.ours = false
 	var body: Dictionary = dev.sections.filter(func(sec): return sec["id"] == "dev_body")[0]
 	var titles: Array = body["groups"].map(func(grp): return grp["title"])
-	_check("Body tab: Her body, Debug layers, Head, Neck, Throat rings, Arms, Breasts, Torso, Legs, Him body", titles == ["Her body",
+	_check("Body tab: Her body, Scene, Debug layers, Head, Neck, Throat rings, Arms, Breasts, Torso, Legs, Him body", titles == ["Her body", "Scene",
 		"Debug layers", "Head", "Neck", "Throat rings", "Arms", "Breasts", "Torso", "Legs", "Him body"] and not body["fold"].has("Her body"),
 		str(titles))
-	var calf_spec: Dictionary = body["groups"][8]["controls"][2]
+	var calf_spec: Dictionary = body["groups"][9]["controls"][2]
 	DevBodyOverlay.ours = false
 	var dim_off: bool = not calf_spec["enabled"].call()
 	DevBodyOverlay.ours = true

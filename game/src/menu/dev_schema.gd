@@ -68,6 +68,22 @@ static func _body() -> Dictionary:
 				["Reset points", func(): DevBodyOverlay.marks.clear(), "Every point back to its fitted place or first guess."]],
 				{"enabled": ours}),
 		]},
+		{"title": "Scene", "controls": [
+			MenuSchema.toggle("Pose mode", "The game frozen, to place points and pose her: her arms loose, his hand free, him as chosen below. Off: everything back as it was.",
+				func(): return DevBodyOverlay.posing, func(on: bool): DevBodyOverlay.set_pose(on), {"keywords": "pose freeze scene"}),
+			MenuSchema.choice("Him", "In pose mode: shown, only his penis, or hidden.", DevBodyOverlay.HIM_MODES,
+				func(): return DevBodyOverlay.pose_him, func(v: String):
+					DevBodyOverlay.pose_him = v
+					DevBodyOverlay.apply_pose()),
+			MenuSchema.toggle("Her arms loose", "In pose mode her arms hang loose (else as they were).",
+				func(): return DevBodyOverlay.pose_loose, func(on: bool):
+					DevBodyOverlay.pose_loose = on
+					DevBodyOverlay.apply_pose()),
+			MenuSchema.toggle("His hand free", "In pose mode his hand lets go of her head (else as it was).",
+				func(): return DevBodyOverlay.pose_free, func(on: bool):
+					DevBodyOverlay.pose_free = on
+					DevBodyOverlay.apply_pose()),
+		]},
 		{"title": "Debug layers", "controls": [
 			MenuSchema.note("Drawn over the game, read only: straight lines through the points (the game draws curves through them). Yellow: the game's bones; orange: ours (with our layer on)."),
 			{"type": "slider", "label": "Line width", "tip": "Width of the outlines and axes, in screen pixels.", "min": 0.5, "max": 3.0, "step": 0.25,
