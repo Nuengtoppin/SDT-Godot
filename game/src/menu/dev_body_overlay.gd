@@ -75,6 +75,8 @@ static func clear() -> void:
 	set_spring(false)
 	DevBodySides.reset()
 	DevBodyRings.mode = ""
+	DevBodyDrag.on = false
+	DevBodyDrag.release()
 	DevBodyRings.reset_turns()
 
 
@@ -83,6 +85,8 @@ static func clear() -> void:
 static func set_mouse(v: String) -> void:
 	editing = v == "Points"
 	DevBodyRings.mode = v if v in ["Rotate", "Limits"] else ""
+	DevBodyDrag.on = v == "Drag"
+	DevBodyDrag.release()
 	DevBodyRings._grab = ""
 	_drag = ""
 	if v != "Off":
@@ -90,6 +94,8 @@ static func set_mouse(v: String) -> void:
 
 
 static func mouse_mode() -> String:
+	if DevBodyDrag.on:
+		return "Drag"
 	return "Points" if editing else (DevBodyRings.mode if DevBodyRings.mode != "" else "Off")
 
 
@@ -150,7 +156,7 @@ static func _draw_floor() -> void:
 func _process(_delta: float) -> void:
 	if posing:
 		_draw_floor()
-	_canvas.visible = (any_on() or (editing and ours) or posing or DevBodyRings.shown()) and g.gameRunning and SDTMenu.dev != null and SDTMenu.dev._enabled()
+	_canvas.visible = (any_on() or (editing and ours) or posing or DevBodyRings.shown() or DevBodyDrag.shown()) and g.gameRunning and SDTMenu.dev != null and SDTMenu.dev._enabled()
 	if _canvas.visible:
 		_canvas.queue_redraw()
 
@@ -159,6 +165,8 @@ func _draw_parts() -> void:
 	var stage: Transform2D = Flash.stage.get_global_transform_with_canvas()
 	if DevBodyRings.shown():
 		DevBodyRings.draw(_canvas, _her_xf(), get_viewport().get_mouse_position(), line_width)
+	if DevBodyDrag.shown():
+		DevBodyDrag.draw(_canvas, _her_xf(), get_viewport().get_mouse_position())
 	if editing and ours and g.her != null:
 		var xf := _her_xf()
 		var hover := _drag if _drag != "" else _mark_under(get_viewport().get_mouse_position())
@@ -517,8 +525,9 @@ static func mark_defs() -> Dictionary:
 	return {
 		"hip_r": ["Right hip", torso, hip_r],
 		"hip_l": ["Left hip", torso, func(): return hip_l.call() + (mark("hip_r") - hip_r.call())],
-		"lumbar": ["Lumbar", torso, func(): return hip_r.call().lerp(neck.call(), 0.33).round()],   # first guesses
-		"thoracic": ["Thoracic", torso, func(): return hip_r.call().lerp(neck.call(), 0.66).round()],
+		"lumbar": ["Lumbar (pelvis)", torso, func(): return hip_r.call().lerp(neck.call(), 0.33).round()],   # first guesses
+		"thoracic": ["Thoracic (back)", torso, func(): return hip_r.call().lerp(neck.call(), 0.66).round()],
+		"torso": ["Torso (whole body)", torso, func(): return ((mark("lumbar") + mark("thoracic")) * 0.5).round()],
 		"neck_base": ["Neck base", torso, func(): return neck.call().round()],
 		"shoulder_r": ["Right shoulder", torso, func(): return _local(h.torso, h.rightArmContainer.upperArm).round()],
 		"head_pivot": ["Head pivot", func(): return h.head, func(): return Vector2.ZERO],
@@ -614,6 +623,8 @@ static func numbers() -> String:
 static func wants_mouse() -> bool:
 	if posing and pose_mode == "Alive":
 		return true   # posing alive: the scene's mouse is ours (her head stays where it was; points, zoom)
+	if DevBodyDrag.shown() and instance != null:
+		return DevBodyDrag.busy() or DevBodyDrag.under(instance._her_xf(), instance.get_viewport().get_mouse_position()) != ""
 	if DevBodyRings.shown() and instance != null:
 		return DevBodyRings.busy() or DevBodyRings.ring_under(instance._her_xf(), instance.get_viewport().get_mouse_position()) != ""
 	if not (editing and ours and instance != null and g.her != null):
@@ -642,6 +653,10 @@ func _input(e: InputEvent) -> void:
 			and not (SDTMenu.dev != null and SDTMenu.dev._dock.get_global_rect().has_point(e.position)):
 		_zoom(get_viewport().get_mouse_position(), 1.1 if e.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1)
 		get_viewport().set_input_as_handled()
+		return
+	if DevBodyDrag.shown() and SDTMenu.dev != null and SDTMenu.dev._enabled():
+		if DevBodyDrag.input(e, _her_xf()):
+			get_viewport().set_input_as_handled()
 		return
 	if DevBodyRings.shown() and SDTMenu.dev != null and SDTMenu.dev._enabled():
 		if DevBodyRings.input(e, _her_xf()):

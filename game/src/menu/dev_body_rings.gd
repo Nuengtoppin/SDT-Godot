@@ -8,6 +8,12 @@ extends RefCounted
 ## copied with "Copy numbers". The head and neck turn with the neck spring's hooks (one turn about the neck base,
 ## then the head about its pivot - the neck picture stays out of the head's own turn); the legs after the game's
 ## updateElements (the game places them anew every tick). Later: arms (IK), the jaw, the spine (one picture: a morph).
+## Whole body, through her root (the game hangs her body from her head), before the game's updateElements: the torso
+## point (between pelvis and back) - "body" turns all of her about it and `offset` moves all of her, her knees too;
+## the pelvis (the lumbar point) - `hips` moves her by it, her knees staying where the pose puts them while a leg
+## kneels (she rises or sinks over them); the back (thoracic) - "back" leans her upper body about the pelvis (her head
+## goes round it, the game's IK keeps her knees). With both legs loose her knees go with her anyway.
+## The chains (Body > Mouse > Drag pulls along them): head -> neck -> back -> pelvis; pelvis -> hip -> knee -> ankle.
 
 ## id -> [label, centre mark, far mark (the bone's direction)]
 const JOINTS := {
@@ -17,15 +23,19 @@ const JOINTS := {
 	"hip_l": ["Left hip", "hip_l", "knee_l"],
 	"knee_r": ["Right knee", "knee_r", "ankle_r"],
 	"knee_l": ["Left knee", "knee_l", "ankle_l"],
+	"back": ["Back", "lumbar", "thoracic"],
+	"body": ["Whole body", "torso", "thoracic"],
 }
+const CHAINS := [["head", "neck", "back"], ["hip_r", "knee_r"], ["hip_l", "knee_l"]]
 ## Allowed turn, degrees [min, max]: from the game's angle; the knees from a straight leg - their fold (0: straight,
 ## about 130: as she kneels), the same range the loose leg keeps to. A knee's turn is in
 ## fold degrees too (more: folded more), so it never bends a knee the wrong way whatever the game or the loose
 ## leg has done to it.
 ## Set by Dima (30 Oct) on the right leg; the left one the same (the same pictures, the same game angle).
 const LIMITS := {"neck": Vector2(-38, 54), "head": Vector2(-68, 28), "hip_r": Vector2(-77, 149),
-	"hip_l": Vector2(-77, 149), "knee_r": Vector2(-8, 156), "knee_l": Vector2(-8, 156)}
-const MODES := ["Off", "Points", "Rotate", "Limits"]
+	"hip_l": Vector2(-77, 149), "knee_r": Vector2(-8, 156), "knee_l": Vector2(-8, 156),
+	"back": Vector2(-30, 40), "body": Vector2(-180, 180)}
+const MODES := ["Off", "Points", "Rotate", "Limits", "Drag"]
 const RING_PX := 26.0      # ring radius on screen (the left side's rings are larger: both knees sit together)
 const LEFT_PX := 36.0
 const BAND_PX := 6.0
@@ -42,7 +52,18 @@ static var _fold_game := {}    # knee id -> its fold before our turn (last appli
 static var _fold_turn := {}    # knee id -> the turn that fitted in its range (last applied)
 
 
+static var offset := Vector2.ZERO   # all of her moved (knees too), in the scene's space
+static var hips := Vector2.ZERO     # her pelvis moved (her knees stay while a leg kneels)
+static var _pivot := {}            # "body" / "back" -> its pivot in the scene, kept while it turns
+static var _root_fn := Callable()
+static var _target_moved := false
+static var _root_base = null       # her root as the game placed it (before ours)
+static var _root_applied = null    # and as we left it: unchanged means the game did not place it again (paused)
+
+
 static func radius(id: String) -> float:
+	if id == "body":
+		return 48.0
 	return LEFT_PX if id.ends_with("_l") else RING_PX
 
 
@@ -55,6 +76,8 @@ static func turn(id: String) -> float:
 
 
 static func set_turn(id: String, deg: float) -> void:
+	if (id == "body" or id == "back") and turn(id) == 0.0 and g.her != null:
+		_pivot[id] = root_xf(false).affine_inverse() * scene_pt(JOINTS[id][1])
 	var l := limit(id)
 	if is_knee(id):   # the fold it would make must stay in range
 		var f0 := fold_game(id)
@@ -105,7 +128,63 @@ static func fold_game(id: String) -> float:
 
 static func reset_turns() -> void:
 	turns.clear()
+	offset = Vector2.ZERO
+	hips = Vector2.ZERO
 	refresh()
+
+
+## Mark `id` in the scene's space.
+static func scene_pt(id: String) -> Vector2:
+	return _scene() * g.her.flash_global_transform() * DevBodyOverlay.mark_at(id)
+
+
+## Her her-space turns in the scene's turning sense (+1, or -1 if she is mirrored there).
+static func her_sgn() -> float:
+	return _sgn(_scene() * g.her.flash_global_transform())
+
+
+## The whole body's move and turn, in the scene (with_turn false: the move only; with_hips false: without the
+## pelvis' own move - where her knees go).
+static func root_xf(with_turn := true, with_hips := true) -> Transform2D:
+	var m := Transform2D(0.0, offset + (hips if with_hips else Vector2.ZERO))
+	if with_turn and turn("body") != 0.0:
+		var p: Vector2 = _pivot.get("body", Vector2.ZERO)
+		var r := deg_to_rad(turn("body")) * her_sgn()
+		m = m * Transform2D(r, p - p.rotated(r))
+	return m
+
+
+static func root_moved() -> bool:
+	return DevBodyOverlay.ours and (offset != Vector2.ZERO or hips != Vector2.ZERO or turn("body") != 0.0 or turn("back") != 0.0)
+
+
+## Before the game's updateElements (her root just placed by updatePosition): the whole body's move and turn and the
+## back's lean put on her root, and her knees' target moved with her only while both legs are loose.
+static func _root_before() -> void:
+	var h = g.her
+	if h == null or not root_moved():
+		refresh()
+		return
+	var lean := Transform2D.IDENTITY
+	if turn("back") != 0.0:
+		var p: Vector2 = _pivot.get("back", Vector2.ZERO)
+		var r := deg_to_rad(turn("back")) * her_sgn()
+		lean = Transform2D(r, p - p.rotated(r))
+	var r_scene := root_xf() * lean
+	var base_xf: Transform2D = h.transform
+	if _root_applied != null and base_xf.is_equal_approx(_root_applied):
+		base_xf = _root_base
+	var ps: Transform2D = _scene() * h.flash_global_transform() * h.transform.affine_inverse()   # her parent -> scene
+	var m: Transform2D = ps.affine_inverse() * r_scene * ps * base_xf
+	_root_base = base_xf
+	_root_applied = m
+	h.transform = m
+	h.mHer = m
+	var base: Vector2 = g.animationControl.getHerKneeTarget()
+	var both_loose := DevBodySides.leg_l == "Loose" and DevBodySides.leg_r == "Loose"
+	var knees := root_xf(true, both_loose)
+	h.torsoIK.newTarget(knees * base, g.sceneLayer, true)
+	_target_moved = knees != Transform2D.IDENTITY
 
 
 ## Hooks in what the turns need and, while the game is paused (pose mode frozen), places her again so it shows.
@@ -114,6 +193,23 @@ static func refresh() -> void:
 	for id in turns:
 		if id.begins_with("hip") or id.begins_with("knee"):
 			legs = legs or turns[id] != 0.0
+	var root := root_moved() and g.her != null
+	if root and not _root_fn.is_valid():
+		_root_fn = func(_c): DevBodyRings._root_before()
+		Hooks.add_before(&"Her.updateElements", _root_fn, "rings", -50)
+	elif not root and _root_fn.is_valid():
+		Hooks.remove(&"Her.updateElements", _root_fn)
+		_root_fn = Callable()
+	if not root and _root_applied != null and g.her != null:
+		if g.her.transform.is_equal_approx(_root_applied):
+			g.her.transform = _root_base
+			g.her.mHer = _root_base
+		_root_applied = null
+	if not root and _target_moved and g.her != null:
+		g.her.torsoIK.newTarget(g.animationControl.getHerKneeTarget(), g.sceneLayer, true)
+		_target_moved = false
+	if not root:
+		_pivot.clear()
 	var want := legs and DevBodyOverlay.ours and g.her != null
 	if want and not _after.is_valid():
 		_after = func(_c): DevBodyRings._legs_after()
@@ -274,6 +370,8 @@ static func input(e: InputEvent, xf: Transform2D) -> bool:
 		_grab = id
 		var c0: Vector2 = gm[0]
 		_grab_from = (m - c0).angle()
+		if id == "body" or id == "back":   # her space turns with them: measure in the scene
+			_grab_from = (_mouse_scene(e.position) - scene_pt(JOINTS[id][1])).angle()
 		_grab_turn = turn(id)
 		if mode == "Limits":
 			var l := limit(id)
@@ -287,6 +385,9 @@ static func input(e: InputEvent, xf: Transform2D) -> bool:
 		var a: float = (m - gm[0]).angle()
 		if mode == "Rotate":
 			var deg: float = _grab_turn + rad_to_deg(wrapf(a - _grab_from, -PI, PI)) * gm[4]
+			if _grab == "body" or _grab == "back":
+				var c: Vector2 = _pivot.get(_grab, scene_pt(JOINTS[_grab][1])) if _grab == "back" else scene_pt("torso")
+				deg = _grab_turn + rad_to_deg(wrapf((_mouse_scene(e.position) - c).angle() - _grab_from, -PI, PI)) * her_sgn()
 			if Input.is_key_pressed(KEY_SHIFT):
 				deg = snappedf(deg, 5.0)
 			set_turn(_grab, deg)
@@ -301,6 +402,11 @@ static func input(e: InputEvent, xf: Transform2D) -> bool:
 			set_turn(_grab, turn(_grab))
 		return true
 	return false
+
+
+## A screen point in the scene's space.
+static func _mouse_scene(screen: Vector2) -> Vector2:
+	return _scene() * Flash.stage.get_global_transform_with_canvas().affine_inverse() * screen
 
 
 static func numbers() -> PackedStringArray:

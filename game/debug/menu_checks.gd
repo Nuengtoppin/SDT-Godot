@@ -639,6 +639,53 @@ func _behaviour_checks() -> void:
 	_check("rings by mouse: Rotate drags the right hip's ring 30 degrees, Limits drags its arc's end to 45 (copied with the numbers)",
 		under == "hip_r" and absf(rot_turn - 30.0) < 0.5 and lim == Vector2(DevBodyRings.LIMITS["hip_r"].x, 45) and copied and not DevBodyRings.busy(),
 		"%s %.2f %s %s" % [under, rot_turn, lim, copied])
+	DevBodyOverlay.ours = true
+	h.updateElements()
+	var hp_a: Vector2 = DevBodyRings.scene_pt("head_pivot")
+	var kt0: Vector2 = h.torsoIK.targetPoint
+	DevBodyRings.hips = Vector2(30, -20)
+	DevBodyRings.refresh()
+	h.updateElements()
+	h.updateElements()   # twice: the move must not pile up while the game does not place her root again
+	var moved: Vector2 = DevBodyRings.scene_pt("head_pivot") - hp_a
+	var knees_kept: bool = h.torsoIK.targetPoint.is_equal_approx(kt0)
+	DevBodyRings.hips = Vector2.ZERO
+	DevBodyRings.offset = Vector2(30, -20)
+	DevBodyRings.refresh()
+	h.updateElements()
+	var knees_went: bool = h.torsoIK.targetPoint.is_equal_approx(kt0 + Vector2(30, -20))
+	DevBodyRings.set_turn("back", 15.0)
+	h.updateElements()
+	var leaned: float = DevBodyRings.scene_pt("head_pivot").distance_to(hp_a + Vector2(30, -20))
+	DevBodyRings.reset_turns()
+	h.updateElements()
+	var root_back: bool = DevBodyRings.scene_pt("head_pivot").distance_to(hp_a) < 0.05 and not DevBodyRings._root_fn.is_valid()
+	_check("whole body: the pelvis moves her (no pile-up), her knees staying while she kneels; the torso moves all of her, knees too; the back leans her head round; reset puts her back",
+		moved.distance_to(Vector2(30, -20)) < 0.5 and knees_kept and knees_went and leaned > 5.0 and root_back, "%s %s %s %.1f %s" % [moved, knees_kept, knees_went, leaned, root_back])
+	DevBodyRings.set_turn("head", 20.0)
+	DevBodyDrag._give(["head", "neck", "back"], 100.0)
+	var spill: Array = [DevBodyRings.turn("head"), DevBodyRings.turn("neck"), DevBodyRings.turn("back")]
+	DevBodyRings.reset_turns()
+	h.updateElements()
+	var sc2: Transform2D = DevBodyRings._scene()
+	var ank0: Vector2 = sc2 * h.torso.rightCalfContainer.calf.flash_global_transform() * DevBodyOverlay.mark("ankle_r")
+	var want: Vector2 = ank0 + Vector2(40, -60)
+	DevBodyDrag._last = want
+	for k in 3:
+		DevBodyDrag.pull("ankle_r", want, Vector2.ZERO)
+		h.updateElements()
+	var ank1: Vector2 = sc2 * h.torso.rightCalfContainer.calf.flash_global_transform() * DevBodyOverlay.mark("ankle_r")
+	DevBodyRings.reset_turns()
+	h.updateElements()
+	var nip0: Vector2 = h.localToGlobal(DevBodyOverlay.nipple_at(true))
+	DevBodyDrag.pull("nipple_r", Vector2.ZERO, nip0 + Vector2(0, -12))
+	DevBodyDrag._breasts_after()
+	var nip1: Vector2 = h.localToGlobal(DevBodyOverlay.nipple_at(true))
+	DevBodyDrag.release()
+	_check("drag: the chin's turn spills head (to 28) -> neck (to 54) -> back (the rest, 38); a kneeling ankle is pulled to the mouse; a nipple lifts its breast; let go, unhooked",
+		is_equal_approx(spill[0], 28.0) and is_equal_approx(spill[1], 54.0) and is_equal_approx(spill[2], 38.0)
+		and ank1.distance_to(want) < ank0.distance_to(want) * 0.35 and nip1.y < nip0.y - 6.0 and not DevBodyDrag._after.is_valid(),
+		"%s %.1f->%.1f %.1f" % [spill, ank0.distance_to(want), ank1.distance_to(want), nip1.y - nip0.y])
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
 		ho["axes_ours"].size() == 1 and DevBodyOverlay.parts()["neck_lines_ours"].call()["axes_ours"].size() == 2 and DevBodyOverlay.parts()["head_ours"].call()["axes_ours"].size() == 1 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])

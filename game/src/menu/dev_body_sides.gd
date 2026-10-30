@@ -91,6 +91,16 @@ static var loose_limit := 60.0     # how far the thigh may turn from where it kn
 static var loose_floor := true     # the floor holds her knee and foot (off: they hang through it)
 static var _after := Callable()
 static var _st := {}               # "l" / "r" -> the leg's state (angles in the scene's space, radians)
+static var _holds := {}            # "l" / "r" -> [thigh, calf] scene angles the mouse holds it at (NAN: free)
+
+
+## Body > Mouse > Drag: the mouse holds a loose leg's thigh (and calf) at these scene angles; let go, it swings on.
+static func hold(side: String, thigh: float, calf: float) -> void:
+	_holds[side] = [thigh, calf]
+
+
+static func release(side: String) -> void:
+	_holds.erase(side)
 
 
 static func set_leg(right: bool, mode: String) -> void:
@@ -167,6 +177,9 @@ static func _leg(side: String, thigh, calf, scene: Transform2D, floor_y: float) 
 	var ha: Vector2 = hip - 2.0 * s["hip"][0] + s["hip"][1]
 	s["hip"] = [hip, s["hip"][0]]
 	var n1: float = _step(s["p1"], s["o1"], ha, l1)
+	var held: Array = _holds.get(side, [NAN, NAN])
+	if not is_nan(held[0]):
+		n1 = held[0]
 	var a: float = _turn_for(pg, thigh.transform, d1, n1)
 	var da: float = wrapf(a - s["rest"], -PI, PI)
 	var lim := deg_to_rad(loose_limit)
@@ -185,7 +198,7 @@ static func _leg(side: String, thigh, calf, scene: Transform2D, floor_y: float) 
 	var ka: Vector2 = knee - 2.0 * s["knee"][0] + s["knee"][1]
 	s["knee"] = [knee, s["knee"][0]]
 	var fold := _knee_range("knee_" + side, tg)
-	var n2: float = _bend(n1, _step(s["p2"], s["o2"], ka, l2), fold)
+	var n2: float = _bend(n1, held[1] if not is_nan(held[1]) else _step(s["p2"], s["o2"], ka, l2), fold)
 	var fa: float = fk + s["ankle"]
 	if loose_floor and knee.y + sin(n2) * l2 > fa:   # her foot on the floor
 		n2 = _bend(n1, _onto(knee.y, l2, fa, n2), fold)
