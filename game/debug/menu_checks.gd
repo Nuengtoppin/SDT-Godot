@@ -35,6 +35,7 @@ func step(_frame: int) -> void:
 				_control_checks()
 				_settings_checks()
 				_dev_mode_checks()
+				_behaviour_checks()
 				_extension_checks()
 				_dialogue_editor_checks()
 				_finish()
@@ -288,6 +289,8 @@ func _settings_checks() -> void:
 func _dev_mode_checks() -> void:
 	menu.close_menu()
 	_check("developer mode off by default", not SDTMenu.dev_mode_enabled() and SDTMenu.dev == null)
+	_check("developer mode off: no behaviour vetoes or observers, no event log", not DevBehaviour._active
+		and DevBehaviour._watch_fns.is_empty() and not Journal.active and not Journal._tick_fn.is_valid())
 	var side := _spec("settings", "Menu side")
 	side["set"].call("Right")
 	_spec("settings", "Developer mode")["set"].call(true)
@@ -295,7 +298,7 @@ func _dev_mode_checks() -> void:
 	_check("developer panel made", dev is DevMenu and dev._root != null)
 	_check("developer mode remembered", bool(PortSettings.get_value("developer", "enabled", false)))
 	_check("developer panel starts collapsed", not dev.is_open and not dev._dock.visible)
-	_check("developer panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 4)
+	_check("developer panel: search, sections, help line", dev._search != null and dev._nav_buttons.size() == 9)
 	_check("developer tab says DEBUG", dev._tab.text.replace("\n", "") == "DEBUG")
 	_check("menu right: developer panel left", dev._left() and not menu._left())
 	dev.open_menu()
@@ -335,6 +338,201 @@ func _press(pos: Vector2) -> InputEventMouseButton:
 	e.pressed = true
 	e.position = pos
 	return e
+
+
+## Behaviour tabs (DevBehaviour): a row per behaviour, automation off = a veto that the panel's own call passes,
+## freeze / restore, remembering, and nothing left behind when Developer mode goes off or Vanilla mode comes on.
+func _behaviour_checks() -> void:
+	var her = g.her
+	_spec("settings", "Developer mode")["set"].call(true)
+	var dev = SDTMenu.dev
+	_check("behaviour tabs: Eyes, Mouth, Fluids, State, Him", ["dev_eyes", "dev_mouth", "dev_fluids", "dev_state", "dev_him"]
+		.all(func(id): return dev._nav_buttons.has(id)))
+	_check("developer mode on: observers on every behaviour", DevBehaviour._active
+		and DevBehaviour._watch_fns.size() == DevBehaviour.hooks().size())
+	dev.open_menu("dev_mouth")
+	dev.build_now()
+	_check("Mouth tab: All off / on, 10 rows, 3 hand settings", dev._rows.size() == 14, str(dev._rows.size()))
+	_check("everything on at first", DevBehaviour.off_count() == 0)
+	var was := [her.swallowing, her.cumInMouth]
+	DevBehaviour.set_auto(&"Her.swallow", false)
+	her.swallowing = false
+	her.swallow()
+	_check("Swallow off: she does not swallow by herself", not her.swallowing)
+	_check("Swallow off: the status names the veto", DevBehaviour.status(&"Her.swallow").contains("vetoed by Developer mode"),
+		DevBehaviour.status(&"Her.swallow"))
+	var free: bool = not her.passedOut and not her.speaking
+	DevBehaviour.call_now(&"Her.swallow", func(): her.swallow())
+	_check("Swallow off: the call button still works", not free or her.swallowing)
+	_check("the button's call shows as called from here", not free or DevBehaviour.status(&"Her.swallow").contains("called from here"),
+		DevBehaviour.status(&"Her.swallow"))
+	DevBehaviour.set_auto(&"Her.swallow", true)
+	her.swallowing = was[0]
+	her.cumInMouth = 10
+	var winces := [0]
+	var count := func(_c): winces[0] += 1
+	Hooks.add_before(&"Her.wince", count, "menu_checks")
+	DevBehaviour.call_now(&"", func(): DevBehaviour._gulp_without_squint(her))
+	_check("Gulp, no squint: a gulp without her wince", winces[0] == 0 and her.cumInMouth < 10
+		and not Hooks.has_value(&"Her.swallowWince"), "%d %d" % [winces[0], her.cumInMouth])
+	Hooks.remove_owner("menu_checks")
+	her.cumInMouth = was[1]
+	_teeth_tongue_checks()
+	_spurt_checks()
+	_journal_checks()
+	DevTuning.set_clench_time(5.0)
+	DevTuning.set_spam_j(true)
+	var tools: Array = dev.sections.filter(func(sec): return sec["id"] == "dev_tools")[0]["groups"]
+	var air := {}
+	for c in tools.filter(func(grp): return grp["title"] == "Her")[0]["controls"]:
+		air[c.get("label", "")] = c
+	_check("Tools > Her: Air, Oxygen, and their now", ["Air", "Oxygen", "Air now", "Oxygen now"].all(func(k): return air.has(k)))
+	air["Air"]["set"].call(100.0)
+	air["Oxygen"]["set"].call(80.0)
+	_check("Air 100: out of breath at half of it; Oxygen 80", g.breathLevelMax == 100.0 and g.outOfBreathPoint == 50.0
+		and g.her.passOutMax == 80.0)
+	DevBehaviour.set_all(false)
+	_check("Freeze all switches off every behaviour", DevBehaviour.off_count() == DevBehaviour.hooks().size())
+	DevBehaviour.set_all(true, "eyes")
+	_check("All on in one tab", not DevBehaviour.is_off(&"Her.blink") and DevBehaviour.is_off(&"Her.swallow"))
+	DevBehaviour.set_all(true)
+	_check("Restore all", DevBehaviour.off_count() == 0)
+	DevBehaviour.set_remember(true)
+	DevBehaviour.set_auto(&"Him.ejaculate", false)
+	_check("Remember on: switched-off automation saved", "Him.ejaculate" in PortSettings.get_value("dev_behaviour", "off", []))
+	DevBehaviour.set_remember(false)
+	_check("Remember off: nothing saved, the session keeps it", PortSettings.get_value("dev_behaviour", "off", ["x"]).is_empty()
+		and DevBehaviour.is_off(&"Him.ejaculate"))
+	Extensions.set_vanilla_mode(true)
+	menu.apply_mode()
+	_check("Vanilla mode: no vetoes or observers", not DevBehaviour._active and DevBehaviour._watch_fns.is_empty())
+	Extensions.set_vanilla_mode(false)
+	menu.apply_mode()
+	_check("Vanilla mode off again: the session's switches return", DevBehaviour._active and DevBehaviour.is_off(&"Him.ejaculate"))
+	DevBehaviour.set_all(true)
+	dev.close_menu()
+	_spec("settings", "Developer mode")["set"].call(false)
+	_check("Developer mode off: no vetoes or observers left", not DevBehaviour._active and DevBehaviour._watch_fns.is_empty())
+	_check("Developer mode off: hand settings back to the game's", DevTuning._mods.is_empty() and not DevTuning._spam_fn.is_valid()
+		and DevTuning.clench_s == 0.0 and not Hooks.has_value(&"Her.clenchTime"))
+	_check("Developer mode off: her air and oxygen the game's again", g.breathLevelMax == 50.0 and g.outOfBreathPoint == 25.0
+		and g.her.passOutMax == 40.0)
+	_check("Developer mode off: the event log stops, no hooks or tick of its own", not Journal.active
+		and not Journal._tick_fn.is_valid() and not Flash.tick_after.any(func(f): return f == Journal._tick_fn))
+	var n0: int = Journal.lines.size()
+	Journal.log("other", "nothing")
+	_check("Developer mode off: Journal.log does nothing", Journal.lines.size() == n0)
+
+
+## The event log (Journal): folding, swallow lines, vetoes, a state change held HOLD ticks, hidden groups.
+func _journal_checks() -> void:
+	var her = g.her
+	_check("log: on with Developer mode", Journal.active and Journal._tick_fn.is_valid())
+	var was := [her.swallowing, her.speaking, her.passedOut, her.cumInMouth, her.breathing]
+	Journal.clear()
+	Journal.log("other", "a")
+	Journal.log("other", "a")
+	Journal.log("other", "b")
+	_check("log: the same line again is folded", Journal.lines.size() == 2 and Journal.lines[0][3] == 2
+		and Journal.as_text().contains("a  x2"), Journal.as_text())
+	Journal.clear()
+	her.swallowing = false
+	her.speaking = false
+	her.passedOut = false
+	her.cumInMouth = 20
+	her.swallow(0.8, false)
+	her.swallow(0.8, false)
+	her.gulp()
+	Journal._tick()
+	var t := Journal.as_text()
+	_check("log: swallow starts, a dropped request, the gulp", t.contains("Swallow starts (strength 0.80, 20 in her mouth)")
+		and t.contains("Asked to swallow: dropped, already swallowing") and t.contains("Gulp: took ")
+		and t.find("Swallow starts") < t.find("dropped") and t.find("dropped") < t.find("Gulp"), t)
+	Journal.clear()
+	DevBehaviour.set_auto(&"Her.cough", false)
+	her.cough()
+	Journal._tick()
+	DevBehaviour.set_auto(&"Her.cough", true)
+	_check("log: a veto names who", Journal.as_text().contains("Cough vetoed by Developer mode"), Journal.as_text())
+	Journal.clear()
+	Journal._prev.clear()
+	Journal._tick()
+	her.breathing = not was[4]
+	Journal._tick()
+	_check("log: a state change waits HOLD ticks", not Journal.as_text().contains("breath"), Journal.as_text())
+	Journal._since["breathing"][1] -= Journal.HOLD   # as if HOLD ticks went by
+	Journal._tick()
+	t = Journal.as_text()
+	_check("log: then one line", t.contains("Holds her breath") or t.contains("Breathes again"), t)
+	Journal.shown["breath"] = false
+	_check("log: hidden groups are left out of the text", not Journal.as_text().contains("breath")
+		and Journal.as_text(false).contains("breath"))
+	Journal.shown["breath"] = true
+	Journal.clear()
+	her.swallowing = was[0]
+	her.speaking = was[1]
+	her.passedOut = was[2]
+	her.cumInMouth = was[3]
+	her.breathing = was[4]
+
+
+## Her teeth (Her.releaseTeeth, Her.clenchTime, Her.clenchTaps through the hand settings) and her tongue's rows
+## (Tongue.startMovingTongue: the Tongue out switch vetoes only "out").
+func _teeth_tongue_checks() -> void:
+	var her = g.her
+	var was := [her.gagged, her.mouthFull]
+	her.gagged = false
+	her.mouthFull = false
+	her.clenchTeeth = false
+	var taps := [0]
+	var tap := func(_c): taps[0] += 1
+	Hooks.add_before(&"Her.tapHands", tap, "menu_checks")
+	her.startClenchingTeeth()
+	_check("teeth: the game's clench time (2 to 6 s) and its taps", her.clenchTeeth and her.clenchedTeethTime >= 60
+		and her.clenchedTeethTime < 180 and taps[0] == 1)
+	her.releaseTeeth()
+	_check("teeth: Release teeth unclenches them now", not her.clenchTeeth)
+	DevTuning.set_clench_time(5.0)
+	DevTuning.set_clench_taps(false)
+	her.startClenchingTeeth()
+	_check("teeth: Clench time 5 s = 150 ticks, no tap with Taps off", her.clenchedTeethTime == 150 and taps[0] == 1)
+	var veto := func(c): c.cancel()
+	Hooks.add_before(&"Her.releaseTeeth", veto, "menu_checks")
+	her.releaseTeeth()
+	_check("teeth: Her.releaseTeeth can be vetoed", her.clenchTeeth)
+	Hooks.remove_owner("menu_checks")
+	her.releaseTeeth()
+	DevTuning.reset()
+	_check("teeth: hand settings back to the game's, no modifiers", not Hooks.has_value(&"Her.clenchTime")
+		and not Hooks.has_value(&"Her.clenchTaps"))
+	her.gagged = was[0]
+	her.mouthFull = was[1]
+	var t = her.tongue
+	DevBehaviour.set_auto(&"Tongue.startMovingTongue", false)
+	t.startMovingTongue("out")
+	var out_vetoed: bool = DevBehaviour._seen[&"Tongue.startMovingTongue"][0].cancelled
+	t.startMovingTongue("in")
+	var in_vetoed: bool = DevBehaviour._seen[&"Tongue.startMovingTongue"][0].cancelled
+	DevBehaviour.set_auto(&"Tongue.startMovingTongue", true)
+	_check("Tongue out off: vetoes her tongue coming out, not going in", out_vetoed and not in_vetoed)
+
+
+## His spurts: J adds a spurt while he cums (a before handler on Him.ejaculate); Spurt now.
+func _spurt_checks() -> void:
+	var him = g.him
+	var was := [him.ejaculating, him.ejaculation.duplicate()]
+	him.ejaculating = true
+	him.ejaculation = []
+	DevTuning.set_spam_j(true)
+	him.ejaculate()
+	_check("J adds a spurt: one more each press while he cums", him.ejaculation.size() == 1)
+	DevTuning.add_spurt()
+	_check("Spurt now: one more", him.ejaculation.size() == 2)
+	DevTuning.set_spam_j(false)
+	him.ejaculate()
+	_check("J adds a spurt off: the game's (nothing while he cums)", him.ejaculation.size() == 2)
+	him.ejaculating = was[0]
+	him.ejaculation = was[1]
 
 
 func _extension_checks() -> void:
