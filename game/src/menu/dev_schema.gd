@@ -56,11 +56,17 @@ static func _body() -> Dictionary:
 	var ours := func(): return DevBodyOverlay.ours
 	var om := func(): return g.inGameMenu
 	return {"id": "dev_body", "name": "Body", "fold": {"Debug layers": true, "Head": true, "Neck": true,
-		"Throat rings": true, "Arms": true, "Breasts": true, "Legs": true, "Him body": true}, "groups": [
+		"Throat rings": true, "Arms": true, "Breasts": true, "Torso": true, "Legs": true, "Him body": true}, "groups": [
 		{"title": "Her body", "controls": [
 			MenuSchema.toggle("Our body layer (experimental)", "Off: her body is the game's only. On: our additions (orange bones, our settings in the cards below) come in; where one of ours replaces a bone of the game's, only ours is drawn.",
 				func(): return DevBodyOverlay.ours, func(on: bool): DevBodyOverlay.ours = on, {"keywords": "body layer ik ours"}),
 			value("Now", "What is on.", func(): return "our layer on" if DevBodyOverlay.ours else "the game's body"),
+			MenuSchema.toggle("Edit points (left mouse)", "Our skeleton points (hips, spine, ankles...) show as orange dots on her; drag one with the left mouse button to where the joint is. The game does not get the click on a point.",
+				func(): return DevBodyOverlay.editing, func(on: bool): DevBodyOverlay.editing = on, {"enabled": ours, "keywords": "skeleton points markup drag"}),
+			MenuSchema.actions("", "", [
+				["Copy numbers", func(): DisplayServer.clipboard_set(DevBodyOverlay.numbers()), "The points as numbers, to the clipboard: paste them to Claude to keep them."],
+				["Reset points", func(): DevBodyOverlay.marks.clear(), "Every point back to its fitted place or first guess."]],
+				{"enabled": ours}),
 		]},
 		{"title": "Debug layers", "controls": [
 			MenuSchema.note("Drawn over the game, read only: straight lines through the points (the game draws curves through them). Yellow: the game's bones; orange: ours (with our layer on)."),
@@ -104,31 +110,15 @@ static func _body() -> Dictionary:
 			_layer("breasts", "axis", "Sway", "A line down each breast from its pivot, leaning with its sway. Both get the same push in the game."),
 			_layer("breasts", "points", "Pivots", "Each breast's pivot."),
 		]},
+		{"title": "Torso", "controls": [
+			_layer("torso_ours", "axis", "Pelvis and spine (ours)", "Orange: the hip axis between both hip joints, then hips -> lumbar -> thoracic -> neck base. It replaces the game's one torso bone (the long yellow line in Legs), which is hidden while this is on.",
+				{"enabled": ours}),
+		]},
 		{"title": "Legs", "controls": [
 			_layer("legs", "axis", "Bones", "Right leg: the IK chain torso -> thigh -> calf (the torso is its first bone). Left leg: a copy of the right thigh's rotation (x0.95), not a chain of its own."),
 			_layer("legs", "points", "Knee target", "Where the pose aims her right knee (the left knee follows the copy)."),
 			_layer("legs_ours", "axis", "Calf to ankle (ours)", "Orange: our calf bones, knee to ankle. The game has none there: the calf is one rigid picture with her foot.",
 				{"enabled": ours}),
-			{"type": "slider", "label": "Right ankle along", "tip": "Our right ankle in that calf picture's own space: along it (px).",
-				"min": -900.0, "max": 900.0, "step": 1.0, "get": func(): return DevBodyOverlay.ankle_point(0)[0],
-				"set": func(v: float): DevBodyOverlay.set_ankle(0, 0, v), "format": func(v): return "%d" % int(v),
-				"reset": func(): DevBodyOverlay.ankle[0] = Vector2.INF, "enabled": ours, "wide": true},
-			{"type": "slider", "label": "Right ankle across", "tip": "Our right ankle in that calf picture's own space: across it, towards the sole or the shin (px).",
-				"min": -900.0, "max": 900.0, "step": 1.0, "get": func(): return DevBodyOverlay.ankle_point(0)[1],
-				"set": func(v: float): DevBodyOverlay.set_ankle(0, 1, v), "format": func(v): return "%d" % int(v),
-				"reset": func(): DevBodyOverlay.ankle[0] = Vector2.INF, "enabled": ours, "wide": true},
-			{"type": "slider", "label": "Left ankle along", "tip": "Our left ankle in that calf picture's own space: along it (px).",
-				"min": -900.0, "max": 900.0, "step": 1.0, "get": func(): return DevBodyOverlay.ankle_point(1)[0],
-				"set": func(v: float): DevBodyOverlay.set_ankle(1, 0, v), "format": func(v): return "%d" % int(v),
-				"reset": func(): DevBodyOverlay.ankle[1] = Vector2.INF, "enabled": ours, "wide": true},
-			{"type": "slider", "label": "Left ankle across", "tip": "Our left ankle in that calf picture's own space: across it, towards the sole or the shin (px).",
-				"min": -900.0, "max": 900.0, "step": 1.0, "get": func(): return DevBodyOverlay.ankle_point(1)[1],
-				"set": func(v: float): DevBodyOverlay.set_ankle(1, 1, v), "format": func(v): return "%d" % int(v),
-				"reset": func(): DevBodyOverlay.ankle[1] = Vector2.INF, "enabled": ours, "wide": true},
-			MenuSchema.actions("", "", [["Left = right", func(): DevBodyOverlay.ankle[1] = DevBodyOverlay.ankle_point(0),
-				"Start the left ankle from the right one's numbers (the pictures differ, so check it on her and adjust)."]], {"enabled": ours}),
-			value("Ankles (calf space)", "The numbers to keep: right; left.", func(): return "-" if g.her == null else "%d, %d; %d, %d" % [
-				int(DevBodyOverlay.ankle_point(0).x), int(DevBodyOverlay.ankle_point(0).y), int(DevBodyOverlay.ankle_point(1).x), int(DevBodyOverlay.ankle_point(1).y)]),
 		]},
 		{"title": "Him body", "controls": [
 			_layer("him", "axis", "Bones", "His IK chains: both legs thigh -> calf -> foot, his right arm, his left arm (the hand on her head); and his penis, base to tip."),

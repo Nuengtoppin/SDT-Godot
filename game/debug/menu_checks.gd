@@ -466,19 +466,45 @@ func _behaviour_checks() -> void:
 	var calves: Dictionary = DevBodyOverlay.parts()["legs_ours"].call()
 	_check("body layers: head and jaw pivots, his chains and penis, our two calf bones", head["points"].size() == 2
 		and him["axes"].size() >= 5 and calves["axes_ours"].size() == 2, "%d %d" % [him["axes"].size(), calves["axes_ours"].size()])
-	var cs: Array = DevBodyOverlay.calves()
-	DevBodyOverlay.set_ankle(0, 0, 100.0)
-	DevBodyOverlay.ankle[1] = DevBodyOverlay.ankle_point(0)
-	var lo: Dictionary = DevBodyOverlay.parts()["legs_ours"].call()
-	_check("our ankles: one per leg (the calf pictures differ), Left = right copies the numbers", cs.size() == 2
-		and DevBodyOverlay.ankle_point(1) == DevBodyOverlay.ankle_point(0) and lo["axes_ours"].size() == 2)
-	DevBodyOverlay.ankle = [Vector2.INF, Vector2.INF]
+	DevBodyOverlay.ours = true
+	DevBodyOverlay.marks["lumbar"] = Vector2(10, 20)
+	DevBodyOverlay.set_on("torso_ours", "axis", true)
+	var to: Dictionary = DevBodyOverlay.parts()["torso_ours"].call()
+	var lg: Dictionary = DevBodyOverlay.parts()["legs"].call()
+	_check("our torso: hip axis + 3 spine bones; it hides the game's torso bone", to["axes_ours"].size() == 4
+		and lg["axes"].size() == 2 and DevBodyOverlay.mark("lumbar") == Vector2(10, 20)
+		and DevBodyOverlay.numbers().contains('"lumbar": Vector2(10, 20)') and DevBodyOverlay.mark("ankle_r") == Vector2(-500, 59))
+	DevBodyOverlay.editing = true
+	var ov: DevBodyOverlay = DevBodyOverlay.instance
+	var xf: Transform2D = ov._her_xf()
+	var p0: Vector2 = xf * DevBodyOverlay.mark_at("thoracic")
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = p0
+	ov._input(press)
+	var grabbed: String = DevBodyOverlay._drag
+	var move := InputEventMouseMotion.new()
+	move.position = p0 + Vector2(30, 0)
+	ov._input(move)
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.position = p0 + Vector2(30, 0)
+	ov._input(release)
+	var p1: Vector2 = xf * DevBodyOverlay.mark_at("thoracic")
+	_check("editing points: press on a point grabs it, the drag moves it with the mouse, release lets go",
+		grabbed == "thoracic" and p1.distance_to(p0 + Vector2(30, 0)) < 2.0 and DevBodyOverlay._drag == "",
+		"%s %s %s" % [grabbed, p0 + Vector2(30, 0), p1])
+	DevBodyOverlay.editing = false
+	DevBodyOverlay.marks.clear()
+	DevBodyOverlay.set_on("torso_ours", "axis", false)
+	DevBodyOverlay.ours = false
 	var body: Dictionary = dev.sections.filter(func(sec): return sec["id"] == "dev_body")[0]
 	var titles: Array = body["groups"].map(func(grp): return grp["title"])
-	_check("Body tab: Her body, Debug layers, Head, Neck, Throat rings, Arms, Breasts, Legs, Him body", titles == ["Her body",
-		"Debug layers", "Head", "Neck", "Throat rings", "Arms", "Breasts", "Legs", "Him body"] and not body["fold"].has("Her body"),
+	_check("Body tab: Her body, Debug layers, Head, Neck, Throat rings, Arms, Breasts, Torso, Legs, Him body", titles == ["Her body",
+		"Debug layers", "Head", "Neck", "Throat rings", "Arms", "Breasts", "Torso", "Legs", "Him body"] and not body["fold"].has("Her body"),
 		str(titles))
-	var calf_spec: Dictionary = body["groups"][7]["controls"][2]
+	var calf_spec: Dictionary = body["groups"][8]["controls"][2]
 	DevBodyOverlay.ours = false
 	var dim_off: bool = not calf_spec["enabled"].call()
 	DevBodyOverlay.ours = true

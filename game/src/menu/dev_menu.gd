@@ -64,6 +64,11 @@ func apply_mode() -> void:
 	_layout()
 
 
+## derrdev (body-her): while editing our skeleton points, a press on one (and the drag) is ours, not the game's.
+func blocks_mouse() -> bool:
+	return DevBodyOverlay.wants_mouse() or super()
+
+
 ## Behaviour rows have no label of their own (the row draws its name): the help line uses theirs.
 func _show_help(spec) -> void:
 	if spec != null and spec.has("label_text"):

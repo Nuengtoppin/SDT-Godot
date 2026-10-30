@@ -35,7 +35,8 @@ static func parts() -> Dictionary:
 	return {"neck": func(): return DevBodyOverlay.neck(), "throat": func(): return DevBodyOverlay.throat(),
 		"legs": func(): return DevBodyOverlay.legs(), "arms": func(): return DevBodyOverlay.arms(),
 		"breasts": func(): return DevBodyOverlay.breasts(), "head": func(): return DevBodyOverlay.head(),
-		"legs_ours": func(): return DevBodyOverlay.legs_ours(), "him": func(): return DevBodyOverlay.him()}
+		"legs_ours": func(): return DevBodyOverlay.legs_ours(), "him": func(): return DevBodyOverlay.him(),
+		"torso_ours": func(): return DevBodyOverlay.torso_ours()}
 
 
 static func is_on(part: String, layer: String) -> bool:
@@ -73,13 +74,22 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	_canvas.visible = any_on() and g.gameRunning and SDTMenu.dev != null and SDTMenu.dev._enabled()
+	_canvas.visible = (any_on() or (editing and ours)) and g.gameRunning and SDTMenu.dev != null and SDTMenu.dev._enabled()
 	if _canvas.visible:
 		_canvas.queue_redraw()
 
 
 func _draw_parts() -> void:
 	var stage: Transform2D = Flash.stage.get_global_transform_with_canvas()
+	if editing and ours and g.her != null:
+		var xf := _her_xf()
+		var hover := _drag if _drag != "" else _mark_under(get_viewport().get_mouse_position())
+		var font := ThemeDB.fallback_font
+		for id in mark_defs():
+			var p: Vector2 = xf * mark_at(id)
+			_canvas.draw_circle(p, point_radius * (4.0 if id == hover else 3.0), COLORS["ours"])
+			if id == hover:
+				_canvas.draw_string(font, p + Vector2(8, -6), mark_defs()[id][0], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
 	for part in parts():
 		if not LAYERS.any(func(l): return is_on(part, l)):
 			continue
@@ -159,44 +169,127 @@ static func legs() -> Dictionary:
 	var h = g.her
 	var c := _chain(h.torsoIK)
 	var left = h.leftLegContainer.leg
-	return {"node": h, "axes": [c[0], c[1], [_at(left), _at(left.calf)]], "points": [c[2]]}
+	var bones := [c[1], [_at(left), _at(left.calf)]]
+	if not (ours and is_on("torso_ours", "axis")):   # ours replaces the game's torso bone
+		bones.push_front(c[0])
+	return {"node": h, "axes": bones, "points": [c[2]]}
+
+
+# ---------------------------------------------------------------- our skeleton points (marks)
+
+## Our skeleton points, each in its own node's space (so it moves with that picture): id -> [label, node fn,
+## default fn]. The fitted numbers are FIT (copied from "Copy numbers"); `marks` holds what is set by hand this
+## session. Paired parts get a point each: the two sides' pictures are not the same (the left calf's bounds are
+## larger than the right one's - its stockings / footwear sit inside it), so one shared point would sit wrong.
+const FIT := {"ankle_r": Vector2(-500, 59), "ankle_l": Vector2(-500, 59)}   # fitted by Dima on her (30 Oct)
+static var marks := {}
+static var editing := false        # Body > Her body > "Edit points": drag them with the left mouse button
+static var _drag := ""
+const GRAB_PX := 10.0
+
+
+static func mark_defs() -> Dictionary:
+	var h = g.her
+	var torso := func(): return h.torso
+	var hip_r := func(): return _local(h.torso, h.torso.leg)
+	var hip_l := func(): return _local(h.torso, h.leftLegContainer.leg)
+	var neck := func(): return _local(h.torso, h.head.neck)
+	return {
+		"hip_r": ["Right hip", torso, hip_r],
+		"hip_l": ["Left hip", torso, hip_l],
+		"lumbar": ["Lumbar", torso, func(): return hip_r.call().lerp(neck.call(), 0.33).round()],
+		"thoracic": ["Thoracic", torso, func(): return hip_r.call().lerp(neck.call(), 0.66).round()],
+		"neck_base": ["Neck base", torso, func(): return neck.call().round()],
+		"ankle_r": ["Right ankle", func(): return h.torso.rightCalfContainer.calf, func(): return (_far_end(h.torso.rightCalfContainer.calf) * 0.8).round()],
+		"ankle_l": ["Left ankle", func(): return h.leftLegContainer.leg.calf, func(): return (_far_end(h.leftLegContainer.leg.calf) * 0.8).round()],
+	}
+
+
+## Where `o`'s origin is in `space`'s own coordinates.
+static func _local(space: FlashDisplayObject, o: FlashDisplayObject) -> Vector2:
+	return space.globalToLocal(o.localToGlobal(Vector2.ZERO))
+
+
+## Mark `id` in its node's own space: as set by hand, else fitted, else its first guess.
+static func mark(id: String) -> Vector2:
+	if marks.has(id):
+		return marks[id]
+	if FIT.has(id):
+		return FIT[id]
+	return mark_defs()[id][2].call()
+
+
+## Mark `id` in her space (where the layers draw).
+static func mark_at(id: String) -> Vector2:
+	return _at(mark_defs()[id][1].call(), mark(id))
+
+
+static func numbers() -> String:
+	var out := PackedStringArray()
+	for id in mark_defs():
+		var p := mark(id)
+		out.append('"%s": Vector2(%d, %d),' % [id, int(p.x), int(p.y)])
+	return "\n".join(out)
+
+
+## The menus ask whether the mouse is ours (Flash.mouse_blocker, through DevMenu): while editing, over a point or
+## dragging one, the game does not get the press.
+static func wants_mouse() -> bool:
+	if not (editing and ours and instance != null and g.her != null):
+		return false
+	return _drag != "" or instance._mark_under(instance.get_viewport().get_mouse_position()) != ""
+
+
+func _her_xf() -> Transform2D:
+	return Flash.stage.get_global_transform_with_canvas() * (g.her as FlashDisplayObject).flash_global_transform()
+
+
+func _mark_under(screen: Vector2) -> String:
+	var xf := _her_xf()
+	var best := ""
+	var best_d := GRAB_PX
+	for id in mark_defs():
+		var d := (xf * mark_at(id)).distance_to(screen)
+		if d < best_d:
+			best_d = d
+			best = id
+	return best
+
+
+func _input(e: InputEvent) -> void:
+	if not (editing and ours and g.her != null and SDTMenu.dev != null and SDTMenu.dev._enabled()):
+		_drag = ""
+		return
+	if e is InputEventMouseButton and e.button_index == MOUSE_BUTTON_LEFT:
+		if e.pressed:
+			_drag = _mark_under(e.position)
+		else:
+			_drag = ""
+	elif e is InputEventMouseMotion and _drag != "":
+		var node: FlashDisplayObject = mark_defs()[_drag][1].call()
+		var xf := Flash.stage.get_global_transform_with_canvas() * node.flash_global_transform()
+		marks[_drag] = (xf.affine_inverse() * e.position).round()
+
+
+## Our pelvis and spine (orange): the hip axis between both hip joints, then hips -> lumbar -> thoracic -> neck base.
+## With it on, the game's one torso bone (the leg chain's first, drawn in Legs) is hidden: ours replaces it.
+static func torso_ours() -> Dictionary:
+	if g.her == null or g.her.torsoIK == null:
+		return {}
+	var hr := mark_at("hip_r")
+	var hl := mark_at("hip_l")
+	var mid := hr.lerp(hl, 0.5)
+	return {"node": g.her, "axes_ours": [[hr, hl], [mid, mark_at("lumbar")], [mark_at("lumbar"), mark_at("thoracic")],
+		[mark_at("thoracic"), mark_at("neck_base")]]}
 
 
 ## Our calf bones: from her knee to her ankle, right and left (orange). The game has no bone there: the calf is one
-## rigid picture with her foot, hung at the knee. The ankle is a point in each calf picture's own space, one per leg
-## (`ankle`: 0 right, 1 left): the two calves are NOT the same picture (the left one's bounds are larger - its
-## stockings / footwear sit inside it, the right leg's are separate layers), so one shared point would sit wrong on
-## one of them. Fitted by hand in Body > Legs (our sliders, "Left = right" as a start); our ankle joint goes there
-## later.
-const ANKLE := [Vector2(-500, 59), Vector2(-500, 59)]   # fitted by Dima on her (30 Oct), right / left
-static var ankle := [Vector2.INF, Vector2.INF]   # INF: the fitted ANKLE
-
-
-static func calves() -> Array:
-	return [g.her.torso.rightCalfContainer.calf, g.her.leftLegContainer.leg.calf]
-
-
-## Leg `i`'s ankle in its calf's own space: as set by hand now, or the fitted ANKLE.
-static func ankle_point(i: int) -> Vector2:
-	if (ankle[i] as Vector2).is_finite():
-		return ankle[i]
-	return ANKLE[i]
-
-
-static func set_ankle(i: int, axis: int, v: float) -> void:
-	var p := ankle_point(i)
-	p[axis] = v
-	ankle[i] = p
-
-
+## rigid picture with her foot, hung at the knee. The ankles are our skeleton points ankle_r / ankle_l.
 static func legs_ours() -> Dictionary:
 	if g.her == null or g.her.torsoIK == null:
 		return {}
-	var out := {"node": g.her, "axes_ours": []}
-	var cs := calves()
-	for i in 2:
-		out["axes_ours"].append([_at(cs[i]), _at(cs[i], ankle_point(i))])
-	return out
+	var cs := [g.her.torso.rightCalfContainer.calf, g.her.leftLegContainer.leg.calf]
+	return {"node": g.her, "axes_ours": [[_at(cs[0]), mark_at("ankle_r")], [_at(cs[1]), mark_at("ankle_l")]]}
 
 
 ## The middle of the edge of `o`'s own bounds farthest from its origin.
