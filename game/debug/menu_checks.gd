@@ -513,14 +513,19 @@ func _behaviour_checks() -> void:
 	var live1: int = DevBodyOverlay.live_marks().size()
 	DevBodyOverlay.set_on("neck_lines_ours", "axis", false)
 	var rest: Transform2D = g.her.head.transform
+	var eye_rest: Transform2D = g.her.eye.transform
 	var ours_was: bool = DevBodyOverlay.ours
 	DevBodyOverlay.ours = true
 	DevBodyOverlay.set_spring(true)
-	DevBodyOverlay._speed = 3.0
-	DevBodyOverlay._spring_tick()
-	var swung: bool = not g.her.head.transform.is_equal_approx(rest)
+	DevBodyOverlay._spring_before()
+	DevBodyOverlay._angle = 5.0
+	DevBodyOverlay._spring_after()
+	var nb0: Vector2 = DevBodyOverlay.mark_at("neck_base")
+	var swung: bool = not g.her.head.transform.is_equal_approx(rest) and not g.her.eye.transform.is_equal_approx(eye_rest)
+	var base_kept: bool = (DevBodyOverlay._applied * nb0).distance_to(nb0) < 0.01
 	DevBodyOverlay.set_spring(false)
-	_check("throat and nape points only with their layer on; the neck spring swings her head and puts it back",
+	swung = swung and base_kept and g.her.eye.transform.is_equal_approx(eye_rest)
+	_check("throat and nape points only with their layer on; the neck spring turns her whole head (eyes too) about the neck base and puts it back",
 		live1 == live0 + 4 and swung and g.her.head.transform.is_equal_approx(rest), "%d %d" % [live0, live1])
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",

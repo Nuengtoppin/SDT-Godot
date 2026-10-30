@@ -201,51 +201,91 @@ static func legs() -> Dictionary:
 
 # ---------------------------------------------------------------- our neck spring (Body > Neck)
 
-## Her head sways on her neck: a damped spring turns her head about our head pivot, pushed by her body's own turn and
-## up-and-down movement each tick (the game moves her whole body, head first; the torso follows by IK). Set before
-## the game's updateElements (Her.updateElements, before the neck turns to her torso), from the head's own resting
-## transform, so nothing piles up; off: the head is put back. Only with our layer on; off by default.
+## Her head sways on her neck like a pendulum: torso point (our neck base) -> the neck -> the head. A damped spring
+## turns her whole head about the neck base, pushed by her body's own turn and up-and-down movement each tick (the
+## game moves her whole body, head first; the torso follows by IK). "Her whole head" is many pictures: the head
+## itself and its neighbours in her (eyes, brows, blush, freckles, tears, lipstick, ear, earrings, eyewear, tongue,
+## gag, her hanging hair) and the hair layers the game places with her matrix each tick. Around the game's updateElements: before it
+## the last turn is taken back (so nothing piles up), after it the new one is put on (the neck has turned to her
+## torso by then; turning about its base keeps that base where it is). Only with our layer on; off by default.
+const HEAD_GROUP := ["head", "tongueContainer", "topLipTongue", "gagBack", "bottomLipstick", "topLipstickContainer",
+	"blush", "freckles", "eye", "tears", "leftEyebrow", "rightEyebrow", "gagFront", "eyewear", "ear", "earrings",
+	"hairMidContainer", "hairBetweenLayer", "hairCostumeUnderLayer"]   # the last three: her hanging hair
 static var spring_on := false
 static var spring_k := 0.12        # pull back to rest per tick
 static var spring_damp := 0.25     # share of its speed lost per tick
 static var spring_push := 1.0      # how hard her body's movement pushes it
 static var spring_limit := 15.0    # degrees either way
-static var _spring_fn := Callable()
-static var _head_rest = null       # the head's own transform at rest
+static var _before_fn := Callable()
+static var _after_fn := Callable()
+static var _applied := Transform2D.IDENTITY   # the turn put on last (her space)
 static var _angle := 0.0
 static var _speed := 0.0
 static var _last_rot := NAN
 
 
+static func _head_group() -> Array:
+	var out := []
+	for n in HEAD_GROUP:
+		var c = g.her.getChildByName(n)
+		if c != null:
+			out.append(c)
+	return out
+
+
+static func _hair_layers() -> Array:
+	return [g.her.hairBackContainer.hairBack, g.hairCostumeBack, g.hairTop, g.hairCostumeOver, g.hairCostumeUnderOver]
+
+
 static func set_spring(on: bool) -> void:
 	spring_on = on
-	if _spring_fn.is_valid():
-		Hooks.remove(&"Her.updateElements", _spring_fn)
-		_spring_fn = Callable()
-	if _head_rest != null and g.her != null:
-		g.her.head.transform = _head_rest
-	_head_rest = null
+	if _before_fn.is_valid():
+		Hooks.remove(&"Her.updateElements", _before_fn)
+		Hooks.remove(&"Her.updateElements", _after_fn)
+		_before_fn = Callable()
+		_after_fn = Callable()
+	if g.her != null:
+		_take_back()
 	_angle = 0.0
 	_speed = 0.0
 	_last_rot = NAN
 	if on and ours and g.her != null:
-		_head_rest = g.her.head.transform
-		_spring_fn = func(_c): DevBodyOverlay._spring_tick()
-		Hooks.add_before(&"Her.updateElements", _spring_fn, "neckspring", 100)
+		_before_fn = func(_c): DevBodyOverlay._spring_before()
+		_after_fn = func(_c): DevBodyOverlay._spring_after()
+		Hooks.add_before(&"Her.updateElements", _before_fn, "neckspring", 100)
+		Hooks.add_after(&"Her.updateElements", _after_fn, "neckspring", 100)
 
 
-static func _spring_tick() -> void:
-	var h = g.her
-	if not ours or _head_rest == null:
+static func _take_back() -> void:
+	var inv := _applied.affine_inverse()
+	for c in _head_group():
+		c.transform = inv * c.transform
+	_applied = Transform2D.IDENTITY
+
+
+static func _spring_before() -> void:
+	if not ours:
 		set_spring(false)
 		return
+	_take_back()
+	var h = g.her
 	var rot: float = h.rotation_degrees
 	var turn: float = 0.0 if is_nan(_last_rot) else rot - _last_rot
 	_last_rot = rot
 	_speed += -_angle * spring_k - _speed * spring_damp - (turn * 2.0 + h.absYMovement * 0.1) * spring_push
 	_angle = clampf(_angle + _speed, -spring_limit, spring_limit)
-	var p := mark("head_pivot")
-	h.head.transform = _head_rest * Transform2D(deg_to_rad(_angle), p - p.rotated(deg_to_rad(_angle)))
+
+
+static func _spring_after() -> void:
+	var h = g.her
+	var p := mark_at("neck_base")   # her space, after the torso has moved this tick
+	var r := deg_to_rad(_angle)
+	_applied = Transform2D(r, p - p.rotated(r))
+	for c in _head_group():
+		c.transform = _applied * c.transform
+	for c in _hair_layers():
+		if c != null:
+			c.transform = c.transform * _applied   # these are placed with her matrix, outside her
 
 
 # ---------------------------------------------------------------- pose mode (Body > Scene)
