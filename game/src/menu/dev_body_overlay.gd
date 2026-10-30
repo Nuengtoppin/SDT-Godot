@@ -292,6 +292,14 @@ static var _applied := Transform2D.IDENTITY   # the turn put on last (her space)
 static var _angle := 0.0
 static var _speed := 0.0
 static var _last_rot := NAN
+## Head and neck loose (Body > Neck): no spring, gravity - neck (about the neck base) and head (about the head pivot)
+## each a weight on its joint, within their rings' limits; her body's movement throws them. Limp: her head flops
+## forward on her chest, upside down it hangs. Her head's weight sits at HEAD_COM (her head's space, mid skull).
+static var head_loose := false
+static var neck_gravity := 0.02    # pull down, radians per tick squared (at a level lever)
+const HEAD_COM := Vector2(0, 20)
+static var _h_angle := 0.0
+static var _h_speed := 0.0
 
 
 static func _head_group() -> Array:
@@ -309,15 +317,32 @@ static func _hair_layers() -> Array:
 
 static func set_spring(on: bool) -> void:
 	spring_on = on
+	if on:
+		head_loose = false
 	_angle = 0.0
 	_speed = 0.0
+	_h_angle = 0.0
+	_h_speed = 0.0
 	_last_rot = NAN
+	sync_head()
+
+
+const HEAD_MODES := ["Game", "Spring", "Loose"]
+
+
+static func head_mode() -> String:
+	return "Loose" if head_loose else ("Spring" if spring_on else "Game")
+
+
+static func set_head_mode(v: String) -> void:
+	set_spring(v == "Spring")
+	head_loose = v == "Loose"
 	sync_head()
 
 
 ## The hooks that turn her head: on while the spring is on or a ring turns her neck or head (Body > rings).
 static func sync_head() -> void:
-	var want := ours and g.her != null and (spring_on or DevBodyRings.head_turns())
+	var want := ours and g.her != null and (spring_on or head_loose or DevBodyRings.head_turns())
 	if want and _before_fn.is_valid():
 		return
 	if _before_fn.is_valid():
@@ -352,15 +377,53 @@ static func _spring_before() -> void:
 		set_spring(false)
 		return
 	_take_back()
-	if not spring_on:
+	if not (spring_on or head_loose):
 		_angle = 0.0
+		_h_angle = 0.0
 		return
 	var h = g.her
 	var rot: float = h.rotation_degrees
 	var turn: float = 0.0 if is_nan(_last_rot) else rot - _last_rot
 	_last_rot = rot
-	_speed += -_angle * spring_k - _speed * spring_damp - (turn * 2.0 + h.absYMovement * 0.1) * spring_push
+	var push: float = (turn * 2.0 + h.absYMovement * 0.1) * spring_push
+	if head_loose:
+		_loose_step(push)
+		return
+	_speed += -_angle * spring_k - _speed * spring_damp - push
 	_angle = clampf(_angle + _speed, -spring_limit, spring_limit)
+
+
+## Head and neck loose, one tick: each joint's weight pulled down (in the scene), damped, kept in its ring's range.
+static func _loose_step(push: float) -> void:
+	var h = g.her
+	var hs := DevBodyRings.her_sgn()
+	var xf: Transform2D = DevBodyRings._scene() * h.flash_global_transform()   # her space -> scene
+	var nb := mark_at("neck_base")
+	var hp := mark_at("head_pivot")
+	var com: Vector2 = h.head.transform * HEAD_COM
+	var rn := deg_to_rad(_angle + DevBodyRings.turn("neck"))
+	var rh := deg_to_rad(_h_angle + DevBodyRings.turn("head"))
+	var turn_n := Transform2D(rn, nb - nb.rotated(rn))
+	var com_now: Vector2 = turn_n * Transform2D(rh, hp - hp.rotated(rh)) * com
+	var pn: float = xf.basis_xform(com_now - nb).angle()
+	var ph: float = xf.basis_xform(com_now - turn_n * hp).angle()
+	_speed += rad_to_deg(neck_gravity * cos(pn)) * hs - _speed * spring_damp - push
+	_h_speed += rad_to_deg(neck_gravity * cos(ph)) * hs - _h_speed * spring_damp
+	var a := _in_range("neck", _angle + _speed)
+	if a != _angle + _speed:
+		_speed = 0.0
+	_angle = a
+	var b := _in_range("head", _h_angle + _h_speed)
+	if b != _h_angle + _h_speed:
+		_h_speed = 0.0
+	_h_angle = b
+
+
+## A loose turn kept so that it and the ring's turn stay within the ring's limits.
+static func _in_range(id: String, deg: float) -> float:
+	var l := DevBodyRings.limit(id)
+	var rt := DevBodyRings.turn(id)
+	return clampf(deg, l.x - rt, l.y - rt)
 
 
 static func _spring_after() -> void:
@@ -368,7 +431,7 @@ static func _spring_after() -> void:
 	var p := mark_at("neck_base")   # her space, after the torso has moved this tick
 	var q := mark_at("head_pivot")
 	var r := deg_to_rad(_angle + DevBodyRings.turn("neck"))
-	var rh := deg_to_rad(DevBodyRings.turn("head"))
+	var rh := deg_to_rad(_h_angle + DevBodyRings.turn("head"))
 	var turn_h := Transform2D(rh, q - q.rotated(rh))   # the head about its pivot, then all about the neck base
 	_applied = Transform2D(r, p - p.rotated(r)) * turn_h
 	var head_xf: Transform2D = h.head.transform

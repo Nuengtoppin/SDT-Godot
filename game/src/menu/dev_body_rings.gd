@@ -57,6 +57,9 @@ static var hips := Vector2.ZERO     # her pelvis moved (her knees stay while a l
 static var _pivot := {}            # "body" / "back" -> its pivot in the scene, kept while it turns
 static var _root_fn := Callable()
 static var _target_moved := false
+static var _fix_fn := Callable()
+static var _fix := 0.0              # what was added to the pose's torso angles for this updateElements
+static var _fix_anim = null
 static var _root_base = null       # her root as the game placed it (before ours)
 static var _root_applied = null    # and as we left it: unchanged means the game did not place it again (paused)
 
@@ -178,6 +181,17 @@ static func _root_before() -> void:
 	var m: Transform2D = ps.affine_inverse() * r_scene * ps * base_xf
 	_root_base = base_xf
 	_root_applied = m
+	# The game sets her torso's angle from her root's turn less 0.9 of it (her head tilts, her torso hardly follows):
+	# our turn is the whole body's, so the pose's torso angles take that 0.9 back for this updateElements.
+	_unfix()
+	var ac = g.animationControl
+	_fix_anim = ac.animations[ac.currentAnimation]
+	_fix = 0.9 * wrapf(m.get_rotation() - base_xf.get_rotation(), -PI, PI)
+	_fix_anim.torsoStartAng += _fix
+	_fix_anim.torsoMinAng += _fix
+	if not _fix_fn.is_valid():
+		_fix_fn = func(_c): DevBodyRings._unfix()
+		Hooks.add_after(&"Her.updateElements", _fix_fn, "rings", -1000)
 	h.transform = m
 	h.mHer = m
 	var base: Vector2 = g.animationControl.getHerKneeTarget()
@@ -200,6 +214,10 @@ static func refresh() -> void:
 	elif not root and _root_fn.is_valid():
 		Hooks.remove(&"Her.updateElements", _root_fn)
 		_root_fn = Callable()
+	if not root and _fix_fn.is_valid():
+		_unfix()
+		Hooks.remove(&"Her.updateElements", _fix_fn)
+		_fix_fn = Callable()
 	if not root and _root_applied != null and g.her != null:
 		if g.her.transform.is_equal_approx(_root_applied):
 			g.her.transform = _root_base
@@ -402,6 +420,15 @@ static func input(e: InputEvent, xf: Transform2D) -> bool:
 			set_turn(_grab, turn(_grab))
 		return true
 	return false
+
+
+## The pose's torso angles back as they were (after the game's updateElements has used them).
+static func _unfix() -> void:
+	if _fix_anim != null and _fix != 0.0:
+		_fix_anim.torsoStartAng -= _fix
+		_fix_anim.torsoMinAng -= _fix
+	_fix = 0.0
+	_fix_anim = null
 
 
 ## A screen point in the scene's space.

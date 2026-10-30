@@ -686,6 +686,28 @@ func _behaviour_checks() -> void:
 		is_equal_approx(spill[0], 28.0) and is_equal_approx(spill[1], 54.0) and is_equal_approx(spill[2], 38.0)
 		and ank1.distance_to(want) < ank0.distance_to(want) * 0.35 and nip1.y < nip0.y - 6.0 and not DevBodyDrag._after.is_valid(),
 		"%s %.1f->%.1f %.1f" % [spill, ank0.distance_to(want), ank1.distance_to(want), nip1.y - nip0.y])
+	DevBodyOverlay.ours = true
+	h.updateElements()
+	var start0: float = g.animationControl.torsoStartAng
+	var rel0: float = (DevBodyRings.scene_pt("head_pivot") - DevBodyRings.scene_pt("neck_base")).angle() - (DevBodyRings.scene_pt("thoracic") - DevBodyRings.scene_pt("lumbar")).angle()
+	DevBodyRings.set_turn("body", 40.0)
+	h.updateElements()
+	var rel1: float = (DevBodyRings.scene_pt("head_pivot") - DevBodyRings.scene_pt("neck_base")).angle() - (DevBodyRings.scene_pt("thoracic") - DevBodyRings.scene_pt("lumbar")).angle()
+	var start_back: bool = is_equal_approx(g.animationControl.torsoStartAng, start0)
+	DevBodyRings.set_turn("body", 180.0)
+	DevBodyOverlay.set_head_mode("Loose")
+	for k in 80:
+		h.updateElements()
+	var hung: Array = [DevBodyOverlay._angle, DevBodyOverlay._h_angle]
+	var nl: Vector2 = DevBodyRings.limit("neck")
+	var hl: Vector2 = DevBodyRings.limit("head")
+	DevBodyOverlay.set_head_mode("Game")
+	DevBodyRings.reset_turns()
+	h.updateElements()
+	_check("the whole body turns her head and torso as one (the pose's torso angle put back after); loose, upside down, her head and neck hang within their limits",
+		absf(rad_to_deg(wrapf(rel1 - rel0, -PI, PI))) < 1.5 and start_back and (absf(hung[0]) > 5.0 or absf(hung[1]) > 5.0)
+		and hung[0] >= nl.x - 0.01 and hung[0] <= nl.y + 0.01 and hung[1] >= hl.x - 0.01 and hung[1] <= hl.y + 0.01
+		and not DevBodyOverlay._before_fn.is_valid(), "%.2f %s %s" % [rad_to_deg(wrapf(rel1 - rel0, -PI, PI)), start_back, hung])
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
 		ho["axes_ours"].size() == 1 and DevBodyOverlay.parts()["neck_lines_ours"].call()["axes_ours"].size() == 2 and DevBodyOverlay.parts()["head_ours"].call()["axes_ours"].size() == 1 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])
