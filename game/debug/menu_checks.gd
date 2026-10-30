@@ -461,6 +461,22 @@ func _behaviour_checks() -> void:
 	_check("body layers: legs 3 bones + knee target, arms 4 bones + 2 targets, breasts 2 lines + 2 pivots",
 		parts["legs"]["axes"].size() == 3 and parts["legs"]["points"].size() == 1 and parts["arms"]["axes"].size() == 4
 		and parts["arms"]["points"].size() == 2 and parts["breasts"]["axes"].size() == 2, str(parts.keys()))
+	var head: Dictionary = DevBodyOverlay.parts()["head"].call()
+	var him: Dictionary = DevBodyOverlay.parts()["him"].call()
+	var calves: Dictionary = DevBodyOverlay.parts()["legs_ours"].call()
+	_check("body layers: head and jaw pivots, his chains and penis, our two calf bones", head["points"].size() == 2
+		and him["axes"].size() >= 5 and calves["axes_ours"].size() == 2, "%d %d" % [him["axes"].size(), calves["axes_ours"].size()])
+	var body: Dictionary = dev.sections.filter(func(sec): return sec["id"] == "dev_body")[0]
+	var titles: Array = body["groups"].map(func(grp): return grp["title"])
+	_check("Body tab: Her body, Debug layers, Head, Neck, Throat rings, Arms, Breasts, Legs, Him body", titles == ["Her body",
+		"Debug layers", "Head", "Neck", "Throat rings", "Arms", "Breasts", "Legs", "Him body"] and not body["fold"].has("Her body"),
+		str(titles))
+	var calf_spec: Dictionary = body["groups"][7]["controls"][2]
+	DevBodyOverlay.ours = false
+	var dim_off: bool = not calf_spec["enabled"].call()
+	DevBodyOverlay.ours = true
+	_check("our settings greyed out while our layer is off", dim_off and calf_spec["enabled"].call())
+	DevBodyOverlay.ours = false
 	DevBodyOverlay.set_on("legs", "axis", true)
 	DevTuning.set_clench_time(5.0)
 	DevTuning.set_spam_j(true)

@@ -48,12 +48,22 @@ static func _her_tools() -> Dictionary:
 	]}
 
 
-## derrdev (P032): debug layers over body parts (DevBodyOverlay), the neck first, then her throat's rings.
+## derrdev (P032, body-her): the Body tab. Her body (our body layer on / off), the debug layers' own settings, then a
+## card per zone - each with the game's layers (always), live values, then our settings, greyed out while our layer
+## is off - and his body at the end. All but Her body start folded (MenuFold).
 static func _body() -> Dictionary:
 	var neck := func(): return g.her.head.neck
-	return {"id": "dev_body", "name": "Body", "groups": [
+	var ours := func(): return DevBodyOverlay.ours
+	var om := func(): return g.inGameMenu
+	return {"id": "dev_body", "name": "Body", "fold": {"Debug layers": true, "Head": true, "Neck": true,
+		"Throat rings": true, "Arms": true, "Breasts": true, "Legs": true, "Him body": true}, "groups": [
+		{"title": "Her body", "controls": [
+			MenuSchema.toggle("Our body layer (experimental)", "Off: her body is the game's only. On: our additions (orange bones, our settings in the cards below) come in; where one of ours replaces a bone of the game's, only ours is drawn.",
+				func(): return DevBodyOverlay.ours, func(on: bool): DevBodyOverlay.ours = on, {"keywords": "body layer ik ours"}),
+			value("Now", "What is on.", func(): return "our layer on" if DevBodyOverlay.ours else "the game's body"),
+		]},
 		{"title": "Debug layers", "controls": [
-			MenuSchema.note("Drawn over the game, read only: straight lines through the points (the game draws curves through them). The same layers for every body part."),
+			MenuSchema.note("Drawn over the game, read only: straight lines through the points (the game draws curves through them). Yellow: the game's bones; orange: ours (with our layer on)."),
 			{"type": "slider", "label": "Line width", "tip": "Width of the outlines and axes, in screen pixels.", "min": 0.5, "max": 3.0, "step": 0.25,
 				"get": func(): return DevBodyOverlay.line_width, "set": func(v: float): DevBodyOverlay.line_width = v,
 				"format": func(v): return "%.2f" % v, "reset": func(): DevBodyOverlay.line_width = 1.0},
@@ -61,19 +71,11 @@ static func _body() -> Dictionary:
 				"get": func(): return DevBodyOverlay.point_radius, "set": func(v: float): DevBodyOverlay.point_radius = v,
 				"format": func(v): return "%.2f" % v, "reset": func(): DevBodyOverlay.point_radius = 1.5},
 			MenuSchema.actions("", "", [["Hide all layers", func(): DevBodyOverlay.clear(), "Switch every debug layer off."]]),
-			MenuSchema.note("Bones: yellow = the game's, orange = ours (our body layer, when it is on)."),
 		]},
-		{"title": "Legs", "controls": [
-			_layer("legs", "axis", "Bones", "Right leg: the IK chain torso -> thigh -> calf. Left leg: a copy of the right thigh's rotation (x0.95), not a chain of its own."),
-			_layer("legs", "points", "Knee target", "Where the pose aims her right knee (the left knee follows the copy)."),
-		]},
-		{"title": "Arms", "controls": [
-			_layer("arms", "axis", "Bones", "Both arms: IK chains upper arm -> forearm -> hand."),
-			_layer("arms", "points", "Hand targets", "Where each hand is aimed (her legs, his legs, him)."),
-		]},
-		{"title": "Breasts", "controls": [
-			_layer("breasts", "axis", "Sway", "A line down each breast from its pivot, leaning with its sway. Both get the same push in the game."),
-			_layer("breasts", "points", "Pivots", "Each breast's pivot."),
+		{"title": "Head", "controls": [
+			_layer("head", "axis", "Head and jaw pivots", "The pivot the game turns her head about (one matrix from her position and tilt, not IK) and her jaw's."),
+			value("Head tilt", "Her head's angle from the tilt (degrees, the game: tilt x 10 plus cough and tongue).",
+				func(): return "-" if g.her == null else "%.1f°" % g.her.headTiltAngle),
 		]},
 		{"title": "Neck", "controls": [
 			_layer("neck", "base", "Source outline", "Cyan: the neck's outline from the symbol, respaced, before the throat bulge and swallow wave."),
@@ -90,12 +92,36 @@ static func _body() -> Dictionary:
 				func(): return "-" if g.her == null else "%.1f°" % wrapf(neck.call().rotation_degrees, -180.0, 180.0)),
 		]},
 		_throat(),
+		{"title": "Arms", "controls": [
+			MenuSchema.arrows("Left arm", "Where she keeps her left arm (the same as Her > Arms).", func(): return Her.armPositions,
+				func(): return g.her.currentLeftArmPosition, func(): om.call().leftArmLeftClicked(), func(): om.call().leftArmRightClicked()),
+			MenuSchema.arrows("Right arm", "Where she keeps her right arm (the same as Her > Arms).", func(): return Her.armPositions,
+				func(): return g.her.currentRightArmPosition, func(): om.call().rightArmLeftClicked(), func(): om.call().rightArmRightClicked()),
+			_layer("arms", "axis", "Bones", "Both arms: IK chains upper arm -> forearm -> hand."),
+			_layer("arms", "points", "Hand targets", "Where each hand is aimed (her legs, his legs, him)."),
+		]},
+		{"title": "Breasts", "controls": [
+			_layer("breasts", "axis", "Sway", "A line down each breast from its pivot, leaning with its sway. Both get the same push in the game."),
+			_layer("breasts", "points", "Pivots", "Each breast's pivot."),
+		]},
+		{"title": "Legs", "controls": [
+			_layer("legs", "axis", "Bones", "Right leg: the IK chain torso -> thigh -> calf (the torso is its first bone). Left leg: a copy of the right thigh's rotation (x0.95), not a chain of its own."),
+			_layer("legs", "points", "Knee target", "Where the pose aims her right knee (the left knee follows the copy)."),
+			_layer("legs_ours", "axis", "Calf to ankle (ours)", "Orange: our calf bones, knee to ankle. The game has none there: the calf is one rigid picture with her foot. The ankle is estimated from the picture, so approximate.",
+				{"enabled": ours}),
+		]},
+		{"title": "Him body", "controls": [
+			_layer("him", "axis", "Bones", "His IK chains: both legs thigh -> calf -> foot, his right arm, his left arm (the hand on her head); and his penis, base to tip."),
+			_layer("him", "points", "Targets", "Where his chains aim (his feet, his hands)."),
+		]},
 	]}
 
 
-static func _layer(part: String, layer: String, label: String, tip: String) -> Dictionary:
+static func _layer(part: String, layer: String, label: String, tip: String, extra := {}) -> Dictionary:
+	var spec := {"keywords": "debug overlay " + part}
+	spec.merge(extra)
 	return MenuSchema.toggle(label, tip, func(): return DevBodyOverlay.is_on(part, layer),
-		func(on: bool): DevBodyOverlay.set_on(part, layer, on), {"keywords": "debug overlay " + part})
+		func(on: bool): DevBodyOverlay.set_on(part, layer, on), spec)
 
 
 ## Her throat's rings (ThroatRings): what they work out, the collar's settings, and the value points they act through.

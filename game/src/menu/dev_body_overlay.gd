@@ -8,8 +8,9 @@ extends CanvasLayer
 ##   zones      regions along the part (the throat's rings), each in its own colour, and markers on it
 ## A part is a provider Callable returning {"node": FlashDisplayObject, "base": Array, "rendered": Array,
 ## "rendered2": Array, "points": Array, "points2": Array, "axes": [[from, to], ...],
-## "axes_ours": [[from, to], ...], "zones": [[from, to, Color, width multiplier], ...], "marks": [[point, Color], ...]},
-## points in the node's own space;
+## "axes_ours": [[from, to], ...], "replace": bool, "zones": [[from, to, Color, width multiplier], ...],
+## "marks": [[point, Color], ...]}, points in the node's own space; "axes_ours" are drawn only while our body layer is
+## on (`ours`), and a part whose own bones replace the game's ("replace": true) then hides the game's ("axes");
 ## a part leaves out what it does not have.
 ## Drawn in screen space over the game (under the menus), outside the Flash display list: no hit testing, no change
 ## to what the game draws. Made the first time a layer is switched on; read only.
@@ -19,6 +20,9 @@ const COLORS := {"base": Color(0.15, 1.0, 0.9), "rendered": Color(1.0, 0.3, 0.75
 	"axis": Color(1.0, 0.85, 0.1), "ours": Color(1.0, 0.5, 0.1)}
 
 static var instance: DevBodyOverlay = null
+## Our body layer (Body > Her body), for this session: off = the game's body only. Our settings are greyed out
+## while it is off.
+static var ours := false
 static var _on: Dictionary = {}          # "part:layer" -> true
 static var line_width := 1.0
 static var point_radius := 1.5
@@ -30,7 +34,8 @@ var _canvas: Node2D
 static func parts() -> Dictionary:
 	return {"neck": func(): return DevBodyOverlay.neck(), "throat": func(): return DevBodyOverlay.throat(),
 		"legs": func(): return DevBodyOverlay.legs(), "arms": func(): return DevBodyOverlay.arms(),
-		"breasts": func(): return DevBodyOverlay.breasts()}
+		"breasts": func(): return DevBodyOverlay.breasts(), "head": func(): return DevBodyOverlay.head(),
+		"legs_ours": func(): return DevBodyOverlay.legs_ours(), "him": func(): return DevBodyOverlay.him()}
 
 
 static func is_on(part: String, layer: String) -> bool:
@@ -93,7 +98,10 @@ func _draw_parts() -> void:
 			for p in d.get("points2", []):
 				_canvas.draw_circle(xf * p, point_radius, COLORS["rendered2"])
 		if is_on(part, "axis"):
-			for k in [["axes", "axis"], ["axes_ours", "ours"]]:
+			var kinds := [["axes_ours", "ours"]] if ours else []
+			if not (ours and d.get("replace", false)):
+				kinds.push_front(["axes", "axis"])
+			for k in kinds:
 				for a in d.get(k[0], []):
 					_canvas.draw_line(xf * a[0], xf * a[1], COLORS[k[1]], line_width, true)
 					_canvas.draw_circle(xf * a[0], point_radius * 2.0, COLORS[k[1]])
@@ -152,6 +160,54 @@ static func legs() -> Dictionary:
 	var c := _chain(h.torsoIK)
 	var left = h.leftLegContainer.leg
 	return {"node": h, "axes": [c[0], c[1], [_at(left), _at(left.calf)]], "points": [c[2]]}
+
+
+## Our calf bones: from her knee to her ankle, right and left (orange). The game has no bone there: the calf is one
+## rigid picture with her foot, hung at the knee. Its far end is estimated from the calf picture's bounds (85% of the
+## way to its farthest edge), so it is approximate; our ankle joint goes there later.
+static func legs_ours() -> Dictionary:
+	if g.her == null or g.her.torsoIK == null:
+		return {}
+	var h = g.her
+	var out := {"node": h, "axes_ours": []}
+	for calf in [h.torso.rightCalfContainer.calf, h.leftLegContainer.leg.calf]:
+		out["axes_ours"].append([_at(calf), _at(calf, _far_end(calf) * 0.85)])
+	return out
+
+
+## The middle of the edge of `o`'s own bounds farthest from its origin.
+static func _far_end(o: FlashDisplayObject) -> Vector2:
+	var r: Rect2 = o.getBounds(o)
+	var best := Vector2.ZERO
+	for p in [Vector2(r.position.x, r.get_center().y), Vector2(r.end.x, r.get_center().y),
+			Vector2(r.get_center().x, r.position.y), Vector2(r.get_center().x, r.end.y)]:
+		if p.length() > best.length():
+			best = p
+	return best
+
+
+## Her head: the pivot the game turns it about (one matrix from her position and tilt, not IK) and her jaw's pivot.
+static func head() -> Dictionary:
+	if g.her == null or g.her.head == null:
+		return {}
+	var hd = g.her.head
+	return {"node": g.her, "axes": [[_at(hd), _at(hd.jaw)]], "points": [_at(hd), _at(hd.jaw)]}
+
+
+## His body: his IK chains (both legs thigh -> calf -> foot, his right arm and his left arm) and his penis, base to
+## tip; the chains' targets as points.
+static func him() -> Dictionary:
+	if g.her == null or g.him == null or g.him.currentBody == null:
+		return {}
+	var b = g.him.currentBody
+	var out := {"node": g.her, "axes": [], "points": []}
+	for k in ["rightLegIK", "leftLegIK", "rightArmIK", "leftArmIK"]:
+		if k in b and b.get(k) != null:
+			var c := _chain(b.get(k))
+			out["axes"].append_array([c[0], c[1]])
+			out["points"].append(c[2])
+	out["axes"].append([g.her.globalToLocal(g.him.getPenisBasePoint()), g.her.globalToLocal(g.him.getPenisTipPoint())])
+	return out
 
 
 ## Her arms: two IK chains (upper arm -> forearm -> hand) and where each hand aims.
