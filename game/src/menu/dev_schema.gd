@@ -79,7 +79,7 @@ static func _body() -> Dictionary:
 				func(): return DevBodyOverlay.pose_mode, func(v: String):
 					DevBodyOverlay.pose_mode = v
 					DevBodyOverlay.apply_pose()),
-			MenuSchema.note("In pose mode the mouse wheel zooms the scene about the mouse (a third to four times); leaving it puts the view back."),
+			MenuSchema.note("In pose mode the mouse wheel zooms the scene about the mouse (up to 3; the game's own goes to 1.4); leaving it puts the view back."),
 			MenuSchema.choice("Him", "In pose mode: shown, only his penis, or hidden.", DevBodyOverlay.HIM_MODES,
 				func(): return DevBodyOverlay.pose_him, func(v: String):
 					DevBodyOverlay.pose_him = v

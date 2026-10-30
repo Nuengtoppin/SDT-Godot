@@ -89,7 +89,40 @@ func _ready() -> void:
 	add_child(_canvas)
 
 
+## Pose mode's floor: a plain Flash shape in the background's layer (behind her, in front of the darkened
+## background), at her knees' height (the pose's knee target), redrawn as the camera moves; until a real floor.
+static var _floor: FlashSprite = null
+
+
+static func _floor_on(on: bool) -> void:
+	if _floor != null:
+		if _floor.get_parent() != null:
+			_floor.get_parent().removeChild(_floor)
+		_floor = null
+	if on:
+		_floor = FlashSprite.new()
+		g.bg.get_parent().addChildAt(_floor, g.bg.get_parent().getChildIndex(g.bg) + 1)
+		_draw_floor()
+
+
+static func _draw_floor() -> void:
+	if _floor == null or g.her == null:
+		return
+	var knee: Vector2 = g.sceneLayer.localToGlobal(g.animationControl.getHerKneeTarget())
+	var y: float = _floor.globalToLocal(knee).y + 25.0
+	var gr: FlashGraphics = _floor.graphics
+	gr.clear()
+	gr.beginFill(0x3a3d45, 1.0)
+	gr.drawRect(-20000, y, 40000, 20000)
+	gr.endFill()
+	gr.lineStyle(3, 0x8c93a3, 1.0)
+	gr.moveTo(-20000, y)
+	gr.lineTo(20000, y)
+
+
 func _process(_delta: float) -> void:
+	if posing:
+		_draw_floor()
 	_canvas.visible = (any_on() or (editing and ours) or posing) and g.gameRunning and SDTMenu.dev != null and SDTMenu.dev._enabled()
 	if _canvas.visible:
 		_canvas.queue_redraw()
@@ -97,11 +130,6 @@ func _process(_delta: float) -> void:
 
 func _draw_parts() -> void:
 	var stage: Transform2D = Flash.stage.get_global_transform_with_canvas()
-	if posing and g.her != null:   # a plain floor at her knees' height (the pose's knee target), until a real one
-		var knee: Vector2 = stage * g.sceneLayer.flash_global_transform() * g.animationControl.getHerKneeTarget()
-		var y := knee.y + 30.0 * g.sceneLayer.currentZoom
-		_canvas.draw_rect(Rect2(-20000, y, 40000, 20000), Color(0.5, 0.55, 0.65, 0.12))
-		_canvas.draw_line(Vector2(-20000, y), Vector2(20000, y), Color(0.7, 0.75, 0.85, 0.8), 2.0)
 	if editing and ours and g.her != null:
 		var xf := _her_xf()
 		var hover := _drag if _drag != "" else _mark_under(get_viewport().get_mouse_position())
@@ -317,7 +345,8 @@ static func set_pose(on: bool) -> void:
 		_saved = {"paused": g.gamePaused, "body_hidden": g.him.bodyHidden, "him_visible": g.him.visible,
 			"left": g.her.currentLeftArmPosition, "right": g.her.currentRightArmPosition, "his": g.him.currentArmPosition,
 			"intro": g.her.intro, "gagging": g.gagging, "bg": g.bg.modulate}
-		g.bg.modulate = Color(0.12, 0.13, 0.16)   # the background darkened while posing (the floor is drawn over it)
+		g.bg.modulate = Color(0.12, 0.13, 0.16)   # the background darkened while posing
+		_floor_on(true)
 		posing = true
 		apply_pose()
 	else:
@@ -332,6 +361,7 @@ static func set_pose(on: bool) -> void:
 		g.her.intro = _saved["intro"]
 		g.gagging = _saved["gagging"]
 		g.bg.modulate = _saved["bg"]
+		_floor_on(false)
 		g.sceneLayer.zoomTo(g.sceneZoom, true)   # the game's own camera back (the pose zoom moved it)
 		g.gamePaused = _saved["paused"]
 
@@ -363,14 +393,15 @@ static func apply_pose() -> void:
 	Hooks.add_modifier(&"Her.resistance", {"phase": Hooks.FINAL, "op": "set", "value": 0.0}, "pose")
 
 
-## Pose mode's zoom: the scene's own camera (its zoom and position), about the mouse, from a third to four times the
-## game's usual zoom - inside the scene, so nothing is cut off at the stage's edges. The game's camera only moves
+## Pose mode's zoom: the scene's own camera (its zoom and position), about the mouse, 0.15 to 3 (the game's own goes to
+## 1.4; much closer, the game's render targets for groups and masks get larger than the GPU allows and show
+## garbage) - inside the scene, so nothing is cut off at the stage's edges. The game's camera only moves
 ## when its zoom changes, so ours stays; leaving pose mode puts the game's back.
 func _zoom(at: Vector2, k: float) -> void:
 	var sl: SceneLayer = g.sceneLayer
 	var p: Vector2 = Flash.stage.get_global_transform_with_canvas().affine_inverse() * at   # stage coordinates
 	var old: float = sl.currentZoom
-	var z := clampf(old * k, 0.15, 6.0)
+	var z := clampf(old * k, 0.15, 3.0)
 	k = z / old
 	sl.currentZoom = z
 	sl.targetZoom = z
