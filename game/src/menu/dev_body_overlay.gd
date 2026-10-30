@@ -181,7 +181,10 @@ static func legs() -> Dictionary:
 ## default fn]. The fitted numbers are FIT (copied from "Copy numbers"); `marks` holds what is set by hand this
 ## session. Paired parts get a point each: the two sides' pictures are not the same (the left calf's bounds are
 ## larger than the right one's - its stockings / footwear sit inside it), so one shared point would sit wrong.
-const FIT := {"ankle_r": Vector2(-500, 59), "ankle_l": Vector2(-500, 59)}   # fitted by Dima on her (30 Oct)
+## Fitted by Dima on her (30 Oct). hip_l is not in it: unless fitted itself, the left hip moves with the right one
+## (the game's left start plus the right hip's shift from the game's right start), so both stay alike.
+const FIT := {"hip_r": Vector2(-342, 461), "lumbar": Vector2(-169, 340), "thoracic": Vector2(-56, 180),
+	"neck_base": Vector2(-1, 0), "ankle_r": Vector2(-500, 59), "ankle_l": Vector2(-500, 59)}
 static var marks := {}
 static var editing := false        # Body > Her body > "Edit points": drag them with the left mouse button
 static var _drag := ""
@@ -196,8 +199,8 @@ static func mark_defs() -> Dictionary:
 	var neck := func(): return _local(h.torso, h.head.neck)
 	return {
 		"hip_r": ["Right hip", torso, hip_r],
-		"hip_l": ["Left hip", torso, hip_l],
-		"lumbar": ["Lumbar", torso, func(): return hip_r.call().lerp(neck.call(), 0.33).round()],
+		"hip_l": ["Left hip", torso, func(): return hip_l.call() + (mark("hip_r") - hip_r.call())],
+		"lumbar": ["Lumbar", torso, func(): return hip_r.call().lerp(neck.call(), 0.33).round()],   # first guesses
 		"thoracic": ["Thoracic", torso, func(): return hip_r.call().lerp(neck.call(), 0.66).round()],
 		"neck_base": ["Neck base", torso, func(): return neck.call().round()],
 		"ankle_r": ["Right ankle", func(): return h.torso.rightCalfContainer.calf, func(): return (_far_end(h.torso.rightCalfContainer.calf) * 0.8).round()],

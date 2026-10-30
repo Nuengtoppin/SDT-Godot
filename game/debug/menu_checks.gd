@@ -474,6 +474,10 @@ func _behaviour_checks() -> void:
 	_check("our torso: hip axis + 3 spine bones; it hides the game's torso bone", to["axes_ours"].size() == 4
 		and lg["axes"].size() == 2 and DevBodyOverlay.mark("lumbar") == Vector2(10, 20)
 		and DevBodyOverlay.numbers().contains('"lumbar": Vector2(10, 20)') and DevBodyOverlay.mark("ankle_r") == Vector2(-500, 59))
+	var hl0 := DevBodyOverlay.mark("hip_l")
+	DevBodyOverlay.marks["hip_r"] = DevBodyOverlay.mark("hip_r") + Vector2(5, 0)
+	_check("the left hip moves with the right one unless fitted itself", DevBodyOverlay.mark("hip_l") == hl0 + Vector2(5, 0)
+		and DevBodyOverlay.FIT["hip_r"] == Vector2(-342, 461))
 	DevBodyOverlay.editing = true
 	var ov: DevBodyOverlay = DevBodyOverlay.instance
 	var xf: Transform2D = ov._her_xf()
