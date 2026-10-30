@@ -571,16 +571,73 @@ func _behaviour_checks() -> void:
 	_check("a loose left leg: hooked, its knee never under the floor (her hips lowered too), the knee bends one way, the thigh in place; the right leg the game's; kneeling: unhooked",
 		hooked and worst < 0.5 and bend_ok and same and h.torso.leg.transform.is_equal_approx(rt0)
 		and not DevBodySides._after.is_valid(), "%.2f" % worst)
+	DevBodyOverlay.ours = true
+	h.updateElements()
+	var knee0: Vector2 = DevBodyOverlay.mark_at("knee_l")
+	var calf_a0: float = (DevBodyOverlay.mark_at("ankle_l") - knee0).angle()
+	var hp0: Vector2 = DevBodyOverlay.mark_at("head_pivot")
+	var jaw0: Vector2 = DevBodyOverlay.mark_at("jaw")
+	var neck0: Transform2D = h.head.neck.flash_global_transform()
+	DevBodyRings.set_turn("knee_l", -40.0)
+	DevBodyRings.set_turn("head", 20.0)
+	h.updateElements()
+	var knee1: Vector2 = DevBodyOverlay.mark_at("knee_l")
+	var calf_turn: float = rad_to_deg(wrapf((DevBodyOverlay.mark_at("ankle_l") - knee1).angle() - calf_a0, -PI, PI))
+	var head_ok: bool = DevBodyOverlay.mark_at("head_pivot").distance_to(hp0) < 0.05 and DevBodyOverlay.mark_at("jaw").distance_to(jaw0) > 5.0
+	var neck_kept: bool = h.head.neck.flash_global_transform().is_equal_approx(neck0)
+	DevBodyRings.set_turn("knee_l", -500.0)
+	var clamped: float = DevBodyRings.turn("knee_l")
+	DevBodyRings.reset_turns()
+	h.updateElements()
+	var back: bool = DevBodyOverlay.mark_at("jaw").distance_to(jaw0) < 0.05 and not DevBodyRings._after.is_valid() and not DevBodyOverlay._before_fn.is_valid()
+	_check("rings: the left knee turns its calf about the knee (-40), the head about its pivot with the neck picture kept, a turn stops at its limit, reset puts all back",
+		knee1.distance_to(knee0) < 0.05 and absf(calf_turn + 40.0) < 0.5 and head_ok and neck_kept and is_equal_approx(clamped, -135.0) and back,
+		"%.2f %s %s %.1f %s" % [calf_turn, head_ok, neck_kept, clamped, back])
+	DevBodyOverlay._ensure()
+	DevBodyOverlay.set_mouse("Rotate")
+	var rxf: Transform2D = DevBodyOverlay.instance._her_xf()
+	var gm: Array = DevBodyRings.geometry("hip_r")
+	var at0: Vector2 = DevBodyRings.ring_pt(rxf, "hip_r", gm[0], gm[1])
+	var at1: Vector2 = DevBodyRings.ring_pt(rxf, "hip_r", gm[0], gm[1] + deg_to_rad(30.0))
+	var under: String = DevBodyRings.ring_under(rxf, at0)
+	var pr := InputEventMouseButton.new()
+	pr.button_index = MOUSE_BUTTON_LEFT
+	pr.pressed = true
+	pr.position = at0
+	DevBodyRings.input(pr, rxf)
+	var mv := InputEventMouseMotion.new()
+	mv.position = at1
+	DevBodyRings.input(mv, rxf)
+	var rot_turn: float = DevBodyRings.turn("hip_r")
+	var rl := InputEventMouseButton.new()
+	rl.button_index = MOUSE_BUTTON_LEFT
+	rl.position = at1
+	DevBodyRings.input(rl, rxf)
+	DevBodyRings.reset_turns()
+	DevBodyOverlay.set_mouse("Limits")
+	gm = DevBodyRings.geometry("hip_r")
+	pr.position = DevBodyRings.ring_pt(rxf, "hip_r", gm[0], gm[2] + deg_to_rad(60.0))
+	DevBodyRings.input(pr, rxf)
+	mv.position = DevBodyRings.ring_pt(rxf, "hip_r", gm[0], gm[2] + deg_to_rad(45.0))
+	DevBodyRings.input(mv, rxf)
+	DevBodyRings.input(rl, rxf)
+	var lim: Vector2 = DevBodyRings.limit("hip_r")
+	var copied: bool = DevBodyOverlay.numbers().contains('"lim_hip_r": Vector2(-60, 45)')
+	DevBodyRings.limits.clear()
+	DevBodyOverlay.set_mouse("Off")
+	_check("rings by mouse: Rotate drags the right hip's ring 30 degrees, Limits drags its arc's end to 45 (copied with the numbers)",
+		under == "hip_r" and absf(rot_turn - 30.0) < 0.5 and lim == Vector2(-60, 45) and copied and not DevBodyRings.busy(),
+		"%s %.2f %s %s" % [under, rot_turn, lim, copied])
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
 		ho["axes_ours"].size() == 1 and DevBodyOverlay.parts()["neck_lines_ours"].call()["axes_ours"].size() == 2 and DevBodyOverlay.parts()["head_ours"].call()["axes_ours"].size() == 1 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])
 	_check("our torso: hip axis + 3 spine bones; it hides the game's torso bone", to["axes_ours"].size() == 4
 		and lg["axes"].size() == 2 and DevBodyOverlay.mark("lumbar") == Vector2(10, 20)
-		and DevBodyOverlay.numbers().contains('"lumbar": Vector2(10, 20)') and DevBodyOverlay.mark("ankle_r") == Vector2(-500, 59))
+		and DevBodyOverlay.numbers().contains('"lumbar": Vector2(10, 20)') and DevBodyOverlay.mark("ankle_r") == Vector2(-486, 61))
 	var hl0 := DevBodyOverlay.mark("hip_l")
 	DevBodyOverlay.marks["hip_r"] = DevBodyOverlay.mark("hip_r") + Vector2(5, 0)
 	_check("the left hip, fitted itself now, stays where it was fitted", DevBodyOverlay.mark("hip_l") == hl0
-		and DevBodyOverlay.FIT["hip_l"] == Vector2(-320, 451))
+		and DevBodyOverlay.FIT["hip_l"] == Vector2(-337, 448))
 	DevBodyOverlay.editing = true
 	var ov: DevBodyOverlay = DevBodyOverlay.instance
 	var xf: Transform2D = ov._her_xf()

@@ -74,15 +74,32 @@ static func clear() -> void:
 	set_pose(false)
 	set_spring(false)
 	DevBodySides.reset()
+	DevBodyRings.mode = ""
+	DevBodyRings.reset_turns()
 
 
 ## Our layer on / off; off takes back what ours puts on her (the neck spring, her sides apart).
+## Body > Her body > Mouse: Off, Points (drag our points), Rotate / Limits (the rings).
+static func set_mouse(v: String) -> void:
+	editing = v == "Points"
+	DevBodyRings.mode = v if v in ["Rotate", "Limits"] else ""
+	DevBodyRings._grab = ""
+	_drag = ""
+	if v != "Off":
+		_ensure()
+
+
+static func mouse_mode() -> String:
+	return "Points" if editing else (DevBodyRings.mode if DevBodyRings.mode != "" else "Off")
+
+
 static func set_ours(on: bool) -> void:
 	ours = on
 	if not on:
 		set_spring(false)
 		DevBodySides.set_breasts(false)
 	DevBodySides.sync()
+	DevBodyRings.refresh()
 
 
 static func _ensure() -> void:
@@ -133,13 +150,15 @@ static func _draw_floor() -> void:
 func _process(_delta: float) -> void:
 	if posing:
 		_draw_floor()
-	_canvas.visible = (any_on() or (editing and ours) or posing) and g.gameRunning and SDTMenu.dev != null and SDTMenu.dev._enabled()
+	_canvas.visible = (any_on() or (editing and ours) or posing or DevBodyRings.shown()) and g.gameRunning and SDTMenu.dev != null and SDTMenu.dev._enabled()
 	if _canvas.visible:
 		_canvas.queue_redraw()
 
 
 func _draw_parts() -> void:
 	var stage: Transform2D = Flash.stage.get_global_transform_with_canvas()
+	if DevBodyRings.shown():
+		DevBodyRings.draw(_canvas, _her_xf(), get_viewport().get_mouse_position(), line_width)
 	if editing and ours and g.her != null:
 		var xf := _her_xf()
 		var hover := _drag if _drag != "" else _mark_under(get_viewport().get_mouse_position())
@@ -282,6 +301,17 @@ static func _hair_layers() -> Array:
 
 static func set_spring(on: bool) -> void:
 	spring_on = on
+	_angle = 0.0
+	_speed = 0.0
+	_last_rot = NAN
+	sync_head()
+
+
+## The hooks that turn her head: on while the spring is on or a ring turns her neck or head (Body > rings).
+static func sync_head() -> void:
+	var want := ours and g.her != null and (spring_on or DevBodyRings.head_turns())
+	if want and _before_fn.is_valid():
+		return
 	if _before_fn.is_valid():
 		Hooks.remove(&"Her.updateElements", _before_fn)
 		Hooks.remove(&"Her.updateElements", _after_fn)
@@ -289,14 +319,14 @@ static func set_spring(on: bool) -> void:
 		_after_fn = Callable()
 	if g.her != null:
 		_take_back()
-	_angle = 0.0
-	_speed = 0.0
-	_last_rot = NAN
-	if on and ours and g.her != null:
+	if want:
 		_before_fn = func(_c): DevBodyOverlay._spring_before()
 		_after_fn = func(_c): DevBodyOverlay._spring_after()
 		Hooks.add_before(&"Her.updateElements", _before_fn, "neckspring", 100)
 		Hooks.add_after(&"Her.updateElements", _after_fn, "neckspring", 100)
+
+
+static var _neck_saved = null   # the neck picture's own transform before the head's turn kept it out
 
 
 static func _take_back() -> void:
@@ -304,6 +334,9 @@ static func _take_back() -> void:
 	for c in _head_group():
 		c.transform = inv * c.transform
 	_applied = Transform2D.IDENTITY
+	if _neck_saved != null and g.her.head != null:
+		g.her.head.neck.transform = _neck_saved
+	_neck_saved = null
 
 
 static func _spring_before() -> void:
@@ -311,6 +344,9 @@ static func _spring_before() -> void:
 		set_spring(false)
 		return
 	_take_back()
+	if not spring_on:
+		_angle = 0.0
+		return
 	var h = g.her
 	var rot: float = h.rotation_degrees
 	var turn: float = 0.0 if is_nan(_last_rot) else rot - _last_rot
@@ -322,10 +358,18 @@ static func _spring_before() -> void:
 static func _spring_after() -> void:
 	var h = g.her
 	var p := mark_at("neck_base")   # her space, after the torso has moved this tick
-	var r := deg_to_rad(_angle)
-	_applied = Transform2D(r, p - p.rotated(r))
+	var q := mark_at("head_pivot")
+	var r := deg_to_rad(_angle + DevBodyRings.turn("neck"))
+	var rh := deg_to_rad(DevBodyRings.turn("head"))
+	var turn_h := Transform2D(rh, q - q.rotated(rh))   # the head about its pivot, then all about the neck base
+	_applied = Transform2D(r, p - p.rotated(r)) * turn_h
+	var head_xf: Transform2D = h.head.transform
 	for c in _head_group():
 		c.transform = _applied * c.transform
+	if rh != 0.0:   # the neck picture (in her head) turns with the neck, not with the head's own turn
+		var n = h.head.neck
+		_neck_saved = n.transform
+		n.transform = head_xf.affine_inverse() * turn_h.affine_inverse() * head_xf * n.transform
 	for c in _hair_layers():
 		if c != null:
 			c.transform = c.transform * _applied   # these are placed with her matrix, outside her
@@ -443,12 +487,17 @@ static func _arm(get_fn: Callable, step: Callable, want: int, back := Callable()
 ## default fn]. The fitted numbers are FIT (copied from "Copy numbers"); `marks` holds what is set by hand this
 ## session. Paired parts get a point each: the two sides' pictures are not the same (the left calf's bounds are
 ## larger than the right one's - its stockings / footwear sit inside it), so one shared point would sit wrong.
-## Fitted by Dima on her (30 Oct). Not yet: the breasts, the throat and nape ends and the jaw (first guesses). The
-## left hip, while not fitted itself, moves with the right one (the game's left start plus the right hip's shift).
-const FIT := {"hip_r": Vector2(-342, 461), "hip_l": Vector2(-320, 451), "lumbar": Vector2(-169, 340),
+## Fitted by Dima on her (30 Oct), the right leg; the left one mirrored from it: both thighs are the same picture
+## (the left one x0.95), so the left knee is the right one's point and the left hip the right hip's place in its
+## thigh put on the left thigh (the old fit checks out: -342,461 gives -319,452, fitted by hand -320,451); the left
+## calf's skin is the right one's (the left calf also holds the far foot, hence its larger bounds), so the same ankle.
+## Not yet: the breasts (their pivots for now).
+const FIT := {"hip_r": Vector2(-361, 457), "hip_l": Vector2(-337, 448), "lumbar": Vector2(-169, 340),
 	"thoracic": Vector2(-56, 180), "neck_base": Vector2(-1, 0), "shoulder_r": Vector2(12, -5),
-	"shoulder_l": Vector2(-13, 5), "head_pivot": Vector2(-28, 31), "knee_r": Vector2(357, 286),
-	"knee_l": Vector2(357, 286), "ankle_r": Vector2(-500, 59), "ankle_l": Vector2(-500, 59)}
+	"shoulder_l": Vector2(-13, 5), "head_pivot": Vector2(-28, 31), "jaw": Vector2(-29, 85),
+	"throat_top": Vector2(55, 66), "nape_top": Vector2(-21, 31), "throat_bottom": Vector2(65, 48),
+	"nape_bottom": Vector2(-56, 134), "knee_r": Vector2(387, 280), "knee_l": Vector2(387, 280),
+	"ankle_r": Vector2(-486, 61), "ankle_l": Vector2(-486, 61)}
 static var marks := {}
 static var editing := false        # Body > Her body > "Edit points": drag them with the left mouse button
 static var _drag := ""
@@ -552,6 +601,7 @@ static func numbers() -> String:
 	for id in mark_defs():
 		var p := mark(id)
 		out.append('"%s": Vector2(%d, %d),' % [id, int(p.x), int(p.y)])
+	out.append_array(DevBodyRings.numbers())
 	return "\n".join(out)
 
 
@@ -560,6 +610,8 @@ static func numbers() -> String:
 static func wants_mouse() -> bool:
 	if posing and pose_mode == "Alive":
 		return true   # posing alive: the scene's mouse is ours (her head stays where it was; points, zoom)
+	if DevBodyRings.shown() and instance != null:
+		return DevBodyRings.busy() or DevBodyRings.ring_under(instance._her_xf(), instance.get_viewport().get_mouse_position()) != ""
 	if not (editing and ours and instance != null and g.her != null):
 		return false
 	return _drag != "" or instance._mark_under(instance.get_viewport().get_mouse_position()) != ""
@@ -586,6 +638,10 @@ func _input(e: InputEvent) -> void:
 			and not (SDTMenu.dev != null and SDTMenu.dev._dock.get_global_rect().has_point(e.position)):
 		_zoom(get_viewport().get_mouse_position(), 1.1 if e.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1)
 		get_viewport().set_input_as_handled()
+		return
+	if DevBodyRings.shown() and SDTMenu.dev != null and SDTMenu.dev._enabled():
+		if DevBodyRings.input(e, _her_xf()):
+			get_viewport().set_input_as_handled()
 		return
 	if not (editing and ours and g.her != null and SDTMenu.dev != null and SDTMenu.dev._enabled()):
 		_drag = ""

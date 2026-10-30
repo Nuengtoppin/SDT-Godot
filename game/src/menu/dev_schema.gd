@@ -63,11 +63,12 @@ static func _body() -> Dictionary:
 			MenuSchema.toggle("Our body layer (experimental)", "Off: her body is the game's only. On: our additions (orange bones, our settings in the cards below) come in; where one of ours replaces a bone of the game's, only ours is drawn.",
 				func(): return DevBodyOverlay.ours, func(on: bool): DevBodyOverlay.set_ours(on), {"keywords": "body layer ik ours"}),
 			value("Now", "What is on.", func(): return "our layer on" if DevBodyOverlay.ours else "the game's body"),
-			MenuSchema.toggle("Edit points (left mouse)", "Our skeleton points (hips, spine, ankles...) show as orange dots on her; drag one with the left mouse button to where the joint is. The game does not get the click on a point.",
-				func(): return DevBodyOverlay.editing, func(on: bool): DevBodyOverlay.editing = on, {"enabled": ours, "keywords": "skeleton points markup drag"}),
+			MenuSchema.choice("Mouse (left button)", "What the left mouse button does on her (the game does not get the click there). Points: drag our skeleton points (orange dots) to where the joints are. Rotate: a ring around each joint (neck, head, hips, knees) - drag it to turn the bone; Shift: 5° steps, right click: back to the game's angle. Limits: drag an end of a ring's orange arc to set how far that joint may turn; right click: the default. White tick: the game's angle; the needle: the angle now. Best in pose mode, frozen.",
+				DevBodyRings.MODES, func(): return DevBodyOverlay.mouse_mode(), func(v: String): DevBodyOverlay.set_mouse(v), {"enabled": ours, "keywords": "skeleton points markup drag rotate rings limits"}),
 			MenuSchema.actions("", "", [
-				["Copy numbers", func(): DisplayServer.clipboard_set(DevBodyOverlay.numbers()), "The points as numbers, to the clipboard: paste them to Claude to keep them."],
-				["Reset points", func(): DevBodyOverlay.marks.clear(), "Every point back to its fitted place or first guess."]],
+				["Copy numbers", func(): DisplayServer.clipboard_set(DevBodyOverlay.numbers()), "The points and the rings' limits as numbers, to the clipboard: paste them to Claude to keep them."],
+				["Reset points", func(): DevBodyOverlay.marks.clear(), "Every point back to its fitted place or first guess."],
+				["Reset turns", func(): DevBodyRings.reset_turns(), "Every joint turned with a ring back to the game's angle."]],
 				{"enabled": ours}),
 			MenuSchema.actions("", "", [
 				["My whole skeleton", func(): DevBodyOverlay.show_skeleton(true), "Our layer on and every bone layer of ours (orange)."],
