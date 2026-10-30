@@ -105,6 +105,8 @@ static func _body() -> Dictionary:
 				func(): return g.her.currentRightArmPosition, func(): om.call().rightArmLeftClicked(), func(): om.call().rightArmRightClicked()),
 			_layer("arms", "axis", "Bones", "Both arms: IK chains upper arm -> forearm -> hand."),
 			_layer("arms", "points", "Hand targets", "Where each hand is aimed (her legs, his legs, him)."),
+			_layer("arms_ours", "axis", "Collarbones and arms (ours)", "Orange: from the neck base to both shoulders (our points), then shoulder -> elbow -> wrist. They replace the game's arm bones while this is on.",
+				{"enabled": ours}),
 		]},
 		{"title": "Breasts", "controls": [
 			_layer("breasts", "axis", "Sway", "A line down each breast from its pivot, leaning with its sway. Both get the same push in the game."),
@@ -117,7 +119,7 @@ static func _body() -> Dictionary:
 		{"title": "Legs", "controls": [
 			_layer("legs", "axis", "Bones", "Right leg: the IK chain torso -> thigh -> calf (the torso is its first bone). Left leg: a copy of the right thigh's rotation (x0.95), not a chain of its own."),
 			_layer("legs", "points", "Knee target", "Where the pose aims her right knee (the left knee follows the copy)."),
-			_layer("legs_ours", "axis", "Calf to ankle (ours)", "Orange: our calf bones, knee to ankle. The game has none there: the calf is one rigid picture with her foot.",
+			_layer("legs_ours", "axis", "Thighs and calves (ours)", "Orange: our thighs from our hip points to the knees (they replace the game's thighs while this is on) and our calves, knee to ankle - the game has no bone there: the calf is one rigid picture with her foot.",
 				{"enabled": ours}),
 		]},
 		{"title": "Him body", "controls": [

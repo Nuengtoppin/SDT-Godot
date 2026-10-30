@@ -465,12 +465,21 @@ func _behaviour_checks() -> void:
 	var him: Dictionary = DevBodyOverlay.parts()["him"].call()
 	var calves: Dictionary = DevBodyOverlay.parts()["legs_ours"].call()
 	_check("body layers: head and jaw pivots, his chains and penis, our two calf bones", head["points"].size() == 2
-		and him["axes"].size() >= 5 and calves["axes_ours"].size() == 2, "%d %d" % [him["axes"].size(), calves["axes_ours"].size()])
+		and him["axes"].size() >= 5 and calves["axes_ours"].size() == 4, "%d %d" % [him["axes"].size(), calves["axes_ours"].size()])
 	DevBodyOverlay.ours = true
 	DevBodyOverlay.marks["lumbar"] = Vector2(10, 20)
 	DevBodyOverlay.set_on("torso_ours", "axis", true)
 	var to: Dictionary = DevBodyOverlay.parts()["torso_ours"].call()
 	var lg: Dictionary = DevBodyOverlay.parts()["legs"].call()
+	DevBodyOverlay.set_on("legs_ours", "axis", true)
+	DevBodyOverlay.set_on("arms_ours", "axis", true)
+	var lg2: Dictionary = DevBodyOverlay.parts()["legs"].call()
+	var ar: Dictionary = DevBodyOverlay.parts()["arms"].call()
+	var ao: Dictionary = DevBodyOverlay.parts()["arms_ours"].call()
+	_check("our thighs and arms replace the game's: none of its leg or arm bones left, 6 arm bones of ours",
+		lg2["axes"].is_empty() and ar["axes"].is_empty() and ao["axes_ours"].size() == 6)
+	DevBodyOverlay.set_on("legs_ours", "axis", false)
+	DevBodyOverlay.set_on("arms_ours", "axis", false)
 	_check("our torso: hip axis + 3 spine bones; it hides the game's torso bone", to["axes_ours"].size() == 4
 		and lg["axes"].size() == 2 and DevBodyOverlay.mark("lumbar") == Vector2(10, 20)
 		and DevBodyOverlay.numbers().contains('"lumbar": Vector2(10, 20)') and DevBodyOverlay.mark("ankle_r") == Vector2(-500, 59))

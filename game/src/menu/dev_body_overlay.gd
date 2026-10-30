@@ -36,7 +36,7 @@ static func parts() -> Dictionary:
 		"legs": func(): return DevBodyOverlay.legs(), "arms": func(): return DevBodyOverlay.arms(),
 		"breasts": func(): return DevBodyOverlay.breasts(), "head": func(): return DevBodyOverlay.head(),
 		"legs_ours": func(): return DevBodyOverlay.legs_ours(), "him": func(): return DevBodyOverlay.him(),
-		"torso_ours": func(): return DevBodyOverlay.torso_ours()}
+		"torso_ours": func(): return DevBodyOverlay.torso_ours(), "arms_ours": func(): return DevBodyOverlay.arms_ours()}
 
 
 static func is_on(part: String, layer: String) -> bool:
@@ -169,9 +169,11 @@ static func legs() -> Dictionary:
 	var h = g.her
 	var c := _chain(h.torsoIK)
 	var left = h.leftLegContainer.leg
-	var bones := [c[1], [_at(left), _at(left.calf)]]
+	var bones := []
 	if not (ours and is_on("torso_ours", "axis")):   # ours replaces the game's torso bone
-		bones.push_front(c[0])
+		bones.append(c[0])
+	if not (ours and is_on("legs_ours", "axis")):   # our thighs (from our hips) replace the game's
+		bones.append_array([c[1], [_at(left), _at(left.calf)]])
 	return {"node": h, "axes": bones, "points": [c[2]]}
 
 
@@ -203,6 +205,8 @@ static func mark_defs() -> Dictionary:
 		"lumbar": ["Lumbar", torso, func(): return hip_r.call().lerp(neck.call(), 0.33).round()],   # first guesses
 		"thoracic": ["Thoracic", torso, func(): return hip_r.call().lerp(neck.call(), 0.66).round()],
 		"neck_base": ["Neck base", torso, func(): return neck.call().round()],
+		"shoulder_r": ["Right shoulder", torso, func(): return _local(h.torso, h.rightArmContainer.upperArm).round()],
+		"shoulder_l": ["Left shoulder", torso, func(): return _local(h.torso, h.leftArmContainer.upperArm).round()],
 		"ankle_r": ["Right ankle", func(): return h.torso.rightCalfContainer.calf, func(): return (_far_end(h.torso.rightCalfContainer.calf) * 0.8).round()],
 		"ankle_l": ["Left ankle", func(): return h.leftLegContainer.leg.calf, func(): return (_far_end(h.leftLegContainer.leg.calf) * 0.8).round()],
 	}
@@ -291,8 +295,25 @@ static func torso_ours() -> Dictionary:
 static func legs_ours() -> Dictionary:
 	if g.her == null or g.her.torsoIK == null:
 		return {}
-	var cs := [g.her.torso.rightCalfContainer.calf, g.her.leftLegContainer.leg.calf]
-	return {"node": g.her, "axes_ours": [[_at(cs[0]), mark_at("ankle_r")], [_at(cs[1]), mark_at("ankle_l")]]}
+	var h = g.her
+	var knees := [_at(h.torso.rightCalfContainer.calf), _at(h.leftLegContainer.leg.calf)]
+	return {"node": h, "axes_ours": [[mark_at("hip_r"), knees[0]], [mark_at("hip_l"), knees[1]],
+		[knees[0], mark_at("ankle_r")], [knees[1], mark_at("ankle_l")]]}
+
+
+## Our arms (orange): the collarbones from the neck base to both shoulders, then shoulder -> elbow -> wrist (the
+## game's elbows and wrists: where its forearm and hand pictures hang). With it on, the game's arm bones are hidden.
+static func arms_ours() -> Dictionary:
+	if g.her == null or g.her.leftArmIK == null:
+		return {}
+	var h = g.her
+	var nb := mark_at("neck_base")
+	var out := {"node": h, "axes_ours": []}
+	for side in [["shoulder_r", h.rightArmIK], ["shoulder_l", h.leftArmIK]]:
+		var sh := mark_at(side[0])
+		var ik: IKController = side[1]
+		out["axes_ours"].append_array([[nb, sh], [sh, _at(ik.s2)], [_at(ik.s2), _at(ik.s3)]])
+	return out
 
 
 ## The middle of the edge of `o`'s own bounds farthest from its origin.
@@ -336,7 +357,8 @@ static func arms() -> Dictionary:
 		return {}
 	var l := _chain(g.her.leftArmIK)
 	var r := _chain(g.her.rightArmIK)
-	return {"node": g.her, "axes": [l[0], l[1], r[0], r[1]], "points": [l[2], r[2]]}
+	var bones := [] if ours and is_on("arms_ours", "axis") else [l[0], l[1], r[0], r[1]]   # ours replace them
+	return {"node": g.her, "axes": bones, "points": [l[2], r[2]]}
 
 
 ## Her breasts: each one's pivot and a line down it that leans with its sway (both springs get the same push in the
