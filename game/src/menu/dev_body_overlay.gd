@@ -168,18 +168,19 @@ static func legs() -> Dictionary:
 ## stockings / footwear sit inside it, the right leg's are separate layers), so one shared point would sit wrong on
 ## one of them. Fitted by hand in Body > Legs (our sliders, "Left = right" as a start); our ankle joint goes there
 ## later.
-static var ankle := [Vector2.INF, Vector2.INF]   # INF: not fitted yet, a first guess from the picture
+const ANKLE := [Vector2(-500, 59), Vector2(-500, 59)]   # fitted by Dima on her (30 Oct), right / left
+static var ankle := [Vector2.INF, Vector2.INF]   # INF: the fitted ANKLE
 
 
 static func calves() -> Array:
 	return [g.her.torso.rightCalfContainer.calf, g.her.leftLegContainer.leg.calf]
 
 
-## Leg `i`'s ankle in its calf's own space: the fitted point, or 80% of the way to the picture's farthest edge.
+## Leg `i`'s ankle in its calf's own space: as set by hand now, or the fitted ANKLE.
 static func ankle_point(i: int) -> Vector2:
 	if (ankle[i] as Vector2).is_finite():
 		return ankle[i]
-	return (_far_end(calves()[i]) * 0.8).round()
+	return ANKLE[i]
 
 
 static func set_ankle(i: int, axis: int, v: float) -> void:
