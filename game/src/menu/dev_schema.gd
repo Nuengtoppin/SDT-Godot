@@ -80,6 +80,8 @@ static func _body() -> Dictionary:
 		]},
 		{"title": "Head", "controls": [
 			_layer("head", "axis", "Head and jaw pivots", "The pivot the game turns her head about (one matrix from her position and tilt, not IK) and her jaw's."),
+			_layer("head_ours", "axis", "Head and neck (ours)", "Orange: the neck bone from the neck base to our head pivot, the jaw from it; and the neck's two lines as bones of their own - the throat (chin to its bottom) and the nape (skull to its bottom). Points: Head pivot, Jaw pivot, Throat top / bottom, Nape top / bottom.",
+				{"enabled": ours}),
 			value("Head tilt", "Her head's angle from the tilt (degrees, the game: tilt x 10 plus cough and tongue).",
 				func(): return "-" if g.her == null else "%.1f°" % g.her.headTiltAngle),
 		]},
@@ -111,6 +113,8 @@ static func _body() -> Dictionary:
 		{"title": "Breasts", "controls": [
 			_layer("breasts", "axis", "Sway", "A line down each breast from its pivot, leaning with its sway. Both get the same push in the game."),
 			_layer("breasts", "points", "Pivots", "Each breast's pivot."),
+			_layer("breasts_ours", "axis", "Breast to nipple (ours)", "Orange: from each breast's base (our point) to the game's nipple. The game moves the nipple with every breast size, so this bone lengthens with it and the nipple needs no fitting.",
+				{"enabled": ours}),
 		]},
 		{"title": "Torso", "controls": [
 			_layer("torso_ours", "axis", "Pelvis and spine (ours)", "Orange: the hip axis between both hip joints, then hips -> lumbar -> thoracic -> neck base. It replaces the game's one torso bone (the long yellow line in Legs), which is hidden while this is on.",

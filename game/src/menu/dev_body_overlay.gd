@@ -36,7 +36,8 @@ static func parts() -> Dictionary:
 		"legs": func(): return DevBodyOverlay.legs(), "arms": func(): return DevBodyOverlay.arms(),
 		"breasts": func(): return DevBodyOverlay.breasts(), "head": func(): return DevBodyOverlay.head(),
 		"legs_ours": func(): return DevBodyOverlay.legs_ours(), "him": func(): return DevBodyOverlay.him(),
-		"torso_ours": func(): return DevBodyOverlay.torso_ours(), "arms_ours": func(): return DevBodyOverlay.arms_ours()}
+		"torso_ours": func(): return DevBodyOverlay.torso_ours(), "arms_ours": func(): return DevBodyOverlay.arms_ours(),
+		"head_ours": func(): return DevBodyOverlay.head_ours(), "breasts_ours": func(): return DevBodyOverlay.breasts_ours()}
 
 
 static func is_on(part: String, layer: String) -> bool:
@@ -206,6 +207,16 @@ static func mark_defs() -> Dictionary:
 		"thoracic": ["Thoracic", torso, func(): return hip_r.call().lerp(neck.call(), 0.66).round()],
 		"neck_base": ["Neck base", torso, func(): return neck.call().round()],
 		"shoulder_r": ["Right shoulder", torso, func(): return _local(h.torso, h.rightArmContainer.upperArm).round()],
+		"head_pivot": ["Head pivot", func(): return h.head, func(): return Vector2.ZERO],
+		"jaw": ["Jaw pivot", func(): return h.head, func(): return _local(h.head, h.head.jaw).round()],
+		"throat_top": ["Throat top (chin)", func(): return h.head, func(): return _neck_pt(h.head, 0)],
+		"nape_top": ["Nape top (skull)", func(): return h.head, func(): return _neck_pt(h.head, -1)],
+		"throat_bottom": ["Throat bottom", torso, func(): return _neck_pt(h.torso, h.head.neck.frontEndPoint)],
+		"nape_bottom": ["Nape bottom", torso, func(): return _neck_pt(h.torso, h.head.neck.frontEndPoint + 1)],
+		"knee_r": ["Right knee", func(): return h.torso.leg, func(): return _local(h.torso.leg, h.torso.rightCalfContainer.calf).round()],
+		"knee_l": ["Left knee", func(): return h.leftLegContainer.leg, func(): return _local(h.leftLegContainer.leg, h.leftLegContainer.leg.calf).round()],
+		"breast_r": ["Right breast base", func(): return h.torso.midLayer.rightBreast, func(): return Vector2.ZERO],
+		"breast_l": ["Left breast base", func(): return h.torsoBack.leftBreast, func(): return Vector2.ZERO],
 		"shoulder_l": ["Left shoulder", torso, func(): return _local(h.torso, h.leftArmContainer.upperArm).round()],
 		"ankle_r": ["Right ankle", func(): return h.torso.rightCalfContainer.calf, func(): return (_far_end(h.torso.rightCalfContainer.calf) * 0.8).round()],
 		"ankle_l": ["Left ankle", func(): return h.leftLegContainer.leg.calf, func(): return (_far_end(h.leftLegContainer.leg.calf) * 0.8).round()],
@@ -215,6 +226,34 @@ static func mark_defs() -> Dictionary:
 ## Where `o`'s origin is in `space`'s own coordinates.
 static func _local(space: FlashDisplayObject, o: FlashDisplayObject) -> Vector2:
 	return space.globalToLocal(o.localToGlobal(Vector2.ZERO))
+
+
+## The neck outline's point `i` (-1: the last) in `space`'s own coordinates.
+static func _neck_pt(space: FlashDisplayObject, i: int) -> Vector2:
+	var n: Neck = g.her.head.neck
+	var pts: Array = n.neckPoints
+	if pts.is_empty():
+		return Vector2.ZERO
+	return space.globalToLocal(n.localToGlobal(pts[i % pts.size()])).round()
+
+
+## Her nipple on breast `right` (true) or left, in her space: the game's own nipple picture (and its piercing point
+## when it has one), which the game moves with every breast size - so it needs no fitting of ours.
+static func nipple_at(right: bool) -> Vector2:
+	var h = g.her
+	var b = h.torso.midLayer.rightBreast if right else h.torsoBack.leftBreast
+	var name := "rightBreast" if right else "leftBreast"
+	var n = null
+	if b.getChildByName(name):
+		n = h.findChild("nipple", b.getChildByName(name))
+	if not n:
+		var nn = b.nipple
+		n = nn.getChildByName("rightNipple" if right else "leftNipple") if nn.getChildByName("rightNipple" if right else "leftNipple") else nn
+	var pp := Vector2.ZERO
+	if n.getChildByName("piercingPoint"):
+		var q = n.getChildByName("piercingPoint")
+		pp = Vector2(q.x, q.y)
+	return _at(n, pp)
 
 
 ## Mark `id` in its node's own space: as set by hand, else fitted, else its first guess.
@@ -278,6 +317,25 @@ func _input(e: InputEvent) -> void:
 		marks[_drag] = (xf.affine_inverse() * e.position).round()
 
 
+## Our head and neck (orange): the neck bone from the neck base to the head pivot, the jaw from the head pivot; and
+## the neck's two lines as their own bones: the throat from the chin to its bottom, the nape from the skull to its
+## bottom (two lines with their own ends, not one rigid neck picture).
+static func head_ours() -> Dictionary:
+	if g.her == null or g.her.head == null:
+		return {}
+	var hp := mark_at("head_pivot")
+	return {"node": g.her, "axes_ours": [[mark_at("neck_base"), hp], [hp, mark_at("jaw")],
+		[mark_at("throat_top"), mark_at("throat_bottom")], [mark_at("nape_top"), mark_at("nape_bottom")]]}
+
+
+## Our breasts (orange): from each breast's base (our point, in the breast picture's space) to the game's nipple -
+## the nipple moves with the breast's size, so the bone lengthens with it.
+static func breasts_ours() -> Dictionary:
+	if g.her == null or g.her.leftBreastController == null:
+		return {}
+	return {"node": g.her, "axes_ours": [[mark_at("breast_r"), nipple_at(true)], [mark_at("breast_l"), nipple_at(false)]]}
+
+
 ## Our pelvis and spine (orange): the hip axis between both hip joints, then hips -> lumbar -> thoracic -> neck base.
 ## With it on, the game's one torso bone (the leg chain's first, drawn in Legs) is hidden: ours replaces it.
 static func torso_ours() -> Dictionary:
@@ -296,7 +354,7 @@ static func legs_ours() -> Dictionary:
 	if g.her == null or g.her.torsoIK == null:
 		return {}
 	var h = g.her
-	var knees := [_at(h.torso.rightCalfContainer.calf), _at(h.leftLegContainer.leg.calf)]
+	var knees := [mark_at("knee_r"), mark_at("knee_l")]
 	return {"node": h, "axes_ours": [[mark_at("hip_r"), knees[0]], [mark_at("hip_l"), knees[1]],
 		[knees[0], mark_at("ankle_r")], [knees[1], mark_at("ankle_l")]]}
 
