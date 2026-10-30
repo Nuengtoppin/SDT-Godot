@@ -163,15 +163,38 @@ static func legs() -> Dictionary:
 
 
 ## Our calf bones: from her knee to her ankle, right and left (orange). The game has no bone there: the calf is one
-## rigid picture with her foot, hung at the knee. Its far end is estimated from the calf picture's bounds (85% of the
-## way to its farthest edge), so it is approximate; our ankle joint goes there later.
+## rigid picture with her foot, hung at the knee. The ankle is a point in each calf picture's own space, one per leg
+## (`ankle`: 0 right, 1 left): the two calves are NOT the same picture (the left one's bounds are larger - its
+## stockings / footwear sit inside it, the right leg's are separate layers), so one shared point would sit wrong on
+## one of them. Fitted by hand in Body > Legs (our sliders, "Left = right" as a start); our ankle joint goes there
+## later.
+static var ankle := [Vector2.INF, Vector2.INF]   # INF: not fitted yet, a first guess from the picture
+
+
+static func calves() -> Array:
+	return [g.her.torso.rightCalfContainer.calf, g.her.leftLegContainer.leg.calf]
+
+
+## Leg `i`'s ankle in its calf's own space: the fitted point, or 80% of the way to the picture's farthest edge.
+static func ankle_point(i: int) -> Vector2:
+	if (ankle[i] as Vector2).is_finite():
+		return ankle[i]
+	return (_far_end(calves()[i]) * 0.8).round()
+
+
+static func set_ankle(i: int, axis: int, v: float) -> void:
+	var p := ankle_point(i)
+	p[axis] = v
+	ankle[i] = p
+
+
 static func legs_ours() -> Dictionary:
 	if g.her == null or g.her.torsoIK == null:
 		return {}
-	var h = g.her
-	var out := {"node": h, "axes_ours": []}
-	for calf in [h.torso.rightCalfContainer.calf, h.leftLegContainer.leg.calf]:
-		out["axes_ours"].append([_at(calf), _at(calf, _far_end(calf) * 0.85)])
+	var out := {"node": g.her, "axes_ours": []}
+	var cs := calves()
+	for i in 2:
+		out["axes_ours"].append([_at(cs[i]), _at(cs[i], ankle_point(i))])
 	return out
 
 

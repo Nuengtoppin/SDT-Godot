@@ -466,6 +466,13 @@ func _behaviour_checks() -> void:
 	var calves: Dictionary = DevBodyOverlay.parts()["legs_ours"].call()
 	_check("body layers: head and jaw pivots, his chains and penis, our two calf bones", head["points"].size() == 2
 		and him["axes"].size() >= 5 and calves["axes_ours"].size() == 2, "%d %d" % [him["axes"].size(), calves["axes_ours"].size()])
+	var cs: Array = DevBodyOverlay.calves()
+	DevBodyOverlay.set_ankle(0, 0, 100.0)
+	DevBodyOverlay.ankle[1] = DevBodyOverlay.ankle_point(0)
+	var lo: Dictionary = DevBodyOverlay.parts()["legs_ours"].call()
+	_check("our ankles: one per leg (the calf pictures differ), Left = right copies the numbers", cs.size() == 2
+		and DevBodyOverlay.ankle_point(1) == DevBodyOverlay.ankle_point(0) and lo["axes_ours"].size() == 2)
+	DevBodyOverlay.ankle = [Vector2.INF, Vector2.INF]
 	var body: Dictionary = dev.sections.filter(func(sec): return sec["id"] == "dev_body")[0]
 	var titles: Array = body["groups"].map(func(grp): return grp["title"])
 	_check("Body tab: Her body, Debug layers, Head, Neck, Throat rings, Arms, Breasts, Legs, Him body", titles == ["Her body",
