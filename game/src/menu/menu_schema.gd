@@ -360,7 +360,9 @@ static func _scene() -> Dictionary:
 
 static func _behaviour() -> Dictionary:
 	var om := func(): return _m().optionsMenu
-	return {"id": "behaviour", "name": "Behaviour", "groups": [
+	# its long cards fold (Resistance and Reactions folded at first: MenuFold) and reset as a whole; "default": the
+	# game's starting values of its checkboxes (g.gd), for that reset
+	return {"id": "behaviour", "name": "Behaviour", "fold": {"Resistance": true, "Reactions": true}, "groups": [
 		{"title": "Resistance", "controls": [
 			slider("Resistance", "How much she resists at first; it wears off while you play.",
 				func(): return _m().costumeMenu.resistanceSlider, _m().resistanceSliderChanged, _m().resistanceSliderReleased,
@@ -371,10 +373,11 @@ static func _behaviour() -> Dictionary:
 				_m().cbResetResistanceClicked),
 		]},
 		{"title": "Reactions", "controls": [
-			check("Breathing", "", func(): return om.call().cbBreathing, _m().cbBreathingClicked),
-			check("Coughing", "", func(): return om.call().cbCoughing, _m().cbCoughingClicked),
-			check("Gagging", "", func(): return om.call().cbGagging, _m().cbGaggingClicked),
-			check("Tongue", "She sticks her tongue out at times.", func(): return om.call().cbTongue, _m().cbTongueClicked),
+			check("Breathing", "", func(): return om.call().cbBreathing, _m().cbBreathingClicked, {"default": true}),
+			check("Coughing", "", func(): return om.call().cbCoughing, _m().cbCoughingClicked, {"default": true}),
+			check("Gagging", "", func(): return om.call().cbGagging, _m().cbGaggingClicked, {"default": true}),
+			check("Tongue", "She sticks her tongue out at times.", func(): return om.call().cbTongue, _m().cbTongueClicked,
+				{"default": true}),
 			slider("Throat bulge", "How much her throat bulges.", func(): return om.call().throatBulgeSlider,
 				_m().throatBulgeSliderChanged, _m().throatBulgeSliderReleased, _m().mbDefaultThroatBulgeClicked),
 		]},
@@ -585,4 +588,5 @@ static func setting_control(ext: SDTExtension, key: String, extra := {}) -> Dict
 	else:
 		spec = {"type": "text", "label": label, "tip": tip, "get": func(): return str(ext.get_setting(key)),
 			"set": func(t: String): ext.set_setting(key, t)}
+	spec["restore"] = func(): ext.set_setting(key, d)   # back to the extension's default (a card's reset, MenuFold)
 	return _with(spec, extra)
