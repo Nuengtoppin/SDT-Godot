@@ -55,11 +55,13 @@ static func _body() -> Dictionary:
 	var neck := func(): return g.her.head.neck
 	var ours := func(): return DevBodyOverlay.ours
 	var om := func(): return g.inGameMenu
+	var apart := func(): return DevBodyOverlay.ours and DevBodySides.breasts_on
+	var loose := func(): return DevBodyOverlay.ours and DevBodySides.any_loose()
 	return {"id": "dev_body", "name": "Body", "fold": {"Debug layers": true, "Head": true, "Neck": true,
 		"Throat rings": true, "Arms": true, "Breasts": true, "Torso": true, "Legs": true, "Him body": true}, "groups": [
 		{"title": "Her body", "controls": [
 			MenuSchema.toggle("Our body layer (experimental)", "Off: her body is the game's only. On: our additions (orange bones, our settings in the cards below) come in; where one of ours replaces a bone of the game's, only ours is drawn.",
-				func(): return DevBodyOverlay.ours, func(on: bool): DevBodyOverlay.ours = on, {"keywords": "body layer ik ours"}),
+				func(): return DevBodyOverlay.ours, func(on: bool): DevBodyOverlay.set_ours(on), {"keywords": "body layer ik ours"}),
 			value("Now", "What is on.", func(): return "our layer on" if DevBodyOverlay.ours else "the game's body"),
 			MenuSchema.toggle("Edit points (left mouse)", "Our skeleton points (hips, spine, ankles...) show as orange dots on her; drag one with the left mouse button to where the joint is. The game does not get the click on a point.",
 				func(): return DevBodyOverlay.editing, func(on: bool): DevBodyOverlay.editing = on, {"enabled": ours, "keywords": "skeleton points markup drag"}),
@@ -158,6 +160,18 @@ static func _body() -> Dictionary:
 			_layer("breasts", "points", "Pivots", "Each breast's pivot."),
 			_layer("breasts_ours", "axis", "Breast to nipple (ours)", "Orange: from each breast's base (our point) to the game's nipple. The game moves the nipple with every breast size, so this bone lengthens with it and the nipple needs no fitting.",
 				{"enabled": ours}),
+			MenuSchema.toggle("Left and right apart (ours)", "Each breast swings on its own: the left one gets her movement's push a few ticks later and each springs back at its own firmness, so they no longer move as one. Off: as in the game (one push for both).",
+				func(): return DevBodySides.breasts_on, func(on: bool): DevBodySides.set_breasts(on), {"enabled": ours, "keywords": "breast sway desync inertia"}),
+			_slider("Left lag", "How many ticks after the right breast the left one gets the push.", 0.0, 12.0, 1.0,
+				func(): return float(DevBodySides.lag), func(v: float): DevBodySides.lag = int(v), 3.0, "%d ticks", apart),
+			_slider("Left push", "How hard her movement swings the left breast (x the game's).", 0.0, 2.0, 0.05,
+				func(): return DevBodySides.push_l, func(v: float): DevBodySides.push_l = v, 0.85, "%.2f", apart),
+			_slider("Right push", "How hard her movement swings the right breast (x the game's).", 0.0, 2.0, 0.05,
+				func(): return DevBodySides.push_r, func(v: float): DevBodySides.push_r = v, 1.0, "%.2f", apart),
+			_slider("Left firmness", "How fast the left breast springs back (x the game's, which comes from her breast size).", 0.3, 2.5, 0.05,
+				func(): return DevBodySides.firm_l, func(v: float): DevBodySides.set_firm(false, v), 1.15, "%.2f", apart),
+			_slider("Right firmness", "How fast the right breast springs back (x the game's).", 0.3, 2.5, 0.05,
+				func(): return DevBodySides.firm_r, func(v: float): DevBodySides.set_firm(true, v), 1.0, "%.2f", apart),
 		]},
 		{"title": "Torso", "controls": [
 			_layer("torso_ours", "axis", "Pelvis and spine (ours)", "Orange: the hip axis between both hip joints, then hips -> lumbar -> thoracic -> neck base. It replaces the game's one torso bone (the long yellow line in Legs), which is hidden while this is on.",
@@ -168,12 +182,31 @@ static func _body() -> Dictionary:
 			_layer("legs", "points", "Knee target", "Where the pose aims her right knee (the left knee follows the copy)."),
 			_layer("legs_ours", "axis", "Thighs and calves (ours)", "Orange: our thighs from our hip points to the knees (they replace the game's thighs while this is on) and our calves, knee to ankle - the game has no bone there: the calf is one rigid picture with her foot.",
 				{"enabled": ours}),
+			MenuSchema.choice("Left leg (ours)", "Kneeling: as in the game, her knee stays where the pose puts it. Loose: her leg goes with her hips and swings behind their turning, her knee free (it keeps the bend it had).",
+				DevBodySides.LEG_MODES, func(): return DevBodySides.leg_l, func(v: String): DevBodySides.set_leg(false, v), {"enabled": ours}),
+			MenuSchema.choice("Right leg (ours)", "As the left one. The game hangs her torso on her right leg: loose, her torso stays where the game puts it, only the leg swings.",
+				DevBodySides.LEG_MODES, func(): return DevBodySides.leg_r, func(v: String): DevBodySides.set_leg(true, v), {"enabled": ours}),
+			_slider("Loose stiffness", "How hard a loose leg is pulled back to where it was.", 0.01, 0.4, 0.01,
+				func(): return DevBodySides.loose_k, func(v: float): DevBodySides.loose_k = v, 0.06, "%.2f", loose),
+			_slider("Loose damping", "How fast its swing dies down.", 0.02, 0.9, 0.01,
+				func(): return DevBodySides.loose_damp, func(v: float): DevBodySides.loose_damp = v, 0.12, "%.2f", loose),
+			_slider("Loose push", "How much her hips' movement swings it.", 0.0, 4.0, 0.05,
+				func(): return DevBodySides.loose_push, func(v: float): DevBodySides.loose_push = v, 1.0, "%.2f", loose),
+			_slider("Loose limit", "How far it may swing either way (degrees).", 5.0, 80.0, 1.0,
+				func(): return DevBodySides.loose_limit, func(v: float): DevBodySides.loose_limit = v, 35.0, "%d°", loose),
 		]},
 		{"title": "Him body", "controls": [
 			_layer("him", "axis", "Bones", "His IK chains: both legs thigh -> calf -> foot, his right arm, his left arm (the hand on her head); and his penis, base to tip."),
 			_layer("him", "points", "Targets", "Where his chains aim (his feet, his hands)."),
 		]},
 	]}
+
+
+static func _slider(label: String, tip: String, lo: float, hi: float, step: float, get_fn: Callable, set_fn: Callable,
+		default: float, fmt: String, enabled: Callable) -> Dictionary:
+	return {"type": "slider", "label": label, "tip": tip, "min": lo, "max": hi, "step": step, "get": get_fn, "set": set_fn,
+		"format": func(v): return fmt % (int(v) if fmt.begins_with("%d") else v), "reset": func(): set_fn.call(default),
+		"enabled": enabled, "wide": true}
 
 
 static func _layer(part: String, layer: String, label: String, tip: String, extra := {}) -> Dictionary:

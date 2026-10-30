@@ -73,6 +73,16 @@ static func clear() -> void:
 	_on.clear()
 	set_pose(false)
 	set_spring(false)
+	DevBodySides.reset()
+
+
+## Our layer on / off; off takes back what ours puts on her (the neck spring, her sides apart).
+static func set_ours(on: bool) -> void:
+	ours = on
+	if not on:
+		set_spring(false)
+		DevBodySides.set_breasts(false)
+	DevBodySides.sync()
 
 
 static func _ensure() -> void:

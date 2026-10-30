@@ -527,6 +527,42 @@ func _behaviour_checks() -> void:
 	swung = swung and base_kept and g.her.eye.transform.is_equal_approx(eye_rest)
 	_check("throat and nape points only with their layer on; the neck spring turns her whole head (eyes too) about the neck base and puts it back",
 		live1 == live0 + 4 and swung and g.her.head.transform.is_equal_approx(rest), "%d %d" % [live0, live1])
+	var h = g.her
+	DevBodyOverlay.ours = true
+	DevBodySides.set_breasts(true)
+	var outs := []
+	for v in [1.0, 2.0, 3.0, 4.0, 5.0]:
+		outs.append(Hooks.value(&"BreastController.push", h.leftBreastController, v))
+	var right_push = Hooks.value(&"BreastController.push", h.rightBreastController, 2.0)
+	var firm_ratio: float = h.leftBreastController._breastFirmness / h.rightBreastController._breastFirmness
+	DevBodyOverlay.set_ours(false)
+	var firm_back: float = h.leftBreastController._breastFirmness / h.rightBreastController._breastFirmness
+	_check("breasts apart: the left push 3 ticks late (x0.85), the right as given, left firmer x1.15; our layer off: as the game's",
+		is_equal_approx(outs[3], 0.85) and is_equal_approx(outs[4], 1.7) and is_equal_approx(right_push, 2.0)
+		and is_equal_approx(firm_ratio, 1.15) and is_equal_approx(firm_back, 1.0) and not Hooks.has_value(&"BreastController.push"),
+		"%s %s %.3f %.3f" % [outs, right_push, firm_ratio, firm_back])
+	DevBodyOverlay.ours = true
+	var lt0: Transform2D = h.leftLegContainer.leg.transform
+	var rt0: Transform2D = h.torso.leg.transform
+	var tt0: Transform2D = h.torso.transform
+	var aym0: float = h.absYMovement
+	h.absYMovement = 0.0
+	DevBodySides.set_leg(false, "Loose")
+	var hooked: bool = DevBodySides._after.is_valid()
+	DevBodySides._legs_after()
+	var kept: bool = h.leftLegContainer.leg.transform.is_equal_approx(lt0)
+	h.torso.transform = Transform2D(deg_to_rad(5.0), Vector2.ZERO) * tt0
+	DevBodySides._legs_after()
+	var lt1: Transform2D = h.leftLegContainer.leg.transform
+	var swing: float = rad_to_deg(lt1.get_rotation() - lt0.get_rotation())
+	var same_size: bool = lt1.get_scale().is_equal_approx(lt0.get_scale()) and lt1.origin.is_equal_approx(lt0.origin)
+	h.torso.transform = tt0
+	h.absYMovement = aym0
+	h.leftLegContainer.leg.transform = lt0
+	DevBodySides.set_leg(false, "Kneeling")
+	_check("a loose left leg: hooked, still at first, then lags behind her hips' turn (same size and place); the right leg the game's; kneeling: unhooked",
+		hooked and kept and swing < -2.0 and swing > -10.0 and same_size and h.torso.leg.transform.is_equal_approx(rt0)
+		and not DevBodySides._after.is_valid(), "%.2f" % swing)
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
 		ho["axes_ours"].size() == 1 and DevBodyOverlay.parts()["neck_lines_ours"].call()["axes_ours"].size() == 2 and DevBodyOverlay.parts()["head_ours"].call()["axes_ours"].size() == 1 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])
