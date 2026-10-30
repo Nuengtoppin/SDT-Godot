@@ -488,22 +488,22 @@ func _behaviour_checks() -> void:
 		lg2["axes"].is_empty() and ar["axes"].is_empty() and ao["axes_ours"].size() == 6)
 	DevBodyOverlay.set_on("legs_ours", "axis", false)
 	DevBodyOverlay.set_on("arms_ours", "axis", false)
-	var ho: Dictionary = DevBodyOverlay.parts()["head_ours"].call()
+	var ho: Dictionary = DevBodyOverlay.parts()["neck_ours"].call()
 	var bo: Dictionary = DevBodyOverlay.parts()["breasts_ours"].call()
 	var size0: int = g.characterControl.breastSize
 	var len0: float = (bo["axes_ours"][0][1] - bo["axes_ours"][0][0]).length()
 	g.characterControl.setBreasts(mini(size0 + 40, 150))
 	var len1: float = (DevBodyOverlay.parts()["breasts_ours"].call()["axes_ours"][0][1] - DevBodyOverlay.mark_at("breast_r")).length()
 	g.characterControl.setBreasts(size0)
-	_check("our head and neck: 4 bones; our breasts: base to the game's nipple, longer for a bigger size",
-		ho["axes_ours"].size() == 4 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])
+	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
+		ho["axes_ours"].size() == 3 and DevBodyOverlay.parts()["head_ours"].call()["axes_ours"].size() == 1 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])
 	_check("our torso: hip axis + 3 spine bones; it hides the game's torso bone", to["axes_ours"].size() == 4
 		and lg["axes"].size() == 2 and DevBodyOverlay.mark("lumbar") == Vector2(10, 20)
 		and DevBodyOverlay.numbers().contains('"lumbar": Vector2(10, 20)') and DevBodyOverlay.mark("ankle_r") == Vector2(-500, 59))
 	var hl0 := DevBodyOverlay.mark("hip_l")
 	DevBodyOverlay.marks["hip_r"] = DevBodyOverlay.mark("hip_r") + Vector2(5, 0)
-	_check("the left hip moves with the right one unless fitted itself", DevBodyOverlay.mark("hip_l") == hl0 + Vector2(5, 0)
-		and DevBodyOverlay.FIT["hip_r"] == Vector2(-342, 461))
+	_check("the left hip, fitted itself now, stays where it was fitted", DevBodyOverlay.mark("hip_l") == hl0
+		and DevBodyOverlay.FIT["hip_l"] == Vector2(-320, 451))
 	DevBodyOverlay.editing = true
 	var ov: DevBodyOverlay = DevBodyOverlay.instance
 	var xf: Transform2D = ov._her_xf()

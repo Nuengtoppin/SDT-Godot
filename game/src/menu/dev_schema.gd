@@ -96,7 +96,7 @@ static func _body() -> Dictionary:
 		]},
 		{"title": "Head", "controls": [
 			_layer("head", "axis", "Head and jaw pivots", "The pivot the game turns her head about (one matrix from her position and tilt, not IK) and her jaw's."),
-			_layer("head_ours", "axis", "Head and neck (ours)", "Orange: the neck bone from the neck base to our head pivot, the jaw from it; and the neck's two lines as bones of their own - the throat (chin to its bottom) and the nape (skull to its bottom). Points: Head pivot, Jaw pivot, Throat top / bottom, Nape top / bottom.",
+			_layer("head_ours", "axis", "Head (ours)", "Orange: from our head pivot to the jaw's pivot (a first guess, not fitted yet).",
 				{"enabled": ours}),
 			value("Head tilt", "Her head's angle from the tilt (degrees, the game: tilt x 10 plus cough and tongue).",
 				func(): return "-" if g.her == null else "%.1f°" % g.her.headTiltAngle),
@@ -106,6 +106,8 @@ static func _body() -> Dictionary:
 			_layer("neck", "rendered", "Rendered outline", "Pink: the outline drawn this tick (throat bulge, swallow wave). Blue: the highlight."),
 			_layer("neck", "points", "Control points", "The outline points (cyan) and highlight points (blue) the neck is drawn through."),
 			_layer("neck", "axis", "Neck to torso axis", "Yellow: from the neck's origin to her torso's."),
+			_layer("neck_ours", "axis", "Neck bone and lines (ours)", "Orange: the neck bone from the neck base (on her torso) to the head pivot (where her skull turns) - the spring goes there; and the neck's skin as two lines with their own ends, the throat (chin -> bottom) and the nape (skull -> bottom).",
+				{"enabled": ours}),
 			value("Points", "Outline points (the front of the neck is resampled into 30) / highlight points.",
 				func(): return "-" if g.her == null else "%d / %d" % [neck.call().neckPoints.size(), neck.call().highlightPoints.size()]),
 			value("Throat depth", "How deep he is, as the neck's bulge sees it (0 at her lips, 1 = 400 deep; below 0: outside her mouth).",

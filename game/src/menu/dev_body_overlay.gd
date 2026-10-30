@@ -37,7 +37,7 @@ static func parts() -> Dictionary:
 		"breasts": func(): return DevBodyOverlay.breasts(), "head": func(): return DevBodyOverlay.head(),
 		"legs_ours": func(): return DevBodyOverlay.legs_ours(), "him": func(): return DevBodyOverlay.him(),
 		"torso_ours": func(): return DevBodyOverlay.torso_ours(), "arms_ours": func(): return DevBodyOverlay.arms_ours(),
-		"head_ours": func(): return DevBodyOverlay.head_ours(), "breasts_ours": func(): return DevBodyOverlay.breasts_ours()}
+		"head_ours": func(): return DevBodyOverlay.head_ours(), "neck_ours": func(): return DevBodyOverlay.neck_ours(), "breasts_ours": func(): return DevBodyOverlay.breasts_ours()}
 
 
 static func is_on(part: String, layer: String) -> bool:
@@ -245,10 +245,12 @@ static func _arm(get_fn: Callable, step: Callable, want: int, back := Callable()
 ## default fn]. The fitted numbers are FIT (copied from "Copy numbers"); `marks` holds what is set by hand this
 ## session. Paired parts get a point each: the two sides' pictures are not the same (the left calf's bounds are
 ## larger than the right one's - its stockings / footwear sit inside it), so one shared point would sit wrong.
-## Fitted by Dima on her (30 Oct). hip_l is not in it: unless fitted itself, the left hip moves with the right one
-## (the game's left start plus the right hip's shift from the game's right start), so both stay alike.
-const FIT := {"hip_r": Vector2(-342, 461), "lumbar": Vector2(-169, 340), "thoracic": Vector2(-56, 180),
-	"neck_base": Vector2(-1, 0), "ankle_r": Vector2(-500, 59), "ankle_l": Vector2(-500, 59)}
+## Fitted by Dima on her (30 Oct). Not yet: the breasts, the throat and nape ends and the jaw (first guesses). The
+## left hip, while not fitted itself, moves with the right one (the game's left start plus the right hip's shift).
+const FIT := {"hip_r": Vector2(-342, 461), "hip_l": Vector2(-320, 451), "lumbar": Vector2(-169, 340),
+	"thoracic": Vector2(-56, 180), "neck_base": Vector2(-1, 0), "shoulder_r": Vector2(12, -5),
+	"shoulder_l": Vector2(-13, 5), "head_pivot": Vector2(-1, 0), "knee_r": Vector2(357, 286),
+	"knee_l": Vector2(357, 286), "ankle_r": Vector2(-500, 59), "ankle_l": Vector2(-500, 59)}
 static var marks := {}
 static var editing := false        # Body > Her body > "Edit points": drag them with the left mouse button
 static var _drag := ""
@@ -378,15 +380,22 @@ func _input(e: InputEvent) -> void:
 		marks[_drag] = (xf.affine_inverse() * e.position).round()
 
 
-## Our head and neck (orange): the neck bone from the neck base to the head pivot, the jaw from the head pivot; and
-## the neck's two lines as their own bones: the throat from the chin to its bottom, the nape from the skull to its
-## bottom (two lines with their own ends, not one rigid neck picture).
+## Our neck (orange): the neck bone from the neck base (on the torso) to the head pivot (where the skull turns) - the
+## spring goes here; and the neck's two lines, its skin, each with its own ends: the throat (chin -> its bottom) and
+## the nape (skull -> its bottom). The lines are not bones: they stretch between head and torso.
+static func neck_ours() -> Dictionary:
+	if g.her == null or g.her.head == null:
+		return {}
+	return {"node": g.her, "axes_ours": [[mark_at("neck_base"), mark_at("head_pivot")],
+		[mark_at("throat_top"), mark_at("throat_bottom")], [mark_at("nape_top"), mark_at("nape_bottom")]]}
+
+
+## Our head (orange): from the head pivot to the jaw's pivot (a first guess; a joint's turn will be a ring with its
+## limits later, not just a point).
 static func head_ours() -> Dictionary:
 	if g.her == null or g.her.head == null:
 		return {}
-	var hp := mark_at("head_pivot")
-	return {"node": g.her, "axes_ours": [[mark_at("neck_base"), hp], [hp, mark_at("jaw")],
-		[mark_at("throat_top"), mark_at("throat_bottom")], [mark_at("nape_top"), mark_at("nape_bottom")]]}
+	return {"node": g.her, "axes_ours": [[mark_at("head_pivot"), mark_at("jaw")]]}
 
 
 ## Our breasts (orange): from each breast's base (our point, in the breast picture's space) to the game's nipple -
