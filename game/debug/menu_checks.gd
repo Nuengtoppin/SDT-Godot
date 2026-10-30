@@ -542,27 +542,35 @@ func _behaviour_checks() -> void:
 		and is_equal_approx(firm_ratio, 1.15) and is_equal_approx(firm_back, 1.0) and not Hooks.has_value(&"BreastController.push"),
 		"%s %s %.3f %.3f" % [outs, right_push, firm_ratio, firm_back])
 	DevBodyOverlay.ours = true
-	var lt0: Transform2D = h.leftLegContainer.leg.transform
+	var leg = h.leftLegContainer.leg
+	var lt0: Transform2D = leg.transform
+	var lc0: Transform2D = leg.calf.transform
 	var rt0: Transform2D = h.torso.leg.transform
-	var tt0: Transform2D = h.torso.transform
-	var aym0: float = h.absYMovement
-	h.absYMovement = 0.0
+	var lc_box: Transform2D = h.leftLegContainer.transform
 	DevBodySides.set_leg(false, "Loose")
 	var hooked: bool = DevBodySides._after.is_valid()
-	DevBodySides._legs_after()
-	var kept: bool = h.leftLegContainer.leg.transform.is_equal_approx(lt0)
-	h.torso.transform = Transform2D(deg_to_rad(5.0), Vector2.ZERO) * tt0
-	DevBodySides._legs_after()
-	var lt1: Transform2D = h.leftLegContainer.leg.transform
-	var swing: float = rad_to_deg(lt1.get_rotation() - lt0.get_rotation())
-	var same_size: bool = lt1.get_scale().is_equal_approx(lt0.get_scale()) and lt1.origin.is_equal_approx(lt0.origin)
-	h.torso.transform = tt0
-	h.absYMovement = aym0
-	h.leftLegContainer.leg.transform = lt0
+	var floor_y: float = g.animationControl.getHerKneeTarget().y
+	var sc: Transform2D = g.sceneLayer.flash_global_transform().affine_inverse()
+	var worst := -INF
+	var bend_ok := true
+	for k in 40:
+		if k == 10:   # her hips 60 lower: the floor has to hold her knee up
+			h.leftLegContainer.transform = Transform2D(0.0, Vector2(0, 60)) * lc_box
+		DevBodySides._legs_after()
+		var st: Dictionary = DevBodySides._st["l"]
+		var tg: Transform2D = sc * leg.flash_global_transform()
+		var knee: Vector2 = tg * leg.calf.transform.origin
+		worst = maxf(worst, knee.y - (floor_y + st["floor"]))
+		var r: float = wrapf(st["p2"] - st["p1"], -PI, PI)
+		bend_ok = bend_ok and r >= minf(0.0, st["bend"]) - 0.001 and r <= maxf(0.0, st["bend"]) + 0.001
+	var same: bool = leg.transform.origin.is_equal_approx(lt0.origin) and leg.transform.get_scale().is_equal_approx(lt0.get_scale())
+	h.leftLegContainer.transform = lc_box
+	leg.transform = lt0
+	leg.calf.transform = lc0
 	DevBodySides.set_leg(false, "Kneeling")
-	_check("a loose left leg: hooked, still at first, then lags behind her hips' turn (same size and place); the right leg the game's; kneeling: unhooked",
-		hooked and kept and swing < -2.0 and swing > -10.0 and same_size and h.torso.leg.transform.is_equal_approx(rt0)
-		and not DevBodySides._after.is_valid(), "%.2f" % swing)
+	_check("a loose left leg: hooked, its knee never under the floor (her hips lowered too), the knee bends one way, the thigh in place; the right leg the game's; kneeling: unhooked",
+		hooked and worst < 0.5 and bend_ok and same and h.torso.leg.transform.is_equal_approx(rt0)
+		and not DevBodySides._after.is_valid(), "%.2f" % worst)
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
 		ho["axes_ours"].size() == 1 and DevBodyOverlay.parts()["neck_lines_ours"].call()["axes_ours"].size() == 2 and DevBodyOverlay.parts()["head_ours"].call()["axes_ours"].size() == 1 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])

@@ -3,8 +3,9 @@ extends RefCounted
 ## Body > Breasts and Body > Legs (our layer): her left and right side apart, as her arms already are. In the game
 ## both breasts get the same push each tick (they swing as one) and her left leg is a copy of her right thigh's
 ## turn. Breasts: the left one's push comes a few ticks later and each springs back at its own firmness (through
-## the game's own value points). Legs: each one kneeling (the game's) or loose: it goes with her hips and swings
-## behind their turning, its knee free. A first step; later our own skeleton drives them.
+## the game's own value points). Legs: each one kneeling (the game's) or loose: thigh and calf hang from her hip
+## by gravity and swing with her movement, the knee bends one way only, the floor holds her knee and foot.
+## A first step; later our own skeleton drives them.
 
 
 # ---------------------------------------------------------------- breasts
@@ -74,16 +75,22 @@ static func _firm(v, obj):
 
 # ---------------------------------------------------------------- legs
 
+## The game has no physics, no gravity: every part follows its own rule (her arms "loose" are an IK aimed at a
+## point below her shoulder). A loose leg here is a small one of its own: two bones, thigh (hip -> knee, where
+## the calf turns) and calf (knee -> our ankle point), each pulled down and thrown by its joint's movement
+## (inertia), the knee bending only between straight and as folded as she knelt, the thigh within a range of
+## where it knelt, and the floor (the pose's knee target) under her knee and foot. Worked out in the scene's
+## space (the camera's zoom doesn't move it), once after the game's updateElements has placed her legs.
 const LEG_MODES := ["Kneeling", "Loose"]
 static var leg_l := "Kneeling"
 static var leg_r := "Kneeling"
-static var loose_k := 0.06       # pull back to its rest angle per tick
-static var loose_damp := 0.12    # share of its speed lost per tick
-static var loose_push := 1.0     # how much her hips' turning swings it
-static var loose_limit := 35.0   # degrees either way from its rest
+static var loose_gravity := 0.02   # pull down, radians per tick squared (at a level bone)
+static var loose_damp := 0.08      # share of its swing lost per tick
+static var loose_push := 1.0       # how much her movement throws it (1: as a real weight would)
+static var loose_limit := 60.0     # how far the thigh may turn from where it knelt (degrees either way)
+static var loose_floor := true     # the floor holds her knee and foot (off: they hang through it)
 static var _after := Callable()
-static var _st := {}             # "l" / "r" -> {rest, a, v (degrees, in her torso's space), calf}
-static var _last_turn := NAN
+static var _st := {}               # "l" / "r" -> the leg's state (angles in the scene's space, radians)
 
 
 static func set_leg(right: bool, mode: String) -> void:
@@ -99,8 +106,7 @@ static func any_loose() -> bool:
 	return leg_l == "Loose" or leg_r == "Loose"
 
 
-## Hooks in while our layer is on and a leg is loose (once after the game's updateElements, which has placed
-## her legs by then); a leg back to kneeling is the game's again from the next tick.
+## Hooks in while our layer is on and a leg is loose; a leg back to kneeling is the game's again from the next tick.
 static func sync() -> void:
 	var want := DevBodyOverlay.ours and any_loose() and g.her != null
 	if want and not _after.is_valid():
@@ -111,7 +117,6 @@ static func sync() -> void:
 		_after = Callable()
 	if not want:
 		_st.clear()
-	_last_turn = NAN
 
 
 static func reset() -> void:
@@ -126,40 +131,106 @@ static func _legs_after() -> void:
 	if h == null or not DevBodyOverlay.ours:
 		sync()
 		return
-	var t: float = h.rotation_degrees + rad_to_deg(h.torso.transform.get_rotation())   # her hips' turn on screen
-	var turn: float = 0.0 if is_nan(_last_turn) else wrapf(t - _last_turn, -180.0, 180.0)
-	_last_turn = t
-	var push: float = (turn + h.absYMovement * 0.05) * loose_push
+	var scene: Transform2D = g.sceneLayer.flash_global_transform().affine_inverse()
+	var floor_y: float = g.animationControl.getHerKneeTarget().y   # in the scene's space, as the game's IK uses it
 	if leg_r == "Loose":
-		_right(h, _swing("r", h.torso.leg.transform, h.torso.rightCalfContainer.calf.transform, push))
+		var t = h.torso
+		var game_a: float = t.leg.transform.get_rotation()
+		var m: Array = _leg("r", t.leg, t.rightCalfContainer.calf, scene, floor_y)
+		_right(h, m[0], m[0].get_rotation() - game_a, m[1])
 	if leg_l == "Loose":
-		_left(h, _swing("l", h.leftLegContainer.leg.transform, h.leftLegContainer.leg.calf.transform, push))
+		var leg = h.leftLegContainer.leg
+		var m: Array = _leg("l", leg, leg.calf, scene, floor_y)
+		leg.transform = m[0]
+		for c in [leg.calf, leg.calfStocking, leg.calfStockingB, leg.footwear, leg.leftCalfBottoms, leg.cuffs]:
+			c.transform = m[1]
 
 
-## The leg's spring: its angle against her torso keeps its rest (taken when it went loose) and lags behind
-## her hips' turning. Returns [the game's thigh angle, ours, the calf] (the calf keeps its bend).
-static func _swing(side: String, thigh: Transform2D, calf: Transform2D, push: float) -> Array:
-	var game_a := rad_to_deg(thigh.get_rotation())
+## One tick of a loose leg; returns [the thigh's transform, the calf's] (their own, in their parents).
+static func _leg(side: String, thigh, calf, scene: Transform2D, floor_y: float) -> Array:
+	var tg: Transform2D = scene * thigh.flash_global_transform()
+	var pg: Transform2D = tg * thigh.transform.affine_inverse()   # the thigh's parent (her torso), scene space
+	var cg: Transform2D = tg * calf.transform
+	var d1: Vector2 = calf.transform.origin                       # the knee, in the thigh's space
+	var d2: Vector2 = DevBodyOverlay.mark("ankle_" + side)        # the ankle, in the calf's space
+	var hip: Vector2 = tg.origin
+	var l1: float = tg.basis_xform(d1).length()
+	var l2: float = cg.basis_xform(d2).length()
 	if not _st.has(side):
-		_st[side] = {"rest": game_a, "a": game_a, "v": 0.0, "calf": calf}
+		var p1: float = tg.basis_xform(d1).angle()
+		var p2: float = cg.basis_xform(d2).angle()
+		_st[side] = {"p1": p1, "o1": p1, "p2": p2, "o2": p2, "hip": [hip, hip], "knee": [cg.origin, cg.origin],
+			"rest": thigh.transform.get_rotation(), "bend": wrapf(p2 - p1, -PI, PI),
+			"floor": cg.origin.y - floor_y, "ankle": (cg * d2).y - cg.origin.y}
 	var s: Dictionary = _st[side]
-	s["v"] += -(s["a"] - s["rest"]) * loose_k - s["v"] * loose_damp - push
-	s["a"] = s["rest"] + clampf(s["a"] + s["v"] - s["rest"], -loose_limit, loose_limit)
-	return [game_a, s["a"], s["calf"]]
+	# the thigh: gravity and her hip's movement
+	var ha: Vector2 = hip - 2.0 * s["hip"][0] + s["hip"][1]
+	s["hip"] = [hip, s["hip"][0]]
+	var n1: float = _step(s["p1"], s["o1"], ha, l1)
+	var a: float = _turn_for(pg, thigh.transform, d1, n1)
+	var da: float = wrapf(a - s["rest"], -PI, PI)
+	var lim := deg_to_rad(loose_limit)
+	if absf(da) > lim:   # her hip joint's range
+		a = s["rest"] + clampf(da, -lim, lim)
+		n1 = (pg * _rot(thigh.transform, a)).basis_xform(d1).angle()
+	var fk: float = floor_y + s["floor"]
+	if loose_floor and hip.y + sin(n1) * l1 > fk:   # her knee on the floor
+		n1 = _onto(hip.y, l1, fk, n1)
+	var tm := _rot(thigh.transform, _turn_for(pg, thigh.transform, d1, n1))
+	s["o1"] = s["p1"]
+	s["p1"] = n1
+	# the calf: gravity and her knee's movement
+	var tg2: Transform2D = pg * tm
+	var knee: Vector2 = tg2 * d1
+	var ka: Vector2 = knee - 2.0 * s["knee"][0] + s["knee"][1]
+	s["knee"] = [knee, s["knee"][0]]
+	var n2: float = _bend(n1, _step(s["p2"], s["o2"], ka, l2), s["bend"])
+	var fa: float = fk + s["ankle"]
+	if loose_floor and knee.y + sin(n2) * l2 > fa:   # her foot on the floor
+		n2 = _bend(n1, _onto(knee.y, l2, fa, n2), s["bend"])
+	var cm := _rot(calf.transform, _turn_for(tg2, calf.transform, d2, n2))
+	s["o2"] = s["p2"]
+	s["p2"] = n2
+	return [tm, cm]
 
 
-static func _with_angle(m: Transform2D, deg: float) -> Transform2D:
-	return Transform2D(deg_to_rad(deg), m.get_scale(), m.get_skew(), m.origin)
+## A bone's next angle: its swing (less damping), pulled down, thrown by its joint's acceleration `acc`.
+static func _step(p: float, o: float, acc: Vector2, l: float) -> float:
+	var v: float = wrapf(p - o, -PI, PI) * (1.0 - loose_damp)
+	v += loose_gravity * cos(p) - loose_push * (cos(p) * acc.y - sin(p) * acc.x) / maxf(l, 1.0)
+	return p + v
 
 
-## Her right thigh and every layer the game puts with it (stockings, costume, its masks), as in updateTorso.
-static func _right(h, sw: Array) -> void:
+## The knee bends one way only: from straight (calf in line with the thigh) to as folded as she knelt.
+static func _bend(thigh: float, calf: float, folded: float) -> float:
+	return thigh + clampf(wrapf(calf - thigh, -PI, PI), minf(0.0, folded), maxf(0.0, folded))
+
+
+## The angle that puts a bone of length `l` from height `py` onto the height `fy`, on the side it points to.
+static func _onto(py: float, l: float, fy: float, p: float) -> float:
+	var a := asin(clampf((fy - py) / maxf(l, 1.0), -1.0, 1.0))
+	return PI - a if cos(p) < 0.0 else a
+
+
+## The turn (in its parent) that points a node's bone `d` (its own space) at the scene angle `p`.
+static func _turn_for(parent: Transform2D, local: Transform2D, d: Vector2, p: float) -> float:
+	var want: Vector2 = parent.affine_inverse().basis_xform(Vector2.from_angle(p))
+	var e: Vector2 = Transform2D(0.0, local.get_scale(), local.get_skew(), Vector2.ZERO).basis_xform(d)
+	return want.angle() - e.angle()
+
+
+static func _rot(m: Transform2D, a: float) -> Transform2D:
+	return Transform2D(a, m.get_scale(), m.get_skew(), m.origin)
+
+
+## Her right thigh and every layer the game puts with it (stockings, costume, its masks), as in updateTorso;
+## `extra`: how much further it turned than the game's.
+static func _right(h, tm: Transform2D, extra: float, cm: Transform2D) -> void:
 	var t = h.torso
-	var s2 := _with_angle(t.leg.transform, sw[1])
 	for c in [t.leg, t.rightThighBottoms, t.rightThighBottomsOver, t.rightCalfContainer, t.rightThighStocking,
 			t.rightThighStockingB, t.rightThighCostume]:
-		c.transform = s2
-	var un := Transform2D(-(h.torsoIK.section2Angle + deg_to_rad(sw[1] - sw[0])), Vector2.ZERO)
+		c.transform = tm
+	var un := Transform2D(-(h.torsoIK.section2Angle + extra), Vector2.ZERO)
 	for st in [t.rightThighStocking, t.rightThighStockingB]:
 		st.stocking.hipLayer.transform = un
 		st.stocking2.hipLayer.transform = un
@@ -168,12 +239,4 @@ static func _right(h, sw: Array) -> void:
 	t.rightThighCostumeMask.legMask.rotation_degrees = t.leg.rotation_degrees
 	var cc = t.rightCalfContainer
 	for c in [cc.calf, cc.calfStocking, cc.calfStockingB, cc.footwear, cc.bottoms, cc.cuffs]:
-		c.transform = sw[2]
-
-
-## Her left leg: the thigh (the game's copy of the right one, x0.95) and its calf layers.
-static func _left(h, sw: Array) -> void:
-	var leg = h.leftLegContainer.leg
-	leg.transform = _with_angle(leg.transform, sw[1])
-	for c in [leg.calf, leg.calfStocking, leg.calfStockingB, leg.footwear, leg.leftCalfBottoms, leg.cuffs]:
-		c.transform = sw[2]
+		c.transform = cm
