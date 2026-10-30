@@ -19,11 +19,12 @@ const JOINTS := {
 	"knee_l": ["Left knee", "knee_l", "ankle_l"],
 }
 ## Allowed turn, degrees [min, max]: from the game's angle; the knees from a straight leg - their fold (0: straight,
-## 140: folded as far as she kneels and a little more), the same range the loose leg keeps to. A knee's turn is in
+## about 130: as she kneels), the same range the loose leg keeps to. A knee's turn is in
 ## fold degrees too (more: folded more), so it never bends a knee the wrong way whatever the game or the loose
 ## leg has done to it.
-const LIMITS := {"neck": Vector2(-25, 25), "head": Vector2(-35, 35), "hip_r": Vector2(-60, 60),
-	"hip_l": Vector2(-60, 60), "knee_r": Vector2(0, 140), "knee_l": Vector2(0, 140)}
+## Set by Dima (30 Oct) on the right leg; the left one the same (the same pictures, the same game angle).
+const LIMITS := {"neck": Vector2(-38, 54), "head": Vector2(-68, 28), "hip_r": Vector2(-77, 149),
+	"hip_l": Vector2(-77, 149), "knee_r": Vector2(-8, 156), "knee_l": Vector2(-8, 156)}
 const MODES := ["Off", "Points", "Rotate", "Limits"]
 const RING_PX := 26.0      # ring radius on screen (the left side's rings are larger: both knees sit together)
 const LEFT_PX := 36.0

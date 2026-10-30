@@ -579,8 +579,8 @@ func _behaviour_checks() -> void:
 	leg.transform = lt0
 	leg.calf.transform = lc0
 	DevBodySides.set_leg(false, "Kneeling")
-	_check("a loose left leg: hooked, its knee never under the floor (her hips lowered too), the knee bends one way (hanging, a ring can't unfold it past straight), the thigh in place; the right leg the game's; kneeling: unhooked",
-		hooked and worst < 0.5 and bend_ok and same and never_back > -0.5 and h.torso.leg.transform.is_equal_approx(rt0)
+	_check("a loose left leg: hooked, its knee never under the floor (her hips lowered too), the knee bends one way (hanging, a ring can't unfold it past its range), the thigh in place; the right leg the game's; kneeling: unhooked",
+		hooked and worst < 0.5 and bend_ok and same and never_back > DevBodyRings.limit("knee_l").x - 0.5 and h.torso.leg.transform.is_equal_approx(rt0)
 		and not DevBodySides._after.is_valid(), "%.2f %.2f" % [worst, never_back])
 	DevBodyOverlay.ours = true
 	h.updateElements()
@@ -601,8 +601,8 @@ func _behaviour_checks() -> void:
 	DevBodyRings.reset_turns()
 	h.updateElements()
 	var back: bool = DevBodyOverlay.mark_at("jaw").distance_to(jaw0) < 0.05 and not DevBodyRings._after.is_valid() and not DevBodyOverlay._before_fn.is_valid()
-	_check("rings: the left knee unfolds 40 (its calf turns about the knee), the head about its pivot with the neck picture kept, a turn stops at its limit, reset puts all back",
-		knee1.distance_to(knee0) < 0.05 and absf(calf_turn + 40.0) < 0.5 and head_ok and neck_kept and absf(clamped) < 0.01 and back,
+	_check("rings: the left knee unfolds 40 (its calf turns about the knee), the head about its pivot with the neck picture kept, a knee stops at its range, reset puts all back",
+		knee1.distance_to(knee0) < 0.05 and absf(calf_turn + 40.0) < 0.5 and head_ok and neck_kept and absf(clamped - DevBodyRings.limit("knee_l").x) < 0.01 and back,
 		"%.2f %s %s %.1f %s" % [calf_turn, head_ok, neck_kept, clamped, back])
 	DevBodyOverlay._ensure()
 	DevBodyOverlay.set_mouse("Rotate")
@@ -627,17 +627,17 @@ func _behaviour_checks() -> void:
 	DevBodyRings.reset_turns()
 	DevBodyOverlay.set_mouse("Limits")
 	gm = DevBodyRings.geometry("hip_r")
-	pr.position = DevBodyRings.ring_pt(rxf, "hip_r", gm[0], gm[2] + deg_to_rad(60.0))
+	pr.position = DevBodyRings.ring_pt(rxf, "hip_r", gm[0], gm[2] + deg_to_rad(DevBodyRings.limit("hip_r").y))
 	DevBodyRings.input(pr, rxf)
 	mv.position = DevBodyRings.ring_pt(rxf, "hip_r", gm[0], gm[2] + deg_to_rad(45.0))
 	DevBodyRings.input(mv, rxf)
 	DevBodyRings.input(rl, rxf)
 	var lim: Vector2 = DevBodyRings.limit("hip_r")
-	var copied: bool = DevBodyOverlay.numbers().contains('"lim_hip_r": Vector2(-60, 45)')
+	var copied: bool = DevBodyOverlay.numbers().contains('"lim_hip_r": Vector2(%d, 45)' % int(DevBodyRings.LIMITS["hip_r"].x))
 	DevBodyRings.limits.clear()
 	DevBodyOverlay.set_mouse("Off")
 	_check("rings by mouse: Rotate drags the right hip's ring 30 degrees, Limits drags its arc's end to 45 (copied with the numbers)",
-		under == "hip_r" and absf(rot_turn - 30.0) < 0.5 and lim == Vector2(-60, 45) and copied and not DevBodyRings.busy(),
+		under == "hip_r" and absf(rot_turn - 30.0) < 0.5 and lim == Vector2(DevBodyRings.LIMITS["hip_r"].x, 45) and copied and not DevBodyRings.busy(),
 		"%s %.2f %s %s" % [under, rot_turn, lim, copied])
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
