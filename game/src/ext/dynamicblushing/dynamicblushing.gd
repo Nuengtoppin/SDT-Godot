@@ -49,6 +49,7 @@ var _tongue_counter := 0
 var _pass_out_counter := 0
 var _waking := false
 var _spurt_counter := 0
+var _alpha := -1.0   # her blush this tick (-1: not worked out yet); the game shows it through value point Her.blushAlpha
 
 
 func _init() -> void:
@@ -80,6 +81,9 @@ func _enable() -> void:
 			_spurt_counter = int(floor(g.him.spurtTimer / 1.5 + 0.5)))
 	hook_after(&"Her.cough", func(_c): _add("cough", S["coughInitial"], S["coughMax"]))
 	hook_after(&"Her.openCough", func(_c): _add("openCough", S["openCoughInitial"], S["openCoughMax"]))
+	# her blush is this instead of her blush colour's alpha; other extensions' modifiers apply on top (MOOD and later)
+	modify(&"Her.blushAlpha", {"phase": Hooks.GENERATE, "op": "fn",
+		"when": func(_her): return get_setting("on") and _alpha >= 0.0, "fn": func(_v, _her): return _alpha})
 	on_late_tick(_tick)
 	charcode_field("blushFactor", func(): return _num(blush_factor), func(v, _l): blush_factor = v.to_float(),
 		func(_l): blush_factor = 1.0)
@@ -99,6 +103,7 @@ func _disable() -> void:
 
 func _setting_changed(_key: String, value) -> void:
 	if not value:
+		_alpha = -1.0
 		_restore()
 
 
@@ -212,9 +217,7 @@ func _tick() -> void:
 	if Hooks.has_value(&"Her.blushEffects"):   # HOOK value point: the effects' sum, before her blush factor
 		sum = Hooks.value(&"Her.blushEffects", her, sum)
 	var base: float = g.characterControl.blushRGB.a
-	var v := minf(S["maxBlush"], maxf(base, base + sum * (S["maxBlush"] - base) * blush_factor))
-	if absf(her.blush.alpha - v) > 0.002:   # a new alpha re-renders her blush: only when it shows
-		her.blush.alpha = v
+	_alpha = minf(S["maxBlush"], maxf(base, base + sum * (S["maxBlush"] - base) * blush_factor))
 
 
 static func _num(v: float) -> String:

@@ -283,7 +283,10 @@ func _bite_chance(m: String) -> void:
 		p = clampf(bite_slider * 3, 0, 1) * pf
 		b = clampf((bite_slider - 1.0 / 3.0) * 3, 0, 1) * br
 		d = clampf((bite_slider - 2.0 / 3.0) * 3, 0, 1) * dp
-	if randf() < (p + b + d) / s("biteoccurancedivisor"):
+	var rarity: float = s("biteoccurancedivisor")
+	if Hooks.has_value(&"Her.biteRarity"):   # HOOK value point: how rarely she bites (moremoods' biteoccurancedivisor; higher: rarer)
+		rarity = Hooks.value(&"Her.biteRarity", g.her, rarity)
+	if randf() < (p + b + d) / rarity:
 		bite_timer = 70
 
 

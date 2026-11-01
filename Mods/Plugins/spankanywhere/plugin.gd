@@ -31,6 +31,8 @@ var power := 0                # how hard the hit will be (0 to powerMax)
 var holding := false          # the button went down over her
 var punch := false            # punch mode
 var spank_current := 0.0      # blush from spanking (the mod's spankCurrent)
+var _hold_shock := 0.0        # her eyes' shock grows by this per tick while a hit builds up (value point Her.shockFade)
+var _push := 0.0              # the hit's push of her head, used on the next tick (value point Her.pushBack)
 var _after_hit := 0
 var _mark_tex: Texture2D
 var _sounds := {}
@@ -73,6 +75,11 @@ func _enable() -> void:
 	on_tick(_tick)
 	on_late_tick(_follow_all)
 	modify(&"Her.blushEffects", {"op": "fn", "fn": func(v, _her): return v + spank_current})
+	# a hit building up: her eyes' shock grows instead of easing, up to maxEyeshock
+	modify(&"Her.shockFade", {"phase": Hooks.MOOD, "op": "fn",
+		"when": func(her): return _hold_shock > 0.0 or her.eyelidMotion["shock"] > V["maxEyeshock"],
+		"fn": func(v, her): return maxf(v - _hold_shock, her.eyelidMotion["shock"] - V["maxEyeshock"])})
+	modify(&"Her.pushBack", {"phase": Hooks.MOOD, "op": "fn", "fn": _take_push})
 	on_key(MODE_KEY, func(): punch = not punch, "spank / punch")
 	on_key(CLEAR_KEY, clear_marks, "clear spank marks")
 	menu_control("behaviour", "Spanking", MenuSchema.toggle("Spank anywhere", "Hold the mouse over her body and let go "
@@ -100,7 +107,7 @@ func _disable() -> void:
 		_maps[k]["vp"].queue_free()
 	_maps.clear()
 	if g.him and g.him.leftArmContainer:
-		g.him.leftArmContainer.visible = true
+		g.him.leftArmContainer.visible = true   # direct: his arm back as the plugin goes (the game has no method)
 	holding = false
 	power = 0
 	spank_current = 0.0
@@ -208,11 +215,19 @@ func hit_at(part: String, at: Vector2) -> void:
 	var him: Him = g.him
 	var p := part
 	var po_max: float = her.passOutMax
+	# with progressiveexhaustion (useExhaustionFactor): her exhaustion factor scales the hit, and the hit changes her
+	# exhaustion (a punch tires her, a spank wakes her up)
+	var pe = Extensions.by_id.get("progressiveexhaustion")
+	if pe == null or not pe.enabled or not Extensions.is_on("progressiveexhaustion") or not pe.get_setting("on"):
+		pe = null
+	var f: float = pe.factor if pe != null and V.get("useExhaustionFactor", 0.0) == 1 else 1.0
 	if punch:
-		her.passOutFactor = minf(po_max, her.passOutFactor + _at(p + "PassOut"))
+		her.passOutFactor = minf(po_max, her.passOutFactor + f * _at(p + "PassOut"))   # direct: one-off hit
 	else:
-		her.passOutFactor = maxf(0.0, her.passOutFactor - _at(p + "PassOut"))
-	g.addBreath(_at(p + "Breath"))
+		her.passOutFactor = maxf(0.0, her.passOutFactor - _at(p + "PassOut") / maxf(0.01, f))   # direct: one-off hit
+	g.addBreath(V[p + "BreathMin"] + f * (_at(p + "Breath") - V[p + "BreathMin"]))
+	if pe != null and V.has(p + "ExhaustionMin"):
+		pe.add_dynamic(f * _at(p + "Exhaustion") if punch else -_at(p + "Exhaustion") / maxf(0.01, f))
 	var wince_add := roundi(V[p + "WinceMin"] + (power - V[p + "BlinkThreshold"]) / (V["powerMax"] - V[p + "BlinkThreshold"])
 		* (V[p + "WinceMax"] - V[p + "WinceMin"]))
 	var moan := false
@@ -223,52 +238,52 @@ func hit_at(part: String, at: Vector2) -> void:
 			her.blink()
 		elif power <= V[p + "WinceThreshold"]:
 			her.wince()
-			her.winceTimer += wince_add
+			her.winceTimer += wince_add   # direct: the hit's wince lasts longer (one-off)
 			moan = true
 		elif power <= V[p + "GagThreshold"]:
 			if her.mouthFull:
 				g.soundControl.playGag(her.pos)
 			her.wince()
-			her.winceTimer += wince_add
+			her.winceTimer += wince_add   # direct: the hit's wince lasts longer (one-off)
 		elif power <= V[p + "CoughThreshold"]:
 			if her.mouthFull:
-				her.nextCoughTime = randi() % 210 + 30
-				her.head.cheekBulge.alpha = 1.0
+				her.nextCoughTime = randi() % 210 + 30   # direct: the hit's cough, the game's cough() steps without its own force
+				her.head.cheekBulge.alpha = 1.0   # direct: (the same)
 				her.generateSplat(5, 10)
 				g.soundControl.playCough()
 			elif V["openCoughDisable"] != 1:
 				g.soundControl.queueOpenCough()
 			her.wince()
-			her.winceTimer += wince_add
+			her.winceTimer += wince_add   # direct: the hit's wince lasts longer (one-off)
 		var tears := int(V[p + "TearsMin"] + floorf((power - 1) / V["powerMax"] * (1 + V[p + "TearsMax"] - V[p + "TearsMin"])))
 		for i in tears:
 			her.tears.addTearSpot()
-		her.eyelidMotion["shock"] += _at(p + "EyeShock")
+		her.eyelidMotion["shock"] += _at(p + "EyeShock")   # direct: one-off jolt (capped through Her.shockFade)
 	elif g.coughing and her.passedOut and V["openCoughDisable"] != 1 and power <= V[p + "CoughThreshold"]:
 		var ap = Extensions.get_extension("alternativepassout")   # its "the game's own" pass out coughs on a hit
 		if ap != null and ap.enabled and ap.get_setting("on") and ap.option == 0:
 			g.soundControl.queueOpenCough()
-	her.coughFactor = _at(p + "CoughFactor")
+	her.coughFactor = _at(p + "CoughFactor")   # direct: the flinch, a cough of the hit's strength (one-off)
 	her.leftBreastController.accelerate(_at(p + "BreastAccel"))
 	her.rightBreastController.accelerate(_at(p + "BreastAccel"))
 	if _at(p + "ClenchTeeth") > randf() and not her.passedOut:
 		her.startClenchingTeeth()
 	if him.pleasure < V["spankPleasureMax"]:
 		him.givePleasure(_at(p + "Pleasure"))
-		him.pleasure = minf(V["spankPleasureMax"], him.pleasure)
+		him.pleasure = minf(V["spankPleasureMax"], him.pleasure)   # direct: the hit's pleasure stops at spankPleasureMax
 	spank_current = minf(V["blushMax"], spank_current + _at(p + "Blush"))
 	var movement := _at(p + "Motion")
 	if punch:
-		her.coughFactor *= V["punchMoveFactor"]
+		her.coughFactor *= V["punchMoveFactor"]   # direct: (the flinch, stronger for a punch)
 		movement *= V["punchMoveFactor"]
 		spank_current *= V["punchBlushFactor"]
 	# the flinch: a cough of that strength
-	her.coughing = true
-	her.justCoughed = true
+	her.coughing = true   # direct: (the flinch)
+	her.justCoughed = true   # direct: (the flinch)
 	_hand_back()
 	if V["wakeWithMouthFull"] == 1 and her.passedOut and her.passOutFactor == 0:
 		her.wakeUp()
-		her.breathing = g.soundControl.stopBreathing(true)
+		her.breathing = g.soundControl.stopBreathing(true)   # direct: the game's own call (as in Her.wakeUp's opposite)
 	var node := _node(p)
 	var local := node.globalToLocal(at)
 	_add_mark(p, at)
@@ -278,14 +293,21 @@ func hit_at(part: String, at: Vector2) -> void:
 	power = 0
 	if V["motionDirection"] == 0 or V["motionDirection"] == 2 and randf() > 0.5:
 		movement = -movement
-	her.pos += movement
+	_push -= movement
 	hit.emit(p, hit_power, punch, local, node)
 
 
 ## His left arm shows again (the mod's leftArmToggle hid it while the hit built up)
 func _hand_back() -> void:
 	if V.get("leftArmToggle", 0.0) == 1 and g.him.currentLeftArmPosition == 1:
-		g.him.leftArmContainer.visible = true
+		g.him.leftArmContainer.visible = true   # direct: the game has no method for it
+
+
+## The last hit's push of her head (value point Her.pushBack): used once
+func _take_push(v: float, _her) -> float:
+	var p := _push
+	_push = 0.0
+	return v + p
 
 
 func _play(moan: bool) -> void:
@@ -314,17 +336,17 @@ func _tick() -> void:
 	if holding and power < V["powerMax"]:
 		power += 1
 		if V["leftArmToggle"] == 1 and power == V["armToggleStart"]:
-			g.him.leftArmContainer.visible = false
+			g.him.leftArmContainer.visible = false   # direct: the mod's leftArmToggle (the game has no method)
 	if spank_current > 0.0:
 		spank_current = maxf(0.0, spank_current - V["blushDecreaseRate"])
+	_hold_shock = 0.0
 	if holding and not her.passedOut and _after_hit == 0:
 		if power == V["eyeshockThreshold"]:
-			her.eyelidMotion["shock"] += V["punchStartEyeshock"] if punch else V["spankStartEyeshock"]
+			her.eyelidMotion["shock"] += V["punchStartEyeshock"] if punch else V["spankStartEyeshock"]   # direct: one-off jolt as it starts
 		elif power == V["powerMax"]:
-			her.eyelidMotion["shock"] += 1
+			_hold_shock = 1.0
 		elif power > V["eyeshockThreshold"]:
-			her.eyelidMotion["shock"] += V["punchHoldEyeshock"] if punch else V["spankHoldEyeshock"]
-	her.eyelidMotion["shock"] = minf(V["maxEyeshock"], her.eyelidMotion["shock"])
+			_hold_shock = V["punchHoldEyeshock"] if punch else V["spankHoldEyeshock"]
 	_tick_marks()
 
 

@@ -49,7 +49,7 @@ func set_type(t: int, smooth: bool) -> void:
 		x._close(her, true, x._left_name() in x.CLOSED_LEFT)
 		x._close(her, false, x._right_name() in x.CLOSED_RIGHT)
 		if x._left_name() not in x.CLOSED_LEFT:
-			her.leftHandOver.visible = false
+			her.leftHandOver.visible = false   # direct: her hand's state, as her arm positions set it (the game has no method)
 		g.characterControl.setArmSkin()
 
 
@@ -154,7 +154,7 @@ func act() -> void:
 					x.transition(false, rest_pos, false)
 					_timer = int(mood["struggleTimeMultipler"] * loose_mul * (V["struggleRestTimeScale"] + (1.0 - V["struggleRestTimeScale"])
 						* (1.0 - percent)) * (V["struggleRestMinTime"] + randf() * (V["struggleRestMaxTime"] - V["struggleRestMinTime"])))
-					her.pos -= _last_move * V["struggleMovementReturnMultiplier"]
+					x.push += _last_move * V["struggleMovementReturnMultiplier"]
 				elif type == TIGHT or ex_percent > V["struggleShiftArmsThreshold"]:
 					var c: float = randf() * (V["struggleBaseChance"] + maxf(mood["struggleIdleChance"], chance * mood["struggleChanceMultiplier"]))
 					if c >= V["struggleThreshold"]:
@@ -169,7 +169,7 @@ func act() -> void:
 								_left_chance = minf(0.0, _left_chance) - V["struggleOtherArmChance"]
 							_last_move = (V["struggleMovementScale"] + (1.0 - V["struggleMovementScale"]) * (1.0 - percent)) \
 								* (-V["struggleMovementRange"] + 2.0 * randf() * V["struggleMovementRange"])
-							her.pos += _last_move
+							x.push -= _last_move
 						_timer = int(mood["struggleTimeMultipler"] * loose_mul * (V["struggleTimeScale"] + (1.0 - V["struggleTimeScale"])
 							* (1.0 - percent)) * (V["struggleMinTime"] + randf() * (V["struggleMaxTime"] - V["struggleMinTime"])))
 		var hc: float = randf() * (V["struggleCloseHandChance"] + maxf(mood["struggleIdleChance"], chance * V["struggleCloseHandMultiplier"]))
@@ -177,7 +177,7 @@ func act() -> void:
 			if hc >= V["struggleThreshold"]:
 				if x._left_name() == "Gripping Thigh":
 					x._close(her, true, true)
-				her.rightHandClosed = true
+				her.rightHandClosed = true   # direct: her hand's state, as her arm positions set it (the game has no method)
 				_hand_timer = int(mood["struggleTimeMultipler"] * (V["struggleCloseHandTimeScale"] + (1.0 - V["struggleCloseHandTimeScale"])
 					* (1.0 - percent)) * (V["struggleCloseHandMinTime"] + randf() * (V["struggleCloseHandMaxTime"] - V["struggleCloseHandMinTime"])))
 			else:
@@ -186,9 +186,9 @@ func act() -> void:
 						* (1.0 - percent)) * (V["struggleOpenHandMinTime"] + randf() * (V["struggleOpenHandMaxTime"] - V["struggleOpenHandMinTime"])))
 				else:
 					_hand_timer = 0
-				her.leftHandClosed = false
-				her.rightHandClosed = false
-				her.leftHandOver.visible = false
+				her.leftHandClosed = false   # direct: her hand's state, as her arm positions set it (the game has no method)
+				her.rightHandClosed = false   # direct: her hand's state, as her arm positions set it (the game has no method)
+				her.leftHandOver.visible = false   # direct: her hand's state, as her arm positions set it (the game has no method)
 			g.characterControl.setArmSkin()
 		_timer -= 1
 		_hand_timer -= 1

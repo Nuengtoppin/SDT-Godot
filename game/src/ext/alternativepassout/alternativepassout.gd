@@ -7,7 +7,8 @@ extends SDTExtension
 ## sound often stays silent (it plays only with him in her mouth, like the mod). "Alternative pass-out" (Behaviour >
 ## Reactions) is off by default. Values from the mod's settings file as shipped. Written from its source; port fix:
 ## the mod's settings were read as text, so its eyelid height became "100" + a number joined as text (eyes shut,
-## rolling down); here they are numbers.
+## rolling down); here they are numbers. The fading highlights and the wince stop are value point modifiers; when she
+## wakes, the highlights come back at the eyes' own alpha (the mod set them to fully opaque).
 
 const EYELID_MAX := 140.0
 const EYELID_MIN := 100.0
@@ -31,6 +32,7 @@ var _saved_iris := 0
 var _frozen_frame := 1
 var _frozen_ang := 0.0
 var _freeze_id := 0   # the freeze: a FINAL modifier of the value point Her.gazeAngle (0: none)
+var _fade := 0.0      # ticks her eyes have been rolling (their highlights fade over HIGHLIGHT_FADE_FRAMES)
 
 
 func _init() -> void:
@@ -53,9 +55,12 @@ func _enable() -> void:
 	# her upper eyelid while passed out: FINAL, over the game's and any mood's (Hooks value points)
 	modify(&"Her.upperEyelid", {"phase": Hooks.FINAL, "op": "fn", "fn": _upper_lid})
 	hook_after(&"Her.updateEyes", func(_c): _roll_eyes())
-	hook_before(&"Her.updateElements", func(_c):
-		if _active and option != 0 and g.her.passedOut:
-			g.her.winceTimer = 0)
+	# passed out her own way: no wince squints, and the highlights in her rolling eyes fade (FINAL, over other modifiers)
+	var out := func(her): return _active and option != 0 and her.passedOut
+	modify(&"Her.winceTime", {"phase": Hooks.FINAL, "op": "set", "value": 0, "when": out})
+	modify(&"Her.highlightsAlpha", {"phase": Hooks.FINAL, "op": "fn",
+		"when": func(her): return out.call(her) and option == 1,
+		"fn": func(v, _her): return maxf(0.0, v - _fade / HIGHLIGHT_FADE_FRAMES)})
 	hook_before(&"SoundControl.playStartBreath", func(c):
 		if _active and option != 0 and g.her.passedOut:
 			c.cancel())
@@ -87,6 +92,7 @@ func _pass_out(c: Hooks.Call) -> void:
 
 func _choose(her) -> void:
 	_active = true
+	_fade = 0.0
 	var eye = her.eye
 	_frozen_frame = eye.upperEyelid.currentFrame
 	_frozen_ang = her.eyeMotion["ang"]
@@ -141,7 +147,7 @@ func _roll_eyes() -> void:
 		her.eyeMotion["target"] -= her.passOutFactor / her.passOutMax * _roll
 		her.eyeMotion["ang"] += (her.eyeMotion["target"] - her.eyeMotion["ang"]) * 0.2
 		her.eye.ball.irisContainer.rotation_degrees = her.eyeMotion["ang"] - 90.0
-		her.eye.ball.highlights.alpha -= 1.0 / HIGHLIGHT_FADE_FRAMES
+		_fade += 1.0
 
 
 func _wake() -> void:
@@ -150,7 +156,6 @@ func _wake() -> void:
 	_active = false
 	Hooks.remove_modifier(_freeze_id)
 	_freeze_id = 0
-	g.her.eye.ball.highlights.alpha = 1
 	if g.characterControl.currentIris != _saved_iris:
 		g.characterControl.setIris(_saved_iris)
 	option = 0

@@ -25,6 +25,8 @@ var screenEffects: ScreenEffects
 var uiLayer: FlashSprite
 var menuLayer: FlashSprite
 var sceneMask: FlashDisplayObject
+var _bgByPoint := false     # port: value point Scene.backgroundBrightness set the background last tick
+var _bgBrightness := 1.0    # port: its colour multiplier last written
 var her: Her
 var him: Him
 var himMask: FlashDisplayObject
@@ -287,9 +289,27 @@ func tick() -> void:
 		soundControl.tick()
 		var t3 := Time.get_ticks_usec() if Flash.profiling else 0
 		g.characterControl.tick()
+		if Hooks.has_value(&"Scene.backgroundBrightness"):   # HOOK value point: how bright the background is (1; its colour multipliers)
+			_bgByPoint = true
+			_setBgBrightness(Hooks.value(&"Scene.backgroundBrightness", self, 1.0))
+		elif _bgByPoint:   # the last modifier went: the background as it is
+			_bgByPoint = false
+			_setBgBrightness(1.0)
 		if Flash.profiling:
 			Flash.account_listener("DT>sound", t3 - t2)
 			Flash.account_listener("DT>characterControl", Time.get_ticks_usec() - t3)
+
+
+## Port: the background's colour multipliers (value point Scene.backgroundBrightness), written only when they change
+func _setBgBrightness(m: float) -> void:
+	if g.bg == null or absf(m - _bgBrightness) < 0.001:
+		return
+	_bgBrightness = m
+	var ct: FlashColorTransform = g.bg.colorTransform
+	ct.redMultiplier = m
+	ct.greenMultiplier = m
+	ct.blueMultiplier = m
+	g.bg.colorTransform = ct
 
 
 func playClicked(_e = null) -> void:

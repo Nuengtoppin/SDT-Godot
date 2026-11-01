@@ -2,8 +2,8 @@ extends SDTExtension
 ## Port of sby's deepthroatactionsV6 Loader mod: what happens when he reaches her throat (past the game's deepthroat
 ## distance) and when he hilts (past its hilt distance): once when he gets there ("reaching") and every tick while he
 ## stays. Gag sound, wince, wide eyes, a splat of droplets, pleasure for him, breath and oxygen she loses, her mood.
-## Behaviour > Deep throat and Behaviour > Hilt; everything off by default (the game's own), the pack's values are in
-## each row's description.
+## Behaviour > Deep throat and Behaviour > Hilt; the Loader pack's values by default (PACK), each row's description
+## says what 0 / off does.
 ## Adapted:
 ## - each "amount" is one slider: the mod's random part is kept as the pack's share of it (pleasure on reaching her
 ##   throat: 5 + up to 10 -> the slider is the 5, up to twice it comes on top), its on/off switches are the slider at 0;
@@ -31,6 +31,11 @@ const RANDOM := {
 const SPLAT_SPEED := [1.0, 0.5]      # base, share of her movement / 10
 const SPLAT_POWER := [1.0, 0.5]      # base, share of her previous movement / 10
 const OFF := "Off"
+## the Loader pack's settings (deepthroatactionsV6.txt): the defaults; the rest is off in the pack too
+const PACK := {"throat_gag": 0.7, "throat_wince": 0.7, "throat_splat": 10, "throat_pleasure_hit": 5.0,
+	"throat_pleasure_in": 1.1, "throat_breath_hit": 1.0, "throat_breath_in": 0.01, "throat_oxygen_hit": 1.0,
+	"throat_oxygen_in": 0.01, "hilt_wince": 0.7, "hilt_pleasure_hit": 10.0, "hilt_pleasure_in": 0.5,
+	"hilt_breath_hit": 1.0, "hilt_breath_in": 0.01, "hilt_oxygen_hit": 1.0, "hilt_oxygen_in": 0.01}
 
 var _in := {"throat": false, "hilt": false}
 var _wince_timer := {"throat": 0, "hilt": 0}
@@ -50,32 +55,32 @@ func _setup() -> void:
 		var where: String = "reaches her throat" if z == "throat" else "hilts"
 		var stay: String = "in her throat" if z == "throat" else "hilted"
 		var pack := func(v): return " The Loader pack: %s." % v
-		setting(z + "_gag", 0.0, {"label": "Gag sound", "min": 0.0, "max": 1.0, "step": 0.05,
+		setting(z + "_gag", PACK.get(z + "_gag", 0.0), {"label": "Gag sound", "min": 0.0, "max": 1.0, "step": 0.05,
 			"desc": "Chance of a gag sound when he %s. 0: never (the game's).%s" % [where, pack.call("70%" if z == "throat" else "off")]})
-		setting(z + "_wince", 0.0, {"label": "Wince", "min": 0.0, "max": 1.0, "step": 0.05,
+		setting(z + "_wince", PACK.get(z + "_wince", 0.0), {"label": "Wince", "min": 0.0, "max": 1.0, "step": 0.05,
 			"desc": "Chance she winces when he %s (held for a moment). 0: never.%s" % [where, pack.call("70%")]})
-		setting(z + "_wince_in", false, {"label": "Wince while " + stay,
+		setting(z + "_wince_in", PACK.get(z + "_wince_in", false), {"label": "Wince while " + stay,
 			"desc": "She keeps wincing while he stays %s (unless her eyes are wide).%s" % [stay, pack.call("off")]})
-		setting(z + "_shock", 0, {"label": "Wide eyes", "min": 0, "max": SHOCK_MAX,
+		setting(z + "_shock", PACK.get(z + "_shock", 0), {"label": "Wide eyes", "min": 0, "max": SHOCK_MAX,
 			"desc": "How wide her eyes go when he %s, if she does not wince (120: almost no pupils). They go back to normal faster than after the game's own shock. 0: off.%s" % [where, pack.call("off (90)")]})
-		setting(z + "_shock_in", false, {"label": "Wide eyes while " + stay,
+		setting(z + "_shock_in", PACK.get(z + "_shock_in", false), {"label": "Wide eyes while " + stay,
 			"desc": "Her eyes stay wide (as wide as above) while he stays %s, then go back. Wincing while %s wins over it.%s" % [stay, stay, pack.call("off")]})
-		setting(z + "_splat", 0, {"label": "Splat", "min": 0, "max": 30,
+		setting(z + "_splat", PACK.get(z + "_splat", 0), {"label": "Splat", "min": 0, "max": 30,
 			"desc": "Droplets that splash from her lips when he %s. 0: none (the game splashes on its own when he hilts fast).%s" % [where, pack.call("10" if z == "throat" else "off (5)")]})
-		setting(z + "_splat_sound", false, {"label": "Splat sound", "desc": "A splat sound when he %s.%s" % [where, pack.call("off")]})
-		setting(z + "_pleasure_hit", 0.0, {"label": "His pleasure", "min": 0.0, "max": 40.0, "step": 0.5,
+		setting(z + "_splat_sound", PACK.get(z + "_splat_sound", false), {"label": "Splat sound", "desc": "A splat sound when he %s.%s" % [where, pack.call("off")]})
+		setting(z + "_pleasure_hit", PACK.get(z + "_pleasure_hit", 0.0), {"label": "His pleasure", "min": 0.0, "max": 40.0, "step": 0.5,
 			"desc": "Pleasure for him when he %s: this, plus up to twice it at random. 0: none (the game gives 5 to 10 each tick he is hilted).%s" % [where, pack.call("5" if z == "throat" else "10")]})
-		setting(z + "_pleasure_in", 0.0, {"label": "His pleasure while " + stay, "min": 0.0, "max": 5.0, "step": 0.1,
+		setting(z + "_pleasure_in", PACK.get(z + "_pleasure_in", 0.0), {"label": "His pleasure while " + stay, "min": 0.0, "max": 5.0, "step": 0.1,
 			"desc": "Pleasure for him every tick he stays %s: this, plus up to about twice it at random. 0: none.%s" % [stay, pack.call("1.1" if z == "throat" else "0.5")]})
-		setting(z + "_breath_hit", 0.0, {"label": "Breath lost", "min": 0.0, "max": 20.0, "step": 0.5,
+		setting(z + "_breath_hit", PACK.get(z + "_breath_hit", 0.0), {"label": "Breath lost", "min": 0.0, "max": 20.0, "step": 0.5,
 			"desc": "Breath she loses when he %s (of 50): this, plus up to twice it at random. 0: none.%s" % [where, pack.call("1")]})
-		setting(z + "_breath_in", 0.0, {"label": "Breath lost while " + stay, "min": 0.0, "max": 0.5, "step": 0.01,
+		setting(z + "_breath_in", PACK.get(z + "_breath_in", 0.0), {"label": "Breath lost while " + stay, "min": 0.0, "max": 0.5, "step": 0.01,
 			"desc": "Breath she loses every tick he stays %s. 0: none.%s" % [stay, pack.call("0.01")]})
-		setting(z + "_oxygen_hit", 0.0, {"label": "Oxygen lost", "min": 0.0, "max": 20.0, "step": 0.5,
+		setting(z + "_oxygen_hit", PACK.get(z + "_oxygen_hit", 0.0), {"label": "Oxygen lost", "min": 0.0, "max": 20.0, "step": 0.5,
 			"desc": "How much closer she gets to passing out when he %s (of 40): this, plus up to twice it at random. At the top she passes out. 0: none.%s" % [where, pack.call("1")]})
-		setting(z + "_oxygen_in", 0.0, {"label": "Oxygen lost while " + stay, "min": 0.0, "max": 0.5, "step": 0.01,
+		setting(z + "_oxygen_in", PACK.get(z + "_oxygen_in", 0.0), {"label": "Oxygen lost while " + stay, "min": 0.0, "max": 0.5, "step": 0.01,
 			"desc": "How much closer she gets to passing out every tick he stays %s. 0: none.%s" % [stay, pack.call("0.01")]})
-		setting(z + "_mood", OFF, {"label": "Mood while " + stay,
+		setting(z + "_mood", PACK.get(z + "_mood", OFF), {"label": "Mood while " + stay,
 			"desc": "Her mood while he stays %s; her own mood comes back when he leaves.%s" % [stay, pack.call("off")]})
 	setting("oxygen_when_breathless", true, {"label": "Oxygen only when out of breath",
 		"desc": "Oxygen is lost only once her breath is all gone (as the game does). Off: also while she still has breath. The Loader pack: on."})
@@ -97,6 +102,8 @@ func _enable() -> void:
 		menu_control("behaviour", card, mood)
 	menu_control("behaviour", ZONE_CARDS["throat"], MenuSchema.setting_control(self, "oxygen_when_breathless"))
 	_apply_holds()
+	# while he stays in her throat or at the hilt she runs out of air (value point Her.passOutExtra)
+	modify(&"Her.passOutExtra", {"phase": Hooks.MOOD, "op": "fn", "fn": _air_in})
 	on_late_tick(_tick)
 
 
@@ -203,7 +210,7 @@ func _reach(her, z: String) -> void:
 	_wince_timer[z] = WINCE_HOLD
 	var o := _amount(z, "oxygen_hit")
 	if o > 0.0 and _oxygen_allowed():
-		her.passOutFactor = minf(her.passOutMax, her.passOutFactor + o)
+		her.passOutFactor = minf(her.passOutMax, her.passOutFactor + o)   # direct: one-off hit, then the game's passOut() below
 	if z == "throat":
 		_breath(z, "breath_hit")
 	if her.passOutFactor >= her.passOutMax:
@@ -221,9 +228,6 @@ func _reach(her, z: String) -> void:
 ## He stays there.
 func _stay(her, z: String) -> void:
 	_breath(z, "breath_in")
-	var o: float = get_setting(z + "_oxygen_in")
-	if o > 0.0 and _oxygen_allowed():
-		her.passOutFactor = minf(her.passOutMax, her.passOutFactor + o)
 	var p := _amount(z, "pleasure_in")
 	if p > 0.0:
 		g.him.givePleasure(p)
@@ -231,6 +235,16 @@ func _stay(her, z: String) -> void:
 		_wince_timer[z] -= 1
 		if float(get_setting(z + "_wince")) > 0.0 and her.winceTimer > 0:
 			her.wince()
+
+
+## Her air while he stays in a zone (the mod's oxygen_in, every tick after he got there)
+func _air_in(v: float, _her) -> float:
+	if not _oxygen_allowed():
+		return v
+	for z in ZONES:
+		if _in[z]:
+			v += float(get_setting(z + "_oxygen_in"))
+	return v
 
 
 func _breath(z: String, key: String) -> void:

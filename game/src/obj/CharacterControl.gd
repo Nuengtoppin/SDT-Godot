@@ -1144,10 +1144,23 @@ func _skinHSLTargets() -> Array:
 
 
 func applySkinHSL(hsl: Dictionary) -> void:
-	var f := _hslFilter(hsl)
+	var shown := hsl
+	var sat := _skinSaturation()
+	if sat != 1.0:
+		shown = hsl.duplicate()
+		shown["s"] = float(hsl["s"]) * sat
+	var f := _hslFilter(shown)
 	for t in _skinHSLTargets():
 		t.filters = [f]
 	skinHSL = hsl
+
+
+## Port: how much of her skin's colour saturation shows (value point CharacterControl.skinSaturation; 1: all of it).
+## Asked when her skin filter is made: after changing its modifiers, call updateSkinHSL().
+func _skinSaturation() -> float:
+	if Hooks.has_value(&"CharacterControl.skinSaturation"):   # HOOK value point: how much of her skin's colour saturation shows (1)
+		return float(Hooks.value(&"CharacterControl.skinSaturation", self, 1.0))
+	return 1.0
 
 
 func removeSkinHSL() -> void:
@@ -1157,7 +1170,7 @@ func removeSkinHSL() -> void:
 
 
 func updateSkinHSL() -> void:
-	if is_same(skinHSL, blankHSL):
+	if is_same(skinHSL, blankHSL) and _skinSaturation() == 1.0:
 		removeSkinHSL()
 	else:
 		applySkinHSL(skinHSL)

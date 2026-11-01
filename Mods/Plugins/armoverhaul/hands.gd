@@ -13,6 +13,7 @@ const ON_HIM := ["On His Legs", "On His Waist", "On His Chest"]
 var x            # the plugin
 var V: Dictionary
 var resistance := 1.0       # resistancePercent
+var drag := 0.0             # how much her arms slow her head this tick (value point Her.drag)
 var _tap_timer := 0
 var _open_after_tap := [false, false]    # a tap closed the hand: it opens again after tapClosedHandOpenDelay
 var _open_timer := [0, 0]
@@ -92,15 +93,15 @@ func tap(strength: float) -> void:
 	if randf() > x.dyn.exh("tapClosedHandChance") and \
 			V["tapClosedHandChanceGrowth"] * (power - V["tapThreshold"]) * m()["closedHandMultiplier"] * mul > randf():
 		if left:
-			her.leftHandClosed = true
+			her.leftHandClosed = true   # direct: her hand's state, as her arm positions set it (the game has no method)
 			if _name(true) != "On Legs":
 				g.changeLayer(her.leftHandOver, g.backLayer, null, true)
 				g.changeLayer(her.leftArmContainer, g.backLayer, null, true)
 			else:
 				g.changeLayer(her.leftHandOver, her.leftHandOverContainer)
-			her.leftHandOver.visible = true
+			her.leftHandOver.visible = true   # direct: her hand's state, as her arm positions set it (the game has no method)
 		else:
-			her.rightHandClosed = true
+			her.rightHandClosed = true   # direct: her hand's state, as her arm positions set it (the game has no method)
 		g.characterControl.setArmSkin()
 	_tap_timer = int(V["tapCooldown"] * (1.0 + x.dyn.exh("tapCooldown")))
 
@@ -108,6 +109,7 @@ func tap(strength: float) -> void:
 ## Every tick: what makes her tap, hands closed by a tap open again; jitter and resistance; rubbing
 func tick() -> void:
 	var her: Her = g.her
+	drag = 0.0
 	if not her.passedOut:
 		_jitter(her)
 		_resist(her)
@@ -141,10 +143,10 @@ func tick() -> void:
 				_open_after_tap[s] = false
 			if not ik.tapping and _open_after_tap[s] and _open_timer[s] < 0 and _name(left) != "On His Hand":
 				if left:
-					her.leftHandClosed = false
-					her.leftHandOver.visible = false
+					her.leftHandClosed = false   # direct: her hand's state, as her arm positions set it (the game has no method)
+					her.leftHandOver.visible = false   # direct: her hand's state, as her arm positions set it (the game has no method)
 				else:
-					her.rightHandClosed = false
+					her.rightHandClosed = false   # direct: her hand's state, as her arm positions set it (the game has no method)
 				_open_after_tap[s] = false
 				g.characterControl.setArmSkin()
 			if ik.tapping and (her.leftHandClosed if left else her.rightHandClosed):
@@ -198,7 +200,7 @@ func _jitter(her: Her) -> void:
 		elif dist < V["jitterDistFallOff"]:
 			d = (V["jitterDistFallOff"] - dist) / (V["jitterDistFallOff"] - V["jitterDistMax"])
 	var amount: float = randf() * (V["maxJitter"] - V["minJitter"]) + V["minJitter"]
-	her.pos -= maxf(0.0, (1.0 + _arms_on_him(V["jitterArmFactor"])) * amount * (m()["jitterFactor"]
+	x.push += maxf(0.0, (1.0 + _arms_on_him(V["jitterArmFactor"])) * amount * (m()["jitterFactor"]
 		+ m()["jitterExhaustionFactor"] * x.dyn.exhaustion + m()["jitterDistanceFactor"] * d * (1.0 - x.dyn.exh("jitterDistance"))))
 
 
@@ -216,7 +218,7 @@ func _resist(her: Her) -> void:
 		resistance = maxf(floor_, resistance - V["resistanceHeldLoss"])
 	resistance = maxf(floor_, resistance - V["resistancePassoutLoss"] * her.passOutFactor / her.passOutMax)
 	var arms := maxf(1.0, _arms_on_him(V["resistanceArmFactor"]))
-	her.speed -= (1.0 - x.dyn.exh("resistance")) * arms * maxf(0.0, resistance) * V["resistanceAmount"] \
+	drag = (1.0 - x.dyn.exh("resistance")) * arms * maxf(0.0, resistance) * V["resistanceAmount"] \
 		* (m()["resistanceFactor"] + m()["resistanceDistanceFactor"] * d * (1.0 - x.dyn.exh("resistanceDistance")))
 
 

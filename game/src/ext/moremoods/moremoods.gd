@@ -172,9 +172,7 @@ func set_mood(m: String) -> void:
 		face = MOUTH[m]
 	else:
 		face = m
-	her.head.face.gotoAndStop(face)
-	her.head.headTan.face.gotoAndStop(face)
-	her.topLipstickContainer.gotoAndStop(face)
+	her.setMouthShape(face)   # (value point Her.mouthShape may show another, e.g. progressiveExhaustion's tired mouth)
 	angry_lips = MOUTH.has(m) and face == "Angry"
 	her.currentMood = m if not MOUTH.has(m) and m != "Asleep" else "Normal"
 	can_speak_level = 5 if m == "Asleep" and not get_setting("asleepspeakingdialog") else 10

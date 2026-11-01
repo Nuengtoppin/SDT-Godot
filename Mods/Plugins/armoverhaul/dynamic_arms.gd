@@ -25,7 +25,7 @@ var left_type := "Neutral"    # the kind of weight that put each arm where it is
 var right_type := "Neutral"
 var cooldown := [0, 0]
 var post_wake := 0            # her arms stay loose a while after she wakes
-var exhaustion := 0.0         # progressiveExhaustion's (not ported yet)
+var exhaustion := 0.0         # progressiveExhaustion's total exhaustion (0 without the plugin)
 var m: Dictionary             # her mood's factors
 var custom := {}              # a "Custom" mood from the character code (the mod's 34-value armOverhaul field)
 var _custom_mood := ""        # ... used until her mood changes from this one
@@ -75,6 +75,8 @@ func mood_name() -> String:
 
 ## Her mood's factors, every tick before anything uses them (the start of the mod's move())
 func update_mood() -> void:
+	var pe = Extensions.by_id.get("progressiveexhaustion")
+	exhaustion = pe.total if pe != null and pe.enabled and Extensions.is_on("progressiveexhaustion") else 0.0
 	var name: String = mood_name()
 	if _custom_mood == "*":   # loaded with the character: her mood then
 		_custom_mood = name
@@ -132,9 +134,9 @@ func hand_job_tick() -> void:
 	if on_him and not _hand_job and use:   # auto mode starts over in the mood's style
 		_auto_before = g.autoModeOn
 		_auto_on = true
-		g.autoModeOn = false
+		g.autoModeOn = false   # direct: auto mode off or back quietly (toggleAutoMode would also flip the menu button)
 	elif not on_him and _auto_on:
-		g.autoModeOn = _auto_before
+		g.autoModeOn = _auto_before   # direct: auto mode off or back quietly (toggleAutoMode would also flip the menu button)
 		_auto_on = false
 	_hand_job = on_him
 	var hj: bool = x._left_name() == "Hand Job" and not her.leftArmIK.dropping or \
@@ -151,8 +153,8 @@ func hand_job_tick() -> void:
 			g.setAuto(3)
 		g.toggleAutoMode()
 	if left_type == "Negative" and x._left_name() == "Hand Job" or right_type == "Negative" and x._right_name() == "Hand Job":
-		g.automaticControl.currentMode = g.automaticControl.holdDown
-		g.automaticControl.waitingForSingleAction = true
+		g.automaticControl.currentMode = g.automaticControl.holdDown   # direct: the auto mode's own state (no method)
+		g.automaticControl.waitingForSingleAction = true   # direct: the auto mode's own state (no method)
 
 
 ## Every tick: what's happening adds weight, the weights decay, and the arms go to the heaviest position
@@ -502,17 +504,17 @@ func before_wake() -> void:
 	_wake_pos = [-1, -1]
 	if V["wakeArmTransitionFix"] == 1:
 		_wake_pos[0] = her.currentLeftArmPosition
-		her.currentLeftArmPosition = 4
+		her.currentLeftArmPosition = 4   # direct: Loose without moving her arm (the game has no method; as startArmsPassOut leaves it)
 		if not keep_hand:
 			_wake_pos[1] = her.currentRightArmPosition
-			her.currentRightArmPosition = 4
+			her.currentRightArmPosition = 4   # direct: Loose without moving her arm (the game has no method; as startArmsPassOut leaves it)
 	if mode != 0 and randf() <= V["delayArmsOnWakeChance"] + (1.0 - V["delayArmsOnWakeChance"]) * exh("delayArmsOnWakeChance"):
 		post_wake = int((randf() * (V["delayArmsOnWakeMaxTime"] - V["delayArmsOnWakeMinTime"]) + V["delayArmsOnWakeMinTime"])
 			* (1.0 + exh("delayArmsOnWakeTime")))
 		if mode != 3:
-			her.currentLeftArmPosition = 4
+			her.currentLeftArmPosition = 4   # direct: Loose without moving her arm (the game has no method; as startArmsPassOut leaves it)
 		if mode != 2 and not keep_hand:
-			her.currentRightArmPosition = 4
+			her.currentRightArmPosition = 4   # direct: Loose without moving her arm (the game has no method; as startArmsPassOut leaves it)
 
 
 ## After she woke (wakeUpPost): arms that dynamic arms doesn't move go back to where they were; the wake weights

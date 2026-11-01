@@ -41,6 +41,7 @@ var hands                     # hands.gd
 var spank                     # spank.gd
 var restrained := false       # restrained mode
 var restrained_type := 3      # 0 loose, 1 tight, 2 fixed, 3 off
+var push := 0.0               # how far her head goes back off him this tick (jitter, struggling): value point Her.pushBack
 var _keys := {}               # Flash key code -> [[left: bool, position name]] (values.cfg [keys])
 var _key_lists := {}          # values.cfg [keys] as read: the mod's key name -> "76,77"
 
@@ -88,6 +89,10 @@ func _setup() -> void:
 
 
 func _enable() -> void:
+	# her head: pushed back by her hands' jitter and her struggling, slowed by her arms' resistance (value points, so
+	# the game clamps and eases as with its own movement)
+	modify(&"Her.pushBack", {"phase": Hooks.MOOD, "op": "fn", "fn": _take_push})
+	modify(&"Her.drag", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, _her): return v + hands.drag})
 	_load_values()
 	var her: Her = g.her
 	for n in ANIMTOOLS + OWN:
@@ -171,7 +176,7 @@ func _disable() -> void:
 	if sp != null and spank != null and sp.hit.is_connected(spank.on_hit):
 		sp.hit.disconnect(spank.on_hit)
 	if dyn != null and dyn._auto_on:
-		g.autoModeOn = dyn._auto_before
+		g.autoModeOn = dyn._auto_before   # direct: auto mode off or back quietly (toggleAutoMode would also flip the menu button)
 	if leg_on_top:
 		_toggle_leg()
 	Her.removeArmPositions(id)
@@ -328,8 +333,8 @@ func _set_up(her: Her, n: String, left: bool) -> void:
 				_leg_by_arm = true
 		"On His Hand":
 			g.changeLayer(her.leftHandOver, g.backLayer, null, true)
-			her.leftHandOver.visible = true
-			her.leftHandClosed = true
+			her.leftHandOver.visible = true   # direct: her hand's state, as her arm positions set it (the game has no method)
+			her.leftHandClosed = true   # direct: her hand's state, as her arm positions set it (the game has no method)
 			ik.newTarget(on_him + Vector2(V["onHisHandXOffsetLeft"], -V["onHisHandYOffsetLeft"]), g.him.armContainer.arm.hand, true)
 			ik.setEndRotationTarget(V["onHisHandRotationLeft"], [g.him.armContainer.arm.hand, g.him])
 		"Masturbating":
@@ -344,18 +349,18 @@ func _set_up(her: Her, n: String, left: bool) -> void:
 				g.him.setLeftArmPosition(1)
 			hold_released = false
 			if n == "Holding Hand":
-				her.rightHandClosed = true
+				her.rightHandClosed = true   # direct: her hand's state, as her arm positions set it (the game has no method)
 
 
 ## A closed hand; the left one also shows the hand drawn over her breast (her.leftHandOver)
 func _close(her: Her, left: bool, closed: bool) -> void:
 	if left:
-		her.leftHandClosed = closed
+		her.leftHandClosed = closed   # direct: her hand's state, as her arm positions set it (the game has no method)
 		if closed:
 			g.changeLayer(her.leftHandOver, her.leftHandOverContainer)
-			her.leftHandOver.visible = true
+			her.leftHandOver.visible = true   # direct: her hand's state, as her arm positions set it (the game has no method)
 	else:
-		her.rightHandClosed = closed
+		her.rightHandClosed = closed   # direct: her hand's state, as her arm positions set it (the game has no method)
 
 
 func _in_air_target(her: Her, left: bool) -> void:
@@ -425,6 +430,13 @@ func _pass_out(her: Her, left: bool, n: String) -> void:
 
 
 # ---------------------------------------------------------------- every tick
+
+## This tick's push of her head (value point Her.pushBack): used once
+func _take_push(v: float, _her) -> float:
+	var p := push
+	push = 0.0
+	return v + p
+
 
 func _tick() -> void:
 	if g.gamePaused or not g.gameRunning:
@@ -634,7 +646,7 @@ func _penis_out() -> void:
 		g.changeLayer(her.leftHandOver, her.leftHandOverContainer)
 	elif _left_name() == "On His Hand":
 		g.changeLayer(her.leftHandOver, g.backLayer, null, true)
-		her.leftHandOver.visible = true
+		her.leftHandOver.visible = true   # direct: her hand's state, as her arm positions set it (the game has no method)
 		g.changeLayer(her.leftArmContainer, g.backLayer, null, true)
 
 
@@ -684,11 +696,11 @@ func transition(left: bool, n: String, smooth: bool) -> void:
 	if n == "Loose":
 		her.startArmsPassOut(left, not left)
 		if left:
-			her.currentLeftArmPosition = 4
-			g.leftHandJobMode = false
+			her.currentLeftArmPosition = 4   # direct: Loose without moving her arm (the game has no method; as startArmsPassOut leaves it)
+			g.leftHandJobMode = false   # direct: as checkHandJobMode does for a Loose arm
 		else:
-			her.currentRightArmPosition = 4
-			g.rightHandJobMode = false
+			her.currentRightArmPosition = 4   # direct: Loose without moving her arm (the game has no method; as startArmsPassOut leaves it)
+			g.rightHandJobMode = false   # direct: as checkHandJobMode does for a Loose arm
 		_close(her, left, false)
 		g.characterControl.setArmSkin()
 		return
@@ -727,7 +739,7 @@ func transition(left: bool, n: String, smooth: bool) -> void:
 	if n in (CLOSED_LEFT if left else CLOSED_RIGHT):
 		_close(her, left, false)
 		if left:
-			her.leftHandOver.visible = false
+			her.leftHandOver.visible = false   # direct: her hand's state, as her arm positions set it (the game has no method)
 		_close_hand[s] = true
 	g.characterControl.setArmSkin()
 

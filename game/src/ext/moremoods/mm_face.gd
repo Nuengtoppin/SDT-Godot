@@ -248,9 +248,12 @@ func clear_lower_eyelid() -> void:
 	var dst: FlashBitmapData = tears.lowerEyelidData
 	var src: FlashBitmapData = tears.mascaraData
 	dst.fillRect(tears.lowerEyelidArea, 0)
+	var level := float(lower_eyelid_level)
+	if Hooks.has_value(&"Her.lowerEyelidSquint"):   # HOOK value point: how far her mood's squint tilts the lower eyelid's mascara (the mood's level, 10-25)
+		level = float(Hooks.value(&"Her.lowerEyelidSquint", g.her, level))
 	# Flash: matrix.translate(-32 + amount, 12) then rotate(-level / 18), clipped to 50 x 20
-	var t := Vector2(-32 + lower_eyelid_level * -4.0 / 3.0, 12)
-	var inv := Transform2D(lower_eyelid_level / 18.0, Vector2.ZERO)   # inverse of rotate(-level / 18)
+	var t := Vector2(-32 + level * -4.0 / 3.0, 12)
+	var inv := Transform2D(level / 18.0, Vector2.ZERO)   # inverse of rotate(-level / 18)
 	var si: Image = src.image
 	var di: Image = dst.image
 	for y in mini(20, di.get_height()):
@@ -346,9 +349,9 @@ static func linear_scale(x1: float, y1: float, x2: float, y2: float, x: float) -
 
 ## The angry mouth of the added moods: lips drawn like vanilla's angry mood.
 func update_lips() -> void:
-	if not mm.angry_lips:
-		return
 	var her = g.her
+	if not mm.angry_lips or her.mouthShape != "Angry":   # angry lips while her mouth shows the angry shape
+		return
 	var up: int = maxi(0, her.lastUpperLipPos - 1)
 	var low: int = mini(79, her.lastLowerLipPos + 6)
 	her.bottomLipstick.gotoAndStop(low + 2)

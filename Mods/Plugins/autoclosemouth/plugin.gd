@@ -57,7 +57,7 @@ func _enable() -> void:
 	# dialogue triggers such as MoreTriggers' [OPEN_MOUTH_ms] override it)
 	modify(&"Her.jawAngle", {"phase": Hooks.MOOD, "order": 10, "op": "fn", "fn": func(v, _her):
 		return v + (Her.closedJawAngle - v) * closepercent if closingmouth else v})
-	hook_after(&"Tongue.encourage", func(_c): _encourage())
+	hook_before(&"Tongue.encourage", _encourage)
 	if get_setting("registerkeys"):
 		on_key(77, func(): goclose = not goclose, "close mouth")
 		on_key(78, func(): manual = not manual, "close mouth manual / auto")
@@ -109,9 +109,10 @@ func _tick() -> void:
 	_button.set_color(0x00FF00 if on else 0xFFFFFF)
 
 
-func _encourage() -> void:
+## Her mouth closed all the way: no licking head bob (the mod set the tongue's encouragement back to 0 afterwards)
+func _encourage(c) -> void:
 	if get_setting("preventlickbobonclose") and closepercent == get_setting("maxcloseamount"):
-		g.her.tongue.increasedAction = 0
+		c.cancel()
 
 
 func _breath_ok() -> bool:
