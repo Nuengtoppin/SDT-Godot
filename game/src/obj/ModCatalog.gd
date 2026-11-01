@@ -42,13 +42,18 @@ var picker_types: Dictionary = {}
 var picker_entries: Dictionary = {}
 var _seen: Array = []         # [path, catalog] of every mod looked at, for lists added later
 var _queue: Array = []        # paths still to inspect
-var _converting: Dictionary = {}  # task id -> [path, bytes, dir]
+var _converting: Dictionary = {}  # task id -> [path, bytes]
+var _waiting: Array = []          # [path, cache dir] of new mods waiting for a free conversion slot
+## Main-thread time per tick for reading cached catalogs (the file read and hash of each .swf are most of it)
+const TICK_BUDGET_US := 3000
 var _busy := false
 var _names: Dictionary = {}   # lower-case file path -> [name, slot] from names.txt
 var _scanned := false         # every mod has been looked at
 var _wanted: Array = []       # [picker, name, callback] asked for before the scan finished (find_named)
 var _due := 0                 # find_named answers found but not called yet (they run deferred)
 var _known: Dictionary = {}   # lower-case paths of the files scanned, so rescan() only adds new ones
+var _total := 0               # .swf files queued by the current scan (the loading notice's count)
+var _notice: Node = null      # the "Loading mods" notice (mod_load_notice.gd) while a scan runs
 
 
 func start() -> void:
@@ -57,6 +62,7 @@ func start() -> void:
 	for sub in SCAN_FOLDERS:
 		_scan(Flash.mods_dir(sub))
 	Flash.add_enter_frame(self, _tick)
+	_show_notice()
 	# MoreClothing's extra body slot (Loader codes): the mod is put on; saving writes it as the port's own mod field
 	CharCode.add_field("moreclothingbody", "port", _no_field, _load_body_slot)
 
@@ -88,6 +94,7 @@ func _scan(dir: String) -> void:
 		_known[dir.path_join(f).to_lower()] = true
 		if ext == "swf":
 			_queue.append(dir.path_join(f))
+			_total += 1
 		elif ext in IMAGE_EXTENSIONS and dir.begins_with(Flash.mods_dir("Backgrounds")):
 			# background images: shown like the vanilla "Import background"
 			var e := {"path": _relative(dir.path_join(f)), "image": true, "items": [], "modTypes": [],
@@ -107,8 +114,9 @@ func _scan(dir: String) -> void:
 		_scan(dir.path_join(sub))
 
 
-## One mod per tick: cached catalogs are read directly, new mods are converted on a worker thread and then
-## inspected on the main thread (their frame scripts must run to know what they contain).
+## Each tick: mods with a cached catalog are read for up to TICK_BUDGET_US (a small file each, so a collection that was
+## seen before is done in a few frames); new mods are converted on worker threads (two at a time) and then inspected
+## on the main thread one per tick (their frame scripts must run to know what they contain).
 func _tick() -> void:
 	for id in _converting.keys():
 		if WorkerThreadPool.is_task_completed(id):
@@ -117,32 +125,71 @@ func _tick() -> void:
 			_converting.erase(id)
 			_inspect(job[0], job[1])
 			return
-	if _queue.is_empty():
+	while not _waiting.is_empty() and _converting.size() < 2:
+		_convert(_waiting.pop_front())
+	var t0 := Time.get_ticks_usec()
+	while not _queue.is_empty() and Time.get_ticks_usec() - t0 < TICK_BUDGET_US:
+		if not _step(_queue.pop_front()):
+			return
+	if _queue.is_empty() and _waiting.is_empty():
 		if _converting.is_empty():
 			Flash.remove_enter_frame(self, _tick)
 			_sync_loaded()
 			_scanned = true
+			_total = 0
 			for w in _wanted:
 				find_named(w[0], w[1], w[2])
 			_wanted.clear()
-		return
-	if _converting.size() >= 2:
-		return
-	var path: String = _queue.pop_front()
+
+
+## Looks at one queued mod; false if it took a main-thread inspection (that tick's budget is spent).
+func _step(path: String) -> bool:
 	var bytes := FileAccess.get_file_as_bytes(path)
 	if bytes.is_empty():
-		return
+		return true
 	var dir := FlashSwfMod.CACHE_ROOT.path_join(FlashSwfMod._sha256(bytes))
 	var cat := _read_catalog(dir)
 	if not cat.is_empty():
 		_add(path, cat)
-		return
+		return true
 	if FlashSwfMod.is_converted(dir):
 		_inspect(path, bytes)
+		return false
+	if _converting.size() < 2:
+		_convert([path, dir], bytes)
+	else:
+		_waiting.append([path, dir])   # not its bytes: a large new collection would hold them all in memory
+	return true
+
+
+func _convert(job: Array, bytes := PackedByteArray()) -> void:
+	if bytes.is_empty():
+		bytes = FileAccess.get_file_as_bytes(job[0])
+	if bytes.is_empty():
 		return
+	var dir: String = job[1]
 	var scale: float = Flash.base_library.scale
 	var id := WorkerThreadPool.add_task(func(): FlashSwfMod.convert_swf(bytes, dir, scale), false, "convert mod")
-	_converting[id] = [path, bytes]
+	_converting[id] = [job[0], bytes]
+
+
+## The scan's progress, for the loading notice: {finished, done, total, converting: file names}.
+func progress() -> Dictionary:
+	var names: Array = []
+	for job in _converting.values():
+		names.append(str(job[0]).get_file())
+	return {"finished": _scanned, "done": _total - _queue.size() - _waiting.size() - _converting.size(), "total": _total,
+		"converting": names}
+
+
+## Puts up the "Loading mods" notice for the scan just started (it shows itself only if the scan takes a while).
+func _show_notice() -> void:
+	if _total == 0 or (_notice != null and is_instance_valid(_notice)):
+		return
+	_notice = preload("res://src/menu/mod_load_notice.gd").new()
+	_notice.name = "ModLoadNotice"   # named: an auto-generated name would shift the numbering of the game's nodes
+	_notice.catalog = self
+	Flash.add_child(_notice)
 
 
 static func _read_catalog(dir: String) -> Dictionary:
@@ -383,6 +430,7 @@ func rescan() -> void:
 			e["named"] = true
 	Flash.remove_enter_frame(self, _tick)
 	Flash.add_enter_frame(self, _tick)
+	_show_notice()
 
 
 ## Whether an installed mod answers to `name` in `picker` (see find_named), as far as the scan has got.
