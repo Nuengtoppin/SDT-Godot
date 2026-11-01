@@ -696,6 +696,8 @@ func setLeftArmPosition(p: int = -1, update: bool = true) -> void:
 	if _tan:
 		_tan.updateSkin()
 	g.characterControl.setNailPolish(g.characterControl.nailPolishRGB)
+	if Hooks.has(&"Her.setLeftArmPosition"):   # HOOK
+		Hooks.after(&"Her.setLeftArmPosition", self, [p])
 
 
 func setRightArmPosition(p: int = -1, update: bool = true) -> void:
@@ -733,6 +735,8 @@ func setRightArmPosition(p: int = -1, update: bool = true) -> void:
 	if _tan:
 		_tan.updateSkin()
 	g.characterControl.setNailPolish(g.characterControl.nailPolishRGB)
+	if Hooks.has(&"Her.setRightArmPosition"):   # HOOK
+		Hooks.after(&"Her.setRightArmPosition", self, [p])
 
 
 func setLeftArmFree(v: bool) -> void:

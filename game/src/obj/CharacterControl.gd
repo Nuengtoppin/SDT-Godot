@@ -734,6 +734,8 @@ func setBreasts(size: int = -1) -> void:
 	setBreastCostumeSize()
 	for fn in breastSizeChangeListeners:
 		fn.call()
+	if Hooks.has(&"CharacterControl.setBreasts"):   # HOOK
+		Hooks.after(&"CharacterControl.setBreasts", self, [size])
 	FlashShape.load_now = false
 
 
@@ -799,6 +801,8 @@ func setNailPolish(c, _n: String = "rgbFill") -> void:
 	h.rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.nailPolish.colorTransform = ct
 	h.leftHandOver.hand.nailPolish.colorTransform = ct
 	nailPolishRGB = c
+	if Hooks.has(&"CharacterControl.setNailPolish"):   # HOOK
+		Hooks.after(&"CharacterControl.setNailPolish", self, [c])
 
 
 func findCollar(n: String) -> void:
@@ -1153,6 +1157,8 @@ func applySkinHSL(hsl: Dictionary) -> void:
 	for t in _skinHSLTargets():
 		t.filters = [f]
 	skinHSL = hsl
+	if Hooks.has(&"CharacterControl.applySkinHSL"):   # HOOK
+		Hooks.after(&"CharacterControl.applySkinHSL", self, [hsl])
 
 
 ## Port: how much of her skin's colour saturation shows (value point CharacterControl.skinSaturation; 1: all of it).

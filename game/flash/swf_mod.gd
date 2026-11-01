@@ -333,6 +333,20 @@ func instantiate_root() -> FlashDisplayObject:
 	return instantiate(0)
 
 
+## The Loader calls a loaded mod package's initl(loader). Here it runs without a loader (null): the mod's setup of
+## its own display objects works (a mod masking one part's erase shape with another part); Loader API
+## calls (lProxy hooks, addEnterFramePersist, ...) and reads of l.g find nothing.
+func run_initl(root) -> void:
+	if root == null or not root.has_meta(&"abc"):
+		return
+	var a: FlashAbc = root.get_meta(&"abc")
+	var m := a.find_method(str(root.get_meta(&"abc_class", "")), "initl")
+	if not m.is_empty() and m[0] == 1:
+		FlashAbc.quiet = true
+		a.run(m[1], root, [null])
+		FlashAbc.quiet = false
+
+
 ## Creates symbol 'id' (what a timeline PlaceObject or `new Class()` does), then runs its frame-1 script.
 func instantiate(id: int, parent = null, place: Dictionary = {}, pidx: int = -1, depth: int = -1,
 		birth: int = -1) -> FlashDisplayObject:
@@ -465,7 +479,8 @@ func abc_construct(n: String, args: Array):
 			return {}
 	var id := _class_id(n)
 	if id < 0:
-		push_warning("SWF mod: cannot construct %s" % n)
+		if not FlashAbc.quiet:
+			push_warning("SWF mod: cannot construct %s" % n)
 		return null
 	return create_class_instance(id)
 

@@ -497,6 +497,10 @@ func addLayerModElement(m, modType: String) -> void:
 
 
 func addDynamicHairMod(m) -> void:
+	if Hooks.has(&"CustomElementLoader.addDynamicHairMod"):   # HOOK
+		var h := Hooks.before(&"CustomElementLoader.addDynamicHairMod", self, [m])
+		if h.cancelled:
+			return
 	var key = _p(m, "targetElement")
 	if not key:
 		key = _p(m, "modType")

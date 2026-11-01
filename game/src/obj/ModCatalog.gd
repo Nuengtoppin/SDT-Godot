@@ -40,6 +40,10 @@ var bg_entries: Array = []
 ## items of those types). Shown as on / off switches, so several can be on (ExtraMod's face and eye mods stack).
 var picker_types: Dictionary = {}
 var picker_entries: Dictionary = {}
+## List key -> list key (merge_pickers): a mod with items for both lists gets one entry, in the second. Keys:
+## add_picker lists, "hair", "bg", or COSTUME (any clothes picker).
+var picker_merge: Dictionary = {}
+const COSTUME := "*costume"
 var _seen: Array = []         # [path, catalog] of every mod looked at, for lists added later
 var _queue: Array = []        # paths still to inspect
 var _converting: Dictionary = {}  # task id -> [path, bytes]
@@ -227,13 +231,26 @@ func _inspect(path: String, bytes: PackedByteArray) -> void:
 	_add(path, cat)
 
 
-## Adds a list for mods with items of `mod_types` (see picker_types), including mods already scanned.
+## Adds a list for mods with items of `mod_types` (see picker_types), including mods already scanned. An entry
+## "<modType>/<item name>" takes only the items of that type with that name (it wins over the type alone).
 func add_picker(key: String, mod_types: Array) -> void:
 	for t in mod_types:
 		picker_types[t] = key
 	picker_entries[key] = []
+	if picker_merge.values().has(key) or picker_merge.has(key):
+		_rebuild_all()
+		return
 	for s in _seen:
 		_add(s[0], s[1], key)
+
+
+## A mod with items for one of the `from` lists and for `into` gets one entry (one switch) in `into`, with those
+## items too (ExtraMod: a whole-body mod's head parts, hair and clothes go on and off with its body). Mods without
+## `into` items stay where they were.
+func merge_pickers(from: Array, into: String) -> void:
+	for f in from:
+		picker_merge[f] = into
+	_rebuild_all()
 
 
 func remove_picker(key: String) -> void:
@@ -243,6 +260,57 @@ func remove_picker(key: String) -> void:
 	var gone: Array = picker_entries.get(key, [])
 	entries = entries.filter(func(e): return not e in gone)
 	picker_entries.erase(key)
+	var merged := false
+	for f in picker_merge.keys():
+		if f == key or picker_merge[f] == key:
+			picker_merge.erase(f)
+			merged = true
+	if merged:
+		_rebuild_all()
+
+
+## Builds every list again from the mods scanned so far (the merge rules changed), keeping each picker's current
+## option (the hair, the background and the clothes pickers point at their entries by index).
+func _rebuild_all() -> void:
+	if _seen.is_empty():
+		return
+	var menu = g.inGameMenu
+	var helpers := {}
+	for e in entries:
+		if e.has("helper"):
+			helpers[e["helper"]] = true
+	var cur_hair := _at(hair_entries, menu.hairModIndex) if menu != null else {}
+	var cur_bg := _at(bg_entries, menu.bgModIndex) if menu != null else {}
+	var cur_helper := {}
+	for h in helpers:
+		cur_helper[h] = _at(h.modEntries, h.modEntryIndex)
+		h.modEntries.clear()
+	entries = []
+	hair_entries.clear()
+	bg_entries.clear()
+	for k in picker_entries:
+		picker_entries[k] = []
+	for s in _seen:
+		_add(s[0], s[1], null, false)
+	if menu != null:
+		menu.hairModIndex = _refind(hair_entries, cur_hair)
+		menu.bgModIndex = _refind(bg_entries, cur_bg)
+	for h in cur_helper:
+		h.modEntryIndex = _refind(h.modEntries, cur_helper[h])
+
+
+static func _at(list: Array, i: int) -> Dictionary:
+	return list[i] if i >= 0 and i < list.size() else {}
+
+
+## The index of the entry for the same mod and items as `old` (-1: gone, e.g. merged into another list).
+static func _refind(list: Array, old: Dictionary) -> int:
+	if old.is_empty():
+		return -1
+	for i in list.size():
+		if list[i]["path"] == old["path"] and list[i]["items"] == old["items"]:
+			return i
+	return -1
 
 
 ## Whether the entry's mod is on (some of its items are placed).
@@ -264,8 +332,8 @@ func remove_entry(e: Dictionary) -> void:
 
 
 ## Adds a mod's items to the pickers they belong to (only_key: just to that extension list).
-func _add(path: String, cat: Dictionary, only_key = null) -> void:
-	if only_key == null:
+func _add(path: String, cat: Dictionary, only_key = null, remember := true) -> void:
+	if only_key == null and remember:
 		_seen.append([path, cat])
 	var rel := _relative(path)
 	var title: String = cat.get("modName", "")
@@ -297,7 +365,7 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 		var key = _picker_key(it)
 		if key == null and body_only and it["modType"] == ModTypes.BODY:
 			key = BODY_MODS_LIST
-		if key == null or (only_key != null and not is_same(key, only_key)):
+		if key == null:
 			continue
 		if moved is CharacterElementHelper and key is CharacterElementHelper:
 			key = moved
@@ -314,10 +382,12 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 		e["items"].append(int(it["item"]))
 		if not e["modTypes"].has(it["modType"]):
 			e["modTypes"].append(it["modType"])
-	groups = _merge_costume_groups(groups)
+	groups = _merge_costume_groups(_merge_pickers(groups))
 	for gr in groups:
 		var key = gr[0]
 		var e: Dictionary = gr[1]
+		if only_key != null and not is_same(key, only_key):
+			continue
 		entries.append(e)
 		var list: Array
 		if key is String and picker_entries.has(key):
@@ -331,6 +401,27 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 			list = key.modEntries
 		list.append(e)
 		_dedupe(list, e)
+
+
+## picker_merge: a mod's entry for one list joins its entry for another.
+func _merge_pickers(groups: Array) -> Array:
+	if picker_merge.is_empty():
+		return groups
+	var by_key := {}
+	for gr in groups:
+		if gr[0] is String:
+			by_key[gr[0]] = gr
+	for gr in groups.duplicate():
+		var into = picker_merge.get(gr[0] if gr[0] is String else COSTUME)
+		if into == null or not by_key.has(into):
+			continue
+		var e: Dictionary = by_key[into][1]
+		e["items"].append_array(gr[1]["items"])
+		for t in gr[1]["modTypes"]:
+			if not e["modTypes"].has(t):
+				e["modTypes"].append(t)
+		groups.erase(gr)
+	return groups
 
 
 ## A mod's costume options (pickers that are element helpers) become one, in the first slot of SLOT_ORDER; the
@@ -454,6 +545,9 @@ static func _file_title(path: String) -> String:
 
 ## The picker an item goes to: a costume element helper, "hair", or null (not selectable, e.g. Loader-only types).
 func _picker_key(it: Dictionary):
+	var named = picker_types.get("%s/%s" % [it["modType"], it.get("name", "")])
+	if named != null:
+		return named
 	if picker_types.has(it["modType"]):
 		return picker_types[it["modType"]]
 	if it["modType"] in HAIR_TYPES:
@@ -489,6 +583,7 @@ func apply(e: Dictionary) -> void:
 	var mods = root.get("mods") if root != null else null
 	if not mods is Array:
 		return
+	mod.run_initl(root)
 	var pkg := LoadedModPackage.new("swfMod")
 	var items := _applied_items(e)
 	pkg.setFilePath("%s|%s" % [e["path"], "+".join(PackedStringArray(items.map(func(i): return str(i))))])
@@ -508,6 +603,35 @@ func apply(e: Dictionary) -> void:
 	pkg.modItems = mods.duplicate()
 	cel.updateInstancedModElements()
 	g.inGameMenu.charStoring.populateMods()
+
+
+## Frees what an entry's items take the place of, as the hair and clothes pickers do before they put a mod on: her
+## hairstyle and the hair mods for a hairstyle (static hair: dynamic hair alone may be cables or wings),
+## a clothes slot's own piece and mods for clothes items. For entries that hold such items outside those pickers
+## (merge_pickers: ExtraMod's whole-body mods).
+func clear_slots_for(e: Dictionary) -> void:
+	var cel := g.customElementLoader
+	var cc := g.characterControl
+	var types: Array = e["modTypes"]
+	if types.has(ModTypes.HAIR):
+		if cc.customHairLoaded:
+			cel.clearCustomHair(false)
+			cc.customHairLoaded = false
+		cc.clearHair()
+		cel.clearModTypes(HAIR_TYPES)
+		if g.inGameMenu != null:
+			g.inGameMenu.hairModIndex = -1
+	for t in types:
+		var h = _picker_key({"modType": t, "targetElement": "", "name": ""})
+		if not h is CharacterElementHelper:
+			continue
+		h.clearWholeTint()
+		if h.associatedModType:
+			cel.clearModTypes([h.associatedModType])
+		if h.modEntryIndex >= 0 and h.modEntryIndex < h.modEntries.size() and h.modEntries[h.modEntryIndex] != e:
+			remove(h.modEntries[h.modEntryIndex])
+		h.modEntryIndex = -1
+		h.findName("None")
 
 
 ## An entry's items with its companions, in the mod's order.

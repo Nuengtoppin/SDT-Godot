@@ -1,0 +1,137 @@
+extends SDTExtension
+## Built-in reimplementation of the Loader mod dynamicHairExtender (stuntcock, v5.91; the fork ExtraMod mods bundle,
+## extraModDHE 0.1): extra settings for dynamic hair strands, so mods that use them (wings, cables, machines anchored
+## to her body) hang where their authors put them. Written from its behaviour.
+##
+## A dynamic hair item with any of these settings is built by this extension instead of the game (items with the
+## game's own damping / topDamping / gravityAngle stay the game's):
+##   anchorContainer   path from the game object (e.g. "her.torso.back"): the strand hangs from it, its first
+##                     segment's position read in that container's coordinates (default: her head, as the game)
+##   visualParent      path: the container the strand is drawn in (placed through global coordinates)
+##   visualChildIndex, segmentVisualIndex, maskPath, autoPlay, reverseSegmentOrder, useSkinPalette (per segment),
+##   modTypeReplacer   the item counts as that mod type (wings that go on and off with a top)
+##   anchored, rotationBlending, linkWeights, simCyclesPerUpdate, maxCyclesPerUpdate, slavedUpdates, doNotSimulate,
+##   sharedLinkInfluences, proximal/distalElasticityFactors, allowElongations, allowCompressions, blendingExclusions,
+##   relativeRotationTargets / Multipliers, minRotations / maxRotations, anchorSource, hideAnchor, isotropicScaling:
+##                     DHE's physics (dhe_rope.gd)
+##   Segments named SHARED_<x> share their link with other strands' segments of the same name.
+## Not supported: rgbElement, floorAtKneeLevel, monitorTension, orientationSource (DHE stores it but does not use
+## it), custom objects of other Loader mods (loaderObject).
+
+const DheRope := preload("res://src/ext/dynamichair/dhe_rope.gd")
+## Any of these on a dynamic hair item: this extension builds it.
+const FIELDS := ["anchorContainer", "visualParent", "visualChildIndex", "segmentVisualIndex", "maskPath",
+	"modTypeReplacer", "anchored", "rotationBlending", "linkWeights", "simCyclesPerUpdate", "maxCyclesPerUpdate",
+	"slavedUpdates", "doNotSimulate", "sharedLinkInfluences", "proximalElasticityFactors", "distalElasticityFactors",
+	"allowElongations", "allowCompressions", "blendingExclusions", "relativeRotationTargets",
+	"relativeRotationMultipliers", "minRotations", "maxRotations", "anchorSource", "useSkinPalette",
+	"reverseSegmentOrder", "autoPlay", "isotropicScaling"]
+
+var shared_links := {}   # SHARED_<x> segment name -> [link, the strand that owns it]
+var shared_ropes := {}   # strand graphic name -> strand (one that owns a shared link; maskPath can name it)
+var ropes: Array = []    # the strands built here, while they live
+
+
+func _init() -> void:
+	id = "dynamichair"
+	title = "Dynamic Hair Extender"
+	description = "dynamicHairExtender (stuntcock): dynamic hair strands that hang from any part of her, sit in any layer and keep their shape (stiffness, rotation limits, shared links), for mods made with it (many ExtraMod mods: wings, cables)."
+	default_enabled = true
+
+
+func _enable() -> void:
+	hook_before(&"CustomElementLoader.addDynamicHairMod", _add)
+	hook_after(&"CharacterControl.setSkin", func(h):
+		for r in ropes:
+			r.set_skin(h.args[0]))
+
+
+func _disable() -> void:
+	shared_links.clear()
+	shared_ropes.clear()
+
+
+func _add(h) -> void:
+	var m = h.args[0]
+	if m == null:
+		return
+	for k in ["damping", "topDamping", "gravityAngle"]:   # DHE leaves the game's own settings to the game
+		var v = m.get(k)
+		if v is float or v is int:
+			return
+	if m.get("targetElement") == null or not FIELDS.any(func(k): return m.get(k) != null):
+		return
+	h.cancel()
+	_build(m)
+
+
+## DHE's addDynamicHairMod: the strand in its target (or visual parent), hanging from its anchor container.
+func _build(m) -> void:
+	var cel = g.customElementLoader
+	if m.get("modTypeReplacer") != null:
+		m.set("modType", str(m.modTypeReplacer))
+	var helper = cel.modTargetHelpers.get(str(m.targetElement))
+	if helper == null:
+		push_warning("dynamicHairExtender: no target %s" % m.targetElement)
+		return
+	var layer = helper.targetDictionary["target"]
+	var mod_type := str(m.get("modType"))
+	if DheRope._truthy(m.get("overwrite")):
+		shared_links.clear()
+		shared_ropes.clear()
+		match mod_type:
+			ModTypes.DYNAMIC_HAIR:
+				cel.clearModTypes([ModTypes.DYNAMIC_HAIR])
+				cel.clearModTypes([ModTypes.HAIR_COSTUME])
+			_:
+				cel.clearModTypes([mod_type])
+	var container = null
+	if m.get("anchorContainer") != null:
+		container = find_path(g, str(m.anchorContainer))
+		if container == null:
+			push_warning("dynamicHairExtender: anchorContainer '%s' was not recognized" % m.anchorContainer)
+	if m.get("visualParent") != null:
+		var vp = find_path(g, str(m.visualParent))
+		if vp == null:
+			push_warning("dynamicHairExtender: visualParent '%s' was not recognized" % m.visualParent)
+		else:
+			layer = vp
+	var rope = DheRope.new(self, m, layer, container, 0.0)
+	var tog = m.get("toggleable")
+	if tog != null and not DheRope._truthy(tog):
+		rope.makeUnToggleable()
+	rope.setup(m)
+	ropes.append(rope)
+	var lm := LoadedMod.new(cel.loadingModPackage, cel._settings(m), rope)
+	cel.instancedModElements.append(lm)
+	if cel.loadingModPackage != null:
+		cel.loadingModPackage.addElement(lm)
+
+
+## DHE's findObjectByPath: each step a child of that name (the topmost), else a property.
+func find_path(from, path: String):
+	var o = from
+	for part in path.split("."):
+		if o == null:
+			return null
+		var found = null
+		if o is FlashSprite:
+			for i in range(o.numChildren - 1, -1, -1):
+				if str(o.getChildAt(i).flash_name) == part:
+					found = o.getChildAt(i)
+					break
+		if found == null and o is Object:
+			found = o.get(part)
+		o = found
+	return o if o is FlashDisplayObject else null
+
+
+## A strand went (its mod was taken off): its shared links and its name are free again.
+func forget(rope) -> void:
+	ropes.erase(rope)
+	for n in shared_links.keys():
+		if shared_links[n][1] == rope:
+			shared_links.erase(n)
+	for n in shared_ropes.keys():
+		if shared_ropes[n] == rope:
+			shared_ropes.erase(n)

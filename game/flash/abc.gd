@@ -2,8 +2,9 @@ class_name FlashAbc
 extends RefCounted
 ## ActionScript 3 bytecode (ABC, from DoABC tags) for SWF mods: a parser and a small interpreter for the code mods
 ## actually run - timeline frame scripts (the "frameN" methods Flash CS compiles them into), such as
-## `this.modType = ModTypes.BOTTOMS` or `registerMod(Skirt); modName = "..."`. The SDT mod kit's own classes
-## (SDTMods.ModPackage, ModTypes, ...) are implemented natively by the game, not interpreted.
+## `this.modType = ModTypes.BOTTOMS` or `registerMod(Skirt); modName = "..."`, and a package's initl
+## (FlashSwfMod.run_initl). The SDT mod kit's own classes (SDTMods.ModPackage, ModTypes, ...) are implemented
+## natively by the game, not interpreted.
 
 var strings: PackedStringArray = [""]
 var ints: Array = [0]
@@ -316,7 +317,12 @@ func _in() -> String:
 	return " (%s)" % source if source != "" else ""
 
 
+static var quiet := false   # no warnings (code run without the Loader, e.g. a package's initl: it fails as expected)
+
+
 static func _warn(msg: String) -> void:
+	if quiet:
+		return
 	if not _warned.has(msg):
 		_warned[msg] = true
 		push_warning(msg)

@@ -126,6 +126,7 @@ func step(_frame: int) -> void:
 				_extramod_checks()
 				_shock_spray_veto_checks()
 				_extramodhim_checks()
+				_dynamichair_checks()
 				_leglayer_checks()
 				_aimpenis_checks()
 				_regulaterandom_checks()
@@ -269,6 +270,117 @@ func _extramod_checks() -> void:
 		futa._flash_parent == her.torso.penisContainer and futa.visible == (her._penisControl.currentPenisID != 0))
 	cel.clearInstancedMods()
 	_check("ExtraMod cleared: the game's dialogue box and text colour back", box.visible and field.textColor == color0)
+	# BodyExpanded: parts beside her own, vanillaOverwrite hides hers (the calf: her children 0 and 2), clearing
+	# brings them back
+	_check("ExtraMod body type", helpers.has("BodyExpanded") and cat.picker_types.get("BodyExpanded") == "extramod_body")
+	var mcat := {"modName": "EM merge test", "items": [
+		{"item": 0, "modType": "BodyHead", "name": "", "targetElement": ""},
+		{"item": 1, "modType": "BodyExpanded", "name": "", "targetElement": ""},
+		{"item": 2, "modType": "DynamicHair", "name": "", "targetElement": ""}]}
+	var fcat := {"modName": "EM face test", "items": [{"item": 0, "modType": "BodyHead", "name": "", "targetElement": ""}]}
+	cat._add("test/em_merge.swf", mcat)
+	cat._add("test/em_face.swf", fcat)
+	var mine := func(k): return cat.picker_entries[k].filter(func(e): return e["path"].begins_with("test/em_"))
+	var whole: Array = mine.call(em.BODY_LIST)
+	var face: Array = mine.call(em.LIST)
+	var hair_e: Array = cat.hair_entries.filter(func(e): return e["path"].begins_with("test/em_"))
+	_check("ExtraMod whole-body mod: one switch in the body list with its head and hair items, a face mod stays in the face list",
+		whole.size() == 1 and whole[0]["items"] == [1, 0, 2] and face.size() == 1 and face[0]["path"] == "test/em_face.swf"
+		and hair_e.is_empty(), "%s %s %s" % [whole, face, hair_e])
+	var test_e: Array = whole + face
+	cat.entries = cat.entries.filter(func(e): return not e in test_e)
+	for k in [em.BODY_LIST, em.LIST]:
+		cat.picker_entries[k] = cat.picker_entries[k].filter(func(e): return not e in test_e)
+	cat._seen = cat._seen.filter(func(s): return not s[0].begins_with("test/em_"))
+	var hand = em.body.target("altrighthand")
+	var calf = em.body.target("altrightcalf")
+	var own_hand: Array = em.body._own_children(hand)
+	var own_calf: Array = em.body._own_children(calf)
+	var vis_before := (own_hand + own_calf).map(func(o): return o.visible)
+	var upper = em.body.target("altleftupperarm")
+	var upper_vis: bool = upper.visible
+	upper.visible = false   # as the game hides it (her arms behind her back): clearing must not show it
+	pkg = LoadedModPackage.new("swfMod")
+	pkg.setFilePath("test/em_body.swf|0")
+	cel.loadedModPackages.append(pkg)
+	cel.loadingModPackage = pkg
+	var bodymod := FlashMovieClip.new()
+	bodymod.set("modType", "BodyExpanded")
+	bodymod.set("vanillaOverwrite", true)
+	for n in ["altrighthand", "altrightcalf"]:
+		var part := FlashMovieClip.new()
+		part.flash_name = n
+		bodymod.addChild(part)
+	cel.parseMod(bodymod)
+	cel.loadingModPackage = null
+	var hparts: Array = em.body._parts("altrighthand")
+	_check("ExtraMod body mod: parts in her hand and calf, her own hidden",
+		hparts.size() == 1 and hparts[0]._flash_parent == hand and em.body._parts("altrightcalf").size() == 1
+		and own_hand.all(func(o): return not o.visible) and not own_calf[0].visible and not own_calf[2].visible,
+		"%s %s" % [hparts, own_calf.map(func(o): return o.visible)])
+	cel.clearInstancedMods()
+	_check("ExtraMod body mod cleared: her own parts back, the parts the game hid still hidden",
+		em.body._parts().is_empty() and (own_hand + own_calf).map(func(o): return o.visible) == vis_before
+		and not em.body.on and not upper.visible)
+	upper.visible = upper_vis
+
+
+## Dynamic Hair Extender: a strand with DHE settings is built by it (anchor container, visual parent, its physics,
+## shared links), a plain one stays the game's; clearing takes both off.
+func _dynamichair_checks() -> void:
+	var dh: SDTExtension = Extensions.get_extension("dynamichair")
+	_check("Dynamic Hair Extender on by default", dh != null and dh.enabled)
+	if dh == null or not dh.enabled:
+		return
+	var her: Her = g.her
+	var cel = g.customElementLoader
+	var strand := func(n: String, settings: Dictionary) -> FlashMovieClip:
+		var m := FlashMovieClip.new()
+		m.flash_name = n
+		m.set("modType", "DynamicHair")
+		m.set("targetElement", "dynamicHairOver")
+		for k in settings:
+			m.set(k, settings[k])
+		for i in 3:
+			var seg := FlashMovieClip.new()
+			seg.flash_name = "SHARED_link%d" % i if n != "plain" else ""
+			seg.y = i * 20.0
+			seg.addChild(FlashShape.new())
+			m.addChild(seg)
+		return m
+	var pkg := LoadedModPackage.new("swfMod")
+	pkg.setFilePath("test/dhe.swf|0")
+	cel.loadedModPackages.append(pkg)
+	cel.loadingModPackage = pkg
+	var a: FlashMovieClip = strand.call("a", {"anchorContainer": "her.torso.back", "visualParent": "her.torso.back",
+		"rotationBlending": 0.5, "linkWeights": {"0": 0, "1.0": 3}, "modTypeReplacer": "CostumeTop"})
+	var b: FlashMovieClip = strand.call("b", {"anchorContainer": "her.torso.back", "slavedUpdates": true, "anchored": true})
+	var plain: FlashMovieClip = strand.call("plain", {})
+	for m in [a, b, plain]:
+		cel.parseMod(m)
+	cel.loadingModPackage = null
+	var ropes: Array = dh.ropes.filter(func(r): return r.ropeGraphic in [a, b])
+	var ra = ropes[0] if ropes.size() == 2 else null
+	var rb = ropes[1] if ropes.size() == 2 else null
+	_check("DHE strands: built by the extension, in their visual parent, hanging from their anchor container",
+		ra != null and ra.extended and ra._flash_parent == her.torso.back and ra.ropeAnchorContainer == her.torso.back
+		and ra.links[1].mass == 3.0 and ra.links[0].mass == 0.0 and rb.slavedUpdates,
+		"%s" % [ropes.map(func(r): return [r.extended, r._flash_parent.flash_name])])
+	var lms: Array = cel.instancedModElements.filter(func(lm): return lm._mod == ra)
+	_check("DHE modTypeReplacer: the strand counts as that type", lms.size() == 1 and lms[0].modType == "CostumeTop")
+	_check("DHE shared links: same-named segments share their links, the slaved strand joins the other",
+		ra != null and ra.links[2] == rb.links[2] and ra.sharedRopes.has(rb) and rb.sharedRopes.has(ra))
+	var plain_rope = plain._flash_parent
+	_check("DHE: a strand without its settings stays the game's", plain_rope is Rope and not dh.ropes.has(plain_rope))
+	for i in 5:
+		ra.move()
+	ra._links_to_anchors(true)
+	var finite: bool = (ra.links + rb.links).all(func(l): return is_finite(l.x) and is_finite(l.y))
+	_check("DHE physics: steps leave every link finite, the anchor link on her back", finite
+		and Vector2(ra.links[0].x, ra.links[0].y).is_equal_approx(g.sceneLayer.globalToLocal(her.torso.back.localToGlobal(ra.ropeAnchorPoint))))
+	cel.clearInstancedMods()
+	_check("DHE cleared: its strands and shared links gone", dh.ropes.is_empty() and dh.shared_links.is_empty(),
+		"%d %s" % [dh.ropes.size(), dh.shared_links.keys()])
 
 
 ## ExtraModHim (his body and penis so far): types registered, follow his body change, off removes them.
@@ -896,7 +1008,7 @@ func _swallowing_checks() -> void:
 func _counted(name: StringName, fn: Callable) -> int:
 	var n := [0]
 	var count := func(_c): n[0] += 1
-	Hooks.add_before(name, count, "count")
+	Hooks.add_before(name, count, "count", -1000000)   # first: counts the call before an extension cancels it (moremoods: no wince in some moods)
 	fn.call()
 	Hooks.remove(name, count)
 	return n[0]
