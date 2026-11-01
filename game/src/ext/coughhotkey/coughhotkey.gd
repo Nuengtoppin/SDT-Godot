@@ -29,5 +29,5 @@ func cough() -> void:
 	else:
 		g.soundControl.stopBreathing(true)
 		g.soundControl.playOpenCough()
-		g.soundControl.openCoughing = true
-		g.soundControl.breathing = true
+		g.soundControl.openCoughing = true   # direct: the key's open cough, as the game's own open cough sets it
+		g.soundControl.breathing = true   # direct: the key's open cough, as the game's own open cough sets it

@@ -1,10 +1,17 @@
 extends RefCounted
 ## moremoods, her face per mood: eyebrows, eyelids, pupils (shock), where she looks, eye roll, mouth hang, lips.
-## Runs in hooks after Her.updateEyes, updateElements, updateLips, lookAt, blink, changeLookTarget and wakeUp, as the
-## Loader mod did, and as value point modifiers for her gaze and eyelids. Numbers follow moremoods v18 (Flash rotation =
+## Runs in hooks after Her.updateEyes, updateLips, lookAt, blink and changeLookTarget, as the Loader mod did, and as
+## value point modifiers for her gaze, eyelids, shock, iris size, jaw, mouth openness, wince and waking. Numbers follow moremoods v18 (Flash rotation =
 ## rotation_degrees here).
 
 var mm   # moremoods.gd
+
+const NO_WINCE := ["Broken", "Horny", "Android", "Numb", "Asleep"]   # moods that don't squint as she winces
+
+## Her mood doesn't wince (wincecontrol skips the wince for it).
+var skip_wince: bool:
+	get:
+		return mm.mood_name in NO_WINCE
 
 # eye roll button (0 off, 1 eye roll, 2 eye roll and cross-eyed while passing out) and upper eyelid limit
 var eyeroll_mode := 0
@@ -19,7 +26,6 @@ var trying_penis := false
 var angry_look_flag := false
 var eye_look_timer := 0
 var angry_brows := false
-var skip_wince := false
 var lower_eyelid_level := 0
 var _prev_lower_level := 0
 var _prev_lower_lid := 0
@@ -44,8 +50,15 @@ func hook() -> void:
 	mm.modify(&"Her.upperEyelid", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(_v, _her): return eyelids()[0]})
 	mm.modify(&"Her.lowerEyelid", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(_v, _her): return _lids[1]})
 	mm.modify(&"Her.jawAngle", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, _her): return hang_jaw(v)})
-	mm.hook_before(&"Her.updateElements", func(_c): update_elements_pre())
-	mm.hook_after(&"Her.updateElements", func(_c): update_elements())
+	# her mood's eyes, mouth and wince through value points (they used to overwrite the game's after it)
+	mm.modify(&"Her.eyelidShock", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, her): return mood_shock(v, her)})
+	mm.modify(&"Her.irisScale", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(v, her): return mood_iris(v, her)})
+	mm.modify(&"Her.irisScale", {"phase": Hooks.CLAMP, "op": "clamp", "min": 0.0})
+	mm.modify(&"Her.mouthOpenness", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, _her): return mood_mouth_openness(v)})
+	mm.modify(&"Her.winceTime", {"phase": Hooks.MOOD, "op": "set", "value": 0,
+		"when": func(_her): return skip_wince})
+	mm.modify(&"Her.wakeShock", {"phase": Hooks.MOOD, "op": "set", "value": 25.0, "when": func(_her): return mm.mood_name == "Spent"})
+	mm.modify(&"Her.wakeGaze", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, _her): return mood_wake_gaze(v)})
 	mm.hook_after(&"Her.updateLips", func(_c): update_lips())
 	mm.hook_after(&"Her.blink", func(_c): toggle_out_eyes = not toggle_out_eyes)
 	mm.hook_before(&"Her.changeLookTarget", func(c): _change_look_target(c.args[0]))
@@ -54,7 +67,6 @@ func hook() -> void:
 	mm.modify(&"Her.lookTarget", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, _her): return mood_point(v)})
 	mm.modify(&"Her.gazeAngle", {"phase": Hooks.GENERATE, "op": "fn", "fn": func(_v, _her): return gaze_angle()})
 	mm.hook_after(&"Her.lookAt", func(_c): _after_look())
-	mm.hook_after(&"Her.wakeUp", func(_c): wake_up())
 
 
 func s(key: String):
@@ -270,47 +282,43 @@ func clear_lower_eyelid() -> void:
 		tears.releaseTears()
 
 
-# ---------------------------------------------------------------- pupils, wince, mouth hang (Her.updateElements)
+# ---------------------------------------------------------------- shock, pupils, mouth (value points)
 
-func update_elements_pre() -> void:
+## Her mood's shock (MOOD modifier of Her.eyelidShock): frightened moods and Tease as she runs out of air look shocked.
+func mood_shock(v: float, her) -> float:
 	var m: String = mm.mood_name
-	if m in ["Broken", "Horny", "Android", "Numb", "Asleep"]:
-		g.her.winceTimer = 0
-		skip_wince = true
-	else:
-		skip_wince = false
-
-
-func update_elements() -> void:
-	var her = g.her
-	var m: String = mm.mood_name
-	var iris = her.eye.ball.irisContainer.iris
-	iris.scaleX = maxf(0, iris.scaleX)
-	iris.scaleY = maxf(0, iris.scaleY)
-	var em: Dictionary = her.eyelidMotion
+	var pof: float = her.passOutFactor / her.passOutMax
 	if m in ["Frightened", "Nervous", "Excited", "Overwhelmed"]:
-		var target := 30 if m == "Excited" else 60
-		em["shock"] = maxf(em["shock"], target - 30.0 * her.passOutFactor / her.passOutMax)
-		_iris(0.9 - (0.25 - target / 400.0) - maxf(em["shock"], her.eyelidShock) / 200.0)
-	if m == "Android":
-		var t := 0.65 - minf(1, her.passOutFactor / her.passOutMax) / 6.0
-		iris.scaleX = t
-		iris.scaleY = t
+		return maxf(v, (30.0 if m == "Excited" else 60.0) - 30.0 * pof)
 	if m == "Tease" and her.passOutFactor > 0:
-		em["shock"] = maxf(em["shock"], 60.0 * her.passOutFactor / her.passOutMax)
-		_iris(0.9 - (0.25 - em["pos"] / 400.0) - maxf(em["shock"], her.eyelidShock) / 200.0)
+		return maxf(v, 60.0 * pof)
+	return v
+
+
+## Her mood's iris size (GENERATE modifier of Her.irisScale; her.eyelidShock already has mood_shock in it).
+func mood_iris(v: float, her) -> float:
+	var m: String = mm.mood_name
+	var pos: float = her.eyelidMotion["pos"]
+	if m in ["Frightened", "Nervous", "Excited", "Overwhelmed"]:
+		var target := 30.0 if m == "Excited" else 60.0
+		return 0.9 - (0.25 - target / 400.0) - her.eyelidShock / 200.0
+	if m == "Android":
+		return 0.65 - minf(1, her.passOutFactor / her.passOutMax) / 6.0
+	if m == "Tease" and her.passOutFactor > 0:
+		return 0.9 - (0.25 - pos / 400.0) - her.eyelidShock / 200.0
 	if m in ["Depressed", "Drugged", "Spent", "Elated", "Broken"]:
-		_iris(0.9 - (0.25 - em["pos"] / 400.0) - maxf(em["shock"], her.eyelidShock) / (600.0 if m == "Broken" else 300.0))
+		return 0.9 - (0.25 - pos / 400.0) - her.eyelidShock / (600.0 if m == "Broken" else 300.0)
+	return v
+
+
+## How open her mouth counts as (MOOD modifier of Her.mouthOpenness): quieter breathing in some moods.
+func mood_mouth_openness(v: float) -> float:
+	var m: String = mm.mood_name
 	if m == "Excited" or m == "Asleep":
-		g.herMouthOpeness = minf(0.6, g.herMouthOpeness)
+		return minf(0.6, v)
 	if m == "Overwhelmed" or m == "Numb":
-		g.herMouthOpeness = minf(0.7, g.herMouthOpeness)
-
-
-func _iris(v: float) -> void:
-	var iris = g.her.eye.ball.irisContainer.iris
-	iris.scaleX = maxf(0, v)
-	iris.scaleY = maxf(0, v)
+		return minf(0.7, v)
+	return v
 
 
 ## How far her mouth hangs open for her mood when nothing else moves the jaw (MOOD modifier of Her.jawAngle: `r` is
@@ -337,7 +345,7 @@ func hang_jaw(r: float) -> float:
 		t = minf(t, minf(r, linear_scale(0, -9, g.breathLevelMax, 5, g.currentBreathLevel)))
 	else:
 		return r
-	her.jawAngleTarget = t
+	her.jawAngleTarget = t   # direct: her mood's jaw target, so the game's own easing heads there too (as the mod did)
 	return r + (t - r) / divisor
 
 
@@ -357,9 +365,9 @@ func update_lips() -> void:
 	her.bottomLipstick.gotoAndStop(low + 2)
 	her.topLipstickContainer.topLipstick.gotoAndStop(up + 2)
 	her.tongueContainer.gotoAndStop(low + 2)
-	her.tongueContainer.rotation_degrees = her.head.jaw.rotation_degrees
-	her.lastUpperLipPos = up
-	her.lastLowerLipPos = low
+	her.tongueContainer.rotation_degrees = her.head.jaw.rotation_degrees   # direct: the angry lips: drawn over the game's lips, as vanilla's angry mood does
+	her.lastUpperLipPos = up   # direct: the angry lips: drawn over the game's lips, as vanilla's angry mood does
+	her.lastLowerLipPos = low   # direct: the angry lips: drawn over the game's lips, as vanilla's angry mood does
 	var face = her.head.face
 	for x in [face.lipHighlight, face.lipShading, face.lipFill, face.lipOutline, her.head.headTan.face.lipFill, her.head.headTan.face.lipOutline]:
 		x.gotoAndStop(up)
@@ -507,22 +515,20 @@ func _after_look() -> void:
 	var ic = her.eye.ball.irisContainer
 	if m == "Drugged":
 		ic.x = -54
-		her.eye.ball.highlights.x = 17
+		her.eye.ball.highlights.x = 17   # direct: her mood's iris offset (art placement; the game never moves it)
 	if eyeroll_mode == 2 or m == "Broken":
 		var cock := clampf(her.passOutFactor / her.passOutMax, 0, 1)
 		ic.x = -54 - 6 * cock
-		her.eye.ball.highlights.x = 17 - 5 * cock
+		her.eye.ball.highlights.x = 17 - 5 * cock   # direct: her mood's iris offset (art placement; the game never moves it)
 
 
-# ---------------------------------------------------------------- waking up (after Her.wakeUp)
+# ---------------------------------------------------------------- waking up (value point)
 
-func wake_up() -> void:
-	var her = g.her
-	var m: String = mm.mood_name
-	if m == "Spent":
-		her.eyeMotion["ang"] = 80.0
-		her.eye.ball.irisContainer.rotation_degrees = her.eyeMotion["ang"] - 90
-		her.eyelidMotion["shock"] = 25
-	if m == "Submissive":
-		her.eyeMotion["ang"] = 110.0
-		her.eye.ball.irisContainer.rotation_degrees = her.eyeMotion["ang"] - 90
+## Where her eyes start from as she wakes (MOOD modifier of Her.wakeGaze): Spent from below, Submissive from above.
+func mood_wake_gaze(v: float) -> float:
+	match mm.mood_name:
+		"Spent":
+			return 80.0
+		"Submissive":
+			return 110.0
+	return v

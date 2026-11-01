@@ -97,20 +97,10 @@ func _enable() -> void:
 		"visible": on})
 
 
-func _disable() -> void:
-	_restore()
-
-
+## Switched off, her blush colour's own alpha shows again: the game's, once the Her.blushAlpha modifier stops applying.
 func _setting_changed(_key: String, value) -> void:
 	if not value:
 		_alpha = -1.0
-		_restore()
-
-
-## Her blush colour's own alpha back (the mod's toggle-off).
-func _restore() -> void:
-	if g.her != null and g.characterControl != null:
-		g.her.blush.alpha = g.characterControl.blushRGB.a
 
 
 func _reset_effects() -> void:

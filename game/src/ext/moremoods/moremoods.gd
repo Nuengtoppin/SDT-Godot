@@ -174,11 +174,11 @@ func set_mood(m: String) -> void:
 		face = m
 	her.setMouthShape(face)   # (value point Her.mouthShape may show another, e.g. progressiveExhaustion's tired mouth)
 	angry_lips = MOUTH.has(m) and face == "Angry"
-	her.currentMood = m if not MOUTH.has(m) and m != "Asleep" else "Normal"
+	her.currentMood = m if not MOUTH.has(m) and m != "Asleep" else "Normal"   # direct: the game's own mood for the moods it knows (its mouth and face follow it)
 	can_speak_level = 5 if m == "Asleep" and not get_setting("asleepspeakingdialog") else 10
 	random_timer = int(floor(randf() * 240)) + 300
-	her.eye.ball.irisContainer.x = -50.65
-	her.eye.ball.highlights.x = 20.95
+	her.eye.ball.irisContainer.x = -50.65   # direct: the iris back at its place in the art
+	her.eye.ball.highlights.x = 20.95   # direct: the highlights back at their place in the art
 	her.updateLips()
 	her.updateEyes()
 	g.characterControl.setLipFills()
@@ -192,7 +192,7 @@ func set_mood(m: String) -> void:
 		her.tongue.stopHangingOut()
 		always_tongue_out = false
 	if m != Her.ANGRY_MOOD:
-		her.clenchTeeth = false
+		her.clenchTeeth = false   # direct: a new mood lets go of her teeth (an event)
 	_update_label()
 	Moods.set_extended(m)
 
@@ -208,7 +208,7 @@ func bite_timer() -> int:
 
 
 func _store_dialogue_var() -> void:
-	g.dialogueControl.advancedController._dialogueDataStore["moremoods"] = mood_name
+	g.dialogueControl.advancedController._dialogueDataStore["moremoods"] = mood_name   # direct: the mood name for dialogues, as the mod did
 
 
 ## A character code's "moremoods" field wins over its vanilla "mood" (applied after it).

@@ -24,7 +24,6 @@ var throatBulgeAmount: float = 1.0
 var _tanLayer: FlashSprite
 var tanAlpha: float = 1.0
 ## Port: how far the swallow bulge pushes the neck out (x) and down (y); the throatcumbulge extension changes it.
-var swallowScale := Vector2(0.8, 0.5)
 ## Port: the last render's outline points and depth (a collar reads how far her throat pushes out; the developer panel).
 var renderedPoints: Array = []
 var lastDepth: float = 0.0
@@ -133,6 +132,9 @@ func render(depth: float) -> void:
 	var bulgeCap := 35.0
 	if Hooks.has_value(&"Neck.bulgeCap"):   # HOOK value point: the most the bulge pushes the neck out, in pixels
 		bulgeCap = Hooks.value(&"Neck.bulgeCap", self, bulgeCap)
+	var swallowScale := Vector2(0.8, 0.5)
+	if swallowing and Hooks.has_value(&"Neck.swallowScale"):   # HOOK value point: how a swallow pushes her neck out (x out, y down)
+		swallowScale = Hooks.value(&"Neck.swallowScale", self, swallowScale)
 	var band = null
 	if Hooks.has_value(&"Neck.band"):   # HOOK value point: a band that holds the front of her neck in (a collar), or null
 		band = Hooks.value(&"Neck.band", self, null)

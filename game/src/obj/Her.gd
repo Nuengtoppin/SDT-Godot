@@ -490,6 +490,8 @@ func setSpeaking(v: bool) -> void:
 			phonemeDelay = 0
 	elif speaking:
 		speakStopDelay = 3
+	if Hooks.has_value(&"Her.speakingMouth"):   # HOOK value point: her mouth's target as she starts or stops speaking (her.speaking: still the old state)
+		targetPhoneme = Hooks.value(&"Her.speakingMouth", self, targetPhoneme)
 	speaking = v
 	if Hooks.has(&"Her.setSpeaking"):   # HOOK
 		Hooks.after(&"Her.setSpeaking", self, [v])
@@ -519,8 +521,11 @@ func setTargetPhoneme(word: Dictionary, delay: int = 0) -> void:
 			return
 	if word.get("phoneme"):
 		targetPhoneme = word["phoneme"]
+		if Hooks.has_value(&"Her.targetPhoneme"):   # HOOK value point: the mouth shape a spoken word aims for (its phoneme)
+			targetPhoneme = Hooks.value(&"Her.targetPhoneme", self, targetPhoneme)
 		phonemeDelay = delay
-		if g.tongue and word.get("sayL") and not tongue.tongueOut and topLipTongue.currentFrameLabel == "Hidden":
+		if g.tongue and word.get("sayL") and targetPhoneme == word["phoneme"] and not tongue.tongueOut \
+				and topLipTongue.currentFrameLabel == "Hidden":
 			topLipTongue.gotoAndPlay("SayL")
 
 
@@ -1723,6 +1728,10 @@ func checkPosition() -> void:
 		else:
 			cough()
 		pos += randf() * 0.01 - 0.005
+	if Hooks.has_value(&"Her.pullOff"):   # HOOK value point: how hard she pulls back off him and its power, after the game's update ({pull, power})
+		var po: Dictionary = Hooks.value(&"Her.pullOff", self, {"pull": pullOff, "power": pullOffPower["current"]})
+		pullOff = po["pull"]
+		pullOffPower["current"] = po["power"]
 	if Hooks.has(&"Her.checkPosition"):   # HOOK
 		Hooks.after(&"Her.checkPosition", self, [])
 
@@ -1887,6 +1896,8 @@ func updateElements() -> void:
 	head.headTan.jaw.rotation_degrees = head.jaw.rotation_degrees
 	head.headTan.jawBack.rotation_degrees = head.jaw.rotation_degrees
 	g.herMouthOpeness = maxf(0.0, minf(1.0, 1.0 - head.jaw.rotation_degrees / closedJawAngle))
+	if Hooks.has_value(&"Her.mouthOpenness"):   # HOOK value point: how open her mouth counts as (0..1, from her jaw) for breath and drool
+		g.herMouthOpeness = Hooks.value(&"Her.mouthOpenness", self, g.herMouthOpeness)
 	updateLips()
 	if g.herMouthOpeness < 0.2:
 		if droolingCum:
@@ -2519,7 +2530,10 @@ func gulp() -> void:
 
 
 func swallowFromMouth() -> void:
-	var amount := mini(cumInMouth, int(floor(randf() * 5 + 5)))
+	var amount := int(floor(randf() * 5 + 5))
+	if Hooks.has_value(&"Her.swallowAmount"):   # HOOK value point: how much one swallow takes from her mouth (5-9 at random)
+		amount = int(Hooks.value(&"Her.swallowAmount", self, amount))
+	amount = mini(cumInMouth, maxi(0, amount))
 	cumInMouth -= amount
 
 

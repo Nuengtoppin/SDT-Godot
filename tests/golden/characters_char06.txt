@@ -227,6 +227,7 @@ currentPenisLengthScale=1.000
 currentPenisWidthScale=1.000
 penisPullScale=0.000
 currentBallSize=1.000
+ballsHome=(39.500,180.000)
 currentBalls=0
 penisTilt=10.693
 penisTiltSpeed=-0.030

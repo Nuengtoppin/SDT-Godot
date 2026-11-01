@@ -51,6 +51,7 @@ var penisType1: Penis
 var penisType2: Penis
 var penisTypes: Array = []
 var ballsNameArray: Array = ["None", "Normal"]
+var ballsHome := Vector2.ZERO   # port: his balls' place in the art (the value point Him.ballsOffset moves them from it)
 var currentBalls: int = 0
 var penisTilt: float = 0.0
 var penisTiltSpeed: float = 0.0
@@ -115,6 +116,7 @@ func _init() -> void:
 	super()
 	x = 420
 	y = 135
+	ballsHome = Vector2(balls.x, balls.y)
 	penisMask = Flash.create("HimMask")
 	addChild(penisMask)
 	penis.mask = penisMask
@@ -417,14 +419,27 @@ func setBalls(v: int) -> void:
 
 func setBallSize(v: float) -> void:
 	currentBallSize = MIN_BALL_SIZE + (MAX_BALL_SIZE - MIN_BALL_SIZE) * v
-	balls.scaleX = currentBallSize
-	balls.scaleY = currentBallSize
+	updateBalls()
 
 
 func setBallScale(v: float) -> void:
 	currentBallSize = maxf(MIN_BALL_SIZE, minf(MAX_BALL_SIZE, v))
-	balls.scaleX = currentBallSize
-	balls.scaleY = currentBallSize
+	updateBalls()
+
+
+## Port: his balls' scale (his ball size) and place (the art's), through the value points Him.ballScale and
+## Him.ballsOffset; call it after changing their modifiers.
+func updateBalls() -> void:
+	var s := currentBallSize
+	if Hooks.has_value(&"Him.ballScale"):   # HOOK value point: his balls' scale (his ball size)
+		s = Hooks.value(&"Him.ballScale", self, s)
+	balls.scaleX = s
+	balls.scaleY = s
+	var off := Vector2.ZERO
+	if Hooks.has_value(&"Him.ballsOffset"):   # HOOK value point: how far his balls sit from their place in the art
+		off = Hooks.value(&"Him.ballsOffset", self, off)
+	balls.x = ballsHome.x + off.x
+	balls.y = ballsHome.y + off.y
 
 
 var ballSizeSlider: float:
@@ -562,10 +577,16 @@ func move(p: float, mx: float, my: float) -> void:
 			mouthConstraintSmoothing = minf(1.0, mouthConstraintSmoothing + 0.4)
 	else:
 		mouthConstraintSmoothing = 0
-	if inMouth:
-		penisMask.x = -100 + p * 200
-	else:
-		penisMask.x = -100
+	penisMask.x = -100 + p * 200 if inMouth else -100.0
+	if Hooks.has_value(&"Him.mouthSmoothing"):   # HOOK value point: how much her mouth holds his penis's tilt (0..1)
+		mouthConstraintSmoothing = Hooks.value(&"Him.mouthSmoothing", self, mouthConstraintSmoothing)
+	var maskScale := 1.0
+	if Hooks.has_value(&"Him.penisMask"):   # HOOK value point: the mask over his penis {x, scale} (x: -100 hides it all)
+		var m: Dictionary = Hooks.value(&"Him.penisMask", self, {"x": penisMask.x, "scale": 1.0})
+		penisMask.x = m["x"]
+		maskScale = m["scale"]
+	if penisMask.scaleX != maskScale:
+		penisMask.scaleX = maskScale
 	balls.pushBalls(-currentBody.xDelta * 0.003, twitchFactor * -2.0)
 	balls.update()
 	penisTiltTarget = 11.0 - p * p * 6.0

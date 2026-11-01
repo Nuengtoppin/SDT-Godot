@@ -65,7 +65,7 @@ func register() -> void:
 	# her
 	t.call("WAKE_UP", 0, func(_a): g.her.wakeUp())
 	t.call("KNOCK_OUT", 0, func(_a): g.her.passOut())
-	t.call("DEEPTHROAT", 0, func(_a): g.her.maxIntroDist = 150)
+	t.call("DEEPTHROAT", 0, func(_a): g.her.maxIntroDist = 150)   # direct: the DEEPTHROAT trigger
 	t.call("RESET_RESIST", 0, func(_a): _reset_resist())
 	t.call("RANDOMIZE_HER", 0, func(_a): g.inGameMenu.shuffle())
 	t.call("MASTURBATE_ON", 0, func(_a): _masturbate_on())
@@ -80,13 +80,13 @@ func register() -> void:
 	# him
 	t.call("HIDE_HIM", 0, func(_a): _show_him(false))
 	t.call("SHOW_HIM", 0, func(_a): _show_him(true))
-	t.call("HIDE_HIS_ARM", 0, func(_a): if g.him.visible: g.him.armContainer.visible = false)
-	t.call("SHOW_HIS_ARM", 0, func(_a): if g.him.visible: g.him.armContainer.visible = true)
-	t.call("CUM", 0, func(_a): g.him.pleasure = g.him.ejacPleasure * 0.95; _cum_boost = true)
+	t.call("HIDE_HIS_ARM", 0, func(_a): if g.him.visible: g.him.armContainer.visible = false)   # direct: the HIDE_HIS_ARM trigger
+	t.call("SHOW_HIS_ARM", 0, func(_a): if g.him.visible: g.him.armContainer.visible = true)   # direct: the SHOW_HIS_ARM trigger
+	t.call("CUM", 0, func(_a): g.him.pleasure = g.him.ejacPleasure * 0.95; _cum_boost = true)   # direct: the CUM trigger
 	t.call("CUM_BLOCK_ON", 0, func(_a): blocking = true)
 	t.call("CUM_BLOCK_OFF", 0, func(_a): blocking = false)
-	t.call("HIDE_PENIS", 0, func(_a): g.him.currentPenis._tip.x = 0; g.him.penis.visible = false)
-	t.call("SHOW_PENIS", 0, func(_a): g.him.currentPenis._tip.x = -315; g.him.penis.visible = true)
+	t.call("HIDE_PENIS", 0, func(_a): g.him.currentPenis._tip.x = 0; g.him.penis.visible = false)   # direct: the HIDE_PENIS trigger
+	t.call("SHOW_PENIS", 0, func(_a): g.him.currentPenis._tip.x = -315; g.him.penis.visible = true)   # direct: the SHOW_PENIS trigger
 	t.call("HIDE_BALLS", 0, func(_a): g.him.setBalls(0))
 	t.call("SHOW_BALLS", 0, func(_a): g.him.setBalls(1))
 	# arms
@@ -97,9 +97,9 @@ func register() -> void:
 	t.call("ARMS_BREAST", 0, func(_a): _arm_breast(true); _arm_breast(false))
 	t.call("RUB_HIS_CROTCH_ON", 0, func(_a): _rub(true))
 	t.call("RUB_HIS_CROTCH_OFF", 0, func(_a): _rub(false))
-	t.call("FIX_ARMS", 0, func(_a): g.her.leftArmIK.reversedEnd = false; g.her.rightArmIK.reversedEnd = false; _rub(false))
-	t.call("FIX_LEFT_ARM", 0, func(_a): g.her.leftArmIK.reversedEnd = false)
-	t.call("FIX_RIGHT_ARM", 0, func(_a): g.her.rightArmIK.reversedEnd = false; _rub(false))
+	t.call("FIX_ARMS", 0, func(_a): g.her.leftArmIK.reversedEnd = false; g.her.rightArmIK.reversedEnd = false; _rub(false))   # direct: the FIX_ARMS trigger
+	t.call("FIX_LEFT_ARM", 0, func(_a): g.her.leftArmIK.reversedEnd = false)   # direct: the FIX_LEFT_ARM trigger
+	t.call("FIX_RIGHT_ARM", 0, func(_a): g.her.rightArmIK.reversedEnd = false; _rub(false))   # direct: the FIX_RIGHT_ARM trigger
 	# cleaning
 	t.call("CLEAN_CUM", 0, func(_a): g.strandControl.clearCumStrands())
 	t.call("CLEAN_SPIT", 0, func(_a): g.strandControl.clearSpitStrands())
@@ -154,11 +154,11 @@ func tick() -> void:
 		return
 	if _cum_boost:
 		if not g.him.ejaculating:
-			g.him.pleasure += maxf(g.him.ejacPleasure * 0.01 / 30.0 + 0.08, 0.06)
+			g.him.pleasure += maxf(g.him.ejacPleasure * 0.01 / 30.0 + 0.08, 0.06)   # direct: the CUM trigger: his pleasure rises until he cums, as DialogueActions did
 		else:
 			_cum_boost = false
 	if blocking:
-		g.him.maxPleasureTimer = 0
+		g.him.maxPleasureTimer = 0   # direct: the dialogue's orgasm block, as DialogueActions did (a Him.ejaculate veto would count as an edge in morecumspurts)
 	if masturbating:
 		_masturbate_tick()
 	elif _fixing:
@@ -193,7 +193,7 @@ func _gag() -> void:
 	if not _gagging:
 		_gagging = true
 		g.her.head.neck.swallow()
-		g.her.head.neck.swallowProgress = 0.94
+		g.her.head.neck.swallowProgress = 0.94   # direct: the gag trigger plays the swallow wave from its end, as DialogueActions did
 
 
 const VOICE_CLIPS := {"SLAP": ["Slap01"], "OW": ["Ow01", "Ow02"], "AH_HARD": ["AhHard01", "AhHard02", "AhHard03", "AhHard04", "AhHard05"],
@@ -283,10 +283,10 @@ func _reset_resist() -> void:
 	var menu = g.inGameMenu
 	her.setIntroResistance(menu.costumeMenu.resistanceSlider.currentValue(100))
 	her.setThroatResistance(menu.costumeMenu.throatResistanceSlider.currentValue(100))
-	her.maxIntroDist = her.introStartDist
-	her.firstDT = true
-	her.intro = true
-	g.him.deepestPos = 0
+	her.maxIntroDist = her.introStartDist   # direct: a trigger restarts her intro
+	her.firstDT = true   # direct: a trigger restarts her intro
+	her.intro = true   # direct: a trigger restarts her intro
+	g.him.deepestPos = 0   # direct: a trigger restarts her intro
 
 
 func _bounce(power: float) -> void:
@@ -297,9 +297,9 @@ func _bounce(power: float) -> void:
 
 
 func _show_him(on: bool) -> void:
-	g.him.visible = on
-	g.him.armContainer.visible = on
-	g.him.overLayer.visible = on
+	g.him.visible = on   # direct: a trigger hides or shows him
+	g.him.armContainer.visible = on   # direct: a trigger hides or shows him
+	g.him.overLayer.visible = on   # direct: a trigger hides or shows him
 
 
 func _clean_all() -> void:
@@ -311,10 +311,10 @@ func _clean_all() -> void:
 
 func _auto(mode: int) -> void:
 	if mode < 0:
-		g.autoModeOn = false
+		g.autoModeOn = false   # direct: a trigger switches auto mode
 	else:
 		g.setAuto(mode)
-		g.autoModeOn = true
+		g.autoModeOn = true   # direct: a trigger switches auto mode
 	g.automaticControl.startAuto(g.currentPos)
 	g.inGameMenu.updateAutoList()
 	g.inGameMenu.setCBAuto()
@@ -329,8 +329,8 @@ func _arms_his_crotch() -> void:
 	her.leftArmIK.newTarget(Vector2(her.leftHandOnHim.x - 20, her.leftHandOnHim.y - 100), g.him.rightLeg, true)
 	her.rightArmIK.setEndRotationTarget(-170, [g.him.leftLeg])
 	her.leftArmIK.setEndRotationTarget(-185, [g.him.rightLeg])
-	her.rightArmIK.reversedEnd = false
-	her.leftArmIK.reversedEnd = false
+	her.rightArmIK.reversedEnd = false   # direct: a trigger fixes her arms
+	her.leftArmIK.reversedEnd = false   # direct: a trigger fixes her arms
 
 
 func _arms_crotch() -> void:
@@ -351,13 +351,13 @@ func _arm_breast(left: bool) -> void:
 		her.setLeftArmPosition(1, true)
 		var b = her.torsoBack.leftBreast
 		her.leftArmIK.newTarget(target, b.nipple, true)
-		her.leftArmIK.reversedEnd = true
+		her.leftArmIK.reversedEnd = true   # direct: a trigger puts her hand on him
 		her.leftArmIK.setEndRotationTarget(angle, [b.nipple, b, her.torsoBack, her])
 	else:
 		her.setRightArmPosition(1, true)
 		var b = her.torso.midLayer.rightBreast
 		her.rightArmIK.newTarget(target, b.nipple, true)
-		her.rightArmIK.reversedEnd = true
+		her.rightArmIK.reversedEnd = true   # direct: a trigger puts her hand on him
 		her.rightArmIK.setEndRotationTarget(angle, [b.nipple, b, her.torso.midLayer, her.torso, her])
 
 
@@ -365,7 +365,7 @@ func _rub(on: bool) -> void:
 	if on:
 		_rubbing = true
 		g.her.setRightArmPosition(2)
-		g.her.rightArmIK.reversedEnd = false
+		g.her.rightArmIK.reversedEnd = false   # direct: a trigger takes her hand off him
 		g.her.rightArmIK.setEndRotationTarget(-170, [g.him.leftLeg])
 		g.inGameMenu.updateArmsList()
 	elif _rubbing:
@@ -569,7 +569,7 @@ func _set_his_pleasure(v) -> void:
 	if is_nan(n):
 		vars.dlog("da.pleasurePercentage: not a number: " + str(v))
 		return
-	g.him.pleasure = g.him.ejacPleasure / 97.0 * clampf(n, 0.0, 100.0)
+	g.him.pleasure = g.him.ejacPleasure / 97.0 * clampf(n, 0.0, 100.0)   # direct: a dialogue variable written by the dialogue
 
 
 ## da.breathPercentage / da.oxygenPercentage: 100 = full breath; the game counts the other way round.
@@ -585,9 +585,9 @@ func _set_inverted_percent(v, which: String) -> void:
 		return
 	n = clampf(n, 0.0, 100.0)
 	if which == "breath":
-		g.currentBreathLevel = g.breathLevelMax / 100.0 * n
+		g.currentBreathLevel = g.breathLevelMax / 100.0 * n   # direct: a dialogue variable written by the dialogue
 	else:
-		g.her.passOutFactor = g.her.passOutMax / 100.0 * n
+		g.her.passOutFactor = g.her.passOutMax / 100.0 * n   # direct: a dialogue variable written by the dialogue
 
 
 func _set_her_pleasure(v) -> void:

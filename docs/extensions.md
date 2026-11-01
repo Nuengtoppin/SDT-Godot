@@ -245,6 +245,9 @@ The value points in the game, with the field that keeps the result for code that
 | `Her.jawAngle` | her jaw's angle this tick, after the game's easing (`Her.closedJawAngle` -12: closed, higher: open); lips, cheeks and `g.herMouthOpeness` follow it | `her.head.jaw.rotation_degrees` |
 | `Her.swallowSpeed` | how fast a swallow plays (1; the four phases' lengths are divided by it, at least a tick apart), asked when it starts | `her.swallowSequence` |
 | `Her.swallowWince` | whether she squints around the swallow (true) | |
+| `Her.swallowAmount` | how much one swallow takes from her mouth (5-9 at random; never more than there is) | `her.cumInMouth` |
+| `Her.targetPhoneme` | the mouth shape a spoken word aims for (its phoneme: `{name, upperLip, lowerLip, jaw}`; return a new one); the word's "L" tongue flick plays only with the word's own shape | `her.targetPhoneme` |
+| `Her.speakingMouth` | her mouth's target as she starts or stops speaking (the same Dictionary; `her.speaking` is still the old state) | `her.targetPhoneme` |
 | `Her.clenchTime` | how long she keeps her teeth clenched, ticks (the game: 60..179 at random) | `her.clenchedTeethTime` |
 | `Her.clenchTaps` | whether she taps him as she clenches her teeth (true) | |
 | `Her.teethClosing` | whether her clenched teeth close further this tick (true; false holds them where they are) | `her.clenchTeethRatio` |
@@ -255,6 +258,7 @@ The value points in the game, with the field that keeps the result for code that
 | `Her.breathMax` | how much breath she has (50), once per tick; a change keeps how much of it is used. After changing its modifiers, `g.resolveBreath()` applies them at once | `g.breathLevelMax` |
 | `Her.outOfBreathPoint` | past this she is out of breath (half of `Her.breathMax`), right after it | `g.outOfBreathPoint` |
 | `Her.passOutMax` | how long she lasts with no air before passing out (40), right after it; a change keeps how close she is | `her.passOutMax` |
+| `Her.mouthOpenness` | how open her mouth counts as (0..1, from her jaw) for her breath's volume, the breath mist and drool, every tick | `g.herMouthOpeness` |
 | `Her.blushEffects` | with Dynamic blushing on: the sum of what makes her blush this tick, before her blush factor and the cap (the spankanywhere plugin adds its spank blush here) | `her.blush.alpha` |
 | `Her.blushAlpha` | how much her blush shows, every tick while it has modifiers (her blush colour's alpha; Dynamic blushing sets its own in the `GENERATE` phase) | `her.blush.alpha` |
 | `Her.highlightsAlpha` | how much the highlights in her eyes show, every tick while it has modifiers (the art's own alpha) | `her.eye.ball.highlights.alpha` |
@@ -276,6 +280,11 @@ The value points in the game, with the field that keeps the result for code that
 | `IKController.tapSpeed` | how fast that tap starts (-6 x its power) | `ik.tapSpeed` |
 | `Him.penisTiltTarget` | the angle his penis eases towards (bukkake mode's mouse aim and her push already in), before easing | `him.penisTiltTarget` |
 | `Him.penisAngle` | his penis's angle this tick, after easing and the game's -10..25 limits (`him.penisTilt`: the eased angle before them) | `him.penis.rotation_degrees` |
+| `Him.penisMask` | the mask that hides his penis inside her mouth, every tick: `{x, scale}` (the game's x: -100 + his depth x 200 in her mouth, -100 hides it all; scale 1) | `him.penisMask` |
+| `Him.mouthSmoothing` | how much her mouth holds his penis's tilt while he is in it (0..1, the game's rises by 0.4 a tick) | `him.mouthConstraintSmoothing` |
+| `Him.ballScale` | his balls' scale (his ball size), when it is set: after changing its modifiers call `g.him.updateBalls()` | `him.balls.scaleX` / `scaleY` |
+| `Him.ballsOffset` | how far his balls sit from their place in the art (`him.ballsHome`; `Vector2.ZERO`), when his ball size is set: `g.him.updateBalls()` as above | `him.balls.x` / `y` |
+| `Her.pullOff` | how hard she pulls back off him and its power, every tick after the game's update: `{pull, power}` (`her.pullOff`, `her.pullOffPower["current"]`; return a new one) | `her.pullOff` |
 | `Her.pullOffPower` | how hard she pulls back off him while he holds her deep: `{start, increase, max}` (0.001, 0.00005, 0.008; return a changed copy), every tick held and when he lets go | `her.pullOffPower["current"]` |
 | `Her.passOutGain` | how much closer to passing out she gets per tick with no air left (0.05) | `her.passOutFactor` |
 | `Her.passOutRecovery` | how much of that she gets back per tick while she breathes (0.5); 0 keeps her out | `her.passOutFactor` |
@@ -287,6 +296,7 @@ The value points in the game, with the field that keeps the result for code that
 | `Scene.backgroundBrightness` | how bright the background is (1; its colour multipliers), every tick while it has modifiers | `g.bg.colorTransform` |
 | `Neck.depth` | how deep the throat bulge sits (his depth / 400) | `neck.lastDepth` |
 | `Neck.throatBulge` | how much her throat bulges (her throat bulge setting) | |
+| `Neck.swallowScale` | how a swallow pushes her neck out, while she swallows (`Vector2(0.8, 0.5)`: out, down) | |
 | `Neck.bulgeCap` | the most the bulge pushes the neck out, px (35); throatcumbulge's "Neck follows his size" scales it with his width | |
 | `Neck.band` | a band that holds the front of her neck in, asked once per render: `null`, or `{top, bottom, inside, soft}` (edges as depth along the front, px her neck may push out between them, depth over which that blends into the free bulge past each edge); a second holder returns `Neck.narrower(value, its own)` | `neck.renderedPoints` |
 
@@ -312,7 +322,7 @@ and grouped parts show this tick's paint, not last tick's.
 extension), plus `game/debug/ext_checks.gd`, which tests the hook system, the extension lifecycle, tick order and
 settings.
 
-`tools/check_plugin_writes.sh` (also run by `tools/check_all.sh`) lists the lines in `Mods/Plugins` that write the
-game's state directly (`her.x = ...`, `g.her.x *= ...`). Change it through a value point (add one to the game code if it
+`tools/check_plugin_writes.sh` (also run by `tools/check_all.sh`, on `Mods/Plugins` and the built-in extensions in
+`game/src/ext`) lists the lines that write the game's state directly (`her.x = ...`, `g.her.x *= ...`). Change it through a value point (add one to the game code if it
 is missing) or the game's own methods; a write that is meant, such as an event's one-off push, gets the comment
 `# direct: <why>` on its line.

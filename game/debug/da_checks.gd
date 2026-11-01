@@ -404,7 +404,7 @@ func _mood_cycle_step() -> void:
 	if _mood_cycle_i > 0:
 		var prev: String = mm.MOODS[_mood_cycle_i - 1]
 		_mood_seen[prev] = {"upper": her.eye.upperEyelid.currentFrame, "lower": her.eye.lowerEyelid.currentFrame,
-			"iris": her.eye.ball.irisContainer.iris.scaleY, "shock": her.eyelidMotion["shock"]}
+			"iris": her.eye.ball.irisContainer.iris.scaleY, "shock": her.eyelidShock}
 	if _mood_cycle_i >= mm.MOODS.size():
 		var d: Dictionary = _mood_seen
 		_check("all 26 moods ran", d.size() == 26, str(d.size()))

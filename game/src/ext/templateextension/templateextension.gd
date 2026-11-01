@@ -164,7 +164,7 @@ func _make_over_top() -> void:
 	over_top.associatedModType = "CostumeOverTop"
 	over_top.rgb1 = {"r": 0, "g": 0, "b": 0, "a": 1}
 	var helper := CustomElementHelper.new(parts, over_top)
-	g.customElementLoader.modTargetHelpers["CostumeOverTop"] = helper
+	g.customElementLoader.modTargetHelpers["CostumeOverTop"] = helper   # direct: registers a mod target
 
 
 ## A hair layer over the other hair (and strands), under his arm.
@@ -173,7 +173,7 @@ func _make_hair_layer() -> void:
 	hair_over_extended.flash_name = HAIR_OVER_EXTENDED
 	var front: FlashSprite = g.frontLayer
 	front.addChildAt(hair_over_extended, maxi(0, front.getChildIndex(g.himOverLayer) - 1))
-	g.customElementLoader.modTargetHelpers[HAIR_OVER_EXTENDED] = CustomElementHelper.new({"target": hair_over_extended})
+	g.customElementLoader.modTargetHelpers[HAIR_OVER_EXTENDED] = CustomElementHelper.new({"target": hair_over_extended})   # direct: registers a mod target
 
 
 func _hair_filters() -> void:

@@ -66,7 +66,7 @@ func _update_lines() -> void:
 func _reset_written(v) -> void:
 	if str(v) != "1" and not ((v is float or v is int) and v == 1):
 		return
-	g.dialogueControl.advancedController._dialogueDataStore["pleasurelinereset"] = 0
+	g.dialogueControl.advancedController._dialogueDataStore["pleasurelinereset"] = 0   # direct: a dialogue variable the dialogue set, reset as the mod did
 	_next = 0
 	_delay = maxi(_delay, get_setting("pleasurelineresetdelay"))
 	_waiting = ""

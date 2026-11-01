@@ -55,6 +55,9 @@ func _enable() -> void:
 	# her upper eyelid while passed out: FINAL, over the game's and any mood's (Hooks value points)
 	modify(&"Her.upperEyelid", {"phase": Hooks.FINAL, "op": "fn", "fn": _upper_lid})
 	hook_after(&"Her.updateEyes", func(_c): _roll_eyes())
+	# her eyes rolling up: FINAL over where she would look; the game eases her iris there
+	modify(&"Her.gazeAngle", {"phase": Hooks.FINAL, "op": "fn", "when": func(her): return _passed_out(her) and option == 1,
+		"fn": func(v, her): return v - her.passOutFactor / her.passOutMax * _roll})
 	# passed out her own way: no wince squints, and the highlights in her rolling eyes fade (FINAL, over other modifiers)
 	var out := func(her): return _active and option != 0 and her.passedOut
 	modify(&"Her.winceTime", {"phase": Hooks.FINAL, "op": "set", "value": 0, "when": out})
@@ -78,14 +81,14 @@ func _pass_out(c: Hooks.Call) -> void:
 	var her = g.her
 	_choose(her)
 	c.cancel()
-	her.passOutFactor = her.passOutMax
+	her.passOutFactor = her.passOutMax   # direct: this replaces Her.passOut (cancelled above), as the mod did
 	var silent: bool = not her.mouthFull or (option == 1 and EYEROLL_SILENT_CHANCE > randf()) \
 		or (option == 2 and FREEZE_SILENT_CHANCE > randf())
 	var mm = Extensions.get_extension("moremoods")
 	var asleep: bool = mm != null and mm.enabled and mm.mood_name == "Asleep"
 	if not silent and not asleep:
 		g.soundControl.playPassOut(her.pos)
-	her.passedOut = true
+	her.passedOut = true   # direct: Her.passOut's own state
 	her.startArmsPassOut()
 	Hooks.after(&"Her.passOut", her)
 
@@ -137,16 +140,10 @@ func _upper_lid(v, her) -> int:
 	return v
 
 
-## Her eyes rolling up (after Her.updateEyes, which has eased the iris towards where she looks).
+## Her eyes rolling up, one step a tick (after Her.updateEyes): how far (the Her.gazeAngle modifier) and the highlights' fade.
 func _roll_eyes() -> void:
-	var her = g.her
-	if not _passed_out(her):
-		return
-	if option == 1:
+	if option == 1 and _passed_out(g.her):
 		_roll = minf(_roll_max, _roll + _roll_rate)
-		her.eyeMotion["target"] -= her.passOutFactor / her.passOutMax * _roll
-		her.eyeMotion["ang"] += (her.eyeMotion["target"] - her.eyeMotion["ang"]) * 0.2
-		her.eye.ball.irisContainer.rotation_degrees = her.eyeMotion["ang"] - 90.0
 		_fade += 1.0
 
 

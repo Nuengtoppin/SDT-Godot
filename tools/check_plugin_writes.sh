@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lists lines in plugins (Mods/Plugins, or the folders given) that write the game's state directly: `her.x = ...`,
+# Lists lines in plugins (Mods/Plugins, or the folders given, e.g. game/src/ext for the built-in extensions) that write the game's state directly: `her.x = ...`,
 # `g.her.x *= ...`, `him.x += ...`, `g.x = ...`. Ported mods should change the game through value points (modify),
 # hook vetoes and the game's own methods instead, so that extensions combine and the game's easing still applies
 # (docs/extensions.md, Value points). A write that is meant (an event's one-off impulse, the game's own state machine

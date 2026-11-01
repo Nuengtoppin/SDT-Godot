@@ -200,7 +200,7 @@ func _register(type: String, parts: Dictionary) -> void:
 			o = _node(path)
 		if o != null:
 			d[p] = o
-	g.customElementLoader.modTargetHelpers[type] = CustomElementHelper.new(d)
+	g.customElementLoader.modTargetHelpers[type] = CustomElementHelper.new(d)   # direct: registers a mod target
 
 
 ## Her display object by a dotted path ("eye.ball.sclera"), null if a part is missing.
@@ -338,9 +338,9 @@ func _eye_placed(m: Dictionary, parts: Dictionary) -> void:
 	if not m.get("hideVanillaEye"):
 		return
 	if parts.has("altuppereyelid"):
-		her.eye.upperEyelid.visible = false
+		her.eye.upperEyelid.visible = false   # direct: replaced by a mod's art
 	if parts.has("altlowereyelid"):
-		her.eye.lowerEyelid.visible = false
+		her.eye.lowerEyelid.visible = false   # direct: replaced by a mod's art
 	for p in [["altsclera", "eye.ball.sclera"], ["althighlights", "eye.ball.highlights"],
 			["altiris", "eye.ball.irisContainer.iris"]]:
 		if parts.has(p[0]):
@@ -353,11 +353,11 @@ func _head_placed(m: Dictionary, parts: Dictionary) -> void:
 	if m.get("hideVanillaHeadTan"):
 		_hide["headtan"] = true
 	if m.get("hideScalp"):
-		her.head.scalpHair.visible = false
+		her.head.scalpHair.visible = false   # direct: replaced by a mod's art
 		_hide["scalp"] = true
 	if m.get("hideCheekBulge"):
-		her.head.cheekBulge.visible = false
-		her.head.cheekSuck.visible = false
+		her.head.cheekBulge.visible = false   # direct: replaced by a mod's art
+		her.head.cheekSuck.visible = false   # direct: replaced by a mod's art
 		_hide["cheeks"] = true
 	if parts.has("lowerlipstick") and not parts["lowerlipstick"] in _lower_lipsticks:
 		_lower_lipsticks.append(parts["lowerlipstick"])
@@ -371,7 +371,7 @@ func _head_placed(m: Dictionary, parts: Dictionary) -> void:
 				_face_covers.append(k)
 		if parts.has("jaw"):
 			_hide["jaw"] = true
-			her.head.jawBack.visible = false
+			her.head.jawBack.visible = false   # direct: replaced by a mod's art
 		if parts.has("upperlip"):
 			_hide["upperlip"] = true
 		if parts.has("upperlipstick"):
@@ -411,7 +411,7 @@ func _hide_face() -> void:
 			if not bl.getChildAt(i) in _lower_lipsticks:
 				bl.getChildAt(i).visible = false
 	if _hide.get("headtan", false) and her.head.get("headTan") != null:
-		her.head.headTan.visible = false
+		her.head.headTan.visible = false   # direct: replaced by a mod's art
 
 
 # ---------------------------------------------------------------- scene, dialogue, her penis, piercings

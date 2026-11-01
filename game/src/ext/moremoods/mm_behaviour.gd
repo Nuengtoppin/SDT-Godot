@@ -76,6 +76,14 @@ func hook() -> void:
 	mm.hook_after(&"Tears.clearLowerEyelid", func(_c): mm.face.clear_lower_eyelid())
 	mm.hook_before(&"Tongue.update", _tongue_update)
 	mm.hook_after(&"Tongue.update", func(_c): _tongue_unstick())
+	# value points: no blinking (Android, Asleep), Spent / Broken pass out quicker, Tease slows her down with his
+	# vigour, a bite's delayed push
+	var still := func(_her): return mm.mood_name == "Android" or mm.mood_name == "Asleep"
+	mm.modify(&"Her.blinks", {"phase": Hooks.MOOD, "op": "set", "value": false, "when": still})
+	mm.modify(&"Her.quickBlink", {"phase": Hooks.MOOD, "op": "set", "value": 0.0, "when": still})
+	mm.modify(&"Her.passOutExtra", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, her): return v + _spent_pass_out(her)})
+	mm.modify(&"Her.drag", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, her): return v + _drag(her)})
+	mm.modify(&"Her.pullOff", {"phase": Hooks.MOOD, "op": "fn", "fn": func(po, her): return pull_off(po, her)})
 	var da = Extensions.get_extension("dialogueactions")
 	if da != null and da.enabled and not da.has_trigger("BITE", 0):
 		da.register_trigger("BITE", 0, func(_a): _bite_trigger())
@@ -92,39 +100,10 @@ func remove() -> void:
 
 func tick() -> void:
 	var her = g.her
-	var him = g.him
 	var m: String = mm.mood_name
-	if m == "Android" or m == "Asleep":
-		her.blinkTime = 90
 	_breathing(m)
-	if m in ["Spent", "Depressed", "Elated", "Broken", "Horny", "Android", "Devoted", "Numb", "Asleep"] or (m == "Aggressive" and s("nopulloffonaggressive")):
-		_reset_pulloff()
-	var pp: Dictionary = her.pullOffPower
-	if m == "Tease" and her.held:
-		pp["current"] = minf(pp["max"], pp["current"] + pp["increase"])
-	if m == "Drugged":
-		if randf() * 100 > 97:
-			_rand_pulloff = (5 + randf() * 10) / 10.0
-		if her.pullOff > 0:
-			her.pullOff = maxf(0, her.pullOff - pp["current"] * _rand_pulloff)
-	if m == "Aggressive" or m == "Overwhelmed":
-		_delayed_pulloff(0.1, 0.6)
-	if m == "Excited":
-		_delayed_pulloff(0.25, 0.8)
-	if m == "Smug" or m == "Professional":
-		_delayed_pulloff(0.5, 0.9)
-	if m == "Submissive":
-		if her.passOutFactor / her.passOutMax < 0.25:
-			_reset_pulloff()
-		else:
-			her.pullOff = maxf(0, her.pullOff - pp["current"] * 0.9)
-			her.pullOff = minf(2.0 / 3.0 * (1 - her.passOutFactor / her.passOutMax), her.pullOff)
-	if m == "Tease":
-		_tease_pulloff()
 	_bite_chance(m)
 	_check_bite()
-	if m == "Tease" and her.mouthFull:
-		her.speed = her.speed * (1 - minf(1, her.vigour / her.VIGOUR_WINCE_LEVEL))
 	if m in ["Worried", "Frightened", "Submissive", "Depressed", "Nervous", "Broken", "Smug", "Overwhelmed", "Devoted"] or (m == "Asleep" and s("asleepeyebrowshape") == 1):
 		if not g.gamePaused:
 			_panic_eyebrows()
@@ -136,8 +115,6 @@ func tick() -> void:
 		_tease_clench()
 	_prev_mouth = her.mouthFull
 	_prev_held = her.held
-	_prev_pulloff = her.pullOff
-	_prev_pull_power = pp["current"]
 	if not her.mouthFull:
 		_outside_timer = mini(100, _outside_timer + 1)
 	else:
@@ -199,54 +176,85 @@ func _lowered_breath_step() -> void:
 			g.addBreath(-0.5)
 
 
-func _reset_pulloff() -> void:
-	g.her.pullOff = 0
-	g.her.pullOffPower["current"] = 0
-
-
-## No pulling off until she is low on breath (below `start` of pass-out), then a reduced pull-off.
-func _delayed_pulloff(start: float, keep: float) -> void:
-	var her = g.her
-	if her.passOutFactor / her.passOutMax < start:
-		_reset_pulloff()
-	else:
-		her.pullOff = maxf(0, her.pullOff - her.pullOffPower["current"] * keep)
+## Her pull-off by her mood (MOOD modifier of Her.pullOff, after the game's update each tick): `po` is {pull, power}
+## (her pullOff and pullOffPower["current"]). Some moods never pull off, some only once low on air and less, Drugged
+## at random, Submissive less and less as she runs out of air, Tease her own way; nothing while she bites.
+func pull_off(po: Dictionary, her) -> Dictionary:
+	var m: String = mm.mood_name
+	var pull: float = po["pull"]
+	var power: float = po["power"]
+	var pp: Dictionary = her.pullOffPower   # start / increase / max
+	var air: float = her.passOutFactor / her.passOutMax
+	if m in ["Spent", "Depressed", "Elated", "Broken", "Horny", "Android", "Devoted", "Numb", "Asleep"] or (m == "Aggressive" and s("nopulloffonaggressive")):
+		pull = 0.0
+		power = 0.0
+	if m == "Tease" and her.held:
+		power = minf(pp["max"], power + pp["increase"])
+	if m == "Drugged":
+		if randf() * 100 > 97:
+			_rand_pulloff = (5 + randf() * 10) / 10.0
+		if pull > 0:
+			pull = maxf(0, pull - power * _rand_pulloff)
+	var delayed := [0.1, 0.6] if m == "Aggressive" or m == "Overwhelmed" else ([0.25, 0.8] if m == "Excited" else
+		([0.5, 0.9] if m == "Smug" or m == "Professional" else []))
+	if not delayed.is_empty():   # no pulling off until she is low on air (below `start` of pass-out), then less
+		if air < delayed[0]:
+			pull = 0.0
+			power = 0.0
+		else:
+			pull = maxf(0, pull - power * delayed[1])
+	if m == "Submissive":
+		if air < 0.25:
+			pull = 0.0
+			power = 0.0
+		else:
+			pull = maxf(0, pull - power * 0.9)
+			pull = minf(2.0 / 3.0 * (1 - air), pull)
+	if m == "Tease":
+		var t := _tease_pulloff(pull, power, her)
+		pull = t[0]
+		power = t[1]
+	if bite_timer > 0:
+		pull = 0.0
+	_prev_pulloff = pull
+	_prev_pull_power = power
+	return {"pull": pull, "power": power}
 
 
 func _him_pleasure() -> float:
 	return clampf(g.him.pleasure / g.him.ejacPleasure, 0, 1)
 
 
-func _tease_pulloff() -> void:
-	var her = g.her
-	var pp: Dictionary = her.pullOffPower
-	if her.pullOff > 0:
-		her.pullOff = minf(1, her.pullOff + pp["current"] * _him_pleasure() * 3)
+## Tease: she pulls harder as he nears, holds to a little pull while he is deep, eases off outside.
+func _tease_pulloff(pull: float, power: float, her) -> Array:
+	if pull > 0:
+		pull = minf(1, pull + power * _him_pleasure() * 3)
 	if her.mouthFull:
 		var r := clampf((her.penisInMouthDist - 100) / 300.0, 0, 1)
 		if _prev_held and not her.held:
-			her.pullOff = _prev_pulloff
-			pp["current"] = _prev_pull_power
+			pull = _prev_pulloff
+			power = _prev_pull_power
 			_prev_marked_power = _prev_pull_power
-		her.pullOff = maxf(her.pullOff, r / 15.0)
-		_prev_marked_power = maxf(_prev_marked_power, her.pullOff)
+		pull = maxf(pull, r / 15.0)
+		_prev_marked_power = maxf(_prev_marked_power, pull)
 		if not her.held:
-			her.pullOff = _prev_marked_power * (0.5 + r / 2)
-		her.pullOff = minf(0.25, her.pullOff)
+			pull = _prev_marked_power * (0.5 + r / 2)
+		pull = minf(0.25, pull)
 	else:
-		if her.pullOff > 0.1:
-			her.pullOff = 0.1
-			pp["current"] = 0
-		if her.pullOff > 0.01:
-			her.pullOff = her.pullOff * 0.8
-			pp["current"] = pp["current"] * 0.8
+		if pull > 0.1:
+			pull = 0.1
+			power = 0.0
+		if pull > 0.01:
+			pull = pull * 0.8
+			power = power * 0.8
 		else:
-			her.pullOff = 0
-			pp["current"] = 0
+			pull = 0.0
+			power = 0.0
 		_prev_marked_power = 0
 	if g.him.ejaculating:
-		her.pullOff = 0
-		pp["current"] = 0
+		pull = 0.0
+		power = 0.0
+	return [pull, power]
 
 
 # ---------------------------------------------------------------- biting
@@ -302,13 +310,13 @@ func _check_bite() -> void:
 				her.tongue.stopHangingOut()
 				var sq: Dictionary = her.swallowSequence
 				sq["intensity"] = 0.8
-				her.swallowing = true
+				her.swallowing = true   # direct: the bite: she swallows hard (an event, as the mod did)
 				sq["build"] = roundi(30 * sq["intensity"])
 				sq["swallow"] = roundi(sq["build"] + 16 * sq["intensity"])
 				sq["relax"] = roundi(sq["swallow"] + 16 * sq["intensity"] / 2)
 				sq["end"] = roundi(sq["relax"] + 30 * sq["intensity"] / 2)
-				her.swallowTimer = 0
-				her.startSwallowTimer = 0
+				her.swallowTimer = 0   # direct: the bite: she swallows hard (an event, as the mod did)
+				her.startSwallowTimer = 0   # direct: the bite: she swallows hard (an event, as the mod did)
 			45:
 				if her.mouthFull:
 					_original_tap_hands()
@@ -320,33 +328,51 @@ func _check_bite() -> void:
 						snd.play()
 			38:
 				if her.mouthFull:
-					g.screenEffects.whiteFlash.colorTransform = FlashColorTransform.new(0, 0, 0, 1, 255, 0, 0, 0)
+					g.screenEffects.whiteFlash.colorTransform = FlashColorTransform.new(0, 0, 0, 1, 255, 0, 0, 0)   # direct: the bite's red flash, then white again
 					g.screenEffects.showPulse()
 					if him.pleasure < him.ejacPleasure:
-						him.pleasure = him.pleasure * 0.7
+						him.pleasure = him.pleasure * 0.7   # direct: the bite: he flinches (an event)
 					g.dialogueControl.buildState("moremoods_bitten", 8000)
 			26:
 				if her.mouthFull:
 					if not g.handsOff:
-						her.pullingOff = true
-						her.released = true
+						her.pullingOff = true   # direct: the bite: she pushes off (an event)
+						her.released = true   # direct: the bite: she pushes off (an event)
 						him.openHand()
 					else:
 						_delayed_push = 175 + 300 * clampf(g.currentMousePos.x / 12.0 * 10.0, 0, 1)
 			25:
-				g.screenEffects.whiteFlash.colorTransform = FlashColorTransform.new(0, 0, 0, 1, 255, 255, 255, 0)
-		her.pullOff = 0
+				g.screenEffects.whiteFlash.colorTransform = FlashColorTransform.new(0, 0, 0, 1, 255, 255, 255, 0)   # direct: the bite's red flash, then white again
 		if her.mouthFull and her.pullingOff and not g.handsOff:
-			her.armsPushPower = 175 + 300 * clampf(g.currentMousePos.x / 12.0 * 10.0, 0, 1)
+			her.armsPushPower = 175 + 300 * clampf(g.currentMousePos.x / 12.0 * 10.0, 0, 1)   # direct: the bite: she pushes off with her arms (an event)
 		if her.swallowTimer == her.swallowSequence["swallow"] - 1:
-			her.swallowTimer = her.swallowSequence["swallow"] + 1
+			her.swallowTimer = her.swallowSequence["swallow"] + 1   # direct: the bite: her swallow skips its hold (an event)
 		bite_timer = maxi(bite_timer - 1, 0)
 	if _delayed_push > 0:
 		_delayed_push = maxf(0, _delayed_push - 10)
-		if _delayed_push > 100:
-			her.speed = her.speed - her.acceleration + (Her.releasedPos - her.pos) / her.moveSmoothing
-		else:
-			her.speed = her.speed + (-her.acceleration + (Her.releasedPos - her.pos) / her.moveSmoothing) * (_delayed_push / 100.0)
+
+
+## Spent / Broken with him in her mouth and out of breath: closer to passing out each tick (Her.passOutExtra).
+func _spent_pass_out(her) -> float:
+	var m: String = mm.mood_name
+	if (m != "Spent" and m != "Broken") or not her.mouthFull or her.passedOut:
+		return 0.0
+	var q: float = s("spentpassoutquicker")
+	if q > 0 and g.breathing and g.breathLevel >= g.breathLevelMax and her.passOutFactor + q < her.passOutMax:
+		return q
+	return 0.0
+
+
+## What slows her head this tick (Her.drag, subtracted from her speed): Tease with him in her mouth by her vigour; a
+## bite's delayed push away from him (her speed towards where she is released, fading as it runs out).
+func _drag(her) -> float:
+	var d := 0.0
+	if mm.mood_name == "Tease" and her.mouthFull:
+		d += her.speed * minf(1, her.vigour / her.VIGOUR_WINCE_LEVEL)
+	if _delayed_push > 0:
+		var push: float = -her.acceleration + (Her.releasedPos - her.pos) / her.moveSmoothing
+		d -= push if _delayed_push > 100 else push * (_delayed_push / 100.0)
+	return d
 
 
 # ---------------------------------------------------------------- panic eyebrows
@@ -374,8 +400,8 @@ func _panic_eyebrows() -> void:
 	else:
 		if _brow_offsets.size() > 0:
 			off = _brow_offsets.pop_front()
-			her.rightEyebrow.y += off / 6.0
-			her.leftEyebrow.y += off / 6.0
+			her.rightEyebrow.y += off / 6.0   # direct: her eyebrows' waggle moves them (the game waggles by frame, which panic eyebrows replace)
+			her.leftEyebrow.y += off / 6.0   # direct: her eyebrows' waggle moves them (the game waggles by frame, which panic eyebrows replace)
 		elif her.eyebrowOffsets.size() > 0:
 			_brow_offsets.append_array(her.eyebrowOffsets)
 		_panic = 0.0
@@ -470,11 +496,6 @@ func _timer_actions(m: String) -> void:
 		if not her.mouthFull:
 			her.tongue.doNothing()
 			her.tongue.stopHangingOut()
-	if (m == "Spent" or m == "Broken") and her.mouthFull and not her.passedOut:
-		var q: float = s("spentpassoutquicker")
-		if q > 0 and g.breathing and g.breathLevel >= g.breathLevelMax and her.passOutFactor < her.passOutMax:
-			if her.passOutFactor + q < her.passOutMax:
-				her.passOutFactor += q
 	if m == "Spent":
 		_spent_action()
 	if m == "Frightened":
@@ -527,7 +548,7 @@ func _spent_action() -> void:
 				her.leftBreastController.accelerate(0.08)
 				her.rightBreastController.accelerate(0.08)
 			if s("spentoffactioncoughfactor"):
-				her.coughFactor = randf() / 10 + 0.2
+				her.coughFactor = randf() / 10 + 0.2   # direct: Spent's cough (an event)
 			_spit_drool_timer = 10
 			match use:
 				0: _spent_cough()
@@ -571,14 +592,14 @@ func _play_gag(indexes: Array, quiet: bool, pos: float) -> void:
 func _spent_cough() -> void:
 	var her = g.her
 	var sc = g.soundControl
-	her.nextCoughTime = int(floor(randf() * 210)) + 30
-	her.coughing = true
+	her.nextCoughTime = int(floor(randf() * 210)) + 30   # direct: her mood's cough (Her.cough replaced: an event)
+	her.coughing = true   # direct: her mood's cough (Her.cough replaced: an event)
 	var i := _pick(sc.cough.size(), sc.lastRandomCough)
 	sc.lastRandomCough = i
 	var ch = sc.cough[i].play()
 	if ch:
 		ch.soundTransform = FlashSoundTransform.new(0.25 + randf() * 0.1, clampf(her.pos * 2 - 1, sc.leftPan, sc.rightPan))
-	her.justCoughed = true
+	her.justCoughed = true   # direct: her mood's cough (Her.cough replaced: an event)
 
 
 # ---------------------------------------------------------------- tongue
@@ -745,7 +766,7 @@ func _set_blush(percent: float) -> void:
 	if key == _blush_applied:
 		return   # setting a colour transform re-renders her blush: only when it changes
 	_blush_applied = key
-	g.her.blush.colorTransform = FlashColorTransform.new(1, 1, 1, v, c.get("r", 0), c.get("g", 0), c.get("b", 0), 0)
+	g.her.blush.colorTransform = FlashColorTransform.new(1, 1, 1, v, c.get("r", 0), c.get("g", 0), c.get("b", 0), 0)   # direct: her mood's blush over her blush colour (the game sets it only when the colour is picked)
 
 
 func _blush_rules(m: String) -> void:
@@ -826,14 +847,14 @@ func _tease_clench() -> void:
 		if her.firstDT:
 			breath = minf(0.25, breath)
 		if not her.clenchTeeth and her.movement > 35 - maxf(_him_pleasure(), breath) * 28 and _not_held_timer > 10 and her.penisInMouthDist < -35:
+			var div := 2 if her.movement > 30 else 6   # a short clench: Her.clenchTime for this one
+			var id: int = mm.modify(&"Her.clenchTime", {"phase": Hooks.MOOD, "op": "fn", "fn": func(v, _her): return int(v / div)})
 			her.startClenchingTeeth()
+			Hooks.remove_modifier(id)
 			if her.movement > 30:
 				g.setPenisOut(true)
-				her.clenchedTeethTime = her.clenchedTeethTime / 2
-			else:
-				her.clenchedTeethTime = her.clenchedTeethTime / 6
 		elif her.clenchTeeth and her.acceleration > 1.0 / 15.0:
-			her.clenchedTeethTimer = 0
+			her.clenchedTeethTimer = 0   # direct: Tease keeps her teeth clenched while she pulls away fast (the clench's own timer)
 			if her.movement > 30:
 				g.setPenisOut(true)
 
@@ -871,7 +892,7 @@ func _cough(c: Hooks.Call) -> void:
 		swallow = true
 	if m == "Android":
 		c.cancel()
-		her.nextCoughTime = int(floor(randf() * 170)) + 90
+		her.nextCoughTime = int(floor(randf() * 170)) + 90   # direct: her mood's cough (Her.cough replaced: an event)
 		return
 	if odds < 0:
 		if weak:
@@ -885,11 +906,11 @@ func _cough(c: Hooks.Call) -> void:
 		else:
 			her.cough()   # the original (the hook is inactive inside its handler)
 		if her.justCoughed:
-			her.nextCoughTime = int(floor(randf() * 170)) + 130
+			her.nextCoughTime = int(floor(randf() * 170)) + 130   # direct: her mood's cough (Her.cough replaced: an event)
 	else:
 		if swallow and her.mouthFull and not her.passedOut:
 			_quick_swallow()
-		her.nextCoughTime = int(floor(randf() * 170)) + 100
+		her.nextCoughTime = int(floor(randf() * 170)) + 100   # direct: her mood's cough (Her.cough replaced: an event)
 
 
 func _weak_cough() -> void:
@@ -897,21 +918,21 @@ func _weak_cough() -> void:
 	var sc = g.soundControl
 	if not g.coughing:
 		return
-	her.nextCoughTime = int(floor(randf() * 210)) + 30
-	her.coughing = true
-	her.coughFactor = randf() * 1.2 + 0.4
+	her.nextCoughTime = int(floor(randf() * 210)) + 30   # direct: her mood's cough (Her.cough replaced: an event)
+	her.coughing = true   # direct: her mood's cough (Her.cough replaced: an event)
+	her.coughFactor = randf() * 1.2 + 0.4   # direct: her mood's cough (Her.cough replaced: an event)
 	her.tears.addTearSpot()
 	her.leftBreastController.accelerate(0.08)
 	her.rightBreastController.accelerate(0.08)
 	her.wince()
-	her.head.cheekBulge.alpha = 1
+	her.head.cheekBulge.alpha = 1   # direct: her mood's cough puffs her cheeks (an event)
 	her.generateSplat(3, 7)
 	var i := _pick(sc.cough.size(), sc.lastRandomCough)
 	sc.lastRandomCough = i
 	var ch = sc.cough[i].play()
 	if ch:
 		ch.soundTransform = FlashSoundTransform.new(0.2 + randf() * 0.15, clampf(her.pos * 2 - 1, sc.leftPan, sc.rightPan))
-	her.justCoughed = true
+	her.justCoughed = true   # direct: her mood's cough (Her.cough replaced: an event)
 
 
 func _quick_swallow() -> void:
@@ -936,9 +957,9 @@ func _open_cough(c: Hooks.Call) -> void:
 	her.generateSplat(15, 5, 1, her.cumInMouth > 0)
 	her.leftBreastController.accelerate(0.1)
 	her.rightBreastController.accelerate(0.1)
-	her.justCoughed = true
-	her.coughBuild = 0
-	g.soundControl.queuedCoughs = 0
+	her.justCoughed = true   # direct: her mood's cough (Her.cough replaced: an event)
+	her.coughBuild = 0   # direct: Asleep's open cough (Her.openCough replaced: an event)
+	g.soundControl.queuedCoughs = 0   # direct: Asleep's open cough (Her.openCough replaced: an event)
 
 
 ## Asleep: passing out without the pass-out sound.
@@ -947,8 +968,8 @@ func _pass_out(c: Hooks.Call) -> void:
 		return
 	c.cancel()
 	var her = g.her
-	her.passOutFactor = her.passOutMax
-	her.passedOut = true
+	her.passOutFactor = her.passOutMax   # direct: Asleep passes out quietly (Her.passOut replaced, as the mod did)
+	her.passedOut = true   # direct: Her.passOut's own state
 	her.startArmsPassOut()
 	Hooks.after(&"Her.passOut", her)
 

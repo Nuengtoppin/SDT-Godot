@@ -141,6 +141,7 @@ func step(_frame: int) -> void:
 				_swallow_points_checks()
 				_swallow_queue_checks()
 				_penisrange_checks()
+				_value_point_port_checks()
 				_tongueguard_checks()
 				_disable_checks()
 				_plugin_checks()
@@ -608,7 +609,7 @@ func _rings_checks() -> void:
 	_check("rings: profiles by name", ThroatRings.apply_profile("Band") and ThroatRings.stiffness == 0.2
 		and not ThroatRings.apply_profile("nope"))
 	ThroatRings.set_stiffness(0.6)
-	var game := [g.throatResistance, her.pos, n.throatBulgeAmount, her.collarContainer.collar.scaleX, n.swallowScale]
+	var game := [g.throatResistance, her.pos, n.throatBulgeAmount, her.collarContainer.collar.scaleX]
 	var r := ThroatRings._ring("test", 0.2, 0.3, 0.8, 0.0, 5.0)
 	ThroatRings.tip = 0.5
 	ThroatRings.push = 1.0
@@ -645,7 +646,7 @@ func _rings_checks() -> void:
 	ThroatRings.set_stiffness(0.6)
 	_ring_tick(her)
 	_check("rings: they change nothing in the game by themselves", game == [g.throatResistance, her.pos, n.throatBulgeAmount,
-		her.collarContainer.collar.scaleX, n.swallowScale])
+		her.collarContainer.collar.scaleX])
 	cc.select(was)
 	ThroatRings.reset_stretch()
 
@@ -814,21 +815,24 @@ func _swallowing_checks() -> void:
 	her.swallowing = false
 	her.speaking = false
 	her.passedOut = false
-	# a swallow's wave starts: the game took 7 of 20; with "per swallow" 3 it takes 3
+	# a swallow takes from her mouth (value point Her.swallowAmount): with "per swallow" 3 it takes 3, and a swallow's
+	# wave starting records how much it took
 	x.set_setting("per_swallow", 3)
+	her.cumInMouth = 20
+	her.swallowFromMouth()
 	x._prev_cum = 20
 	x._prev_wave = false
 	x._prev_swallowing = false
-	her.cumInMouth = 13
 	neck.swallowing = true
 	x._swallowing(her)
 	_check("per swallow: takes what is set", her.cumInMouth == 17 and x.last_amount == 3)
+	her.cumInMouth = 2
+	her.swallowFromMouth()
+	_check("per swallow: no more than she has", her.cumInMouth == 0)
 	x.set_setting("per_swallow", 0)
-	x._prev_cum = 20
-	x._prev_wave = false
-	her.cumInMouth = 13
-	x._swallowing(her)
-	_check("per swallow 0: the game's amount", her.cumInMouth == 13 and x.last_amount == 7)
+	her.cumInMouth = 20
+	her.swallowFromMouth()
+	_check("per swallow 0: the game's amount (5-9)", her.cumInMouth >= 11 and her.cumInMouth <= 15)
 	neck.swallowing = false
 	x.set_setting("guzzle", true)
 	x._prev_swallowing = true
@@ -866,16 +870,16 @@ func _swallowing_checks() -> void:
 	_check("while he cums: not held deep (it goes down her throat)", not her.swallowing)
 	x.set_setting("pump", "Off")
 	x.set_setting("swallow_mode", "By amount")
-	neck.swallowing = true
+	var game_scale := Vector2(0.8, 0.5)
 	x.last_amount = 10
-	x._swallow_scale(her)
-	var big: float = neck.swallowScale.x
+	var big: float = Hooks.value(&"Neck.swallowScale", neck, game_scale).x
 	x.last_amount = 5
-	x._swallow_scale(her)
-	_check("swallow bulge by amount: a bigger swallow, a bigger bulge", big > neck.swallowScale.x and is_equal_approx(big, 0.8 * 0.75 * 4))
+	var small: float = Hooks.value(&"Neck.swallowScale", neck, game_scale).x
+	_check("swallow bulge by amount: a bigger swallow, a bigger bulge (Neck.swallowScale)", big > small
+		and is_equal_approx(big, 0.8 * 0.75 * 4))
 	neck.swallowing = false
 	x.set_setting("swallow_mode", "The game's")
-	x._swallow_scale(her)
+	_check("swallow bulge the game's: the game's scale", Hooks.value(&"Neck.swallowScale", neck, game_scale) == game_scale)
 	her.cumInMouth = was[0]
 	her.swallowing = was[1]
 	her.speaking = was[2]
@@ -1032,6 +1036,77 @@ func _swallow_queue_checks() -> void:
 	x._prev_swallowing = her.swallowing
 
 
+## Built-in extensions that wrote the game's state now go through value points: gaggeddialog (Her.targetPhoneme),
+## loaderarm (Her.pullOffPower), alternativepassout's eye roll (Her.gazeAngle), throatcumbulge's cum bulge
+## (Neck.throatBulge, her throat bulge setting untouched).
+func _value_point_port_checks() -> void:
+	var her = g.her
+	var gd = Extensions.get_extension("gaggeddialog")
+	var was_gd := [gd.gagged_mode, gd.in_mouth, her.gagged, her.targetPhoneme, her.phonemeDelay]
+	var word := {"phoneme": {"name": "AA", "upperLip": 80, "lowerLip": 80, "jaw": -8.0}}
+	gd.gagged_mode = 0
+	gd.in_mouth = false
+	her.setTargetPhoneme(word, 2)
+	_check("gaggeddialog off: the word's own mouth shape", her.targetPhoneme["name"] == "AA" and her.phonemeDelay == 2)
+	gd.gagged_mode = 1
+	her.gagged = true
+	her.setTargetPhoneme(word, 3)
+	_check("gaggeddialog gagged: a small mouth movement around the gag (Her.targetPhoneme)",
+		her.targetPhoneme["name"] == "GTH" and her.targetPhoneme["jaw"] == -8.0 and her.phonemeDelay == 3)
+	gd.gagged_mode = was_gd[0]
+	gd.in_mouth = was_gd[1]
+	her.gagged = was_gd[2]
+	her.targetPhoneme = was_gd[3]
+	her.phonemeDelay = was_gd[4]
+
+	var la = Extensions.get_extension("loaderarm")
+	if la.arm != null:
+		var was_la := [la.arm.visible, la.get_setting("hold")]
+		la.arm.visible = true
+		la.set_setting("hold", true)
+		var pp: Dictionary = Hooks.value(&"Her.pullOffPower", her, her.pullOffPower.duplicate())
+		_check("loaderarm holding her: she doesn't pull off (Her.pullOffPower)", pp["start"] == 0.0 and pp["increase"] == 0.0
+			and pp["max"] == 0.0)
+		la.set_setting("hold", false)
+		pp = Hooks.value(&"Her.pullOffPower", her, her.pullOffPower.duplicate())
+		_check("loaderarm not holding: the game's pull-off", pp["max"] == her.pullOffPower["max"])
+		la.arm.visible = was_la[0]
+		la.set_setting("hold", was_la[1])
+
+	var ap = Extensions.get_extension("alternativepassout")
+	var was_ap := [ap._active, ap.option, ap._roll, her.passedOut, her.winceTimer, her.passOutFactor]
+	ap._active = true
+	ap.option = 1
+	ap._roll = 10.0
+	her.passedOut = true
+	her.winceTimer = 0
+	her.passOutFactor = her.passOutMax
+	# where she would look, pinned (a mood makes the angle itself, at random: a set wins over it in its phase)
+	var pin := Hooks.add_modifier(&"Her.gazeAngle", {"phase": Hooks.GENERATE, "op": "set", "value": 90.0}, "ext_checks")
+	var rolled = Hooks.value(&"Her.gazeAngle", her, 90.0)
+	ap.option = 0
+	var still = Hooks.value(&"Her.gazeAngle", her, 90.0)
+	Hooks.remove_modifier(pin)
+	_check("alternativepassout eye roll: her gaze rolls up from where it would be (Her.gazeAngle)",
+		is_equal_approx(rolled, 80.0) and still == 90.0, "%s %s" % [rolled, still])
+	ap._active = was_ap[0]
+	ap.option = was_ap[1]
+	ap._roll = was_ap[2]
+	her.passedOut = was_ap[3]
+	her.winceTimer = was_ap[4]
+	her.passOutFactor = was_ap[5]
+
+	var tc = Extensions.get_extension("throatcumbulge")
+	var neck = her.head.neck
+	var setting_was: float = g.throatBulgeAmount
+	tc._raise = 0.3
+	_check("throatcumbulge cum bulge: over her setting (Neck.throatBulge)",
+		is_equal_approx(Hooks.value(&"Neck.throatBulge", neck, 1.0), 1.3)
+		and is_equal_approx(Hooks.value(&"Neck.throatBulge", neck, 1.4), 1.5) and g.throatBulgeAmount == setting_was)
+	tc._raise = 0.0
+	_check("throatcumbulge no cum bulge: her setting", Hooks.value(&"Neck.throatBulge", neck, 1.0) == 1.0)
+
+
 ## penisrange: off by default (the game's limits); on, wider limits, sizes kept as sizes; big sizes move the mask
 ## and the balls; off again, sizes and limits back inside the game's range.
 func _penisrange_checks() -> void:
@@ -1049,18 +1124,19 @@ func _penisrange_checks() -> void:
 	him.loadPenisScales(2.5, 2.0)
 	_check("penisrange: sizes past the game's range load as they are", him.currentPenisLengthScale == 2.5 and him.currentPenisWidthScale == 2.0)
 	him.setBallScale(2.0)
-	x._tick()
-	_check("penisrange: big sizes, the mask follows his length", him.penisMask.scaleX == 2.5)
-	_check("penisrange: big balls move down and back", is_equal_approx(him.balls.y, balls.y + 0.7 * 22.0)
+	var mask := func() -> Dictionary: return Hooks.value(&"Him.penisMask", him, {"x": -100.0, "scale": 1.0})
+	_check("penisrange: big sizes, the mask follows his length (Him.penisMask)", mask.call()["scale"] == 2.5)
+	_check("penisrange: big balls move down and back (Him.ballsOffset)", is_equal_approx(him.balls.y, balls.y + 0.7 * 22.0)
 		and is_equal_approx(him.balls.x, balls.x + 0.7 * 20.0))
 	him.loadPenisScales(1.0, 1.0)
 	him.setBallScale(1.0)
-	x._tick()
-	_check("penisrange: within the game's range, the game's mask and balls", him.penisMask.scaleX == 1.0 and him.balls.y == balls.y)
+	_check("penisrange: within the game's range, the game's mask and balls", mask.call()["scale"] == 1.0 and him.balls.y == balls.y)
 	him.loadPenisScales(2.5, 2.0)
+	him.setBallScale(2.0)
 	x.set_setting("on", false)
 	_check("penisrange off: the game's limits, sizes brought back", Him.MAX_PENIS_SIZE == 1.2 and Him.MIN_PENIS_SIZE == 0.7
-		and him.currentPenisLengthScale == 1.2 and him.currentPenisWidthScale == 1.2 and him.penisMask.scaleX == 1.0)
+		and him.currentPenisLengthScale == 1.2 and him.currentPenisWidthScale == 1.2 and mask.call()["scale"] == 1.0
+		and him.balls.y == balls.y)
 	him.loadPenisScales(was[0], was[1])
 	him.setBallScale(was[2])
 
