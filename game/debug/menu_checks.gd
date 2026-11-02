@@ -485,8 +485,8 @@ func _behaviour_checks() -> void:
 	var head: Dictionary = DevBodyOverlay.parts()["head"].call()
 	var him: Dictionary = DevBodyOverlay.parts()["him"].call()
 	var calves: Dictionary = DevBodyOverlay.parts()["legs_ours"].call()
-	_check("body layers: head and jaw pivots, his chains and penis, our two calf bones", head["points"].size() == 2
-		and him["axes"].size() >= 5 and calves["axes_ours"].size() == 4, "%d %d" % [him["axes"].size(), calves["axes_ours"].size()])
+	_check("body layers: head and jaw pivots, his chains and penis, our thighs, calves, feet and toes", head["points"].size() == 2
+		and him["axes"].size() >= 5 and calves["axes_ours"].size() == 8, "%d %d" % [him["axes"].size(), calves["axes_ours"].size()])
 	DevBodyOverlay.ours = true
 	DevBodyOverlay.marks["lumbar"] = Vector2(10, 20)
 	DevBodyOverlay.set_on("torso_ours", "axis", true)
@@ -497,8 +497,8 @@ func _behaviour_checks() -> void:
 	var lg2: Dictionary = DevBodyOverlay.parts()["legs"].call()
 	var ar: Dictionary = DevBodyOverlay.parts()["arms"].call()
 	var ao: Dictionary = DevBodyOverlay.parts()["arms_ours"].call()
-	_check("our thighs and arms replace the game's: none of its leg or arm bones left, 6 arm bones of ours",
-		lg2["axes"].is_empty() and ar["axes"].is_empty() and ao["axes_ours"].size() == 6)
+	_check("our thighs and arms replace the game's: none of its leg or arm bones left, 10 arm bones of ours (hands and fingers too)",
+		lg2["axes"].is_empty() and ar["axes"].is_empty() and ao["axes_ours"].size() == 10)
 	DevBodyOverlay.set_on("legs_ours", "axis", false)
 	DevBodyOverlay.set_on("arms_ours", "axis", false)
 	var ho: Dictionary = DevBodyOverlay.parts()["neck_ours"].call()
@@ -745,6 +745,7 @@ func _behaviour_checks() -> void:
 	DevBodyVector.status = ""
 	_check("vector leg: XFL silhouette parsed (two greys' outer boundary, a curve); on: the thigh in her torso before her leg group, the calf over it before the calf's container (as the game draws them), the outline grown around, the game's thigh hidden; the knee meets from both bones; off: all back",
 		parsed_ok and built and from_thigh.distance_to(from_calf) < 0.01 and gone, "%s %s %.3f %s" % [parsed_ok, built, from_thigh.distance_to(from_calf), gone])
+	_hands_feet_checks(h)
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
 		ho["axes_ours"].size() == 1 and DevBodyOverlay.parts()["neck_lines_ours"].call()["axes_ours"].size() == 2 and DevBodyOverlay.parts()["head_ours"].call()["axes_ours"].size() == 1 and bo["axes_ours"].size() == 2 and len1 > len0, "%.1f -> %.1f" % [len0, len1])
@@ -1096,3 +1097,70 @@ func _dialogue_editor_checks() -> void:
 	p._delete()
 	p.close()
 	_check("dialogue editor: delete", not g.dialogueControl.exportDialogue().contains("Hello *YOU*"))
+
+
+## BODY_33: the wrist ring turns her hand picture (its costume too) and never feeds the arm's IK; the fingers, ankle
+## and toes rings turn our bones (from a straight line, within their limits) and the vector leg's foot; reset and
+## our layer off put everything back.
+func _hands_feet_checks(h) -> void:
+	DevBodyOverlay.ours = true
+	var hand: FlashDisplayObject = DevBodyOverlay.hand_of(true)
+	h.updateArms()
+	var g0: float = DevBodyRings.bend_game("wrist_r")
+	DevBodyRings.set_turn("wrist_r", 20.0)
+	var shown: float = DevBodyRings.fold_now("wrist_r") - DevBodyRings.bend_game("wrist_r")
+	var hooked: bool = Hooks.has(&"Her.updateArms")
+	var kept := true
+	for k in 4:
+		h.updateArms()
+		kept = kept and absf(DevBodyRings.fold_now("wrist_r") - DevBodyRings.bend_game("wrist_r") - 20.0) < 0.01
+	var drift: float = DevBodyRings.bend_game("wrist_r") - g0   # fed our 20 the IK would ease on towards it
+	var costume: bool = h.rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.transform.is_equal_approx(hand.transform)
+	var geo_ok := true
+	DevBodyRings.set_turn("fingers_r", 30.0)
+	DevBodyRings.set_turn("ankle_r", 30.0)
+	DevBodyRings.set_turn("toes_l", -15.0)
+	for id in ["wrist_r", "fingers_r", "ankle_r", "toes_l", "wrist_l"]:
+		var gm: Array = DevBodyRings.geometry(id)
+		geo_ok = geo_ok and absf(wrapf(gm[1] - gm[3] - gm[4] * deg_to_rad(DevBodyRings.fold_now(id)), -PI, PI)) < 0.001
+	DevBodyRings.set_turn("wrist_r", 500.0)
+	var wrist_max: float = DevBodyRings.fold_now("wrist_r")
+	var last_base: Transform2D = DevBodyRings._hand_base["_r"]
+	DevBodyRings.reset_turns()
+	var back: bool = hand.transform.is_equal_approx(last_base) and not Hooks.has(&"Her.updateArms") and DevBodyRings._hand_applied.is_empty()
+	_check("wrist ring: her hand (and glove) turned 20 from the game's bend at once and every updateArms, the IK not fed ours (game's bend drift %.2f), clamped at the limit; reset: the game's hand, unhooked" % drift,
+		hooked and absf(shown - 20.0) < 0.01 and kept and absf(drift) < 3.0 and costume and absf(wrist_max - DevBodyRings.limit("wrist_r").y) < 0.01 and back and geo_ok,
+		"%.2f %s %s %.1f %s %s" % [shown, kept, costume, wrist_max, back, geo_ok])
+	var ank: Vector2 = DevBodyOverlay.mark_at("ankle_r")
+	var ball0: Vector2 = DevBodyOverlay.joint_at("ball_r")
+	var toes0: Vector2 = DevBodyOverlay.joint_at("toes_r")
+	var af0: float = DevBodyRings.fold_now("ankle_r")
+	var tf0: float = DevBodyRings.fold_now("toes_r")
+	var pic0: Transform2D = h.torso.rightCalfContainer.calf.transform
+	DevBodyRings.set_turn("ankle_r", 30.0)
+	var ball1: Vector2 = DevBodyOverlay.joint_at("ball_r")
+	var ka: float = DevBodyRings.geometry("ankle_r")[4]
+	var foot_turn: float = rad_to_deg(wrapf((ball1 - ank).angle() - (ball0 - ank).angle(), -PI, PI)) * ka
+	DevBodyRings.set_turn("toes_r", 25.0)
+	var ball2: Vector2 = DevBodyOverlay.joint_at("ball_r")
+	var toes2: Vector2 = DevBodyOverlay.joint_at("toes_r")
+	var feet_ok: bool = absf(foot_turn - 30.0) < 0.5 and absf(DevBodyRings.fold_now("ankle_r") - af0 - 30.0) < 0.01 \
+		and ball2.is_equal_approx(ball1) and absf(DevBodyRings.fold_now("toes_r") - tf0 - 25.0) < 0.01 and toes2.distance_to(toes0) > 20.0 \
+		and h.torso.rightCalfContainer.calf.transform.is_equal_approx(pic0) and absf(ball1.distance_to(ank) - ball0.distance_to(ank)) < 0.01
+	var tt: Transform2D = h.torso.leg.transform
+	var tc: Transform2D = h.torso.rightCalfContainer.transform * h.torso.rightCalfContainer.calf.transform
+	var pts := PackedVector2Array([Vector2(-60, 40), DevBodyOverlay.mark("toes_r")])
+	var bent := DevBodyVector._skin_pts(pts, tt, tc, true, DevBodyVector._foot())
+	var plain := DevBodyVector._skin_pts(pts, tt, tc, true)
+	var vec_ok: bool = bent[0].distance_to(plain[0]) < 0.01 and bent[1].distance_to(tc * (DevBodyRings.foot_xf("_r")[1] * pts[1])) < 0.01 and bent[1].distance_to(plain[1]) > 20.0
+	DevBodyRings.set_turn("fingers_l", 40.0)
+	var fingers_ok: bool = absf(DevBodyRings.fold_now("fingers_l") - DevBodyRings.bend_game("fingers_l") - 40.0) < 0.01 and not Hooks.has(&"Her.updateArms")
+	DevBodyRings.set_turn("ankle_r", 999.0)
+	var ankle_max: float = DevBodyRings.fold_now("ankle_r")
+	DevBodyOverlay.set_ours(false)
+	var off_ok: bool = DevBodyOverlay.joint_at("toes_r").is_equal_approx(DevBodyOverlay.mark_at("toes_r")) and DevBodyVector._foot().is_empty()
+	DevBodyOverlay.ours = true
+	DevBodyRings.reset_turns()
+	_check("ankle and toe rings: the foot bone turns 30 about the ankle, the toes 25 about the ball, the game's calf untouched; the vector calf's toes follow, its shin not; fingers bend our bone only; clamped; our layer off: as drawn",
+		feet_ok and vec_ok and fingers_ok and absf(ankle_max - DevBodyRings.limit("ankle_r").y) < 0.01 and off_ok,
+		"%.2f %s %s %s %.1f %s" % [foot_turn, feet_ok, vec_ok, fingers_ok, ankle_max, off_ok])

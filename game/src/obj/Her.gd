@@ -2059,6 +2059,10 @@ func updateTorso() -> void:
 
 
 func updateArms() -> void:
+	if Hooks.has(&"Her.updateArms"):   # HOOK
+		var h := Hooks.before(&"Her.updateArms", self, [])
+		if h.cancelled:
+			return
 	if g.handJobMode and initialised:
 		updateHandJobMode()
 	if leftArmFree:
@@ -2129,6 +2133,8 @@ func updateArms() -> void:
 		rightForeArmContainer.upperArmCostume.foreArmCostume.transform = r2
 		rightForeArmContainer.upperArm.foreArm.hand.transform = r3
 		rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.transform = rightForeArmContainer.upperArm.foreArm.hand.transform
+	if Hooks.has(&"Her.updateArms"):   # HOOK
+		Hooks.after(&"Her.updateArms", self, [])
 
 
 func updateHandJobMode() -> void:

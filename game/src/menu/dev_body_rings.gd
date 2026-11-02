@@ -14,6 +14,10 @@ extends RefCounted
 ## kneels (she rises or sinks over them); the back (thoracic) - "back" leans her upper body about the pelvis (her head
 ## goes round it, the game's IK keeps her knees). With both legs loose her knees go with her anyway.
 ## The chains (Body > Mouse > Drag pulls along them): head -> neck -> back -> pelvis; pelvis -> hip -> knee -> ankle.
+## Hands and feet (BODY_33): the wrist turns her hand picture about its pivot on the forearm (after the game's
+## updateArms, taken back before the next one: the arm's IK eases the hand from its last angle, so ours must never
+## feed into it); the fingers, the ankle and the toes have no picture of the game's to turn (the hand and the calf
+## with its foot are one picture each), so their rings turn our bones only - and the vector leg's foot.
 
 ## id -> [label, centre mark, far mark (the bone's direction)]
 const JOINTS := {
@@ -25,6 +29,14 @@ const JOINTS := {
 	"knee_l": ["Left knee", "knee_l", "ankle_l"],
 	"back": ["Back", "lumbar", "thoracic"],
 	"body": ["Whole body", "torso", "thoracic"],
+	"wrist_r": ["Right wrist", "wrist_r", "hand_r"],
+	"wrist_l": ["Left wrist", "wrist_l", "hand_l"],
+	"fingers_r": ["Right fingers", "hand_r", "fingers_r"],
+	"fingers_l": ["Left fingers", "hand_l", "fingers_l"],
+	"ankle_r": ["Right ankle", "ankle_r", "ball_r"],
+	"ankle_l": ["Left ankle", "ankle_l", "ball_l"],
+	"toes_r": ["Right toes", "ball_r", "toes_r"],
+	"toes_l": ["Left toes", "ball_l", "toes_l"],
 }
 const CHAINS := [["head", "neck", "back"], ["hip_r", "knee_r"], ["hip_l", "knee_l"]]
 ## Allowed turn, degrees [min, max]: from the game's angle; the knees from a straight leg - their fold (0: straight,
@@ -32,9 +44,18 @@ const CHAINS := [["head", "neck", "back"], ["hip_r", "knee_r"], ["hip_l", "knee_
 ## fold degrees too (more: folded more), so it never bends a knee the wrong way whatever the game or the loose
 ## leg has done to it.
 ## Set by Dima (30 Oct) on the right leg; the left one the same (the same pictures, the same game angle).
+## Hands and feet: like the knees, a bend from a straight line (0: in line with the bone before it) - wrist: hand
+## to forearm, more: towards the palm; fingers: to the hand, more: curled; ankle: foot to shin, more: towards the
+## shin's front (she stands at about 90; as she kneels her feet are pointed on, about 0); toes: to the foot, more:
+## up towards its top (on tiptoe). First guesses from anatomy (3 Nov), to be set by Dima.
 const LIMITS := {"neck": Vector2(-38, 54), "head": Vector2(-68, 28), "hip_r": Vector2(-77, 149),
 	"hip_l": Vector2(-77, 149), "knee_r": Vector2(-8, 156), "knee_l": Vector2(-8, 156),
-	"back": Vector2(-30, 40), "body": Vector2(-180, 180)}
+	"back": Vector2(-30, 40), "body": Vector2(-180, 180),
+	"wrist_r": Vector2(-70, 80), "wrist_l": Vector2(-70, 80), "fingers_r": Vector2(-30, 100), "fingers_l": Vector2(-30, 100),
+	"ankle_r": Vector2(-20, 110), "ankle_l": Vector2(-20, 110), "toes_r": Vector2(-40, 80), "toes_l": Vector2(-40, 80)}
+## A bend's sense in its pictures' own space: the palm and the fingers' curl are on the hand's +x side, the top of
+## the foot on the calf's +y side; turning towards them is a negative angle there (y points down).
+const BEND_SIGN := -1.0
 const MODES := ["Off", "Points", "Rotate", "Limits", "Drag"]
 const RING_PX := 26.0      # ring radius on screen (the left side's rings are larger: both knees sit together)
 const LEFT_PX := 36.0
@@ -53,6 +74,12 @@ const STEP_MAX := deg_to_rad(40.0)   # Rotate / Drag: at most this much turn per
 static var _after := Callable()
 static var _fold_game := {}    # knee id -> its fold before our turn (last applied)
 static var _fold_turn := {}    # knee id -> the turn that fitted in its range (last applied)
+static var _hands_pre := Callable()
+static var _hands_post := Callable()
+static var _hand_base := {}    # "_r" / "_l" -> the hand's transform as the game placed it
+static var _hand_applied := {} # and as we turned it: unchanged means the game did not place it again
+static var _over_base = null   # her left hand's "over" copy (drawn over him), as the game placed it
+static var _over_applied = null
 
 
 static var offset := Vector2.ZERO   # all of her moved (knees too), in the scene's space
@@ -85,7 +112,7 @@ static func set_turn(id: String, deg: float) -> void:
 	if (id == "body" or id == "back") and turn(id) == 0.0 and g.her != null:
 		_pivot[id] = root_xf(false).affine_inverse() * scene_pt(JOINTS[id][1])
 	var l := limit(id)
-	if is_knee(id):   # the fold it would make must stay in range
+	if is_fold(id):   # the fold it would make must stay in range
 		var f0 := fold_game(id)
 		turns[id] = clampf(deg, l.x - f0, l.y - f0)
 	else:
@@ -95,6 +122,15 @@ static func set_turn(id: String, deg: float) -> void:
 
 static func is_knee(id: String) -> bool:
 	return id.begins_with("knee")
+
+
+## A hand or foot joint: a bend from straight, like a knee (see LIMITS).
+static func is_bend(id: String) -> bool:
+	return id.begins_with("wrist") or id.begins_with("fingers") or id.begins_with("ankle") or id.begins_with("toes")
+
+
+static func is_fold(id: String) -> bool:
+	return is_knee(id) or is_bend(id)
 
 
 ## +1 / -1: whether `xf` keeps or mirrors the turning sense.
@@ -127,9 +163,134 @@ static func knee_fold(id: String) -> float:
 
 ## The fold before our turn: as last applied, else as it is now.
 static func fold_game(id: String) -> float:
+	if is_bend(id):
+		return bend_game(id)
 	if turn(id) != 0.0 and _fold_game.has(id):
 		return _fold_game[id]
 	return knee_fold(id)
+
+
+## The fold now (ours included).
+static func fold_now(id: String) -> float:
+	if is_bend(id):
+		return bend_game(id) + bend_turn(id)
+	return knee_fold(id)
+
+
+## A hand or foot joint without our turn: [its pictures' space, the bone before it (start), the joint, the bone's
+## far end], points in that space. The wrist: forearm space, from the elbow (the forearm's pivot) to the hand's
+## pivot, the hand's knuckles as the game placed it; the fingers: hand space, wrist (its pivot) -> knuckles ->
+## fingertips; the ankle: calf space, knee (its pivot) -> ankle -> ball of the foot; the toes: ankle -> ball -> tips.
+static func _bend_pts(id: String) -> Array:
+	var s := id.right(2)
+	var m := func(k: String) -> Vector2: return DevBodyOverlay.mark(k + s)
+	if id.begins_with("ankle") or id.begins_with("toes"):
+		var calf = _knee_nodes("knee" + s)[1]
+		if id.begins_with("ankle"):
+			return [calf, Vector2.ZERO, m.call("ankle"), m.call("ball")]
+		return [calf, m.call("ankle"), m.call("ball"), m.call("toes")]
+	var hand := DevBodyOverlay.hand_of(s == "_r")
+	if id.begins_with("fingers"):
+		return [hand, Vector2.ZERO, m.call("hand"), m.call("fingers")]
+	var base := _hand_game(s)
+	return [hand.get_parent(), Vector2.ZERO, base.origin, base * m.call("hand")]
+
+
+## The hand's transform as the game placed it (ours taken off, if it is on).
+static func _hand_game(s: String) -> Transform2D:
+	var t: Transform2D = DevBodyOverlay.hand_of(s == "_r").transform
+	if _hand_applied.has(s) and t.is_equal_approx(_hand_applied[s]):
+		return _hand_base[s]
+	return t
+
+
+## A hand or foot joint's fold before our turn (degrees, see LIMITS).
+static func bend_game(id: String) -> float:
+	var p := _bend_pts(id)
+	var b: Vector2 = p[2]
+	return rad_to_deg(wrapf((p[3] - b).angle() - (b - p[1]).angle(), -PI, PI)) * BEND_SIGN
+
+
+## Our turn on a hand or foot joint as it fits in its range now (fold degrees).
+static func bend_turn(id: String) -> float:
+	var t := turn(id)
+	if t == 0.0:
+		return 0.0
+	var f0 := bend_game(id)
+	var l := limit(id)
+	return clampf(f0 + t, l.x, l.y) - f0
+
+
+## A turn of `fold` degrees of a bend about `pivot`, in its pictures' own space.
+static func _bend_xf(pivot: Vector2, fold: float) -> Transform2D:
+	var r := deg_to_rad(fold * BEND_SIGN)
+	return Transform2D(r, pivot - pivot.rotated(r))
+
+
+## The foot's turns in calf space, side "_r" / "_l": [the foot's (about the ankle), the toes' (foot and toes)].
+static func foot_xf(s: String) -> Array:
+	var a := _bend_xf(DevBodyOverlay.mark("ankle" + s), bend_turn("ankle" + s))
+	return [a, a * _bend_xf(DevBodyOverlay.mark("ball" + s), bend_turn("toes" + s))]
+
+
+## Mark `id` (`p`, in its picture's space) moved by our foot and finger turns (no picture of the game's moves there).
+static func posed(id: String, p: Vector2) -> Vector2:
+	if not DevBodyOverlay.ours or g.her == null:
+		return p
+	var s := id.right(2)
+	if id.begins_with("ball"):
+		return foot_xf(s)[0] * p
+	if id.begins_with("toes"):
+		return foot_xf(s)[1] * p
+	if id.begins_with("fingers"):
+		return _bend_xf(DevBodyOverlay.mark("hand" + s), bend_turn("fingers" + s)) * p
+	return p
+
+
+## The hands' pictures (skin and costume; the left one's "over" copy too) set to `m` / back.
+static func _set_hand(s: String, m: Transform2D) -> void:
+	var h = g.her
+	DevBodyOverlay.hand_of(s == "_r").transform = m
+	var c = h.rightForeArmContainer.upperArmCostume if s == "_r" else h.leftArmContainer.upperArmCostume
+	c.foreArmCostume.handCostume.transform = m
+
+
+## Before the game's updateArms: the hands back as the game left them (its IK eases a hand on from its last angle).
+static func _hands_before() -> void:
+	if g.her == null:
+		_hand_applied.clear()
+		return
+	for s in _hand_applied.keys():
+		if DevBodyOverlay.hand_of(s == "_r").transform.is_equal_approx(_hand_applied[s]):
+			_set_hand(s, _hand_base[s])
+	_hand_applied.clear()
+	var over = g.her.leftHandOver
+	if _over_applied != null and over.transform.is_equal_approx(_over_applied):
+		over.transform = _over_base
+	_over_applied = null
+
+
+## After it: each hand turned about its wrist by our turn, kept in the wrist's range.
+static func _hands_after() -> void:
+	if g.her == null:
+		return
+	for s in ["_r", "_l"]:
+		var id: String = "wrist" + s
+		if turn(id) == 0.0:
+			continue
+		var base: Transform2D = DevBodyOverlay.hand_of(s == "_r").transform
+		var done := bend_turn(id)
+		var m := _bend_xf(base.origin, done) * base
+		_hand_base[s] = base
+		_hand_applied[s] = m
+		_fold_turn[id] = done
+		_set_hand(s, m)
+		if s == "_l":
+			var over = g.her.leftHandOver
+			_over_base = over.transform
+			_over_applied = over.transform * base.affine_inverse() * m
+			over.transform = _over_applied
+
 
 
 static func reset_turns() -> void:
@@ -238,6 +399,20 @@ static func refresh() -> void:
 	elif not want and _after.is_valid():
 		Hooks.remove(&"Her.updateElements", _after)
 		_after = Callable()
+	var hands := DevBodyOverlay.ours and g.her != null and (turn("wrist_r") != 0.0 or turn("wrist_l") != 0.0)
+	if hands and not _hands_pre.is_valid():
+		_hands_pre = func(_c): DevBodyRings._hands_before()
+		_hands_post = func(_c): DevBodyRings._hands_after()
+		Hooks.add_before(&"Her.updateArms", _hands_pre, "rings", 0)
+		Hooks.add_after(&"Her.updateArms", _hands_post, "rings", 0)
+	elif not hands and _hands_pre.is_valid():
+		Hooks.remove(&"Her.updateArms", _hands_pre)
+		Hooks.remove(&"Her.updateArms", _hands_post)
+		_hands_pre = Callable()
+		_hands_post = Callable()
+	_hands_before()   # the hands shown at once (the game may be paused), from the game's own angle
+	if hands:
+		_hands_after()
 	DevBodyOverlay.sync_head()
 	if g.her != null and g.gamePaused:
 		g.her.updateElements()
@@ -297,6 +472,13 @@ static func shown() -> bool:
 ## [centre, the bone's angle now, the game's angle, the limits' zero, k] in her space: a limit `d` sits at
 ## zero + k * d (k: 1; a knee's zero is the thigh's line and k the way it folds on screen).
 static func geometry(id: String) -> Array:
+	if is_bend(id):
+		var p := _bend_pts(id)
+		var space: FlashDisplayObject = p[0]
+		var cb: Vector2 = DevBodyOverlay._at(space, posed(JOINTS[id][1], p[2]))
+		var ab: float = (DevBodyOverlay.joint_at(JOINTS[id][2]) - cb).angle()
+		var kb := BEND_SIGN * _sgn(g.her.flash_global_transform().affine_inverse() * space.flash_global_transform())
+		return [cb, ab, ab - deg_to_rad(bend_turn(id)) * kb, (cb - DevBodyOverlay._at(space, p[1])).angle(), kb]
 	var c: Vector2 = DevBodyOverlay.mark_at(JOINTS[id][1])
 	var a: float = (DevBodyOverlay.mark_at(JOINTS[id][2]) - c).angle()
 	if not is_knee(id):
@@ -340,8 +522,8 @@ static func draw(canvas: CanvasItem, xf: Transform2D, mouse: Vector2, width: flo
 		canvas.draw_line(s, ring_pt(xf, id, c, gm[1]), Color.WHITE if lit else orange, width * 1.5, true)
 		if lit:
 			var text := "%s  %+.0f°  (%+.0f..%+.0f)" % [JOINTS[id][0], turn(id), l.x, l.y]
-			if is_knee(id):
-				text = "%s  folded %.0f°  (%.0f..%.0f)  turn %+.0f°" % [JOINTS[id][0], knee_fold(id), l.x, l.y, turn(id)]
+			if is_fold(id):
+				text = "%s  folded %.0f°  (%.0f..%.0f)  turn %+.0f°" % [JOINTS[id][0], fold_now(id), l.x, l.y, turn(id)]
 			canvas.draw_string(font, s + Vector2(radius(id) + 6.0, -6.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
 
 

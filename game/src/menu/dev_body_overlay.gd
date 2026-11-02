@@ -574,7 +574,14 @@ const FIT := {"hip_r": Vector2(-361, 457), "hip_l": Vector2(-337, 448), "lumbar"
 	"shoulder_l": Vector2(-13, 5), "head_pivot": Vector2(-50, 65), "jaw": Vector2(-29, 85),
 	"throat_top": Vector2(55, 66), "nape_top": Vector2(-21, 31), "throat_bottom": Vector2(65, 48),
 	"nape_bottom": Vector2(-56, 134), "knee_r": Vector2(357, 286), "knee_l": Vector2(357, 286),
-	"ankle_r": Vector2(-486, 61), "ankle_l": Vector2(-486, 61)}
+	"ankle_r": Vector2(-486, 61), "ankle_l": Vector2(-486, 61),
+	"ball_r": Vector2(-640, 74), "ball_l": Vector2(-640, 74), "toes_r": Vector2(-712, 69), "toes_l": Vector2(-712, 69),
+	"hand_r": Vector2(20, 150), "hand_l": Vector2(20, 150), "fingers_r": Vector2(34, 228), "fingers_l": Vector2(34, 228)}
+## The feet and hands (3 Nov) are first guesses from the pictures, to be fitted by hand: the calf picture runs from the
+## knee (its origin) along -x, its foot pointed on in line with the shin (as she kneels), the toe tip at -716, 68, the
+## top of the foot on the +y side (the heel bulges out on the -y side by the ankle); the hand hangs from the wrist (its
+## origin) along +y to the fingertips (35, 234), the fingers curling to +x (the palm's side). The wrists are the hand
+## pictures' own pivots (in the forearms; a wrist ring turns the hand about it, as a knee turns its calf).
 static var marks := {}
 static var editing := false        # Body > Her body > "Edit points": drag them with the left mouse button
 static var _drag := ""
@@ -608,7 +615,23 @@ static func mark_defs() -> Dictionary:
 		"shoulder_l": ["Left shoulder", torso, func(): return _local(h.torso, h.leftArmContainer.upperArm).round()],
 		"ankle_r": ["Right ankle", func(): return h.torso.rightCalfContainer.calf, func(): return (_far_end(h.torso.rightCalfContainer.calf) * 0.8).round()],
 		"ankle_l": ["Left ankle", func(): return h.leftLegContainer.leg.calf, func(): return (_far_end(h.leftLegContainer.leg.calf) * 0.8).round()],
+		"ball_r": ["Right ball of foot", func(): return h.torso.rightCalfContainer.calf, func(): return Vector2.ZERO],
+		"ball_l": ["Left ball of foot", func(): return h.leftLegContainer.leg.calf, func(): return Vector2.ZERO],
+		"toes_r": ["Right toe tips", func(): return h.torso.rightCalfContainer.calf, func(): return Vector2.ZERO],
+		"toes_l": ["Left toe tips", func(): return h.leftLegContainer.leg.calf, func(): return Vector2.ZERO],
+		"wrist_r": ["Right wrist", func(): return hand_of(true).get_parent(), func(): return hand_of(true).transform.origin.round()],
+		"wrist_l": ["Left wrist", func(): return hand_of(false).get_parent(), func(): return hand_of(false).transform.origin.round()],
+		"hand_r": ["Right knuckles", func(): return hand_of(true), func(): return Vector2.ZERO],
+		"hand_l": ["Left knuckles", func(): return hand_of(false), func(): return Vector2.ZERO],
+		"fingers_r": ["Right fingertips", func(): return hand_of(true), func(): return Vector2.ZERO],
+		"fingers_l": ["Left fingertips", func(): return hand_of(false), func(): return Vector2.ZERO],
 	}
+
+
+## Her hand picture, right (true) or left: the end of the arm's IK chain, hung at the wrist on the forearm.
+static func hand_of(right: bool) -> FlashDisplayObject:
+	var h = g.her
+	return h.rightForeArmContainer.upperArm.foreArm.hand if right else h.leftArmContainer.upperArm.foreArm.hand
 
 
 ## Where `o`'s origin is in `space`'s own coordinates.
@@ -658,20 +681,25 @@ static func mark_at(id: String) -> Vector2:
 	return _at(mark_defs()[id][1].call(), mark(id))
 
 
+## Mark `id` in her space as it is posed now: the ball of the foot, the toes and the fingertips moved by our ankle,
+## toe and finger rings (no picture of the game's moves there: the calf with its foot and the hand are one picture
+## each); any other mark as its picture places it.
+static func joint_at(id: String) -> Vector2:
+	return _at(mark_defs()[id][1].call(), DevBodyRings.posed(id, mark(id)))
+
+
 ## The points that can be dragged now: the neck lines' ends only while their layer is on.
 static func live_marks() -> Array:
 	var lines_on := is_on("neck_lines_ours", "axis")
 	return mark_defs().keys().filter(func(id): return lines_on or not (id.begins_with("throat_") or id.begins_with("nape_")))
 
 
-## Named joints of the game's that are not our points, for the labels while editing: elbows, wrists, nipples.
+## Named joints of the game's that are not our points, for the labels while editing: elbows, nipples.
 static func joint_labels() -> Array:
 	if g.her == null or g.her.leftArmIK == null:
 		return []
 	var h = g.her
-	return [[_at(h.rightArmIK.s2), "Right elbow"], [_at(h.rightArmIK.s3), "Right wrist"],
-		[_at(h.leftArmIK.s2), "Left elbow"], [_at(h.leftArmIK.s3), "Left wrist"],
-		[nipple_at(true), "Right nipple"], [nipple_at(false), "Left nipple"]]
+	return [[_at(h.rightArmIK.s2), "Right elbow"], [_at(h.leftArmIK.s2), "Left elbow"], [nipple_at(true), "Right nipple"], [nipple_at(false), "Left nipple"]]
 
 
 static func numbers() -> String:
@@ -787,29 +815,38 @@ static func torso_ours() -> Dictionary:
 		[mark_at("thoracic"), mark_at("neck_base")]]}
 
 
-## Our calf bones: from her knee to her ankle, right and left (orange). The game has no bone there: the calf is one
-## rigid picture with her foot, hung at the knee. The ankles are our skeleton points ankle_r / ankle_l.
+## Our calf bones: from her knee to her ankle, right and left (orange), then the foot (ankle -> ball of the foot)
+## and the toes (ball -> toe tips). The game has no bone there: the calf is one rigid picture with her foot, hung at
+## the knee; our ankle and toe rings turn these bones (and the vector leg's foot), not the game's picture.
 static func legs_ours() -> Dictionary:
 	if g.her == null or g.her.torsoIK == null:
 		return {}
 	var h = g.her
-	var knees := [mark_at("knee_r"), mark_at("knee_l")]
-	return {"node": h, "axes_ours": [[mark_at("hip_r"), knees[0]], [mark_at("hip_l"), knees[1]],
-		[knees[0], mark_at("ankle_r")], [knees[1], mark_at("ankle_l")]]}
+	var out := {"node": h, "axes_ours": []}
+	for s in ["_r", "_l"]:
+		var knee := mark_at("knee" + s)
+		var ankle := mark_at("ankle" + s)
+		var ball := joint_at("ball" + s)
+		out["axes_ours"].append_array([[mark_at("hip" + s), knee], [knee, ankle], [ankle, ball], [ball, joint_at("toes" + s)]])
+	return out
 
 
 ## Our arms (orange): the collarbones from the neck base to both shoulders, then shoulder -> elbow -> wrist (the
-## game's elbows and wrists: where its forearm and hand pictures hang). With it on, the game's arm bones are hidden.
+## game's elbows and wrists: where its forearm and hand pictures hang), then the hand (wrist -> knuckles) and the
+## fingers (knuckles -> fingertips). With it on, the game's arm bones are hidden.
 static func arms_ours() -> Dictionary:
 	if g.her == null or g.her.leftArmIK == null:
 		return {}
 	var h = g.her
 	var nb := mark_at("neck_base")
 	var out := {"node": h, "axes_ours": []}
-	for side in [["shoulder_r", h.rightArmIK], ["shoulder_l", h.leftArmIK]]:
-		var sh := mark_at(side[0])
+	for side in [["_r", h.rightArmIK], ["_l", h.leftArmIK]]:
+		var sh := mark_at("shoulder" + side[0])
 		var ik: IKController = side[1]
-		out["axes_ours"].append_array([[nb, sh], [sh, _at(ik.s2)], [_at(ik.s2), _at(ik.s3)]])
+		var wrist := mark_at("wrist" + side[0])
+		var knuckles := mark_at("hand" + side[0])
+		out["axes_ours"].append_array([[nb, sh], [sh, _at(ik.s2)], [_at(ik.s2), wrist], [wrist, knuckles],
+			[knuckles, joint_at("fingers" + side[0])]])
 	return out
 
 
