@@ -731,22 +731,22 @@ func _behaviour_checks() -> void:
 	DevBodyOverlay.ours = true
 	var tq := PackedVector2Array([Vector2(0, 0), Vector2(400, 250), Vector2(380, 320), Vector2(-20, 60)])
 	var cq := PackedVector2Array([Vector2(0, 0), Vector2(-600, 30), Vector2(-600, 80), Vector2(0, 60)])
-	DevBodyVector.data = {"thigh_r": {"sil": tq}, "calf_r": {"sil": cq}, "thigh_l": {"sil": tq}, "calf_l": {"sil": cq}}
+	DevBodyVector.data = {"thigh_r": {"sil": tq}, "calf_r": {"sil": cq}, "thigh_l": {"sil": tq}, "calf_l": {"sil": cq}, "backside": {"sil": tq}}
 	DevBodyVector.set_on(true)
 	h.updateElements()
-	var built: bool = DevBodyVector._nodes.size() == 5 and not h.torso.leg.thigh.visible and (DevBodyVector._nodes[DevBodyVector.THIGH_SKIN] as Polygon2D).polygon.size() == 4 and DevBodyVector._nodes[0].get_parent() == h.torso and (DevBodyVector._nodes[DevBodyVector.THIGH_DARK] as Polygon2D).polygon.size() > 4 and DevBodyVector._legs["l"]["nodes"][0].get_parent() == h and not h.leftLegContainer.leg.thigh.visible
+	var built: bool = DevBodyVector._nodes.size() == 5 and not h.torso.leg.thigh.visible and (DevBodyVector._nodes[DevBodyVector.THIGH_SKIN] as Polygon2D).polygon.size() == 4 and DevBodyVector._nodes[0].get_parent() == h.torso and (DevBodyVector._nodes[DevBodyVector.THIGH_DARK] as Polygon2D).polygon.size() > 4 and DevBodyVector._legs["l"]["nodes"][0].get_parent() == h and not h.leftLegContainer.leg.thigh.visible and not h.torso.backside.visible and DevBodyVector._back["nodes"][1].get_index() < h.torso.backside.get_index() and DevBodyVector._back["nodes"][1].polygon.size() == 4
 	var tt: Transform2D = h.torso.leg.transform
 	var tcf: Transform2D = h.torso.rightCalfContainer.transform * h.torso.rightCalfContainer.calf.transform
 	var from_thigh: Vector2 = DevBodyVector._skin_pts(PackedVector2Array([DevBodyVector.KNEE]), tt, tcf, false)[0]
 	var from_calf: Vector2 = DevBodyVector._skin_pts(PackedVector2Array([Vector2.ZERO]), tt, tcf, true)[0]
 	var u_rest: float = DevBodyVector.unfold(tt, tt * Transform2D(0.0, DevBodyVector.KNEE), DevBodyOverlay.mark("ankle_r"))
 	var u_straight: float = DevBodyVector.unfold(tt, tt * Transform2D(deg_to_rad(-134.0), DevBodyVector.KNEE), DevBodyOverlay.mark("ankle_r"))
-	var cap: Vector2 = DevBodyVector._knee_shape(DevBodyVector.KNEE + Vector2(20, -40), 1.0)
+	var cap: Vector2 = DevBodyVector._knee_shape(DevBodyVector.KNEE + Vector2(20, -40), 1.0, false)
 	DevBodyVector.set_on(false)
-	var gone: bool = DevBodyVector._nodes.is_empty() and h.torso.leg.thigh.visible and h.leftLegContainer.leg.thigh.visible and not DevBodyVector._after.is_valid()
+	var gone: bool = DevBodyVector._nodes.is_empty() and h.torso.leg.thigh.visible and h.leftLegContainer.leg.thigh.visible and h.torso.backside.visible and DevBodyVector._back.is_empty() and not DevBodyVector._after.is_valid()
 	DevBodyVector.data = {}
 	DevBodyVector.status = ""
-	_check("vector legs: XFL silhouette parsed (two greys' outer boundary, a curve); on: the right leg in her torso before her leg group, the left in her before its container, the game's skin hidden, the outline grown around; unfold 0 kneeling, 1 straight, the kneecap comes out, the game's thigh hidden; the knee meets from both bones; off: all back",
+	_check("vector legs: XFL silhouette parsed (two greys' outer boundary, a curve); on: the right leg in her torso before her leg group, the left in her before its container, the game's skin hidden, the outline grown around; the backside drawn where the game's was (hidden); unfold 0 kneeling, 1 straight, the kneecap comes out, the game's thigh hidden; the knee meets from both bones; off: all back",
 		parsed_ok and built and from_thigh.distance_to(from_calf) < 0.01 and gone and absf(u_rest) < 0.01 and absf(u_straight - 1.0) < 0.02 and cap.length() > 1.0,
 		"%s %s %.3f %s %.2f %.2f %s" % [parsed_ok, built, from_thigh.distance_to(from_calf), gone, u_rest, u_straight, cap])
 	DevBodyOverlay.ours = ours_was

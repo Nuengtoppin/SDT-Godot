@@ -10,7 +10,7 @@ extends RefCounted
 ## for now; the game's highlights stay. The game's skin pictures are hidden (their shader ignores modulate).
 
 const PARTS := {"thigh_r": "Right Thigh Body", "calf_r": "Right Calf Body", "thigh_l": "Left Thigh Body",
-	"calf_l": "Left Calf Body"}
+	"calf_l": "Left Calf Body", "backside": "Backside Body"}
 const SYMBOL_DIR := "LIBRARY/Assets/Template Elements/Body Elements/"
 const KNEE := Vector2(357.4, 286.1)   # the calf's place on the thigh (the template's and the game's)
 const BLEND := 110.0                  # how far from the knee a point follows both bones
@@ -20,7 +20,7 @@ const LINE := Color8(92, 66, 52)
 static var on := false
 static var data := {}           # part -> {"sil": PackedVector2Array}
 static var status := ""         # what the menu shows
-static var _legs := {}          # "r" / "l" -> {"nodes": [in draw order, see the enum], "hidden": [[picture, its modulate]]}
+static var _legs := {}          # "r" / "l" -> {"nodes": [in draw order, see the enum], "hidden": [[picture, was visible]]}
 static var _nodes := []         # the right leg's nodes (the checks look at them)
 static var _after := Callable()
 static var _game_fn := Callable()
@@ -53,6 +53,8 @@ static func load_template() -> bool:
 	var files := read_fla(p, PARTS.values().map(func(n): return SYMBOL_DIR + n + ".xml"))
 	for part in PARTS:
 		var xml: String = files.get(SYMBOL_DIR + PARTS[part] + ".xml", "")
+		if xml == "" and part == "backside":
+			continue   # the legs do without it (the game's backside stays)
 		if xml == "":
 			status = "the template has no %s" % PARTS[part]
 			data.clear()
@@ -224,6 +226,9 @@ static func area(l: PackedVector2Array) -> float:
 
 # ---------------------------------------------------------------- on her
 
+static var _back := {}   # the backside: {"nodes": [dark, skin], "hidden": [[picture, visible]]}
+
+
 static func set_on(v: bool) -> void:
 	on = v
 	if v and (not DevBodyOverlay.ours or g.her == null or not load_template()):
@@ -234,6 +239,8 @@ static func set_on(v: bool) -> void:
 static func _sync() -> void:
 	var want := on and DevBodyOverlay.ours and g.her != null
 	if want and _legs.is_empty():
+		if data.has("backside"):
+			_build_back()
 		for side in ["r", "l"]:
 			if data.has("thigh_" + side) and data.has("calf_" + side):
 				_build(side)
@@ -258,16 +265,23 @@ static func _sync() -> void:
 ## The draw order, like the game's (the thigh over the calf): each part's outline - its silhouette grown by OUTLINE
 ## (a filled shape: crisp, one draw) - then its skin over it. Near the knee a patch of calf skin over the thigh's
 ## outline hides the thigh's edge where it lies inside the calf (the knee unfolded); further down the shin it still
-## shows, as in the game's kneeling.
+## shows, as in the game's kneeling. The backside (her far buttock, on her pelvis) under the thighs: the thigh's
+## edge over it is the crease under the buttock.
 enum { CALF_DARK, CALF_SKIN, THIGH_DARK, PATCH, THIGH_SKIN }
 const OUTLINE := 2.4
 const FOLD_REST := 134.0   # the knee's fold in the template (thigh to calf, degrees): she kneels
-const CALF_THIN := 0.045   # the calf thins this much (mid calf) once the leg is straight
-const KNEECAP := 7.0       # the front of the knee comes out this much, straight (thigh pixels) ...
-const KNEE_BACK := 4.0     # ... and the back of the knee goes in this much
+# The shape once the leg is straight (by how far the knee unfolds), thigh pixels at rest:
+const CALF_THIN := 0.10    # the calf thins this much mid calf ...
+const SHIN_THIN := 0.07    # ... and the shin under the knee this much (a narrower bone line)
+const KNEECAP := 6.0       # the kneecap comes out, a little below the joint ...
+const KNEECAP_DROP := 28.0
+const KNEE_BACK := 9.0     # ... and the back of the knee goes in (the hollow behind it)
+const THIGH_END := 22.0    # the thigh's rounded end (drawn to cover a folded calf) goes into the calf
 const KNEE_ZONE := 120.0
-const HIP_ZONE := 170.0    # the top of the thigh held by her pelvis: from the hip down this far ...
-const HIP_HOLD := 0.6      # ... at most this share
+const HIP_ZONE := 210.0    # the top of the thigh held by her pelvis: from the hip down this far ...
+const HIP_HOLD := 0.6      # ... at most this share of the thigh's turn ...
+const HIP_HOLD_MAX := 20.0 # ... and never more than this (degrees: a far turn bends the thigh's front, so the
+                           # buttock goes with the thigh there)
 
 
 ## Where a leg is drawn and its pictures: the right one in her torso, the left one in her, each just before the
@@ -298,6 +312,13 @@ static func _bones(side: String) -> Array:
 	return [tt, tc]
 
 
+static func _poly(dark: bool) -> Polygon2D:
+	var n := Polygon2D.new()
+	n.color = LINE if dark else FILL
+	n.antialiased = true
+	return n
+
+
 static func _build(side: String) -> void:
 	var w := _where(side)
 	var parent: Node = w[0]
@@ -309,20 +330,35 @@ static func _build(side: String) -> void:
 			var sd := side
 			n.draw.connect(func(): DevBodyVector._draw_patch(sd, n))
 		else:
-			n = Polygon2D.new()
-			(n as Polygon2D).color = LINE if k in [CALF_DARK, THIGH_DARK] else FILL
-			(n as Polygon2D).antialiased = true
+			n = _poly(k in [CALF_DARK, THIGH_DARK])
 		n.name = "VectorLeg%s%d" % [side, k]
 		parent.add_child(n)
 		parent.move_child(n, w[1] + k)
 		nodes.append(n)
 	# the game's skin pictures hidden (their own shader ignores modulate, so see-through would not do)
-	var hidden := []
-	for pic in [w[2].thigh, _skin(w[3])]:
+	_legs[side] = {"nodes": nodes, "hidden": _hide([w[2].thigh, _skin(w[3])]), "patch": []}
+
+
+## Her backside from the template, in her torso where the game's is (its picture hidden).
+static func _build_back() -> void:
+	var b = g.her.torso.backside
+	var parent: Node = b.get_parent()
+	var at: int = b.get_index()
+	var nodes := [_poly(true), _poly(false)]
+	for k in 2:
+		nodes[k].name = "VectorBackside%d" % k
+		parent.add_child(nodes[k])
+		parent.move_child(nodes[k], at + k)
+	_back = {"nodes": nodes, "hidden": _hide([b])}
+
+
+static func _hide(pics: Array) -> Array:
+	var out := []
+	for pic in pics:
 		if pic != null and pic.visible:
-			hidden.append([pic, true])
+			out.append([pic, true])
 			pic.visible = false
-	_legs[side] = {"nodes": nodes, "hidden": hidden, "patch": []}
+	return out
 
 
 ## The calf's skin picture: its first shape (the second is the highlight).
@@ -334,14 +370,18 @@ static func _skin(calf) -> Node:
 
 
 static func _teardown() -> void:
-	for side in _legs:
-		for n in _legs[side]["nodes"]:
+	var all := _legs.values()
+	if not _back.is_empty():
+		all.append(_back)
+	for part in all:
+		for n in part["nodes"]:
 			if is_instance_valid(n):
 				n.queue_free()
-		for hp in _legs[side]["hidden"]:
+		for hp in part["hidden"]:
 			if is_instance_valid(hp[0]):
 				hp[0].visible = hp[1]
 	_legs.clear()
+	_back = {}
 	_nodes = []
 	_game.clear()
 
@@ -359,6 +399,13 @@ static func _update() -> void:
 	if g.her == null or not DevBodyOverlay.ours:
 		_sync()
 		return
+	if not _back.is_empty():
+		var bt: Transform2D = g.her.torso.backside.transform
+		var bk := PackedVector2Array()
+		for q in data["backside"]["sil"]:
+			bk.append(bt * q)
+		_back["nodes"][0].polygon = _grown(bk, OUTLINE * bt.get_scale().x)
+		_back["nodes"][1].polygon = bk
 	for side in _legs:
 		var b := _bones(side)
 		var tt: Transform2D = b[0]
@@ -410,50 +457,79 @@ static func _draw_patch(side: String, n: Node2D) -> void:
 			n.draw_colored_polygon(poly, FILL)
 
 
-## The shape corrections at rest, by how far the knee unfolds (`u`): the calf thins mid calf; near the knee the front
-## (the kneecap) comes out and the back goes in. Thigh space at rest (the calf's points brought over by KNEE).
-static func _knee_shape(p: Vector2, u: float) -> Vector2:
-	var d := p - KNEE
-	var f := 1.0 - smoothstep(0.0, KNEE_ZONE, d.length())
-	if f <= 0.0 or u <= 0.0:
+## The knee's shape at rest, by how far it unfolds (`u`), thigh space (the calf's points brought over by KNEE): the
+## kneecap comes out a little below the joint, the back of the knee goes in, and the thigh's rounded end (drawn to
+## cover a folded calf) goes into the calf.
+static func _knee_shape(p: Vector2, u: float, is_calf: bool) -> Vector2:
+	if u <= 0.0:
 		return Vector2.ZERO
 	var axis := KNEE.normalized()                  # along the thigh, hip to knee
+	var d := p - KNEE
 	var out := Vector2(-axis.y, axis.x)
 	if out.dot(d) < 0.0:
 		out = -out                                 # away from the thigh's line
 	var front := axis.cross(d) < 0.0               # above the line: the front of the thigh (she faces right)
-	return out * (KNEECAP if front else -KNEE_BACK) * u * f
+	var res := Vector2.ZERO
+	if front:
+		var cap := d - axis * KNEECAP_DROP         # the kneecap's centre a little down the leg
+		res += out * KNEECAP * u * (1.0 - smoothstep(0.0, KNEE_ZONE * 0.7, cap.length()))
+	else:
+		res -= out * KNEE_BACK * u * (1.0 - smoothstep(0.0, KNEE_ZONE, d.length()))
+		if not is_calf and d.dot(axis) > -30.0:     # the thigh's end behind the knee
+			res -= out * THIGH_END * u * (1.0 - smoothstep(0.0, KNEE_ZONE, d.length()))
+	return res
 
 
+## The calf and shin thin toward the calf's line, by how far the knee unfolds: most mid calf, and a narrower shin
+## just under the knee.
 static func _calf_thin(q: Vector2, u: float, ankle: Vector2) -> Vector2:
 	var t := q.dot(ankle) / ankle.length_squared()
 	if t <= 0.0 or t >= 1.0 or u <= 0.0:
 		return q
 	var perp := q - ankle * t
-	return q - perp * (CALF_THIN * u * sin(PI * t))
+	var k := CALF_THIN * sin(PI * t) + SHIN_THIN * exp(-pow((t - 0.18) / 0.12, 2.0))
+	return q - perp * (k * u)
 
 
-## Linear blend of the bones: a point follows its own bone and, near the knee, half the other one; the top of the
-## thigh is held partly where the game puts the thigh (`tg`: her pelvis's hold).
+## A turn of `r` radians about the point `c`.
+static func _turn(c: Vector2, r: float) -> Transform2D:
+	return Transform2D(r, c - c.rotated(r))
+
+
+## Where a point goes, blending turns rather than places (a blend of places folds the skin when the bones are far
+## apart): a point follows its own bone and, near the knee, half the other one's turn about the knee; the top of the
+## thigh keeps back part of the thigh's turn from where the game put it (`tg`), about the turn's own centre.
 static func _skin_pts(pts: PackedVector2Array, tt: Transform2D, tc: Transform2D, is_calf: bool, u := 0.0,
 		tg = null, ankle := Vector2(-486, 61)) -> PackedVector2Array:
 	var res := PackedVector2Array()
 	res.resize(pts.size())
 	var axis := KNEE.normalized()
+	var knee_w: Vector2 = tt * KNEE
+	var rel := wrapf(tc.get_rotation() - tt.get_rotation(), -PI, PI)   # the calf's turn against the thigh
+	var hip_turn := 0.0
+	var hip_c := Vector2.ZERO
+	if not is_calf and tg != null:
+		var dm: Transform2D = tt * (tg as Transform2D).affine_inverse()   # from the game's place to ours
+		hip_turn = wrapf(dm.get_rotation(), -PI, PI)
+		if absf(hip_turn) > 0.0001:
+			var m := Transform2D(dm.x - Vector2(1, 0), dm.y - Vector2(0, 1), Vector2.ZERO)   # (R - I)
+			hip_c = -(m.affine_inverse() * dm.origin)                  # its fixed point
 	for k in pts.size():
 		var q: Vector2 = pts[k]
 		if is_calf and u > 0.0:
 			q = _calf_thin(q, u, ankle)
 		var in_thigh := q + KNEE if is_calf else q          # the point at rest, thigh space
-		if u > 0.0:
-			in_thigh += _knee_shape(in_thigh, u)
+		in_thigh += _knee_shape(in_thigh, u, is_calf)
 		var w := 0.5 * (1.0 - smoothstep(0.0, BLEND, in_thigh.distance_to(KNEE)))   # share of the other bone
-		var by_thigh: Vector2 = tt * in_thigh
-		var by_calf: Vector2 = tc * (in_thigh - KNEE)
-		var p: Vector2 = by_calf.lerp(by_thigh, w) if is_calf else by_thigh.lerp(by_calf, w)
-		if not is_calf and tg != null:
-			var hold := HIP_HOLD * (1.0 - smoothstep(0.0, HIP_ZONE, in_thigh.dot(axis)))
-			if hold > 0.0:
-				p = p.lerp((tg as Transform2D) * in_thigh, hold)
+		var p: Vector2
+		if is_calf:
+			p = _turn(knee_w, -rel * w) * (tc * (in_thigh - KNEE))
+		else:
+			p = _turn(knee_w, rel * w) * (tt * in_thigh)
+			if hip_turn != 0.0:
+				var hold := HIP_HOLD * (1.0 - smoothstep(0.0, HIP_ZONE, in_thigh.dot(axis)))
+				if hold > 0.0:
+					var back := clampf(hip_turn * hold, -deg_to_rad(HIP_HOLD_MAX), deg_to_rad(HIP_HOLD_MAX))
+					p = _turn(hip_c, -back) * p
 		res[k] = p
 	return res
