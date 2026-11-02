@@ -47,6 +47,9 @@ static var _grab := ""         # the ring held
 static var _grab_end := -1     # Limits: 0 min, 1 max
 static var _grab_from := 0.0   # Rotate: the mouse's angle when pressed (her space, radians)
 static var _grab_turn := 0.0
+static var _grab_last := 0.0    # Rotate: the mouse's angle at the last motion
+const DEAD_PX := 12.0           # Rotate: the mouse this near a ring's centre turns nothing (its angle flips there)
+const STEP_MAX := deg_to_rad(40.0)   # Rotate / Drag: at most this much turn per mouse motion
 static var _after := Callable()
 static var _fold_game := {}    # knee id -> its fold before our turn (last applied)
 static var _fold_turn := {}    # knee id -> the turn that fitted in its range (last applied)
@@ -280,8 +283,7 @@ static func _knee(id: String, layers: Array) -> void:
 	_fold_game[id] = f0
 	_fold_turn[id] = f - f0
 	var r := deg_to_rad(f - f0) * _sgn(_scene() * n[0].flash_global_transform())
-	var p: Vector2 = calf.transform.origin
-	var cm: Transform2D = Transform2D(r, p - p.rotated(r)) * calf.transform
+	var cm: Transform2D = DevBodySides.turn_calf(calf.transform, r)
 	for c in layers:
 		c.transform = cm
 
@@ -391,6 +393,7 @@ static func input(e: InputEvent, xf: Transform2D) -> bool:
 		if id == "body" or id == "back":   # her space turns with them: measure in the scene
 			_grab_from = (_mouse_scene(e.position) - scene_pt(JOINTS[id][1])).angle()
 		_grab_turn = turn(id)
+		_grab_last = _grab_from
 		if mode == "Limits":
 			var l := limit(id)
 			var lo := ring_pt(xf, id, gm[0], gm[3] + gm[4] * deg_to_rad(l.x))
@@ -402,10 +405,19 @@ static func input(e: InputEvent, xf: Transform2D) -> bool:
 		var m: Vector2 = xf.affine_inverse() * e.position
 		var a: float = (m - gm[0]).angle()
 		if mode == "Rotate":
-			var deg: float = _grab_turn + rad_to_deg(wrapf(a - _grab_from, -PI, PI)) * gm[4]
+			# step by step from the last motion (not from the press): near the centre the mouse's angle flips by
+			# half a turn, so there nothing turns, and no motion turns more than STEP_MAX
+			var k: float = gm[4]
 			if _grab == "body" or _grab == "back":
 				var c: Vector2 = _pivot.get(_grab, scene_pt(JOINTS[_grab][1])) if _grab == "back" else scene_pt("torso")
-				deg = _grab_turn + rad_to_deg(wrapf((_mouse_scene(e.position) - c).angle() - _grab_from, -PI, PI)) * her_sgn()
+				a = (_mouse_scene(e.position) - c).angle()
+				k = her_sgn()
+			if (xf * gm[0]).distance_to(e.position) < DEAD_PX:
+				return true
+			var step := clampf(wrapf(a - _grab_last, -PI, PI), -STEP_MAX, STEP_MAX)
+			_grab_last = a
+			_grab_turn += rad_to_deg(step) * k
+			var deg: float = _grab_turn
 			if Input.is_key_pressed(KEY_SHIFT):
 				deg = snappedf(deg, 5.0)
 			set_turn(_grab, deg)

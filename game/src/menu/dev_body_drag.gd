@@ -10,12 +10,18 @@ extends RefCounted
 
 ## id -> [label, mark]
 const HANDLES := {
-	"head": ["Chin (head, neck, back)", "jaw"], "back": ["Back (leans)", "thoracic"],
+	"head": ["Face (head, neck, back)", ""], "back": ["Back (leans)", "thoracic"],
 	"pelvis": ["Pelvis (she moves by it)", "lumbar"], "torso": ["Torso (all of her)", "torso"], "knee_r": ["Right knee", "knee_r"], "knee_l": ["Left knee", "knee_l"],
 	"ankle_r": ["Right ankle", "ankle_r"], "ankle_l": ["Left ankle", "ankle_l"],
 	"nipple_r": ["Right nipple", ""], "nipple_l": ["Left nipple", ""],
 }
 const GRAB_PX := 12.0
+## Hidden for now: the back and the pelvis handles wait for her body's own reactions (the torso moves all of her).
+const HIDDEN := ["back", "pelvis"]
+## The head is pulled by her face (mid eye, in her head's space): the jaw sat a few pixels from the head's pivot, so
+## the head spun at the slightest move. A pull nearer its pivot than DEAD (scene) turns nothing.
+const FACE := Vector2(60, 10)
+const DEAD := 40.0
 
 static var on := false
 static var _hold := ""
@@ -36,6 +42,8 @@ static func busy() -> bool:
 static func point(id: String) -> Vector2:
 	if id.begins_with("nipple"):
 		return DevBodyOverlay.nipple_at(id.ends_with("_r"))
+	if id == "head":
+		return DevBodyOverlay._at(g.her.head, FACE)
 	return DevBodyOverlay.mark_at(HANDLES[id][1])
 
 
@@ -43,6 +51,8 @@ static func under(xf: Transform2D, mouse: Vector2) -> String:
 	var best := ""
 	var best_d := GRAB_PX
 	for id in HANDLES:
+		if id in HIDDEN:
+			continue
 		var d := (xf * point(id)).distance_to(mouse)
 		if d < best_d:
 			best_d = d
@@ -55,6 +65,8 @@ static func draw(canvas: CanvasItem, xf: Transform2D, mouse: Vector2) -> void:
 	var font := ThemeDB.fallback_font
 	var orange: Color = DevBodyOverlay.COLORS["ours"]
 	for id in HANDLES:
+		if id in HIDDEN:
+			continue
 		var p := xf * point(id)
 		var lit: bool = id == hover
 		if id == "torso":
@@ -109,8 +121,9 @@ static func pull(id: String, m: Vector2, stage: Vector2) -> void:
 			_give(["back"], rad_to_deg(wrapf((m - l).angle() - (t - l).angle(), -PI, PI)) * sg)
 		"head":
 			var p := DevBodyRings.scene_pt("head_pivot")
-			var j := DevBodyRings.scene_pt("jaw")
-			_give(["head", "neck", "back"], rad_to_deg(wrapf((m - p).angle() - (j - p).angle(), -PI, PI)) * sg)
+			var f: Vector2 = DevBodyRings._scene() * g.her.flash_global_transform() * point("head")
+			if m.distance_to(p) > DEAD:
+				_give(["head", "neck", "back"], rad_to_deg(_cap((m - p).angle() - (f - p).angle())) * sg)
 		"knee_r", "knee_l", "ankle_r", "ankle_l":
 			_leg(id, m)
 		"nipple_r", "nipple_l":
@@ -119,6 +132,11 @@ static func pull(id: String, m: Vector2, stage: Vector2) -> void:
 			if g.gamePaused:
 				g.her.updateElements()
 	_last = m
+
+
+## A turn per motion, kept small (a jump of the mouse's angle never spins her).
+static func _cap(r: float) -> float:
+	return clampf(wrapf(r, -PI, PI), -DevBodyRings.STEP_MAX, DevBodyRings.STEP_MAX)
 
 
 ## A turn along a chain: each joint takes what its range allows, the next one the rest.
@@ -140,6 +158,8 @@ static func _leg(id: String, m: Vector2) -> void:
 	var sc := DevBodyRings._scene()
 	var tg: Transform2D = sc * thigh.flash_global_transform()
 	var o: Vector2 = tg.origin
+	if (m - o).length() < DEAD:   # too near her hip: the direction would flip
+		return
 	var k: Vector2 = tg * calf.transform.origin
 	var cg: Transform2D = tg * calf.transform
 	var a: Vector2 = cg * DevBodyOverlay.mark("ankle_" + side)

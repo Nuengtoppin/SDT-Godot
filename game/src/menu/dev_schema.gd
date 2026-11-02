@@ -189,6 +189,8 @@ static func _body() -> Dictionary:
 				DevBodySides.LEG_MODES, func(): return DevBodySides.leg_l, func(v: String): DevBodySides.set_leg(false, v), {"enabled": ours}),
 			MenuSchema.choice("Right leg (ours)", "As the left one. The game hangs her torso on her right leg: loose, her torso stays where the game puts it, only the leg moves.",
 				DevBodySides.LEG_MODES, func(): return DevBodySides.leg_r, func(v: String): DevBodySides.set_leg(true, v), {"enabled": ours}),
+			_slider("Knee axis", "Where the calf turns at the knee: 0 at the calf picture's own pivot, 1 at the anatomical point (Dima's fit). Further than about a third opens a gap at the knee.", 0.0, 1.0, 0.05,
+				func(): return DevBodySides.knee_shift, func(v: float): DevBodySides.knee_shift = v, 0.25, "%.2f", ours),
 			_slider("Loose gravity", "How hard a loose leg is pulled down.", 0.0, 0.1, 0.005,
 				func(): return DevBodySides.loose_gravity, func(v: float): DevBodySides.loose_gravity = v, 0.02, "%.3f", loose),
 			_slider("Loose damping", "How fast its swing dies down.", 0.0, 0.6, 0.01,

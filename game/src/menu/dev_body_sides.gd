@@ -93,6 +93,22 @@ static var loose_push := 1.0       # how much her movement throws it (1: as a re
 const KNEE_FLOOR := {"r": 0.0, "l": -0.077}
 const ANKLE_FLOOR := {"r": 0.125, "l": 0.052}
 static var loose_floor := true     # the floor holds her knee and foot (off: they hang through it)
+## The knee's axis: the calf picture hangs on the thigh at its own pivot (357, 286 in the thigh), which is not where a
+## knee bends (Dima's fitted 387, 280 is nearer). Turning the calf about the anatomical point alone opens a gap at the
+## knee, so it turns about a point `knee_shift` of the way there (Body > Legs, 0: the picture's pivot).
+const KNEE_AXIS := Vector2(387, 280)
+static var knee_shift := 0.25
+
+
+## Where a calf turns, in its thigh's space (`pivot`: the calf picture's own).
+static func knee_pivot(pivot: Vector2) -> Vector2:
+	return pivot.lerp(KNEE_AXIS, knee_shift)
+
+
+## The calf's transform (in the thigh) turned `r` radians about the knee's axis.
+static func turn_calf(calf_xf: Transform2D, r: float) -> Transform2D:
+	var p := knee_pivot(calf_xf.origin)
+	return Transform2D(r, p - p.rotated(r)) * calf_xf
 static var _after := Callable()
 static var _st := {}               # "l" / "r" -> the leg's state (angles in the scene's space, radians)
 static var _holds := {}            # "l" / "r" -> [thigh, calf] scene angles the mouse holds it at (NAN: free)
@@ -206,7 +222,7 @@ static func _leg(side: String, thigh, calf, scene: Transform2D, floor_y: float) 
 	var fa: float = floor_y + ANKLE_FLOOR[side] * l2
 	if loose_floor and knee.y + sin(n2) * l2 > fa:   # her foot on the floor
 		n2 = _bend(n1, _onto(knee.y, l2, fa, n2), fold)
-	var cm := _rot(calf.transform, _turn_for(tg2, calf.transform, d2, n2))
+	var cm := turn_calf(calf.transform, _turn_for(tg2, calf.transform, d2, n2) - calf.transform.get_rotation())
 	s["o2"] = s["p2"]
 	s["p2"] = n2
 	return [tm, cm]

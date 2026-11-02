@@ -583,6 +583,8 @@ func _behaviour_checks() -> void:
 		hooked and worst < 0.5 and bend_ok and same and never_back > DevBodyRings.limit("knee_l").x - 0.5 and h.torso.leg.transform.is_equal_approx(rt0)
 		and not DevBodySides._after.is_valid(), "%.2f %.2f" % [worst, never_back])
 	DevBodyOverlay.ours = true
+	var shift_was: float = DevBodySides.knee_shift
+	DevBodySides.knee_shift = 0.0   # the calf picture's own pivot: its knee point stays put
 	h.updateElements()
 	var knee0: Vector2 = DevBodyOverlay.mark_at("knee_l")
 	var calf_a0: float = (DevBodyOverlay.mark_at("ankle_l") - knee0).angle()
@@ -599,10 +601,20 @@ func _behaviour_checks() -> void:
 	DevBodyRings.set_turn("knee_l", -500.0)
 	var clamped: float = DevBodyRings.turn("knee_l") + DevBodyRings.fold_game("knee_l")   # straight: 0
 	DevBodyRings.reset_turns()
+	DevBodySides.knee_shift = 0.25
+	h.updateElements()
+	var leg_l = h.leftLegContainer.leg
+	var axis0: Vector2 = DevBodyOverlay._at(leg_l, DevBodySides.knee_pivot(leg_l.calf.transform.origin))
+	var calf0: Vector2 = DevBodyOverlay._at(leg_l.calf)
+	DevBodyRings.set_turn("knee_l", -40.0)
+	h.updateElements()
+	var axis_kept: bool = DevBodyOverlay._at(leg_l, DevBodySides.knee_pivot(Vector2(357.4, 286.1))).distance_to(axis0) < 0.5 and DevBodyOverlay._at(leg_l.calf).distance_to(calf0) > 1.0
+	DevBodyRings.reset_turns()
+	DevBodySides.knee_shift = shift_was
 	h.updateElements()
 	var back: bool = DevBodyOverlay.mark_at("jaw").distance_to(jaw0) < 0.05 and not DevBodyRings._after.is_valid() and not DevBodyOverlay._before_fn.is_valid()
-	_check("rings: the left knee unfolds 40 (its calf turns about the knee), the head about its pivot with the neck picture kept, a knee stops at its range, reset puts all back",
-		knee1.distance_to(knee0) < 0.05 and absf(calf_turn + 40.0) < 0.5 and head_ok and neck_kept and absf(clamped - DevBodyRings.limit("knee_l").x) < 0.01 and back,
+	_check("rings: the left knee unfolds 40 (about the picture's pivot, or a quarter of the way to the anatomical axis, which stays put), the head about its pivot with the neck picture kept, a knee stops at its range, reset puts all back",
+		knee1.distance_to(knee0) < 0.05 and absf(calf_turn + 40.0) < 0.5 and axis_kept and head_ok and neck_kept and absf(clamped - DevBodyRings.limit("knee_l").x) < 0.01 and back,
 		"%.2f %s %s %.1f %s" % [calf_turn, head_ok, neck_kept, clamped, back])
 	DevBodyOverlay._ensure()
 	DevBodyOverlay.set_mouse("Rotate")
@@ -620,6 +632,12 @@ func _behaviour_checks() -> void:
 	mv.position = at1
 	DevBodyRings.input(mv, rxf)
 	var rot_turn: float = DevBodyRings.turn("hip_r")
+	mv.position = rxf * gm[0]   # through the ring's centre: nothing turns
+	DevBodyRings.input(mv, rxf)
+	var dead_ok: bool = is_equal_approx(DevBodyRings.turn("hip_r"), rot_turn)
+	mv.position = DevBodyRings.ring_pt(rxf, "hip_r", gm[0], gm[1] + deg_to_rad(30.0 - 170.0))   # a jump of 170
+	DevBodyRings.input(mv, rxf)
+	var capped: float = DevBodyRings.turn("hip_r") - rot_turn
 	var rl := InputEventMouseButton.new()
 	rl.button_index = MOUSE_BUTTON_LEFT
 	rl.position = at1
@@ -636,9 +654,9 @@ func _behaviour_checks() -> void:
 	var copied: bool = DevBodyOverlay.numbers().contains('"lim_hip_r": Vector2(%d, 45)' % int(DevBodyRings.LIMITS["hip_r"].x))
 	DevBodyRings.limits.clear()
 	DevBodyOverlay.set_mouse("Off")
-	_check("rings by mouse: Rotate drags the right hip's ring 30 degrees, Limits drags its arc's end to 45 (copied with the numbers)",
-		under == "hip_r" and absf(rot_turn - 30.0) < 0.5 and lim == Vector2(DevBodyRings.LIMITS["hip_r"].x, 45) and copied and not DevBodyRings.busy(),
-		"%s %.2f %s %s" % [under, rot_turn, lim, copied])
+	_check("rings by mouse: Rotate drags the right hip's ring 30 degrees (through its centre nothing turns, a jump turns at most 40), Limits drags its arc's end to 45 (copied with the numbers)",
+		under == "hip_r" and absf(rot_turn - 30.0) < 0.5 and dead_ok and absf(capped + 40.0) < 0.5 and lim == Vector2(DevBodyRings.LIMITS["hip_r"].x, 45) and copied and not DevBodyRings.busy(),
+		"%s %.2f %s %.1f %s %s" % [under, rot_turn, dead_ok, capped, lim, copied])
 	DevBodyOverlay.ours = true
 	h.updateElements()
 	var hp_a: Vector2 = DevBodyRings.scene_pt("head_pivot")
