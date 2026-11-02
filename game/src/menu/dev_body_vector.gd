@@ -13,12 +13,11 @@ const KNEE := Vector2(357.4, 286.1)   # the calf's place on the thigh (the templ
 const BLEND := 110.0                  # how far from the knee a point follows both bones
 const FILL := Color8(240, 211, 191)
 const LINE := Color8(92, 66, 52)
-const LINE_W := 2.0
 
 static var on := false
-static var data := {}           # part -> {"outer": PackedVector2Array, "lines": [PackedVector2Array]}
+static var data := {}           # part -> {"sil": PackedVector2Array}
 static var status := ""         # what the menu shows
-static var _nodes := []         # [calf fill, calf lines, thigh fill, thigh lines]
+static var _nodes := []         # in draw order (see the enum below)
 static var _after := Callable()
 static var _hidden := []        # the game's pictures we hid
 
@@ -94,11 +93,11 @@ static func read_fla(path: String, names: Array) -> Dictionary:
 	return out
 
 
-## A symbol's shape: its outer outline (the largest closed loop where one side is filled and the other empty) and
-## its lines (edges between two different fills: the knee, the toes...). Pixels (XFL counts in 1/20).
+## A symbol's silhouette: the largest closed loop of its outer boundary (an edge with a fill on one side only).
+## Pixels (XFL counts in 1/20). The template's references are two greys (what shows, and what another part covers),
+## not the game's line art: the outline is drawn here, around the silhouette.
 static func parse_shape(xml: String) -> Dictionary:
-	var outer_runs := []
-	var lines := []
+	var sil_runs := []
 	var re := RegEx.new()
 	re.compile("<Edge ([^>]*?)edges=\"([^\"]*)\"")
 	var f0 := RegEx.new()
@@ -107,14 +106,12 @@ static func parse_shape(xml: String) -> Dictionary:
 	f1.compile("fillStyle1=\"(\\d+)\"")
 	for m in re.search_all(xml):
 		var attrs := m.get_string(1)
-		var a := f0.search(attrs)
-		var c := f1.search(attrs)
-		var runs := parse_edges(m.get_string(2))
-		if (a == null) != (c == null):
-			outer_runs.append_array(runs)
-		elif a != null and c != null and a.get_string(1) != c.get_string(1):
-			lines.append_array(runs)
-	var loops := chain(outer_runs)
+		if (f0.search(attrs) == null) != (f1.search(attrs) == null):
+			sil_runs.append_array(parse_edges(m.get_string(2)))
+	return {"sil": _largest(chain(sil_runs))}
+
+
+static func _largest(loops: Array) -> PackedVector2Array:
 	var best := PackedVector2Array()
 	var best_a := 0.0
 	for l in loops:
@@ -122,7 +119,7 @@ static func parse_shape(xml: String) -> Dictionary:
 		if ar > best_a:
 			best_a = ar
 			best = l
-	return {"outer": best, "lines": lines}
+	return best
 
 
 ## XFL edge strings: "!x y" move, "|x y" or "/x y" line, "[cx cy x y" quadratic curve (sampled), "S<n>" style marks;
@@ -245,31 +242,47 @@ static func _sync() -> void:
 		_update()
 
 
-## Our nodes in her torso, where her right thigh sits (the game's skin pictures hidden; its highlights stay).
+## The draw order, like the game's (the thigh over the calf): each part's outline - its silhouette grown by OUTLINE
+## (a filled shape: crisp, one draw) - then its skin over it. Near the knee a patch of calf skin over the thigh's
+## outline hides the thigh's edge where it lies inside the calf (the knee unfolded); further down the shin it still
+## shows, as in the game's kneeling.
+enum { CALF_DARK, CALF_SKIN, THIGH_DARK, PATCH, THIGH_SKIN }
+const OUTLINE := 2.4
+
+
+## Our nodes in her torso just before her leg group (the group draws into a texture the size of the game's pictures,
+## which would cut ours off): the game's skin pictures hidden, its highlights (in the group, over ours) stay.
 static func _build() -> void:
 	var t = g.her.torso
-	var at: int = t.leg.get_index()
-	for k in 4:
+	var anchor: Node = _anchor()
+	var at: int = anchor.get_index()
+	for k in 5:
 		var n: Node2D
-		if k == 0 or k == 2:
-			n = Polygon2D.new()
-			(n as Polygon2D).color = FILL
-			(n as Polygon2D).antialiased = true
-		else:
+		if k == PATCH:
 			n = Node2D.new()
+			n.draw.connect(func(): DevBodyVector._draw_patch(n))
+		else:
+			n = Polygon2D.new()
+			(n as Polygon2D).color = LINE if k in [CALF_DARK, THIGH_DARK] else FILL
+			(n as Polygon2D).antialiased = true
 		n.name = "VectorLeg%d" % k
 		t.add_child(n)
 		t.move_child(n, at + k)
 		_nodes.append(n)
-	var n1: Node2D = _nodes[1]
-	var n3: Node2D = _nodes[3]
-	n1.draw.connect(func(): DevBodyVector._draw_lines(1, n1))
-	n3.draw.connect(func(): DevBodyVector._draw_lines(3, n3))
 	_hidden.clear()
 	for p in [t.leg.thigh, _skin(t.rightCalfContainer.calf)]:
 		if p != null and p.visible:
 			p.visible = false
 			_hidden.append(p)
+
+
+## Her right thigh in her torso: itself, or the group it is drawn in.
+static func _anchor() -> Node:
+	var t = g.her.torso
+	var n: Node = t.leg
+	while n.get_parent() != t and n.get_parent() != null:
+		n = n.get_parent()
+	return n
 
 
 ## The calf's skin picture: its first shape (the second is the highlight).
@@ -292,65 +305,58 @@ static func _teardown() -> void:
 	_drawn.clear()
 
 
-static var _drawn := {}   # node index -> [outer (closed), inner lines...] in the torso's space
+static var _drawn := []   # the patch's polygons
 
 
-## Each tick after the game's updateElements (and ours): the outlines placed by her thigh and calf (torso space).
+## Each tick after the game's updateElements (and ours): the outlines placed by her thigh and calf, torso space.
 static func _update() -> void:
 	if g.her == null or not DevBodyOverlay.ours:
 		_sync()
 		return
 	var t = g.her.torso
 	var tt: Transform2D = t.leg.transform
+	var n: Node = t.leg.get_parent()
+	while n != t and n is Node2D:
+		tt = (n as Node2D).transform * tt
+		n = n.get_parent()
 	var tc: Transform2D = t.rightCalfContainer.transform * t.rightCalfContainer.calf.transform
-	var thigh := _place(data["thigh_r"], tt, tc, false)
-	var calf := _place(data["calf_r"], tt, tc, true)
-	_nodes[0].polygon = calf[0]
-	_nodes[2].polygon = thigh[0]
-	var closed_calf: PackedVector2Array = calf[0].duplicate()
-	if closed_calf.size() > 0:
-		closed_calf.append(closed_calf[0])
-	_drawn[1] = [closed_calf] + calf.slice(1)
-	_drawn[3] = _outside(thigh, calf[0], data["thigh_r"])
-	_nodes[1].queue_redraw()
-	_nodes[3].queue_redraw()
+	var calf := _skin_pts(data["calf_r"]["sil"], tt, tc, true)
+	var thigh := _skin_pts(data["thigh_r"]["sil"], tt, tc, false)
+	var w: float = OUTLINE * tt.get_scale().x
+	_nodes[CALF_DARK].polygon = _grown(calf, w)
+	_nodes[CALF_SKIN].polygon = calf
+	_nodes[THIGH_DARK].polygon = _grown(thigh, w)
+	_nodes[THIGH_SKIN].polygon = thigh
+	var knee: Vector2 = tt * KNEE
+	var r: float = BLEND * 1.2 * tt.get_scale().x
+	var circle := PackedVector2Array()
+	for k in 24:
+		circle.append(knee + Vector2.from_angle(TAU * k / 24.0) * r)
+	_drawn = Geometry2D.intersect_polygons(calf, circle)
+	_nodes[PATCH].queue_redraw()
 
 
-## The thigh's lines (drawn over the calf) without the stretch that lies inside the calf near the knee: at rest the
-## thigh's lower edge rests on the calf, and once the knee unfolds it would cross the calf as a stray line.
-static func _outside(thigh: Array, calf_poly: PackedVector2Array, rest: Dictionary) -> Array:
-	var runs := []
-	var sources: Array = [rest["outer"]] + rest["lines"]
-	for k in thigh.size():
-		var pts: PackedVector2Array = thigh[k]
-		var src: PackedVector2Array = sources[k]
-		if k == 0 and pts.size() > 0:   # the outline is closed
-			pts = pts.duplicate()
-			pts.append(pts[0])
-			src = src.duplicate()
-			src.append(src[0])
-		var cur := PackedVector2Array()
-		for j in pts.size():
-			var hide: bool = src[j].distance_to(KNEE) < BLEND * 1.6 and Geometry2D.is_point_in_polygon(pts[j], calf_poly)
-			if hide:
-				if cur.size() > 1:
-					runs.append(cur)
-				cur = PackedVector2Array()
-			else:
-				cur.append(pts[j])
-		if cur.size() > 1:
-			runs.append(cur)
-	return runs
+## A silhouette grown outward by `w` (the largest piece Clipper gives back).
+static func _grown(poly: PackedVector2Array, w: float) -> PackedVector2Array:
+	var best := poly
+	var best_a := 0.0
+	for p in Geometry2D.offset_polygon(poly, w, Geometry2D.JOIN_ROUND):
+		var a := absf(area(p))
+		if a > best_a:
+			best_a = a
+			best = p
+	return best
+
+
+static func _draw_patch(n: Node2D) -> void:
+	if _nodes.is_empty():
+		return
+	for poly in _drawn:
+		if poly.size() > 2:
+			n.draw_colored_polygon(poly, FILL)
 
 
 ## Linear blend of the two bones: a point follows its own bone, and near the knee half of it the other one.
-static func _place(part: Dictionary, tt: Transform2D, tc: Transform2D, is_calf: bool) -> Array:
-	var out := [_skin_pts(part["outer"], tt, tc, is_calf)]
-	for l in part["lines"]:
-		out.append(_skin_pts(l, tt, tc, is_calf))
-	return out
-
-
 static func _skin_pts(pts: PackedVector2Array, tt: Transform2D, tc: Transform2D, is_calf: bool) -> PackedVector2Array:
 	var res := PackedVector2Array()
 	res.resize(pts.size())
@@ -362,13 +368,3 @@ static func _skin_pts(pts: PackedVector2Array, tt: Transform2D, tc: Transform2D,
 		var by_calf: Vector2 = tc * (in_thigh - KNEE)
 		res[k] = by_calf.lerp(by_thigh, w) if is_calf else by_thigh.lerp(by_calf, w)
 	return res
-
-
-static func _draw_lines(idx: int, n: Node2D) -> void:
-	var parts: Array = _drawn.get(idx, [])
-	if parts.is_empty() or _nodes.is_empty():
-		return
-	for k in parts.size():
-		var pl: PackedVector2Array = parts[k]
-		if pl.size() > 1:
-			n.draw_polyline(pl, LINE, LINE_W, true)

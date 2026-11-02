@@ -726,14 +726,15 @@ func _behaviour_checks() -> void:
 		absf(rad_to_deg(wrapf(rel1 - rel0, -PI, PI))) < 1.5 and start_back and (absf(hung[0]) > 5.0 or absf(hung[1]) > 5.0)
 		and hung[0] >= nl.x - 0.01 and hung[0] <= nl.y + 0.01 and hung[1] >= hl.x - 0.01 and hung[1] <= hl.y + 0.01
 		and not DevBodyOverlay._before_fn.is_valid(), "%.2f %s %s" % [rad_to_deg(wrapf(rel1 - rel0, -PI, PI)), start_back, hung])
-	var sq: Dictionary = DevBodyVector.parse_shape('<Edge fillStyle0="1" edges="!0 0|4000 0|4000 4000"/><Edge fillStyle0="1" edges="!0 4000|4000 4000"/><Edge fillStyle1="1" edges="!0 4000|0 0"/><Edge fillStyle0="1" fillStyle1="2" edges="!1000 1000[2000 1000 3000 3000"/>')
-	var parsed_ok: bool = absf(absf(DevBodyVector.area(sq["outer"])) - 40000.0) < 1.0 and sq["lines"].size() == 1 and sq["lines"][0].size() == 9
+	var sq: Dictionary = DevBodyVector.parse_shape('<Edge fillStyle0="1" edges="!0 0|4000 0|4000 4000"/><Edge fillStyle0="1" fillStyle1="2" edges="!0 0|4000 4000"/><Edge fillStyle1="2" edges="!0 0[0 4000 4000 4000"/>')
+	var parsed_ok: bool = sq["sil"].size() == 11 and absf(DevBodyVector.area(sq["sil"])) > 30000.0
 	DevBodyOverlay.ours = true
-	DevBodyVector.data = {"thigh_r": {"outer": PackedVector2Array([Vector2(0, 0), Vector2(400, 250), Vector2(380, 320), Vector2(-20, 60)]), "lines": []},
-		"calf_r": {"outer": PackedVector2Array([Vector2(0, 0), Vector2(-600, 30), Vector2(-600, 80), Vector2(0, 60)]), "lines": []}}
+	var tq := PackedVector2Array([Vector2(0, 0), Vector2(400, 250), Vector2(380, 320), Vector2(-20, 60)])
+	var cq := PackedVector2Array([Vector2(0, 0), Vector2(-600, 30), Vector2(-600, 80), Vector2(0, 60)])
+	DevBodyVector.data = {"thigh_r": {"sil": tq}, "calf_r": {"sil": cq}}
 	DevBodyVector.set_on(true)
 	h.updateElements()
-	var built: bool = DevBodyVector._nodes.size() == 4 and not h.torso.leg.thigh.visible and (DevBodyVector._nodes[2] as Polygon2D).polygon.size() == 4
+	var built: bool = DevBodyVector._nodes.size() == 5 and not h.torso.leg.thigh.visible and (DevBodyVector._nodes[DevBodyVector.THIGH_SKIN] as Polygon2D).polygon.size() == 4 and DevBodyVector._nodes[0].get_parent() == h.torso and (DevBodyVector._nodes[DevBodyVector.THIGH_DARK] as Polygon2D).polygon.size() > 4
 	var tt: Transform2D = h.torso.leg.transform
 	var tcf: Transform2D = h.torso.rightCalfContainer.transform * h.torso.rightCalfContainer.calf.transform
 	var from_thigh: Vector2 = DevBodyVector._skin_pts(PackedVector2Array([DevBodyVector.KNEE]), tt, tcf, false)[0]
@@ -742,7 +743,7 @@ func _behaviour_checks() -> void:
 	var gone: bool = DevBodyVector._nodes.is_empty() and h.torso.leg.thigh.visible and not DevBodyVector._after.is_valid()
 	DevBodyVector.data = {}
 	DevBodyVector.status = ""
-	_check("vector leg: XFL edges parsed (outline loop, a curved inner line); on: our nodes in her torso, the game's thigh hidden; the knee meets from both bones; off: all back",
+	_check("vector leg: XFL silhouette parsed (two greys' outer boundary, a curve); on: our nodes in her torso before her leg group, the outline grown around, the game's thigh hidden; the knee meets from both bones; off: all back",
 		parsed_ok and built and from_thigh.distance_to(from_calf) < 0.01 and gone, "%s %s %.3f %s" % [parsed_ok, built, from_thigh.distance_to(from_calf), gone])
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
