@@ -1,6 +1,7 @@
 extends Node
 ## Loads SWF mods through FlashLoader (like the game's mod menu) and prints what the game would see.
 ## Run: godot --headless --path game res://debug/mod_load_test.tscn -- --mod=<path.swf> [--mod=...] [--list=<file>]
+## [--mod-cache=<folder>] (converted mods go there instead of user://modcache)
 
 var _queue: Array = []
 var _ok := 0
@@ -13,6 +14,8 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--mod="):
 			_queue.append(a.substr(6))
+		elif a.begins_with("--mod-cache="):
+			FlashSwfMod.cache_root = a.substr(12)
 		elif a.begins_with("--list="):
 			for line in FileAccess.get_file_as_string(a.substr(7)).split("\n"):
 				if line.strip_edges() != "":

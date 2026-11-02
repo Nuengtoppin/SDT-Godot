@@ -5,9 +5,16 @@ extends RefCounted
 ## user://modcache/<hash>/, and instantiates its symbols, running their timeline frame scripts with FlashAbc.
 ## Registered as a FlashLoader handler, so Loader.load("x.swf") gives the mod's main timeline as `content`.
 
-const CACHE_ROOT := "user://modcache"
+## Folder of the converted mods (main.gd --mod-cache=<folder> points tests elsewhere).
+static var cache_root := "user://modcache"
 ## Bump when the converter output changes, so cached conversions are redone.
-const CONVERTER_VERSION := 2   # 2: "ma" (a shape's most opaque alpha, masks use the geometry)
+const CONVERTER_VERSION := 3   # 2: "ma" (a shape's most opaque alpha, masks use the geometry); 3: COSTUME_FILL_GROW
+## Costume colour fills (the shapes inside sprites named rgbFill / rgbFill2) are grown outward by this many pixels
+## (at 1x, solid parts only, see SWFFile.render): where a piece's edge lies exactly on her outline or on the next
+## piece's edge, the two anti-aliased edges otherwise let what is underneath show through as a light line, much more
+## than in Flash (whose renderer anti-aliases within a screen pixel; here the 2x textures are filtered down).
+const COSTUME_FILL_GROW := 1.5
+const COSTUME_FILLS := ["rgbFill", "rgbFill2"]
 ## Classes of the SDT mod kit implemented natively (the mod's compiled copies are ignored).
 const KIT_CLASSES := {"SDTMods.ModPackage": "res://src/SDTMods/ModPackage.gd"}
 
@@ -45,7 +52,7 @@ static func load_mod(bytes: PackedByteArray, source_path: String = "") -> FlashS
 	var digest := _sha256(bytes)
 	if _loaded.has(digest):
 		return _loaded[digest]
-	var dir := CACHE_ROOT.path_join(digest)
+	var dir := cache_root.path_join(digest)
 	if not is_converted(dir):
 		var t0 := Time.get_ticks_msec()
 		if not convert_swf(bytes, dir, Flash.base_library.scale if Flash.base_library else 2.0):
@@ -157,9 +164,10 @@ static func convert_swf(bytes: PackedByteArray, out_dir: String, scale: float) -
 	root_sym["t"] = "sprite"
 	chars["0"] = root_sym   # the main timeline as a symbol, so it is created like any other
 
+	var fills := _costume_fill_shapes(chars, root)
 	var blob := PackedByteArray()
 	var render := func(cid: int, ratio: int, img_name: String) -> Dictionary:
-		var r: Dictionary = swf.render(cid, ratio, scale)
+		var r: Dictionary = swf.render(cid, ratio, scale, COSTUME_FILL_GROW if fills.has(cid) else 0.0)
 		if r.is_empty() or r["empty"]:
 			return {}
 		(r["image"] as Image).save_png(out_dir.path_join("shapes/%s.png" % img_name))
@@ -221,6 +229,26 @@ static func convert_swf(bytes: PackedByteArray, out_dir: String, scale: float) -
 	jf.store_string(JSON.stringify(lib))
 	jf.close()
 	return true
+
+
+## Ids of the characters placed (directly or in nested sprites) inside a sprite placed as rgbFill / rgbFill2.
+static func _costume_fill_shapes(chars: Dictionary, root: Dictionary) -> Dictionary:
+	var found := {}
+	var todo: Array = []
+	for tl in [root] + chars.values():
+		for p in tl.get("places", []):
+			if str(p.get("n", "")) in COSTUME_FILLS:
+				todo.append(int(p["c"]))
+	while not todo.is_empty():
+		var cid: int = todo.pop_back()
+		if found.has(cid):
+			continue
+		found[cid] = true
+		var tl = chars.get(str(cid))
+		if tl is Dictionary:
+			for p in tl.get("places", []):
+				todo.append(int(p["c"]))
+	return found
 
 
 static func _r6(v) -> float:

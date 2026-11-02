@@ -151,7 +151,7 @@ func _step(path: String) -> bool:
 	var bytes := FileAccess.get_file_as_bytes(path)
 	if bytes.is_empty():
 		return true
-	var dir := FlashSwfMod.CACHE_ROOT.path_join(FlashSwfMod._sha256(bytes))
+	var dir := FlashSwfMod.cache_root.path_join(FlashSwfMod._sha256(bytes))
 	var cat := _read_catalog(dir)
 	if not cat.is_empty():
 		_add(path, cat)
