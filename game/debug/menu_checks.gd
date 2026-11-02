@@ -734,7 +734,7 @@ func _behaviour_checks() -> void:
 	DevBodyVector.data = {"thigh_r": {"sil": tq}, "calf_r": {"sil": cq}}
 	DevBodyVector.set_on(true)
 	h.updateElements()
-	var built: bool = DevBodyVector._nodes.size() == 5 and not h.torso.leg.thigh.visible and (DevBodyVector._nodes[DevBodyVector.THIGH_SKIN] as Polygon2D).polygon.size() == 4 and DevBodyVector._nodes[0].get_parent() == h.torso and (DevBodyVector._nodes[DevBodyVector.THIGH_DARK] as Polygon2D).polygon.size() > 4
+	var built: bool = DevBodyVector._nodes.size() == 5 and not h.torso.leg.thigh.visible and (DevBodyVector._nodes[DevBodyVector.THIGH_SKIN] as Polygon2D).polygon.size() == 4 and DevBodyVector._nodes[0].get_parent() == h.torso and (DevBodyVector._nodes[DevBodyVector.THIGH_DARK] as Polygon2D).polygon.size() > 4 and DevBodyVector._nodes[DevBodyVector.CALF_DARK].get_index() > DevBodyVector._nodes[DevBodyVector.THIGH_SKIN].get_index() and DevBodyVector._nodes[DevBodyVector.PATCH].get_index() < h.torso.rightCalfContainer.get_index()
 	var tt: Transform2D = h.torso.leg.transform
 	var tcf: Transform2D = h.torso.rightCalfContainer.transform * h.torso.rightCalfContainer.calf.transform
 	var from_thigh: Vector2 = DevBodyVector._skin_pts(PackedVector2Array([DevBodyVector.KNEE]), tt, tcf, false)[0]
@@ -743,7 +743,7 @@ func _behaviour_checks() -> void:
 	var gone: bool = DevBodyVector._nodes.is_empty() and h.torso.leg.thigh.visible and not DevBodyVector._after.is_valid()
 	DevBodyVector.data = {}
 	DevBodyVector.status = ""
-	_check("vector leg: XFL silhouette parsed (two greys' outer boundary, a curve); on: our nodes in her torso before her leg group, the outline grown around, the game's thigh hidden; the knee meets from both bones; off: all back",
+	_check("vector leg: XFL silhouette parsed (two greys' outer boundary, a curve); on: the thigh in her torso before her leg group, the calf over it before the calf's container (as the game draws them), the outline grown around, the game's thigh hidden; the knee meets from both bones; off: all back",
 		parsed_ok and built and from_thigh.distance_to(from_calf) < 0.01 and gone, "%s %s %.3f %s" % [parsed_ok, built, from_thigh.distance_to(from_calf), gone])
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",

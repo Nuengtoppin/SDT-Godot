@@ -242,16 +242,18 @@ static func _sync() -> void:
 		_update()
 
 
-## The draw order, like the game's (the thigh over the calf): each part's outline - its silhouette grown by OUTLINE
-## (a filled shape: crisp, one draw) - then its skin over it. Near the knee a patch of calf skin over the thigh's
-## outline hides the thigh's edge where it lies inside the calf (the knee unfolded); further down the shin it still
-## shows, as in the game's kneeling.
-enum { CALF_DARK, CALF_SKIN, THIGH_DARK, PATCH, THIGH_SKIN }
+## The draw order, like the game's (the calf over the thigh: the calf's container comes after her leg group): each
+## part's outline - its silhouette grown by OUTLINE (a filled shape: crisp, one draw) - then its skin over it. The
+## calf's line along the shin shows over the thigh, as in the game's kneeling; at the knee a patch of thigh skin
+## covers the calf's rounded top, so it never shows as a seam.
+enum { THIGH_DARK, THIGH_SKIN, CALF_DARK, CALF_SKIN, PATCH }
 const OUTLINE := 2.4
+const CAP := 15.0   # how far down the calf (from its knee point) the thigh's skin covers the calf's top
 
 
-## Our nodes in her torso just before her leg group (the group draws into a texture the size of the game's pictures,
-## which would cut ours off): the game's skin pictures hidden, its highlights (in the group, over ours) stay.
+## Our nodes in her torso: the thigh's just before her leg group (the group draws into a texture the size of the
+## game's pictures, which would cut ours off), the calf's just before the calf's container; the game's skin pictures
+## hidden, its highlights (in the group and the container, over ours) stay.
 static func _build() -> void:
 	var t = g.her.torso
 	var anchor: Node = _anchor()
@@ -267,7 +269,7 @@ static func _build() -> void:
 			(n as Polygon2D).antialiased = true
 		n.name = "VectorLeg%d" % k
 		t.add_child(n)
-		t.move_child(n, at + k)
+		t.move_child(n, at + k if k < CALF_DARK else t.rightCalfContainer.get_index())
 		_nodes.append(n)
 	_hidden.clear()
 	for p in [t.leg.thigh, _skin(t.rightCalfContainer.calf)]:
@@ -332,7 +334,16 @@ static func _update() -> void:
 	var circle := PackedVector2Array()
 	for k in 24:
 		circle.append(knee + Vector2.from_angle(TAU * k / 24.0) * r)
-	_drawn = Geometry2D.intersect_polygons(calf, circle)
+	# the calf's top (behind its knee point, along the calf) inside the thigh: thigh skin over it, so the calf's
+	# rounded top never shows as a seam across the knee; the calf's lines along the shin stay (over the thigh)
+	var a: Vector2 = DevBodyOverlay.mark("ankle_r").normalized()
+	var side := Vector2(-a.y, a.x)
+	var cap := PackedVector2Array()
+	for c in [a * CAP - side * 400.0, a * CAP + side * 400.0, a * -400.0 + side * 400.0, a * -400.0 - side * 400.0]:
+		cap.append(tc * c)
+	_drawn = []
+	for piece in Geometry2D.intersect_polygons(cap, circle):
+		_drawn.append_array(Geometry2D.intersect_polygons(piece, thigh))
 	_nodes[PATCH].queue_redraw()
 
 
