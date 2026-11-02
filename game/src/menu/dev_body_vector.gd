@@ -7,7 +7,7 @@ extends RefCounted
 ## follows its bone and, near the knee, half the other one (the knee bends as one leg, no gap); the top of the
 ## thigh is held partly by her pelvis (where the game puts the thigh), so the crease in front and the buttock stay
 ## when the thigh turns; and by how far the knee unfolds the calf thins a little and the kneecap shows. Plain fill
-## for now; the game's highlights stay.
+## for now; the game's highlights stay. The game's skin pictures are hidden (their shader ignores modulate).
 
 const PARTS := {"thigh_r": "Right Thigh Body", "calf_r": "Right Calf Body", "thigh_l": "Left Thigh Body",
 	"calf_l": "Left Calf Body"}
@@ -270,19 +270,19 @@ const HIP_ZONE := 170.0    # the top of the thigh held by her pelvis: from the h
 const HIP_HOLD := 0.6      # ... at most this share
 
 
-## Where a leg is drawn and its pictures: the right one in her torso just before her leg group (the group draws
-## into a texture the size of the game's pictures, which would cut ours off), the left one in its container before
-## the thigh. [parent, index, thigh, calf, calf's container or null]
+## Where a leg is drawn and its pictures: the right one in her torso, the left one in her, each just before the
+## group (or container) its thigh is drawn in - a group draws into a texture the size of the game's pictures, which
+## would cut ours off. [parent, index, thigh, calf, calf's container or null]
 static func _where(side: String) -> Array:
 	var h = g.her
+	var leg = h.torso.leg if side == "r" else h.leftLegContainer.leg
+	var parent: Node = h.torso if side == "r" else h
+	var n: Node = leg
+	while n.get_parent() != parent and n.get_parent() != null:
+		n = n.get_parent()
 	if side == "r":
-		var t = h.torso
-		var n: Node = t.leg
-		while n.get_parent() != t and n.get_parent() != null:
-			n = n.get_parent()
-		return [t, n.get_index(), t.leg, t.rightCalfContainer.calf, t.rightCalfContainer]
-	var leg = h.leftLegContainer.leg
-	return [h.leftLegContainer, leg.get_index(), leg, leg.calf, null]
+		return [parent, n.get_index(), leg, h.torso.rightCalfContainer.calf, h.torso.rightCalfContainer]
+	return [parent, n.get_index(), leg, leg.calf, null]
 
 
 ## Her thigh and calf transforms in the leg's drawing space.
@@ -316,12 +316,12 @@ static func _build(side: String) -> void:
 		parent.add_child(n)
 		parent.move_child(n, w[1] + k)
 		nodes.append(n)
-	# the game's skin pictures made see-through, not hidden: a hidden one would leave its group's bounds
+	# the game's skin pictures hidden (their own shader ignores modulate, so see-through would not do)
 	var hidden := []
 	for pic in [w[2].thigh, _skin(w[3])]:
-		if pic != null:
-			hidden.append([pic, pic.self_modulate])
-			pic.self_modulate = Color(1, 1, 1, 0)
+		if pic != null and pic.visible:
+			hidden.append([pic, true])
+			pic.visible = false
 	_legs[side] = {"nodes": nodes, "hidden": hidden, "patch": []}
 
 
@@ -340,7 +340,7 @@ static func _teardown() -> void:
 				n.queue_free()
 		for hp in _legs[side]["hidden"]:
 			if is_instance_valid(hp[0]):
-				hp[0].self_modulate = hp[1]
+				hp[0].visible = hp[1]
 	_legs.clear()
 	_nodes = []
 	_game.clear()
