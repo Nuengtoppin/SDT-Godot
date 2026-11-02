@@ -7,14 +7,15 @@ extends RefCounted
 ## in its picture's space (the calf 357.4, 286.1 from the thigh, as in the game). Plain fill for now; the game's
 ## highlights stay. A first step: then the hip with the torso, shape corrections by the knee's angle, the left leg.
 ## The foot bends with our ankle and toe rings (the game's calf cannot: its foot is part of the one picture): the
-## calf's points past the ankle follow the foot, past the ball of the foot the toes, blended across each joint.
+## calf's points past the ankle follow the foot, past the toes' pivot (base of the big toe) the toes, blended across
+## each joint.
 
 const PARTS := {"thigh_r": "Right Thigh Body", "calf_r": "Right Calf Body"}
 const SYMBOL_DIR := "LIBRARY/Assets/Template Elements/Body Elements/"
 const KNEE := Vector2(357.4, 286.1)   # the calf's place on the thigh (the template's and the game's)
 const BLEND := 110.0                  # how far from the knee a point follows both bones
 const FOOT_BLEND := 30.0              # how far either side of the ankle a point is shared by shin and foot
-const TOE_BLEND := 14.0               # and of the ball of the foot, by foot and toes
+const TOE_BLEND := 14.0               # and of the toes' pivot, by foot and toes
 const FILL := Color8(240, 211, 191)
 const LINE := Color8(92, 66, 52)
 
@@ -381,7 +382,7 @@ static func _foot() -> Array:
 
 
 ## A calf point `q` (calf space) moved with the foot: past the ankle (along the shin, from the knee) by the foot's
-## turn, past the ball of the foot (along the foot) by the toes', each blended across its joint.
+## turn, past the toes' pivot (along the foot) by the toes', each blended across its joint.
 static func _on_foot(q: Vector2, foot: Array) -> Vector2:
 	var ankle: Vector2 = foot[0]
 	var ball: Vector2 = foot[1]

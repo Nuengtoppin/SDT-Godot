@@ -16,8 +16,9 @@ extends RefCounted
 ## The chains (Body > Mouse > Drag pulls along them): head -> neck -> back -> pelvis; pelvis -> hip -> knee -> ankle.
 ## Hands and feet (BODY_33): the wrist turns her hand picture about its pivot on the forearm (after the game's
 ## updateArms, taken back before the next one: the arm's IK eases the hand from its last angle, so ours must never
-## feed into it); the fingers, the ankle and the toes have no picture of the game's to turn (the hand and the calf
-## with its foot are one picture each), so their rings turn our bones only - and the vector leg's foot.
+## feed into it); the ankle and the toes have no picture of the game's to turn (the calf with its foot is one
+## picture), so their rings turn our bones only - and the vector leg's foot. No fingers: her hand is one picture
+## whose frames change.
 
 ## id -> [label, centre mark, far mark (the bone's direction)]
 const JOINTS := {
@@ -31,8 +32,6 @@ const JOINTS := {
 	"body": ["Whole body", "torso", "thoracic"],
 	"wrist_r": ["Right wrist", "wrist_r", "hand_r"],
 	"wrist_l": ["Left wrist", "wrist_l", "hand_l"],
-	"fingers_r": ["Right fingers", "hand_r", "fingers_r"],
-	"fingers_l": ["Left fingers", "hand_l", "fingers_l"],
 	"ankle_r": ["Right ankle", "ankle_r", "ball_r"],
 	"ankle_l": ["Left ankle", "ankle_l", "ball_l"],
 	"toes_r": ["Right toes", "ball_r", "toes_r"],
@@ -45,16 +44,16 @@ const CHAINS := [["head", "neck", "back"], ["hip_r", "knee_r"], ["hip_l", "knee_
 ## leg has done to it.
 ## Set by Dima (30 Oct) on the right leg; the left one the same (the same pictures, the same game angle).
 ## Hands and feet: like the knees, a bend from a straight line (0: in line with the bone before it) - wrist: hand
-## to forearm, more: towards the palm; fingers: to the hand, more: curled; ankle: foot to shin, more: towards the
-## shin's front (she stands at about 90; as she kneels her feet are pointed on, about 0); toes: to the foot, more:
-## up towards its top (on tiptoe). First guesses from anatomy (3 Nov), to be set by Dima.
+## to forearm, more: towards the palm; ankle: foot to shin, more: towards the shin's front (she stands at about 90;
+## as she kneels her feet are pointed on, about 0); toes: the big toe to the foot, more: up towards its top (on
+## tiptoe, in heels). First guesses from anatomy (3 Nov), to be set by Dima once the foot can bend.
 const LIMITS := {"neck": Vector2(-38, 54), "head": Vector2(-68, 28), "hip_r": Vector2(-77, 149),
 	"hip_l": Vector2(-77, 149), "knee_r": Vector2(-8, 156), "knee_l": Vector2(-8, 156),
 	"back": Vector2(-30, 40), "body": Vector2(-180, 180),
-	"wrist_r": Vector2(-70, 80), "wrist_l": Vector2(-70, 80), "fingers_r": Vector2(-30, 100), "fingers_l": Vector2(-30, 100),
+	"wrist_r": Vector2(-70, 80), "wrist_l": Vector2(-70, 80),
 	"ankle_r": Vector2(-20, 110), "ankle_l": Vector2(-20, 110), "toes_r": Vector2(-40, 80), "toes_l": Vector2(-40, 80)}
-## A bend's sense in its pictures' own space: the palm and the fingers' curl are on the hand's +x side, the top of
-## the foot on the calf's +y side; turning towards them is a negative angle there (y points down).
+## A bend's sense in its pictures' own space: the palm is on the hand's +x side (its fingers curl that way), the top
+## of the foot on the calf's +y side; turning towards them is a negative angle there (y points down).
 const BEND_SIGN := -1.0
 const MODES := ["Off", "Points", "Rotate", "Limits", "Drag"]
 const RING_PX := 26.0      # ring radius on screen (the left side's rings are larger: both knees sit together)
@@ -126,7 +125,7 @@ static func is_knee(id: String) -> bool:
 
 ## A hand or foot joint: a bend from straight, like a knee (see LIMITS).
 static func is_bend(id: String) -> bool:
-	return id.begins_with("wrist") or id.begins_with("fingers") or id.begins_with("ankle") or id.begins_with("toes")
+	return id.begins_with("wrist") or id.begins_with("ankle") or id.begins_with("toes")
 
 
 static func is_fold(id: String) -> bool:
@@ -179,8 +178,8 @@ static func fold_now(id: String) -> float:
 
 ## A hand or foot joint without our turn: [its pictures' space, the bone before it (start), the joint, the bone's
 ## far end], points in that space. The wrist: forearm space, from the elbow (the forearm's pivot) to the hand's
-## pivot, the hand's knuckles as the game placed it; the fingers: hand space, wrist (its pivot) -> knuckles ->
-## fingertips; the ankle: calf space, knee (its pivot) -> ankle -> ball of the foot; the toes: ankle -> ball -> tips.
+## pivot, the hand's target point as the game placed it; the ankle: calf space, knee (its pivot) -> ankle -> the
+## toes' pivot; the toes: ankle -> the toes' pivot -> the big toe's tip.
 static func _bend_pts(id: String) -> Array:
 	var s := id.right(2)
 	var m := func(k: String) -> Vector2: return DevBodyOverlay.mark(k + s)
@@ -190,8 +189,6 @@ static func _bend_pts(id: String) -> Array:
 			return [calf, Vector2.ZERO, m.call("ankle"), m.call("ball")]
 		return [calf, m.call("ankle"), m.call("ball"), m.call("toes")]
 	var hand := DevBodyOverlay.hand_of(s == "_r")
-	if id.begins_with("fingers"):
-		return [hand, Vector2.ZERO, m.call("hand"), m.call("fingers")]
 	var base := _hand_game(s)
 	return [hand.get_parent(), Vector2.ZERO, base.origin, base * m.call("hand")]
 
@@ -233,7 +230,7 @@ static func foot_xf(s: String) -> Array:
 	return [a, a * _bend_xf(DevBodyOverlay.mark("ball" + s), bend_turn("toes" + s))]
 
 
-## Mark `id` (`p`, in its picture's space) moved by our foot and finger turns (no picture of the game's moves there).
+## Mark `id` (`p`, in its picture's space) moved by our foot's turns (no picture of the game's moves there).
 static func posed(id: String, p: Vector2) -> Vector2:
 	if not DevBodyOverlay.ours or g.her == null:
 		return p
@@ -242,8 +239,6 @@ static func posed(id: String, p: Vector2) -> Vector2:
 		return foot_xf(s)[0] * p
 	if id.begins_with("toes"):
 		return foot_xf(s)[1] * p
-	if id.begins_with("fingers"):
-		return _bend_xf(DevBodyOverlay.mark("hand" + s), bend_turn("fingers" + s)) * p
 	return p
 
 

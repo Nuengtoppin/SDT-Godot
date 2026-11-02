@@ -497,8 +497,8 @@ func _behaviour_checks() -> void:
 	var lg2: Dictionary = DevBodyOverlay.parts()["legs"].call()
 	var ar: Dictionary = DevBodyOverlay.parts()["arms"].call()
 	var ao: Dictionary = DevBodyOverlay.parts()["arms_ours"].call()
-	_check("our thighs and arms replace the game's: none of its leg or arm bones left, 10 arm bones of ours (hands and fingers too)",
-		lg2["axes"].is_empty() and ar["axes"].is_empty() and ao["axes_ours"].size() == 10)
+	_check("our thighs and arms replace the game's: none of its leg or arm bones left, 8 arm bones of ours (wrist -> the hand's target point too)",
+		lg2["axes"].is_empty() and ar["axes"].is_empty() and ao["axes_ours"].size() == 8)
 	DevBodyOverlay.set_on("legs_ours", "axis", false)
 	DevBodyOverlay.set_on("arms_ours", "axis", false)
 	var ho: Dictionary = DevBodyOverlay.parts()["neck_ours"].call()
@@ -1099,8 +1099,8 @@ func _dialogue_editor_checks() -> void:
 	_check("dialogue editor: delete", not g.dialogueControl.exportDialogue().contains("Hello *YOU*"))
 
 
-## BODY_33: the wrist ring turns her hand picture (its costume too) and never feeds the arm's IK; the fingers, ankle
-## and toes rings turn our bones (from a straight line, within their limits) and the vector leg's foot; reset and
+## BODY_33: the wrist ring turns her hand picture (its costume too) and never feeds the arm's IK; the ankle and toes
+## rings turn our bones (from a straight line, within their limits) and the vector leg's foot; reset and
 ## our layer off put everything back.
 func _hands_feet_checks(h) -> void:
 	DevBodyOverlay.ours = true
@@ -1117,10 +1117,9 @@ func _hands_feet_checks(h) -> void:
 	var drift: float = DevBodyRings.bend_game("wrist_r") - g0   # fed our 20 the IK would ease on towards it
 	var costume: bool = h.rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.transform.is_equal_approx(hand.transform)
 	var geo_ok := true
-	DevBodyRings.set_turn("fingers_r", 30.0)
 	DevBodyRings.set_turn("ankle_r", 30.0)
 	DevBodyRings.set_turn("toes_l", -15.0)
-	for id in ["wrist_r", "fingers_r", "ankle_r", "toes_l", "wrist_l"]:
+	for id in ["wrist_r", "ankle_r", "toes_l", "wrist_l"]:
 		var gm: Array = DevBodyRings.geometry(id)
 		geo_ok = geo_ok and absf(wrapf(gm[1] - gm[3] - gm[4] * deg_to_rad(DevBodyRings.fold_now(id)), -PI, PI)) < 0.001
 	DevBodyRings.set_turn("wrist_r", 500.0)
@@ -1153,14 +1152,15 @@ func _hands_feet_checks(h) -> void:
 	var bent := DevBodyVector._skin_pts(pts, tt, tc, true, DevBodyVector._foot())
 	var plain := DevBodyVector._skin_pts(pts, tt, tc, true)
 	var vec_ok: bool = bent[0].distance_to(plain[0]) < 0.01 and bent[1].distance_to(tc * (DevBodyRings.foot_xf("_r")[1] * pts[1])) < 0.01 and bent[1].distance_to(plain[1]) > 20.0
-	DevBodyRings.set_turn("fingers_l", 40.0)
-	var fingers_ok: bool = absf(DevBodyRings.fold_now("fingers_l") - DevBodyRings.bend_game("fingers_l") - 40.0) < 0.01 and not Hooks.has(&"Her.updateArms")
+	var fitted_ok: bool = not DevBodyRings.JOINTS.has("fingers_r") and not DevBodyOverlay.mark_defs().has("fingers_l") \
+		and DevBodyOverlay.mark("ball_l") == Vector2(-669, 81) and DevBodyOverlay.mark("toes_l") == Vector2(-707, 88) \
+		and DevBodyOverlay.mark("hand_l") == Vector2(16, 87) and not Hooks.has(&"Her.updateArms")
 	DevBodyRings.set_turn("ankle_r", 999.0)
 	var ankle_max: float = DevBodyRings.fold_now("ankle_r")
 	DevBodyOverlay.set_ours(false)
 	var off_ok: bool = DevBodyOverlay.joint_at("toes_r").is_equal_approx(DevBodyOverlay.mark_at("toes_r")) and DevBodyVector._foot().is_empty()
 	DevBodyOverlay.ours = true
 	DevBodyRings.reset_turns()
-	_check("ankle and toe rings: the foot bone turns 30 about the ankle, the toes 25 about the ball, the game's calf untouched; the vector calf's toes follow, its shin not; fingers bend our bone only; clamped; our layer off: as drawn",
-		feet_ok and vec_ok and fingers_ok and absf(ankle_max - DevBodyRings.limit("ankle_r").y) < 0.01 and off_ok,
-		"%.2f %s %s %s %.1f %s" % [foot_turn, feet_ok, vec_ok, fingers_ok, ankle_max, off_ok])
+	_check("ankle and toe rings: the foot bone turns 30 about the ankle, the toes 25 about the ball, the game's calf untouched; the vector calf's toes follow, its shin not; no fingers, the feet and hands as fitted; clamped; our layer off: as drawn",
+		feet_ok and vec_ok and fitted_ok and absf(ankle_max - DevBodyRings.limit("ankle_r").y) < 0.01 and off_ok,
+		"%.2f %s %s %s %.1f %s" % [foot_turn, feet_ok, vec_ok, fitted_ok, ankle_max, off_ok])
