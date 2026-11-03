@@ -22,7 +22,7 @@ def biggest(m):
     n,lb,st,_=cv2.connectedComponentsWithStats(m.astype(np.uint8))
     return lb==(1+np.argmax(st[1:,cv2.CC_STAT_AREA])) if n>1 else m
 # --- the torso's layers, top first; the ribcage takes the belly's sliver along its front (above its own bottom)
-TORSO=['грудная клетка','ключица сздади','пресс','живот','поясница','спина']
+TORSO=['грудная клетка','пресс','живот','поясница','спина']
 Z={n:mask(n) for n in TORSO}
 rib=Z['грудная клетка']; front=rib&(PU[...,0]>np.median(PU[...,0][rib]))
 s_bottom=np.percentile(S_[front],3)
@@ -39,10 +39,12 @@ def partition(lab,n,outer,r):
 def outer_of(m,close=12,r=14):
     k=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(int(close*G)*2+1,)*2)
     return biggest(blur_bin(ndimage.binary_fill_holes(cv2.morphologyEx(m.astype(np.uint8),cv2.MORPH_CLOSE,k).astype(bool)),r))
-torso_outer=outer_of(lab>0)
+# the outer edge from the vanilla template (Back, Chest, Chest Under); Dima's zones divide the inside
+VAN=lambda *ns: np.any([mask(n) for n in ns],axis=0)
+torso_outer=outer_of(VAN('Back','Chest','Chest Under'),6,5)
 tp=partition(lab,len(TORSO),torso_outer,22)
 PIECES={}
-grp={'back':['поясница','спина'],'belly':['пресс','живот'],'ribcage':['грудная клетка','ключица сздади']}
+grp={'back':['поясница','спина'],'belly':['пресс','живот'],'ribcage':['грудная клетка']}
 # cut-out style: the lower pieces reach under the upper ones (no gaps), all within the torso's one smooth outline
 under_k=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(int(14*G)*2+1,)*2)
 for g,names in grp.items():
@@ -55,7 +57,8 @@ PEL=['анал','лобок','талия таз','вагина']; LEG=['ягод
 for g,names in [('pelvis',PEL),('leg',LEG)]:
     Zs=[mask(n) for n in names]; lb=np.zeros((H,W),np.int16)
     for i in reversed(range(len(Zs))): lb[Zs[i]]=i+1
-    o=outer_of(lb>0,10,12); p=partition(lb,len(names),o,16)
+    o=outer_of(lb>0,10,12) if g=='pelvis' else outer_of(VAN('Right Thigh')|Zs[0],6,5)   # the leg: the vanilla thigh (+ the buttock)
+    p=partition(lb,len(names),o,16)
     PIECES[g]=(o,{n:(p==i+1)&o for i,n in enumerate(names)})
 # --- smooth vector curves: a periodic smoothing spline through the raster contour
 def curve(m,smooth=1.0,minarea=30):
@@ -67,7 +70,10 @@ def curve(m,smooth=1.0,minarea=30):
         tck,_=splprep([P[:,0],P[:,1]],s=len(P)*smooth,per=True,k=3)
         u=np.linspace(0,1,max(60,len(P)*2),endpoint=False); x,y=splev(u,tck); out.append(np.c_[x,y])
     return out
-ORDER=['back','belly','ribcage','pelvis','leg']
+# the far shoulder with its clavicle: the vanilla Left Shoulder and Dima's clavicle zone, under everything
+cl=outer_of(VAN('Left Shoulder')|mask('ключица сздади'),4,4)
+PIECES['clavicle']=(cl,{'ключица сздади':cl})
+ORDER=['clavicle','back','belly','ribcage','pelvis','leg']
 res={'order':ORDER,'pieces':{}}
 for g in ORDER:
     o,zones=PIECES[g]

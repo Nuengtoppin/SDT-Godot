@@ -7,9 +7,9 @@ COL={'анал':(200,90,90),'вагина':(120,200,230),'лобок':(190,150,2
  'Слой_18':(240,180,180),'Слой_19':(215,150,170),'пресс':(150,215,160),'живот':(205,240,150),'поясница':(240,190,130),
  'спина':(235,230,150),'ключица сздади':(230,200,140),'грудная клетка':(240,170,170)}
 FILL=np.array([240,211,191]); SHADOW=np.array([212,158,158]); SOFT=np.array([236,190,180]); LINE=(92,66,52)
-bx0,by0,bx1,by1=-520,-500,260,330; S=0.6; k=3
+bx0,by0,bx1,by1=-520,-520,300,400; S=0.6; k=3
 W,H=int((bx1-bx0)*S),int((by1-by0)*S)
-tp=lambda Q:np.round(((Q-[bx0,by0])*S*k)).astype(np.int32)
+tp=lambda Q:np.round(((np.asarray(Q)-[bx0,by0])*S*k)).astype(np.int32)
 def crop(m):
     x0=int((bx0-X0)*G); y0=int((by0-Y0)*G); x1=int((bx1-X0)*G); y1=int((by1-Y0)*G)
     return cv2.resize(m[y0:y1,x0:x1].astype(np.float32),(W*k,H*k),interpolation=cv2.INTER_LINEAR)
@@ -43,8 +43,23 @@ def panel(names,mode,zones=True):
         for c in p['outline']: cv2.polylines(img,[tp(c)],True,LINE,lw,cv2.LINE_AA)
     return Image.fromarray(img).resize((W,H),Image.LANCZOS)
 F=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',14)
-PN=[('группы мышц (5 кусков)',panel(ORDER,'zones')),('контуры кусков',panel(ORDER,'flat')),('проба объёма и тени',panel(ORDER,'vol'))]
-grid=Image.new('RGB',(3*W,H),(255,255,255))
+def vs_vanilla():
+    items=pickle.load(open(os.path.join(WORK,'body_items.pkl'),'rb'))['items']
+    img=np.full((H*k,W*k,3),255,np.uint8)
+    for n in ['Left Shoulder','Back','Chest','Chest Under','Right Thigh']:
+        key=[kk for kk in items if kk.split('#')[0]==n][0]
+        for kind,col,al,polys in items[key]:
+            if kind!='fill': continue
+            m=np.zeros(img.shape[:2],np.uint8)
+            for poly in polys:
+                if len(poly)<3: continue
+                t=np.zeros_like(m); cv2.fillPoly(t,[tp(poly)],1); m^=t
+            img[m>0]=(0.6*img[m>0]+0.4*np.array([150,150,150])).astype(np.uint8)
+    for g in ORDER:
+        for c in P[g]['outline']: cv2.polylines(img,[tp(c)],True,(200,30,30),max(1,k),cv2.LINE_AA)
+    return Image.fromarray(img).resize((W,H),Image.LANCZOS)
+PN=[('группы мышц (6 кусков)',panel(ORDER,'zones')),('контуры кусков',panel(ORDER,'flat')),('сверка: красное — наше, серое — ваниль',vs_vanilla())]
+grid=Image.new('RGB',(len(PN)*W,H),(255,255,255))
 for i,(t,im) in enumerate(PN):
     ImageDraw.Draw(im).text((8,6),t,fill=(0,0,0),font=F); grid.paste(im,(i*W,0))
 grid.save(os.path.join(WORK,'pieces.png')); print(grid.size)
