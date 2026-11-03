@@ -961,8 +961,8 @@ func shape_material(s: FlashShape) -> Material:
 				cm = b * cm
 				has_cm = true
 		o = o._flash_parent
-	if blend != "normal" or has_cm:
-		paint = null   # painted shapes are plain ones (her skin)
+	if blend != "normal":
+		paint = null   # painted shapes are plain ones (her skin; a colour matrix, her skin colour, is kept)
 	if off == Color(0, 0, 0, 0) and blend == "normal" and not has_cm and paint == null:
 		return null
 	# ERASE / ALPHA need a LAYER parent; without one Flash draws nothing (a mod part with ERASE moved out of its
@@ -975,6 +975,10 @@ func shape_material(s: FlashShape) -> Material:
 		pm.shader = SHAPE_SHADERS["paint"]
 		pm.set_shader_parameter("paint", paint)
 		pm.set_shader_parameter("offset", Vector4(off.r, off.g, off.b, off.a) / 255.0)
+		if has_cm:
+			pm.set_shader_parameter("use_matrix", true)
+			pm.set_shader_parameter("cm", cm)
+			pm.set_shader_parameter("cm_offset", cm_off)
 		_painted[s] = paint_owner
 		_update_paint(s, pm, paint_owner)
 		return pm
