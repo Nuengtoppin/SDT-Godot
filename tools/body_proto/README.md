@@ -15,3 +15,13 @@ lumbar (-48.8, -113.15), thoracic (64.2, -273.15), neck base (119.2, -453.15), k
     python3 frames.py                             # meshes, weights, poses -> $BODY_WORK/proto_frames.png
 
 Needs numpy, scipy, opencv, pillow, matplotlib and libarchive. The template itself is never committed.
+
+## Dima's three assemblies (3 Nov)
+
+    python3 assemblies.py          # torso / pelvis junction / near leg, each from its layers (top first), clean outlines
+    python3 assemblies_render.py   # each alone, together (torso < pelvis < leg), and a volume test: a dome per assembly
+                                   # plus a small one per muscle group -> normals -> light (sharp shadow + soft)
+
+Torso: ribcage, back clavicle, abs, belly, lower back, back. Pelvis junction: the pelvis waist (V), pubis, vagina,
+anus - it closes the torso's open bottom and shows when the leg moves away. Near leg: buttock and the thigh's parts.
+Pelvis bone and seat bone are inner forms (colliders), not drawn.
