@@ -65,3 +65,19 @@ order: thigh < calf < ankle cap < knee joint < kneecap < ankle link < foot (toes
 bone; foot from the ankle to its tip (-527.0, 359.5). knee_auto and ankle_auto (metadata half_of) carry the joint
 pieces and turn half as much as the calf / the foot - doll.gd does it, also in the editor (it is a tool script).
 The joints draw only the body's outer outline, so they hide the seams; calf, foot and the cyan caps keep theirs.
+
+### Marks: where the outline bends (BODY_43)
+
+Weights are no longer computed in Python. Each piece has `Marks` (Marker2D children on its outline) with metadata
+`weights`, e.g. `{"pelvis": 0.5, "thigh": 0.5}`. Along the outline the weights go over linearly from mark to mark
+(same weights on both = rigid, different = a bend); the inside follows (a guess from the outline, then smoothing).
+doll.gd builds the weights (`Rebuild weights` button on the BodyDoll node in the editor; also on load when a piece
+has none); `game/debug/body_doll/bake.gd` does it headless and saves the scene:
+
+    godot --headless --path game --script res://debug/body_doll/bake.gd
+
+The marks doll.py places: Dima's (3 Nov) on the leg - buttock top on the pelvis, a long bend down the back of the
+buttock, a short one at the groin - and ours: under the knee (thigh and calf), the instep (calf and foot), the
+crotch of the pelvis junction toward the thigh; on the back and the belly they come from the zones (the back
+bends over 24 units at each zone border, the belly stretches between the ribcage and the pelvis); other pieces get
+four rigid marks to start from. M (running) shows the marks on the posed body: green = a bend, grey = rigid.

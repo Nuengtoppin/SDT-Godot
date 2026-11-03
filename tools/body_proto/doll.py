@@ -15,7 +15,7 @@ Writes $BODY_WORK/doll.tscn for res://debug/body_doll/ (the scene holds template
 import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pickle, numpy as np, cv2
 from scipy.spatial import Delaunay
-from body_mesh import harmonic_grid, G, X0, Y0
+from body_mesh import G, X0, Y0
 WORK = os.environ.get('BODY_WORK', 'body_proto_out')
 R = pickle.load(open(os.path.join(WORK, 'pieces.pkl'), 'rb')); P = R['pieces']
 SH = P['back']['mask'].shape
@@ -63,43 +63,81 @@ def grown(V, nb, w):
     out = V.copy(); out[:nb] = B + n * w
     return out
 
-def weights(g, V, m):
-    W = np.zeros((len(V), len(BONES)))
-    one = {'clavicle': 'ribcage', 'ribcage': 'ribcage', 'pelvis': 'pelvis', 'leg': 'thigh', 'calf': 'calf',
-           'ankle_cap': 'calf', 'knee_joint': 'knee_auto', 'knee_cap': 'knee_auto', 'ankle_joint': 'ankle_auto',
-           'foot': 'foot'}
-    if g in one: W[:, BI[one[g]]] = 1; return W
-    zm = lambda n: P[g]['zmask'][n] & m
-    core = lambda z: cv2.erode(z.astype(np.uint8), np.ones((int(10 * G),) * 2, np.uint8)).astype(bool)
-    if g == 'belly':      # top on the ribcage (A), bottom on the pubis (B), the middle stretches between them
-        fixed = [('pelvis', m & P['pelvis']['mask']), ('ribcage', m & P['ribcage']['mask'])]
-    elif g == 'back':     # the lower back and the back each on its bone, soft at the border between them
-        fixed = [('pelvis', m & P['pelvis']['mask']), ('ribcage', m & P['ribcage']['mask']),
-                 ('lower_back', core(zm('поясница'))), ('upper_back', core(zm('спина')))]
-    w = harmonic_grid(m, [f for _, f in fixed])(V)
-    for i, (b, _) in enumerate(fixed): W[:, BI[b]] = w[:, i]
-    return W
+# --- marks: points on each piece's outline, each with the bones' weights there. Along the outline the weights go
+# over linearly from mark to mark: two neighbours with the same weights make a rigid stretch, different ones a bend;
+# the inside follows the outline. doll.gd turns the marks into the mesh weights (in the editor: a button), so Dima
+# moves marks or edits their weights and rebuilds. Placed here: the bends Dima marked on 3 Nov and ours (under the
+# knee, the instep, the groin); the crease side short, the stretch side long.
+RIGID = {'clavicle': 'ribcage', 'ribcage': 'ribcage', 'calf': 'calf', 'ankle_cap': 'calf', 'knee_joint': 'knee_auto',
+         'knee_cap': 'knee_auto', 'ankle_joint': 'ankle_auto', 'foot': 'foot', 'pelvis': 'pelvis', 'leg': 'thigh'}
+H = lambda **w: w
+MANUAL = {   # (point near the outline, shift along it in units, weights)
+    'leg': [((-187, -143), 0, H(pelvis=1)), ((-242, -115), 0, H(pelvis=1)),            # the buttock's top: pelvis
+            ((-277, 138), 0, H(pelvis=.5, thigh=.5)), ((-43, 255), 0, H(thigh=1)),     # back of the buttock: a long bend
+            ((70, 265), 0, H(thigh=1)), ((180, 290), 0, H(thigh=.5, calf=.5)),         # under the knee
+            ((182, 205), 0, H(thigh=1)), ((-13, 43), 0, H(thigh=1)),                   # the front of the thigh: rigid
+            ((-75, -3), 0, H(pelvis=.5, thigh=.5)), ((-113, -2), 0, H(pelvis=1))],     # the groin: a short bend
+    'calf': [((28, 252), 0, H(calf=1)), ((173, 295), 0, H(calf=.5, thigh=.5)), ((162, 368), 0, H(calf=1)),
+             ((-267, 328), 0, H(calf=1)), ((-313, 340), 0, H(calf=.5, foot=.5)), ((-300, 393), 0, H(calf=1))],
+    'foot': [((-368, 393), 0, H(foot=1)), ((-292, 383), 0, H(foot=.5, calf=.5)), ((-330, 292), 0, H(foot=.5, calf=.5)),
+             ((-367, 288), 0, H(foot=1))],
+    'pelvis': [((-93, 5), -40, H(pelvis=1)), ((-93, 5), 0, H(pelvis=.6, thigh=.4)), ((-93, 5), 40, H(pelvis=1))],
+}
+def marks(g, V, nb):
+    B = V[:nb]; arc = np.r_[0, np.cumsum(np.linalg.norm(np.diff(np.vstack([B, B[:1]]), axis=0), axis=1))]; L = arc[-1]
+    def at(t):   # the boundary vertex at arc length t (around the loop)
+        return int(np.argmin(np.minimum((arc[:-1] - t) % L, (t - arc[:-1]) % L)))
+    if g in MANUAL:
+        out = []
+        for pt, off, w in MANUAL[g]:
+            i = int(np.argmin(np.linalg.norm(B - pt, axis=1))); out.append((B[at(arc[i] + off)], w))
+        return out
+    if g in ('back', 'belly'):   # runs of the outline by what lies over them or which zone they are in
+        q = px(B); q[:, 0] = np.clip(q[:, 0], 0, SH[1] - 1); q[:, 1] = np.clip(q[:, 1], 0, SH[0] - 1)
+        hit = lambda m: m[q[:, 1], q[:, 0]]
+        lab = np.array([None] * nb, object)
+        if g == 'back':
+            lab[hit(P['back']['zmask']['спина'])] = 'upper_back'; lab[hit(P['back']['zmask']['поясница'])] = 'lower_back'
+        lab[hit(P['ribcage']['mask'])] = 'ribcage'; lab[hit(P['pelvis']['mask'] | P['leg']['mask'])] = 'pelvis'
+        if g == 'back':   # every stretch of the back's outline belongs somewhere: the nearest labelled one
+            k = np.nonzero(lab != None)[0]
+            for i in np.nonzero(lab == None)[0]: lab[i] = lab[k[np.argmin(np.minimum(abs(k - i), nb - abs(k - i)))]]
+        inset = 12.0 if g == 'back' else 0.0   # the back bends over 24 units at a zone border; the belly stretches
+        start = next((i for i in range(nb) if lab[i] != lab[i - 1]), 0); out = []
+        i = start
+        while True:
+            j = i
+            while lab[(j + 1) % nb] == lab[i] and (j + 1) % nb != start: j += 1
+            if lab[i] is not None:
+                a, b = arc[i % nb], arc[i % nb] + (arc[j % nb] - arc[i % nb]) % L
+                for t in ([a + inset, b - inset] if b - a > 2 * inset + 4 else [(a + b) / 2]):
+                    out.append((B[at(t)], {lab[i]: 1}))
+            i = (j + 1) % nb
+            if i == start: break
+        return out
+    return [(B[int(k)], {RIGID[g]: 1}) for k in np.linspace(0, nb, 4, endpoint=False)]
 
 ORDER = R['order']
-OUTER_ONLY = ['belly', 'clavicle', 'back', 'knee_joint', 'ankle_joint']   # joints hide the seams, so no lines of their own
+OUTER_ONLY = ['belly', 'clavicle', 'back', 'ankle_joint']   # no lines of their own (the knee joint has one: Dima)
 MESH = {}
 for g in ORDER:
-    V, tri, nb, m = mesh(P[g]['outline'][0]); W = weights(g, V, m)
-    MESH[g] = dict(V=V, tri=tri, nb=nb, W=W)
-    used = [BONES[i][0] for i in range(len(BONES)) if W[:, i].max() > 1e-4]
-    print(f'{g:9s} verts {len(V):5d} tris {len(tri):5d} bones {used} sums {W.sum(1).min():.3f}..{W.sum(1).max():.3f}')
+    V, tri, nb, m = mesh(P[g]['outline'][0]); M = marks(g, V, nb)
+    MESH[g] = dict(V=V, tri=tri, nb=nb, marks=M)
+    print(f'{g:11s} verts {len(V):5d} tris {len(tri):5d} marks {len(M):2d} bones {sorted({b for _, w in M for b in w})}')
 
 f2 = lambda x: f'{x:.2f}'.rstrip('0').rstrip('.')
 vec = lambda Q: 'PackedVector2Array(' + ', '.join(f'{f2(x)}, {f2(y)}' for x, y in Q) + ')'
-def poly_node(name, V, d, color):
-    nb = d['nb']; Wt = d['W']; bones = []
-    for i, b in enumerate(BONES):
-        if Wt[:, i].max() > 1e-4:
-            bones.append(f'NodePath("{bpath(b[0])}"), PackedFloat32Array(' + ', '.join(f2(w) for w in Wt[:, i]) + ')')
+def poly_node(name, V, d, color):   # no weights: doll.gd builds them from the marks
     return '\n'.join([f'[node name="{name}" type="Polygon2D" parent="."]', f'color = Color({color})',
-        'skeleton = NodePath("../Skeleton2D")', f'polygon = {vec(V)}', f'internal_vertex_count = {len(V) - nb}',
-        'polygons = [' + ', '.join(f'PackedInt32Array({a}, {b}, {c})' for a, b, c in d['tri']) + ']',
-        'bones = [' + ', '.join(bones) + ']', ''])
+        'skeleton = NodePath("../Skeleton2D")', f'polygon = {vec(V)}', f'internal_vertex_count = {len(V) - d["nb"]}',
+        'polygons = [' + ', '.join(f'PackedInt32Array({a}, {b}, {c})' for a, b, c in d['tri']) + ']', ''])
+def marks_nodes(g):
+    out = [f'[node name="Marks" type="Node2D" parent="{g}"]', '']
+    for k, (p, w) in enumerate(MESH[g]['marks']):
+        wd = '{' + ', '.join(f'"{b}": {float(x):.2f}' for b, x in w.items()) + '}'
+        out += [f'[node name="m{k:02d}" type="Marker2D" parent="{g}/Marks"]', f'position = Vector2({f2(p[0])}, {f2(p[1])})',
+                'gizmo_extents = 8.0', f'metadata/weights = {wd}', '']
+    return '\n'.join(out)
 FILL = '0.941, 0.827, 0.749, 1'; LINE = '0.361, 0.259, 0.204, 1'   # (240,211,191) and (92,66,52)
 out = ['[gd_scene format=3]', '', '[ext_resource type="Script" path="res://debug/body_doll/doll.gd" id="1"]', '',
        '[node name="BodyDoll" type="Node2D"]', 'script = ExtResource("1")', '',
@@ -119,6 +157,6 @@ for g in OUTER_ONLY: out.append(poly_node(g + '_line', grown(MESH[g]['V'], MESH[
 for g in ORDER:
     if g == 'ribcage': out += ['[node name="NeckSlot" type="Node2D" parent="."]', f'position = Vector2({f2(NECK[0])}, {f2(NECK[1])})', '']
     if g not in OUTER_ONLY: out.append(poly_node(g + '_line', grown(MESH[g]['V'], MESH[g]['nb'], LW), MESH[g], LINE))
-    out.append(poly_node(g, MESH[g]['V'], MESH[g], FILL))
+    out.append(poly_node(g, MESH[g]['V'], MESH[g], FILL)); out.append(marks_nodes(g))
 open(os.path.join(WORK, 'doll.tscn'), 'w').write('\n'.join(out))
 print('doll.tscn', os.path.getsize(os.path.join(WORK, 'doll.tscn')) // 1024, 'KB')
