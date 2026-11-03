@@ -15,9 +15,9 @@ Writes $BODY_WORK/doll.tscn for res://debug/body_doll/ (the scene holds template
 import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import pickle, numpy as np, cv2
 from scipy.spatial import Delaunay
-from body_mesh import G, X0, Y0
 WORK = os.environ.get('BODY_WORK', 'body_proto_out')
 R = pickle.load(open(os.path.join(WORK, 'pieces.pkl'), 'rb')); P = R['pieces']
+G, X0, Y0 = R.get('grid', (2.0, -700, -560))
 SH = P['back']['mask'].shape
 px = lambda Q: np.round((np.asarray(Q) - [X0, Y0]) * G).astype(np.int32)
 
@@ -26,6 +26,14 @@ RIB_J = np.array([-25.0, -211.7]); NECK = np.array([119.2, -453.15])
 # the knee: the anatomical axis (thigh (387, 280) in the game = the vanilla calf point (160.3, 291.1) + (29.6, -6.1)),
 # inside Dima's knee joint; the ankle: the middle of his ankle bone (the cyan cap); the foot's tip: its far end
 KNEE = np.array([189.9, 285.0]); ANKLE = np.array([-304.5, 349.0]); TOE = np.array([-527.0, 359.5])
+# Dima's leg poses (BODY_POSES = work dirs of other templates, comma separated): they correct the hip and the knee
+import poses as _poses
+_pose_dirs = [d for d in os.environ.get('BODY_POSES', '').split(',') if d]
+_hip0, _knee0 = HIP.copy(), KNEE.copy()
+HIP, KNEE, POSES = _poses.load(P, _pose_dirs, HIP, KNEE)
+for _p in POSES:
+    print(f"pose {_p['name']}: hip {_p['hip']:.1f}, knee {_p['knee']:.1f}, fit rms thigh {_p['rms'][0]:.1f} calf {_p['rms'][1]:.1f}")
+if POSES: print('hip', _hip0, '->', HIP.round(1), ' knee', _knee0, '->', KNEE.round(1))
 # name, parent, origin, tip, half_of: a joint piece's bone turns half as much as its neighbour (the doll script)
 BONES = [('pelvis', None, HIP, PELVIS_J, None), ('lower_back', 'pelvis', PELVIS_J, LUMBAR_J, None),
          ('upper_back', 'lower_back', LUMBAR_J, RIB_J, None), ('ribcage', 'upper_back', RIB_J, NECK, None),
@@ -127,8 +135,13 @@ for g in ORDER:
 
 f2 = lambda x: f'{x:.2f}'.rstrip('0').rstrip('.')
 vec = lambda Q: 'PackedVector2Array(' + ', '.join(f'{f2(x)}, {f2(y)}' for x, y in Q) + ')'
-def poly_node(name, V, d, color):   # no weights: doll.gd builds them from the marks
-    return '\n'.join([f'[node name="{name}" type="Polygon2D" parent="."]', f'color = Color({color})',
+def poly_node(name, V, d, color, g=None):   # no weights: doll.gd builds them from the marks (and the correctives)
+    meta = []
+    if g in _poses.POSE_PIECES and POSES:
+        meta = ['metadata/poses = [' + ', '.join(
+            f'{{"name": "{p["name"]}", "hip": {p["hip"]:.2f}, "knee": {p["knee"]:.2f}, "outline": {vec(p["outlines"][g])}}}'
+            for p in POSES if g in p['outlines']) + ']']
+    return '\n'.join([f'[node name="{name}" type="Polygon2D" parent="."]', f'color = Color({color})', *meta,
         'skeleton = NodePath("../Skeleton2D")', f'polygon = {vec(V)}', f'internal_vertex_count = {len(V) - d["nb"]}',
         'polygons = [' + ', '.join(f'PackedInt32Array({a}, {b}, {c})' for a, b, c in d['tri']) + ']', ''])
 def marks_nodes(g):
@@ -157,6 +170,6 @@ for g in OUTER_ONLY: out.append(poly_node(g + '_line', grown(MESH[g]['V'], MESH[
 for g in ORDER:
     if g == 'ribcage': out += ['[node name="NeckSlot" type="Node2D" parent="."]', f'position = Vector2({f2(NECK[0])}, {f2(NECK[1])})', '']
     if g not in OUTER_ONLY: out.append(poly_node(g + '_line', grown(MESH[g]['V'], MESH[g]['nb'], LW), MESH[g], LINE))
-    out.append(poly_node(g, MESH[g]['V'], MESH[g], FILL)); out.append(marks_nodes(g))
+    out.append(poly_node(g, MESH[g]['V'], MESH[g], FILL, g)); out.append(marks_nodes(g))
 open(os.path.join(WORK, 'doll.tscn'), 'w').write('\n'.join(out))
 print('doll.tscn', os.path.getsize(os.path.join(WORK, 'doll.tscn')) // 1024, 'KB')

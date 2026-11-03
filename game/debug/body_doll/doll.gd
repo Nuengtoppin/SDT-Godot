@@ -12,6 +12,11 @@ extends Node2D
 ## the outline: the same weights on both = rigid, different = it bends there. The inside follows the outline.
 ## To change: reset the pose (all bone rotations 0), move marks along the outline or edit their weights (or add a
 ## Marker2D with weights), then press "Rebuild weights" on this node. A mark snaps to the nearest outline point.
+##
+## Poses: a piece with metadata "poses" (Dima's drawings of the leg in other poses: hip and knee angles and the drawn
+## outline) gets a corrective per pose on rebuild: the outline is matched to the drawing (marks first, then by
+## length along it) and the change is kept in rest space ("pose_deltas"). Running, the thigh's and calf's angles pick
+## the mix: rest and each drawn pose by how near their angles are (1 / distance squared).
 
 const PICK := 24.0        # px: how close to a handle a press must be
 const DEAD := 12.0        # px: no turning this close to the joint (the angle jumps there)
@@ -28,6 +33,7 @@ var _last := Vector2.ZERO
 var _overlay: Node2D
 var _halves := {}   # joint bone -> the bone it follows by half
 var _show_marks := true
+var _last_angles := Vector2(INF, INF)
 
 
 func _ready() -> void:
@@ -38,7 +44,7 @@ func _ready() -> void:
 		else:
 			_bones.append(b)
 	for poly in _pieces():
-		if poly.get_bone_count() == 0:
+		if poly.get_bone_count() == 0 or (poly.has_meta("poses") and not poly.has_meta("pose_deltas")):
 			rebuild_weights()
 			break
 	if Engine.is_editor_hint():
@@ -62,6 +68,7 @@ func _process(_delta: float) -> void:
 		var n: Bone2D = _halves[j]
 		if n:
 			j.rotation = _rest[j] + 0.5 * (n.rotation - _rest[n])
+	_apply_poses()
 	if Engine.is_editor_hint():
 		return
 	_overlay.queue_redraw()
@@ -88,13 +95,21 @@ func _pieces() -> Array[Polygon2D]:
 func rebuild_weights() -> void:
 	var skel := get_node("Skeleton2D") as Skeleton2D
 	for poly in _pieces():
+		var twin := get_node_or_null(NodePath(str(poly.name) + "_line")) as Polygon2D
+		for p in [poly, twin]:
+			if p and not p.has_meta("rest_polygon"):
+				p.set_meta("rest_polygon", p.polygon)
+			if p:
+				p.polygon = p.get_meta("rest_polygon")
 		var w := _weights_from_marks(poly)
 		if w.is_empty():
 			continue
 		_apply(poly, skel, w)
-		var twin := get_node_or_null(NodePath(str(poly.name) + "_line")) as Polygon2D
 		if twin and twin.polygon.size() == poly.polygon.size():
 			_apply(twin, skel, w)
+		if poly.has_meta("poses"):
+			poly.set_meta("pose_deltas", _pose_deltas(poly, w))
+	_last_angles = Vector2(INF, INF)
 
 
 func _marks(poly: Polygon2D, nb: int) -> Array:
@@ -150,9 +165,28 @@ func _weights_from_marks(poly: Polygon2D) -> Dictionary:
 		var t := 0.0 if span <= 0.0 else fposmod(arc[i] - arc[a[0]], total) / span
 		for k in K:
 			W[i * K + k] = lerpf(float(a[1].get(names[k], 0.0)), float(b[1].get(names[k], 0.0)), t)
-	# the inside: a first guess from the outline (nearer counts much more), then smoothing with the outline held
+	W = _fill_inside(V, nb, poly.polygons, W, K)
+	var out := {}
+	for k in K:
+		var col := PackedFloat32Array()
+		col.resize(n)
+		for i in n:
+			var sum := 0.0
+			for q in K:
+				sum += W[i * K + q]
+			col[i] = W[i * K + k] / maxf(sum, 0.000001)
+		out[names[k]] = col
+	return out
+
+
+func _fill_inside(V: PackedVector2Array, nb: int, polys: Array, W: PackedFloat32Array, K: int) -> PackedFloat32Array:
+	# the inside from the outline: a first guess (nearer outline points count much more), then smoothing with the
+	# outline held
+	var n := V.size()
 	for i in range(nb, n):
 		var sw := 0.0
+		for k in K:
+			W[i * K + k] = 0.0
 		for j in nb:
 			var d := maxf(V[i].distance_to(V[j]), 0.001)
 			var f := 1.0 / (d * d * d)
@@ -165,7 +199,7 @@ func _weights_from_marks(poly: Polygon2D) -> Dictionary:
 	nbrs.resize(n)
 	for i in n:
 		nbrs[i] = PackedInt32Array()
-	for tri in poly.polygons:
+	for tri in polys:
 		for x in 3:
 			for y in 3:
 				if x != y and not (nbrs[tri[x]] as PackedInt32Array).has(tri[y]):
@@ -180,17 +214,184 @@ func _weights_from_marks(poly: Polygon2D) -> Dictionary:
 				for j in nn:
 					s += W[j * K + k]
 				W[i * K + k] = s / nn.size()
-	var out := {}
-	for k in K:
-		var col := PackedFloat32Array()
-		col.resize(n)
+	return W
+
+
+# --- poses: correctives from Dima's drawings
+
+func _pose_xf(b: Bone2D, angles: Dictionary) -> Transform2D:
+	var local := Transform2D(b.rest.get_rotation() + float(angles.get(str(b.name), 0.0)), b.rest.origin)
+	return local if not (b.get_parent() is Bone2D) else _pose_xf(b.get_parent(), angles) * local
+
+
+func _pose_angles(hip_deg: float, knee_deg: float) -> Dictionary:
+	return {"thigh": deg_to_rad(hip_deg), "calf": deg_to_rad(knee_deg), "knee_auto": deg_to_rad(knee_deg) * 0.5}
+
+
+func _pose_deltas(poly: Polygon2D, w: Dictionary) -> Array:
+	var skel := get_node("Skeleton2D") as Skeleton2D
+	var rest: PackedVector2Array = poly.get_meta("rest_polygon")
+	var n := rest.size()
+	var nb := n - poly.internal_vertex_count
+	var anchors := PackedInt32Array()
+	for m in poly.get_node("Marks").get_children():
+		if m.has_meta("vertex"):
+			anchors.append(int(m.get_meta("vertex")))
+	var step := maxi(1, nb / 24)
+	for i in range(0, nb, step):
+		anchors.append(i)
+	anchors.sort()
+	var out := []
+	for pose in poly.get_meta("poses"):
+		var angles := _pose_angles(float(pose["hip"]), float(pose["knee"]))
+		var mx := PackedVector2Array()
+		var my := PackedVector2Array()
+		var mo := PackedVector2Array()
+		mx.resize(n)
+		my.resize(n)
+		mo.resize(n)
+		for name in w:
+			var b := skel.find_child(name, true, false) as Bone2D
+			var d := _pose_xf(b, angles) * _skel_rest(b).affine_inverse()
+			var col: PackedFloat32Array = w[name]
+			for i in n:
+				mx[i] += d.x * col[i]
+				my[i] += d.y * col[i]
+				mo[i] += d.origin * col[i]
+		var pred := PackedVector2Array()
+		pred.resize(nb)
+		for i in nb:
+			pred[i] = Transform2D(mx[i], my[i], mo[i]) * rest[i]
+		var target := _match_outline(pred, rest, nb, anchors, pose["outline"])
+		var D := PackedFloat32Array()
+		D.resize(n * 2)
+		for i in nb:
+			var r := Transform2D(mx[i], my[i], mo[i]).affine_inverse() * target[i] - rest[i]
+			D[i * 2] = r.x
+			D[i * 2 + 1] = r.y
+		D = _fill_inside(rest, nb, poly.polygons, D, 2)
+		var dl := PackedVector2Array()
+		dl.resize(n)
 		for i in n:
-			var sum := 0.0
-			for q in K:
-				sum += W[i * K + q]
-			col[i] = W[i * K + k] / maxf(sum, 0.000001)
-		out[names[k]] = col
+			dl[i] = Vector2(D[i * 2], D[i * 2 + 1])
+		out.append(dl)
 	return out
+
+
+func _area(P: PackedVector2Array) -> float:
+	var a := 0.0
+	for i in P.size():
+		a += P[i].cross(P[(i + 1) % P.size()])
+	return a * 0.5
+
+
+func _match_outline(pred: PackedVector2Array, rest: PackedVector2Array, nb: int, anchors: PackedInt32Array,
+		drawn: PackedVector2Array) -> PackedVector2Array:
+	# each outline point of the piece -> a point on the drawn outline: anchors (marks and evenly spaced points) go to
+	# the nearest drawn point, kept only while they move forward along the drawing; the rest by length in between
+	var C := drawn.duplicate()
+	if signf(_area(C)) != signf(_area(pred)):
+		C.reverse()
+	var m := C.size()
+	var sc := PackedFloat32Array()
+	sc.resize(m + 1)
+	for i in m:
+		sc[i + 1] = sc[i] + C[i].distance_to(C[(i + 1) % m])
+	var LC := sc[m]
+	var ra := PackedFloat32Array()
+	ra.resize(nb + 1)
+	for i in nb:
+		ra[i + 1] = ra[i] + rest[i].distance_to(rest[(i + 1) % nb])
+	var LR := ra[nb]
+	var keep_i := PackedInt32Array()
+	var keep_u := PackedFloat32Array()
+	for a in anchors:
+		var best := 0
+		var bd := INF
+		for j in m:
+			var d := C[j].distance_squared_to(pred[a])
+			if d < bd:
+				bd = d
+				best = j
+		var u := sc[best]
+		if keep_u.is_empty():
+			keep_i.append(a)
+			keep_u.append(u)
+			continue
+		var du := fposmod(u - fposmod(keep_u[-1], LC), LC)
+		var dr := ra[a] - ra[keep_i[-1]]
+		if a != keep_i[-1] and du < LC * 0.5 and du < (dr / LR) * LC * 3.0 + 30.0:
+			keep_i.append(a)
+			keep_u.append(keep_u[-1] + du)
+	var out := PackedVector2Array()
+	out.resize(nb)
+	var kc := keep_i.size()
+	for q in kc:
+		var a := keep_i[q]
+		var b := keep_i[(q + 1) % kc]
+		var ua := keep_u[q]
+		var ub := keep_u[(q + 1) % kc] if q + 1 < kc else keep_u[0] + LC
+		var span := fposmod(ra[b] - ra[a], LR) if kc > 1 else LR
+		var i := a
+		while true:
+			var t := 0.0 if span <= 0.0 else fposmod(ra[i] - ra[a], LR) / span
+			out[i] = _at(C, sc, fposmod(lerpf(ua, ub, t), LC))
+			i = (i + 1) % nb
+			if i == b:
+				break
+	return out
+
+
+func _at(C: PackedVector2Array, sc: PackedFloat32Array, u: float) -> Vector2:
+	var j := clampi(sc.bsearch(u, true) - 1, 0, C.size() - 1)
+	var seg := sc[j + 1] - sc[j]
+	var t := 0.0 if seg <= 0.0 else (u - sc[j]) / seg
+	return C[j].lerp(C[(j + 1) % C.size()], t)
+
+
+func _apply_poses() -> void:
+	var skel := get_node_or_null("Skeleton2D")
+	if skel == null:
+		return
+	var thigh := skel.find_child("thigh", true, false) as Bone2D
+	var calf := skel.find_child("calf", true, false) as Bone2D
+	if thigh == null or calf == null:
+		return
+	var now := Vector2(rad_to_deg(thigh.rotation - thigh.rest.get_rotation()), rad_to_deg(calf.rotation - calf.rest.get_rotation()))
+	if now.is_equal_approx(_last_angles):
+		return
+	_last_angles = now
+	for poly in _pieces():
+		if not (poly.has_meta("pose_deltas") and poly.has_meta("rest_polygon")):
+			continue
+		var poses: Array = poly.get_meta("poses")
+		var deltas: Array = poly.get_meta("pose_deltas")
+		var mix := PackedFloat32Array()   # rest first, then each pose
+		var sum := 0.0
+		var exact := -1
+		for q in poses.size() + 1:
+			var at := Vector2.ZERO if q == 0 else Vector2(float(poses[q - 1]["hip"]), float(poses[q - 1]["knee"]))
+			var d2 := now.distance_squared_to(at)
+			if d2 < 0.25:
+				exact = q
+			mix.append(1.0 / maxf(d2, 0.25))
+			sum += mix[q]
+		var rest: PackedVector2Array = poly.get_meta("rest_polygon")
+		var V := rest.duplicate()
+		for q in range(1, mix.size()):
+			var f := (1.0 if exact == q else 0.0) if exact >= 0 else mix[q] / sum
+			if f <= 0.0:
+				continue
+			var dl: PackedVector2Array = deltas[q - 1]
+			for i in V.size():
+				V[i] += dl[i] * f
+		poly.polygon = V
+		var twin := get_node_or_null(NodePath(str(poly.name) + "_line")) as Polygon2D
+		if twin and twin.has_meta("rest_polygon"):
+			var TV: PackedVector2Array = (twin.get_meta("rest_polygon") as PackedVector2Array).duplicate()
+			for i in TV.size():
+				TV[i] += V[i] - rest[i]
+			twin.polygon = TV
 
 
 func _apply(poly: Polygon2D, skel: Skeleton2D, w: Dictionary) -> void:

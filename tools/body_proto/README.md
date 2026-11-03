@@ -81,3 +81,18 @@ buttock, a short one at the groin - and ours: under the knee (thigh and calf), t
 crotch of the pelvis junction toward the thigh; on the back and the belly they come from the zones (the back
 bends over 24 units at each zone border, the belly stretches between the ribcage and the pelvis); other pieces get
 four rigid marks to start from. M (running) shows the marks on the posed body: green = a bend, grey = rigid.
+
+### Drawn leg poses (BODY_44)
+
+Dima drew the leg (thigh, knee, calf; the foot not yet) in two more poses, in copies of the template with the same
+layers. Build each copy's pieces in its own work dir, then pass them to doll.py:
+
+    BODY_WORK=poses/T3 python3 zones.py <template 3 unpacked> && BODY_WORK=poses/T3 python3 pieces.py   # same for T4
+    BODY_POSES=poses/T3,poses/T4 python3 doll.py
+
+poses.py fits the rest thigh's far part and the rest calf onto each drawing (rigid: rms 1-4 units), which gives the
+pose's hip and knee angles, and corrects the hip and knee points to the ones the drawings turn around (least
+squares). The scene gets each pose piece's drawn outline (metadata `poses`); doll.gd matches the piece's outline to
+it (marks as anchors, then by length), keeps the difference in rest space (`pose_deltas`) and, running, mixes rest
+and the drawn poses by how near the thigh's and calf's angles are (1 / distance squared). pieces.py grows its
+raster grid when a template reaches past the old box (the grid is stored in pieces.pkl).

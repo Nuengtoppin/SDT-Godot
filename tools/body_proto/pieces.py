@@ -2,8 +2,11 @@ import sys, os, pickle, numpy as np, cv2
 WORK=os.environ.get('BODY_WORK','body_proto_out')
 from scipy import ndimage
 from scipy.interpolate import splprep, splev
-G=2.0; X0,Y0,X1,Y1=-700,-560,380,420; W=int((X1-X0)*G); H=int((Y1-Y0)*G)
-items=pickle.load(open(os.path.join(WORK,'body_items.pkl'),'rb'))['items']
+_d=pickle.load(open(os.path.join(WORK,'body_items.pkl'),'rb')); items=_d['items']
+# the raster grid: the old fixed box, grown when a template reaches further (a leg drawn in another pose)
+G=2.0; _b=_d['b']; X0=-700 if _b[0]>-695 else int(_b[0])-40; Y0=-560 if _b[1]>-555 else int(_b[1])-40
+X1=380 if _b[2]<375 else int(_b[2])+40; Y1=420 if _b[3]<415 else int(_b[3])+40
+W=int((X1-X0)*G); H=int((Y1-Y0)*G)
 def mask(name):
     k=[k for k in items if k.split('#')[0]==name][0]; m=np.zeros((H,W),np.uint8)
     for kind,col,al,polys in items[k]:
@@ -88,7 +91,7 @@ def curve(m,smooth=1.0,minarea=30):
 cl=biggest(blur_bin(mask('ключица сздади'),1.0))   # Dima's clavicle (it traces the vanilla shoulder's bump)
 PIECES['clavicle']=(cl,{'ключица сздади':cl})
 ORDER=['belly','clavicle','back','ribcage','pelvis','leg']+[g for g,_ in LOWER]
-res={'order':ORDER,'pieces':{}}
+res={'order':ORDER,'pieces':{},'grid':(G,X0,Y0)}
 for g in ORDER:
     o,zones=PIECES[g]
     res['pieces'][g]=dict(mask=o,outline=curve(o,0.25 if g in ('clavicle','ribcage') else 3.0),zones={n:curve(z&o,2.0,12) for n,z in zones.items()},zmask=zones)

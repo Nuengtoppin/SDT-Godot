@@ -2,7 +2,7 @@ import os, pickle, numpy as np, cv2
 WORK=os.environ.get('BODY_WORK','body_proto_out')
 from PIL import Image, ImageDraw, ImageFont
 G=2.0; X0,Y0=-700,-560
-R=pickle.load(open(os.path.join(WORK,'pieces.pkl'),'rb')); P=R['pieces']; ORDER=R['order']
+R=pickle.load(open(os.path.join(WORK,'pieces.pkl'),'rb')); P=R['pieces']; ORDER=R['order']; G,X0,Y0=R.get('grid',(G,X0,Y0))
 COL={'анал':(200,90,90),'вагина':(120,200,230),'лобок':(190,150,230),'талия таз':(205,120,190),'ягодица':(225,180,230),'бедро1':(170,185,240),
  'Слой_18':(240,180,180),'Слой_19':(215,150,170),'пресс':(150,215,160),'живот':(205,240,150),'поясница':(240,190,130),
  'спина':(235,230,150),'икра':(240,120,240),'нога':(205,170,250),'чашечка стопы':(120,240,240),
