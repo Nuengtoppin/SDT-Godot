@@ -9,7 +9,8 @@ moves keep still, the knee the point the calf's moves relative to the thigh keep
 import os, pickle, numpy as np
 from scipy.spatial import cKDTree
 
-POSE_PIECES = ['leg', 'calf', 'knee_joint', 'knee_cap', 'ankle_cap']   # the foot is not matched yet (Dima, 3 Nov)
+# the foot is not matched yet (Dima, 3 Nov); the pelvis junction is, so its crotch keeps the drawn shape
+POSE_PIECES = ['pelvis', 'leg', 'calf', 'knee_joint', 'knee_cap', 'ankle_cap']
 
 def _rot(d):
     r = np.radians(d); return np.array([[np.cos(r), -np.sin(r)], [np.sin(r), np.cos(r)]])
