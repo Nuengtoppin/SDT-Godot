@@ -8,7 +8,7 @@ fills); ribcage, pelvis and leg keep theirs as inner lines (the ribcage's bottom
 Bones (template space; Dima's points from his sketch, the neck base ours, the knee and ankle in his joint pieces):
   pelvis      at the hip (it tilts around the hip, as in body-her) -> the lower back's pivot
   lower_back  -> upper_back -> ribcage -> the neck base
-  thigh at the hip -> calf at the knee -> foot at the ankle; knee_auto and ankle_auto carry the joint pieces and
+  thigh at the hip -> calf at the knee -> foot at the ankle; kneecap on the thigh; ankle_auto carries the ankle piece and
   turn half as much as the calf / the foot (doll.gd), so the joint hides the seam from both sides
 Writes $BODY_WORK/doll.tscn for res://debug/body_doll/ (the scene holds template outlines: never commit it).
 """
@@ -41,10 +41,14 @@ KEY_PIECES = ['leg'] if KEYS else []   # the kneecap: its newest drawing, on its
 # the calf as keyforms too (calf_keys.py, BODY_CALF): squashed against the thigh at rest, its unfolded form past -45
 CALF = pickle.load(open(os.environ['BODY_CALF'], 'rb')) if os.environ.get('BODY_CALF') else None
 if CALF:   # its knee point wins over the one from the old poses (the calf turns around it in the drawings)
-    KEY_PIECES.append('calf'); print('calf keyforms at knee', [round(a, 1) for a in CALF['angles']], ' knee', KNEE.round(1), '->', np.round(CALF['pivot'], 1))
+    KEY_PIECES += ['calf'] + (['knee_cap'] if 'cap' in CALF else []); print('calf keyforms at knee', [round(a, 1) for a in CALF['angles']], ' knee', KNEE.round(1), '->', np.round(CALF['pivot'], 1))
     KNEE = np.array(CALF['pivot'])
+    if 'cap' in CALF: CAP_C = CALF['cap'][int(np.argmin(np.abs(CALF['cap_angles'])))].mean(0)
 def keyform(g):   # (angles, shapes, pivot, driver bone, carrier bone, around the pivot?)
     if g == 'leg': return KEYS['angles'], KEYS['leg'], HIP, 'thigh', 'pelvis', True
+    # the kneecap: Dima's two drawings of it (calf pressed / unfolded) in the thigh's frame; between them it slides
+    # around the knee on the knee's front, picked by the calf's angle; its own bone adds a small turn of its own
+    if g == 'knee_cap': return CALF['cap_angles'], CALF['cap'], KNEE, 'calf', 'kneecap', True
     return CALF['angles'], CALF['calf'], KNEE, 'calf', 'calf', False
 if KEYS:
     print('thigh keyforms at hip', [round(a, 1) for a in KEYS['angles']], ' hip', HIP.round(1), '->', np.round(KEYS['hip'], 1))
@@ -52,7 +56,7 @@ if KEYS:
 # the pelvis turns around its own axis (Dima, 3 Nov: the middle of the pelvis junction for now) and carries the hip
 # with it; the thigh turns within its limits, and what it would turn past them goes to the pelvis (doll.gd)
 PELVIS_AX = np.array([-163.8, -50.5])
-CAP_C = np.array([195.3, 320.3])   # the kneecap's middle (its own axis)
+CAP_C = np.array([195.3, 320.3])   # the kneecap's middle (its own axis); from the drawing when there is one
 # name, parent, origin, tip, metadata: limits (degrees from rest), overflow_to, follow + ratio (turns with another
 # bone by a share: the joint pieces), see doll.gd
 BONES = [('pelvis', None, PELVIS_AX, PELVIS_J, {'limits': (-25, 25), 'keep_upright': 'lower_back'}),
@@ -60,8 +64,7 @@ BONES = [('pelvis', None, PELVIS_AX, PELVIS_J, {'limits': (-25, 25), 'keep_uprig
          ('upper_back', 'lower_back', LUMBAR_J, RIB_J, {}), ('ribcage', 'upper_back', RIB_J, NECK, {}),
          ('thigh', 'pelvis', HIP, KNEE, {'limits': (-45, 115), 'overflow_to': 'pelvis'}),
          ('calf', 'thigh', KNEE, ANKLE, {'limits': (-150, 5)}),
-         ('knee_auto', 'thigh', KNEE, KNEE + (ANKLE - KNEE) * 0.15, {'follow': 'calf', 'ratio': 0.5}),
-         ('kneecap', 'knee_auto', CAP_C, CAP_C + (CAP_C - KNEE) / max(np.linalg.norm(CAP_C - KNEE), 1) * 30, {'limits': (-25, 25)}),
+         ('kneecap', 'thigh', CAP_C, CAP_C + (CAP_C - KNEE) / max(np.linalg.norm(CAP_C - KNEE), 1) * 30, {'limits': (-25, 25)}),
          ('foot', 'calf', ANKLE, TOE, {}),
          ('ankle_auto', 'calf', ANKLE, ANKLE + (TOE - ANKLE) * 0.25, {'follow': 'foot', 'ratio': 0.5})]
 BI = {b[0]: i for i, b in enumerate(BONES)}
