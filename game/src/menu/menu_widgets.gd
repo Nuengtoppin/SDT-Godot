@@ -85,8 +85,6 @@ static func build(spec: Dictionary, on_hover: Callable) -> Control:
 			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			l.add_theme_color_override("font_color", MenuTheme.MUTED)
 			ctl = l
-		"hotkey":
-			ctl = _hotkey(spec, refreshers)
 		"custom":
 			ctl = spec["build"].call()
 			if ctl.has_meta("refresh"):
@@ -384,60 +382,6 @@ static func _slider(spec: Dictionary, refreshers: Array) -> Control:
 		s.set_value_no_signal(float(spec["get"].call()))
 		val.text = fmt.call(s.value))
 	return h
-
-
-static func _hotkey(spec: Dictionary, refreshers: Array) -> Control:
-	var id: String = spec["action"]
-	var h := HBoxContainer.new()
-	h.add_theme_constant_override("separation", 4)
-	var b := Button.new()
-	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(72, 0)
-	b.clip_text = true
-	var r := _icon_button("↺", "Back to the default key")
-	var waiting := [false]
-	var show := func():
-		var bind: int = Hotkeys.binding(id)
-		var others: Array = Hotkeys.clashes(id)
-		b.text = "Press a key…" if waiting[0] else (Hotkeys.key_name(bind) if bind != 0 else "—")
-		var warn: bool = not others.is_empty() and not waiting[0]
-		b.add_theme_color_override("font_color", MenuTheme.WARN if warn else MenuTheme.TEXT)
-		b.add_theme_color_override("font_hover_color", MenuTheme.WARN if warn else MenuTheme.TEXT)
-		b.tooltip_text = ("Also: " + ", ".join(others.map(func(a): return _action_name(a)))) if warn else 			"Click, then press the key (with Shift, Ctrl or Alt if you like). Esc: cancel · Delete: no key."
-		r.visible = bind != int(Hotkeys.by_id.get(id, {}).get("default", 0))
-	var done := func():
-		waiting[0] = false
-		show.call()
-		if SDTMenu.instance != null:
-			SDTMenu.instance._refresh_rows()   # other rows' clash marks
-	b.pressed.connect(func():
-		if waiting[0]:
-			Hotkeys.cancel_capture()
-			done.call()
-			return
-		waiting[0] = true
-		show.call()
-		Hotkeys.begin_capture(func(bind: int):
-			Hotkeys.set_binding(id, bind)
-			done.call()))
-	r.pressed.connect(func():
-		Hotkeys.reset(id)
-		done.call())
-	h.add_child(b)
-	h.add_child(r)
-	refreshers.append(func():
-		if waiting[0] and not Hotkeys.capturing():   # Esc cancelled it
-			waiting[0] = false
-		show.call())
-	return h
-
-
-## "Mute (game)" / "aim with the mouse (Aim Penis)", for clash tooltips.
-static func _action_name(a: Dictionary) -> String:
-	if a["owner"] == Hotkeys.GAME:
-		return a["label"] + " (game)"
-	var ext: SDTExtension = Extensions.by_id.get(a["owner"])
-	return "%s (%s)" % [a["label"], ext.title if ext != null and ext.title != "" else a["owner"]]
 
 
 static func _actions(spec: Dictionary) -> Control:

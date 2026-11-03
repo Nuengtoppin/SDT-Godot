@@ -829,6 +829,8 @@ func blocks_mouse() -> bool:
 		return true
 	if self == instance and DialogueEditorPanel.instance != null and DialogueEditorPanel.instance.blocks_mouse():
 		return true
+	if self == instance and HotkeyPanel.instance != null and HotkeyPanel.instance.blocks_mouse():
+		return true
 	if _root == null or not _enabled():
 		return false
 	var p := _root.get_global_mouse_position()

@@ -1,8 +1,8 @@
 extends RefCounted
 ## Checks of the new in-game menu (src/menu): every section builds, the controls change the game through the classic
 ## menu's handlers (and the classic menu shows the same), settings (side, pause, classic menu), extension settings
-## pages and controls added by extensions, the dialogue editor. Run by tools/regress.sh (main.gd --driver); prints
-## "MENU CHECKS: n passed, m failed" and quits.
+## pages and controls added by extensions, the dialogue editor, the hotkey editor. Run by tools/regress.sh (main.gd
+## --driver); prints "MENU CHECKS: n passed, m failed" and quits.
 
 var _pass := 0
 var _fail := 0
@@ -39,6 +39,7 @@ func step(_frame: int) -> void:
 				_behaviour_checks()
 				_extension_checks()
 				_dialogue_editor_checks()
+				_hotkey_panel_checks()
 				_finish()
 
 
@@ -768,3 +769,39 @@ func _dialogue_editor_checks() -> void:
 	p._delete()
 	p.close()
 	_check("dialogue editor: delete", not g.dialogueControl.exportDialogue().contains("Hello *YOU*"))
+
+
+func _hotkey_panel_checks() -> void:
+	var opened := false
+	for grp in MenuSchema.hotkey_groups():
+		for c in grp["controls"]:
+			for btn in c.get("buttons", []):
+				if btn[0] == "Edit hotkeys…":
+					btn[1].call()
+					opened = true
+	var p: HotkeyPanel = HotkeyPanel.instance
+	_check("hotkey editor: Settings › Hotkeys opens it", opened and p != null and p.is_open and g.controlLocked)
+	if p == null:
+		return
+	_check("hotkey editor: every action listed", p.shown_actions().size() == Hotkeys.actions.size())
+	p.group = Hotkeys.GAME
+	p._show()
+	_check("hotkey editor: the game's keys", p._rows.get_children().filter(func(r): return r.has_meta("action")).size()
+		== Hotkeys.actions.filter(func(a): return a["owner"] == Hotkeys.GAME).size())
+	p._key_clicked("game:mute")
+	var e := InputEventKey.new()
+	e.keycode = KEY_N
+	e.pressed = true
+	_check("hotkey editor: a key button waits for a key", Hotkeys.capturing() and Hotkeys.capture_event(e))
+	_check("hotkey editor: the new key is kept", Hotkeys.binding("game:mute") == 78
+		and int(PortSettings.get_value("hotkeys", "game:mute", 0)) == 78)
+	p.group = HotkeyPanel.CHANGED
+	_check("hotkey editor: changed keys", p.shown_actions().map(func(a): return a["id"]) == ["game:mute"])
+	p.undo()
+	_check("hotkey editor: undo", Hotkeys.binding("game:mute") == 77 and PortSettings.get_value("hotkeys", "game:mute", null) == null)
+	p.query = "screenshot"
+	_check("hotkey editor: search", p.shown_actions().map(func(a): return a["id"]) == ["game:screenshot"])
+	p.query = ""
+	p.group = HotkeyPanel.ALL
+	p.close()
+	_check("hotkey editor: closed, the game's keys back", not p.is_open and not g.controlLocked)
