@@ -17,9 +17,10 @@ extends Node2D
 ## To change: reset the pose (all bone rotations 0), move marks along the outline or edit their weights (or add a
 ## Marker2D with weights), then press "Rebuild weights" on this node. A mark snaps to the nearest outline point.
 ##
-## The thigh (and the kneecap over it) are keyforms: Dima's drawings at three hip angles ("keyforms" metadata);
-## the doll interpolates them by the thigh's angle, nothing in them is bent by weights (1/2/3 jump to the drawn
-## poses, G shows the drawings).
+## The thigh and the calf are keyforms: Dima's drawings ("keyforms" metadata: angles of the "driver" bone, shapes,
+## moved by the "carrier" bone); the thigh by the hip angle (1/2/3 jump to its drawn poses, G shows the drawings),
+## the calf by the knee angle (squashed against the thigh at rest, unfolded from -45). Nothing in them is bent by
+## weights.
 ##
 ## Skinning: done here on the CPU with dual quaternions (a bend keeps its thickness; Polygon2D's own skinning mixes
 ## matrices, which shrinks a bend), from the "weights" metadata the marks give.
@@ -422,12 +423,13 @@ func _skin_all() -> void:
 		for i in V.size():
 			out[i] = _blend(moves, pw[0], pw[1], i) * V[i]
 		_set_shape(poly, out)
-	var pelvis_move := _move_xf(moves["pelvis"]) if moves.has("pelvis") else Transform2D.IDENTITY
-	var hip := _hip_deg()
 	for poly in _key_pieces():
-		var shape := _key_shape(poly.get_meta("keyforms"), hip)
+		var kf: Dictionary = poly.get_meta("keyforms")
+		var carrier := str(kf.get("carrier", "pelvis"))
+		var move := _move_xf(moves[carrier]) if moves.has(carrier) else Transform2D.IDENTITY
+		var shape := _key_shape(kf, _bone_deg(str(kf.get("driver", "thigh"))))
 		for i in shape.size():
-			shape[i] = pelvis_move * shape[i]
+			shape[i] = move * shape[i]
 		_set_shape(poly, shape)
 
 
@@ -460,15 +462,19 @@ func _key_pieces() -> Array[Polygon2D]:
 
 
 func _key_shape(kf: Dictionary, deg: float) -> PackedVector2Array:
-	# Dima's drawings at their hip angles; between two of them each point goes around the hip (radius and angle
-	# mixed), close to the hip straight; past the first / last drawing that drawing turns as a whole
+	# Dima's drawings at their angles of the "driver" bone. "around" (the thigh): between two drawings each point goes
+	# around the pivot (radius and angle mixed), close to it straight, and past the first / last drawing that drawing
+	# turns as a whole. Otherwise (the calf, drawn in its own rest frame): a plain mix, held at the ends.
 	var angles: PackedFloat32Array = kf["angles"]
 	var shapes: Array = kf["shapes"]
 	var hip: Vector2 = kf["pivot"]
+	var around: bool = kf.get("around", true)
 	var last := angles.size() - 1
 	if deg <= angles[0] or deg >= angles[last]:
 		var q := 0 if deg <= angles[0] else last
 		var base: PackedVector2Array = shapes[q]
+		if not around:
+			return base.duplicate()
 		var turn := Transform2D(deg_to_rad(deg - angles[q]), Vector2.ZERO)
 		var out := PackedVector2Array()
 		out.resize(base.size())
@@ -484,14 +490,16 @@ func _key_shape(kf: Dictionary, deg: float) -> PackedVector2Array:
 	var res := PackedVector2Array()
 	res.resize(A.size())
 	for i in A.size():
+		if not around:
+			res[i] = A[i].lerp(B[i], t)
+			continue
 		var p := A[i] - hip
 		var q := B[i] - hip
 		var straight := p.lerp(q, t)
 		var r := lerpf(p.length(), q.length(), t)
 		var a := p.angle() + wrapf(q.angle() - p.angle(), -PI, PI) * t
-		var around := Vector2.from_angle(a) * r
 		var k := clampf((minf(p.length(), q.length()) - 10.0) / 30.0, 0.0, 1.0)
-		res[i] = hip + straight.lerp(around, k)
+		res[i] = hip + straight.lerp(Vector2.from_angle(a) * r, k)
 	return res
 
 
@@ -499,9 +507,9 @@ func _move_xf(q: PackedFloat32Array) -> Transform2D:
 	return Transform2D(2.0 * atan2(q[1], q[0]), Vector2(2.0 * (q[0] * q[2] - q[1] * q[3]), 2.0 * (q[1] * q[2] + q[0] * q[3])))
 
 
-func _hip_deg() -> float:
-	var thigh := get_node("Skeleton2D").find_child("thigh", true, false) as Bone2D
-	return rad_to_deg(thigh.rotation - thigh.rest.get_rotation()) if thigh else 0.0
+func _bone_deg(name: String) -> float:
+	var b := get_node("Skeleton2D").find_child(name, true, false) as Bone2D
+	return rad_to_deg(b.rotation - b.rest.get_rotation()) if b else 0.0
 
 
 func _set_shape(poly: Polygon2D, out: PackedVector2Array) -> void:
@@ -534,7 +542,7 @@ func _unhandled_input(e: InputEvent) -> void:
 	elif key and key.pressed and key.keycode == KEY_G:
 		_show_ghosts = not _show_ghosts
 	elif key and key.pressed and key.keycode >= KEY_1 and key.keycode <= KEY_9:
-		var legs := _key_pieces()
+		var legs := _key_pieces().filter(func(p): return str(p.get_meta("keyforms").get("driver", "thigh")) == "thigh")
 		if not legs.is_empty():
 			var angles: PackedFloat32Array = legs[0].get_meta("keyforms")["angles"]
 			var q := int(key.keycode - KEY_1)
@@ -610,6 +618,8 @@ func _draw_overlay() -> void:
 	if _show_ghosts:
 		var pm := _move_xf(_bone_moves()["pelvis"])
 		for poly in _key_pieces():
+			if not poly.get_meta("keyforms").get("around", true):
+				continue
 			for shape in poly.get_meta("keyforms")["shapes"]:
 				var pts := PackedVector2Array()
 				for p in shape:

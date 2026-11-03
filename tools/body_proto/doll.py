@@ -38,6 +38,14 @@ if POSES: print('hip', _hip0, '->', HIP.round(1), ' knee', _knee0, '->', KNEE.ro
 # interpolates them by the hip angle; their hip point wins (it is the newest fit)
 KEYS = pickle.load(open(os.environ['BODY_THIGH'], 'rb')) if os.environ.get('BODY_THIGH') else None
 KEY_PIECES = ['leg'] if KEYS else []   # the kneecap: its newest drawing, on its own bone
+# the calf as keyforms too (calf_keys.py, BODY_CALF): squashed against the thigh at rest, its unfolded form past -45
+CALF = pickle.load(open(os.environ['BODY_CALF'], 'rb')) if os.environ.get('BODY_CALF') else None
+if CALF:   # its knee point wins over the one from the old poses (the calf turns around it in the drawings)
+    KEY_PIECES.append('calf'); print('calf keyforms at knee', [round(a, 1) for a in CALF['angles']], ' knee', KNEE.round(1), '->', np.round(CALF['pivot'], 1))
+    KNEE = np.array(CALF['pivot'])
+def keyform(g):   # (angles, shapes, pivot, driver bone, carrier bone, around the pivot?)
+    if g == 'leg': return KEYS['angles'], KEYS['leg'], HIP, 'thigh', 'pelvis', True
+    return CALF['angles'], CALF['calf'], KNEE, 'calf', 'calf', False
 if KEYS:
     print('thigh keyforms at hip', [round(a, 1) for a in KEYS['angles']], ' hip', HIP.round(1), '->', np.round(KEYS['hip'], 1))
     HIP = np.array(KEYS['hip'])
@@ -130,8 +138,8 @@ OUTER_ONLY = ['belly', 'clavicle', 'back', 'ankle_joint']   # no lines of their 
 MESH = {}
 for g in ORDER:
     if g in KEY_PIECES:   # the rest drawing (hip 0) is the piece's outline; no marks: the keyforms shape it
-        V = KEYS[g][int(np.argmin(np.abs(KEYS['angles'])))]; MESH[g] = dict(V=V, nb=len(V), marks=[])
-        print(f'{g:11s} keyforms {len(KEYS[g])} x {len(V)} points'); continue
+        ang, shp = keyform(g)[:2]; V = shp[int(np.argmin(np.abs(ang)))]; MESH[g] = dict(V=V, nb=len(V), marks=[])
+        print(f'{g:11s} keyforms {len(shp)} x {len(V)} points'); continue
     src = KEYS['knee_cap'][int(np.argmin(np.abs(KEYS['angles'])))] if (KEYS and g == 'knee_cap') else P[g]['outline'][0]
     V = outline_of(src); M = marks(g, V, len(V))
     MESH[g] = dict(V=V, nb=len(V), marks=M)
@@ -142,8 +150,10 @@ vec = lambda Q: 'PackedVector2Array(' + ', '.join(f'{f2(x)}, {f2(y)}' for x, y i
 def poly_node(name, V, color, g=None):   # no weights: doll.gd builds them from the marks (and the correctives)
     meta = []
     if g in KEY_PIECES:
-        meta = ['metadata/keyforms = {"pivot": Vector2(%s, %s), "angles": PackedFloat32Array(%s), "shapes": [%s]}' % (
-            f2(HIP[0]), f2(HIP[1]), ', '.join(f'{a:.2f}' for a in KEYS['angles']), ', '.join(vec(k) for k in KEYS[g]))]
+        ang, shp, piv, drv, car, polar = keyform(g)
+        meta = ['metadata/keyforms = {"pivot": Vector2(%s, %s), "angles": PackedFloat32Array(%s), "shapes": [%s], '
+                '"driver": "%s", "carrier": "%s", "around": %s}' % (f2(piv[0]), f2(piv[1]), ', '.join(f'{a:.2f}' for a in ang),
+                ', '.join(vec(k) for k in shp), drv, car, 'true' if polar else 'false')]
     elif g in _poses.POSE_PIECES and POSES:
         meta = ['metadata/poses = [' + ', '.join(
             f'{{"name": "{p["name"]}", "hip": {p["hip"]:.2f}, "knee": {p["knee"]:.2f}, "outline": {vec(p["outlines"][g])}}}'

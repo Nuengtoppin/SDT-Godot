@@ -127,3 +127,15 @@ that back), `keep_upright` (the pelvis turns the lower back back by as much: the
 `follow` + `ratio` (knee_auto, ankle_auto: a share of another bone's turn). The kneecap is a rigid piece on its own
 bone `kneecap` under knee_auto: its place stays on the thigh, its turn comes from the calf (half), and it can turn on
 its own axis within +-25. thigh_keys.py traces the drawings at 4 px per unit and fits smooth closed splines.
+
+### The calf as keyforms (BODY_49)
+
+    BODY_WORK=<pieces of Dima's calf template 1> python3 calf_keys.py <pieces dir of calf template 2>
+    BODY_CALF=$BODY_WORK/calf_keys.pkl BODY_THIGH=... BODY_POSES=... python3 doll.py
+
+Two calf drawings: pressed to the thigh with the calf muscle squashed (template 1 = the rest pose) and unfolded
+(template 2, knee -139.3). The unfolded one is fitted onto the rest calf, taken into the rest calf's frame and
+matched point by point along the loop (DTW); it also stands at -45 (`RELAX`), so the squash is gone once the knee
+opens that far. The knee point is the one the calf turns around in the drawing, (182.3, 300.9). In the doll the calf
+keyform has driver = carrier = calf (a plain mix in the calf's frame); the thigh's has driver thigh, carrier
+pelvis, `around` = true. Template 1 is now the doll's base (it drops the knee joint layer).
