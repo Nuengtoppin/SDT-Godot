@@ -58,7 +58,7 @@ def vs_vanilla():
     for g in ORDER:
         for c in P[g]['outline']: cv2.polylines(img,[tp(c)],True,(200,30,30),max(1,k),cv2.LINE_AA)
     return Image.fromarray(img).resize((W,H),Image.LANCZOS)
-PN=[('группы мышц (6 кусков)',panel(ORDER,'zones')),('контуры кусков',panel(ORDER,'flat')),('сверка: красное — наше, серое — ваниль',vs_vanilla())]
+PN=[('группы мышц',panel(ORDER,'zones')),('контуры кусков',panel(ORDER,'flat'))]
 grid=Image.new('RGB',(len(PN)*W,H),(255,255,255))
 for i,(t,im) in enumerate(PN):
     ImageDraw.Draw(im).text((8,6),t,fill=(0,0,0),font=F); grid.paste(im,(i*W,0))

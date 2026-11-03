@@ -26,9 +26,9 @@ Torso: ribcage, back clavicle, abs, belly, lower back, back. Pelvis junction: th
 anus - it closes the torso's open bottom and shows when the leg moves away. Near leg: buttock and the thigh's parts.
 Pelvis bone and seat bone are inner forms (colliders), not drawn.
 
-## Six pieces with smooth outlines (3 Nov)
+## Pieces with smooth outlines (3 Nov)
 
-    python3 pieces.py          # clavicle < back < belly < ribcage < pelvis junction < leg; smooth spline outlines
+    python3 pieces.py          # clavicle < trunk (back + belly) < ribcage < pelvis junction < leg; smooth outlines
     python3 pieces_render.py   # muscle groups, the pieces' outlines (inner lines where an upper piece overlaps), volume
 
 The torso splits into back (lower back + back), belly (belly + abs) and ribcage (ribcage + back clavicle; it also takes
@@ -36,7 +36,7 @@ the belly's sliver along its front). Cut-out style: the lower pieces reach under
 torso's one smooth outline, so there are no gaps; an upper piece's outline shows as an inner line (the ribcage's
 bottom, the waist, the V of the pelvis junction, the buttock).
 
-From the vanilla template only the outer edges of the belly, the back and the buttock with the thigh (Back, Chest,
-Chest Under; Right Thigh); nothing that would belong to the ribcage outside Dima's ribcage. The ribcage and the
-clavicle are Dima's own (lightly smoothed: the clavicle traces the vanilla shoulder's bump and keeps its notch), the
-clavicle under the ribcage as in his file.
+From the vanilla template only the outer edges of the belly and the back; nothing that would belong to the ribcage
+outside Dima's ribcage. The ribcage and the clavicle are Dima's own (lightly smoothed: the clavicle traces the vanilla
+shoulder's bump and keeps its notch), the clavicle under the ribcage as in his file. Back and belly are one piece (no
+seam between them; their groups stay inside for weights and morphs). The pelvis junction and the leg are Dima's own.

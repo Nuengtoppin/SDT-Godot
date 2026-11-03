@@ -48,7 +48,7 @@ rib_i=TORSO.index('грудная клетка')+1
 torso_outer=biggest(van&~((near==rib_i)&(lab!=rib_i)) | (lab==rib_i))
 tp=partition(lab,len(TORSO),torso_outer,22)
 PIECES={}
-grp={'back':['поясница','спина'],'belly':['пресс','живот'],'ribcage':['грудная клетка']}
+grp={'trunk':['пресс','живот','поясница','спина'],'ribcage':['грудная клетка']}   # back and belly one piece: no seam between them
 # cut-out style: the lower pieces reach under the upper ones (no gaps), all within the torso's one smooth outline
 under_k=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(int(14*G)*2+1,)*2)
 for g,names in grp.items():
@@ -64,7 +64,7 @@ PEL=['анал','лобок','талия таз','вагина']; LEG=['ягод
 for g,names in [('pelvis',PEL),('leg',LEG)]:
     Zs=[mask(n) for n in names]; lb=np.zeros((H,W),np.int16)
     for i in reversed(range(len(Zs))): lb[Zs[i]]=i+1
-    o=outer_of(lb>0,10,12) if g=='pelvis' else outer_of(VAN('Right Thigh'),4,3)   # the leg: the vanilla thigh and buttock
+    o=outer_of(lb>0,10,12)   # pelvis junction and leg: Dima's own zones (as in BODY_37)
     p=partition(lb,len(names),o,16)
     PIECES[g]=(o,{n:(p==i+1)&o for i,n in enumerate(names)})
 # --- smooth vector curves: a periodic smoothing spline through the raster contour
@@ -80,7 +80,7 @@ def curve(m,smooth=1.0,minarea=30):
 # the far shoulder with its clavicle: the vanilla Left Shoulder and Dima's clavicle zone, under everything
 cl=biggest(blur_bin(mask('ключица сздади'),1.0))   # Dima's clavicle (it traces the vanilla shoulder's bump)
 PIECES['clavicle']=(cl,{'ключица сздади':cl})
-ORDER=['clavicle','back','belly','ribcage','pelvis','leg']
+ORDER=['clavicle','trunk','ribcage','pelvis','leg']
 res={'order':ORDER,'pieces':{}}
 for g in ORDER:
     o,zones=PIECES[g]
