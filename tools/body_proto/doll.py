@@ -37,16 +37,25 @@ if POSES: print('hip', _hip0, '->', HIP.round(1), ' knee', _knee0, '->', KNEE.ro
 # the thigh as keyforms (thigh_keys.py, BODY_THIGH = its pickle): Dima's drawings are the shapes, the doll
 # interpolates them by the hip angle; their hip point wins (it is the newest fit)
 KEYS = pickle.load(open(os.environ['BODY_THIGH'], 'rb')) if os.environ.get('BODY_THIGH') else None
-KEY_PIECES = ['leg', 'knee_cap'] if KEYS else []
+KEY_PIECES = ['leg'] if KEYS else []   # the kneecap: its newest drawing, on its own bone
 if KEYS:
     print('thigh keyforms at hip', [round(a, 1) for a in KEYS['angles']], ' hip', HIP.round(1), '->', np.round(KEYS['hip'], 1))
     HIP = np.array(KEYS['hip'])
-# name, parent, origin, tip, half_of: a joint piece's bone turns half as much as its neighbour (the doll script)
-BONES = [('pelvis', None, HIP, PELVIS_J, None), ('lower_back', 'pelvis', PELVIS_J, LUMBAR_J, None),
-         ('upper_back', 'lower_back', LUMBAR_J, RIB_J, None), ('ribcage', 'upper_back', RIB_J, NECK, None),
-         ('thigh', 'pelvis', HIP, KNEE, None), ('calf', 'thigh', KNEE, ANKLE, None),
-         ('knee_auto', 'thigh', KNEE, KNEE + (ANKLE - KNEE) * 0.15, 'calf'), ('foot', 'calf', ANKLE, TOE, None),
-         ('ankle_auto', 'calf', ANKLE, ANKLE + (TOE - ANKLE) * 0.25, 'foot')]
+# the pelvis turns around its own axis (Dima, 3 Nov: the middle of the pelvis junction for now) and carries the hip
+# with it; the thigh turns within its limits, and what it would turn past them goes to the pelvis (doll.gd)
+PELVIS_AX = np.array([-163.8, -50.5])
+CAP_C = np.array([195.3, 320.3])   # the kneecap's middle (its own axis)
+# name, parent, origin, tip, metadata: limits (degrees from rest), overflow_to, follow + ratio (turns with another
+# bone by a share: the joint pieces), see doll.gd
+BONES = [('pelvis', None, PELVIS_AX, PELVIS_J, {'limits': (-25, 25), 'keep_upright': 'lower_back'}),
+         ('lower_back', 'pelvis', PELVIS_J, LUMBAR_J, {}),
+         ('upper_back', 'lower_back', LUMBAR_J, RIB_J, {}), ('ribcage', 'upper_back', RIB_J, NECK, {}),
+         ('thigh', 'pelvis', HIP, KNEE, {'limits': (-45, 115), 'overflow_to': 'pelvis'}),
+         ('calf', 'thigh', KNEE, ANKLE, {'limits': (-150, 5)}),
+         ('knee_auto', 'thigh', KNEE, KNEE + (ANKLE - KNEE) * 0.15, {'follow': 'calf', 'ratio': 0.5}),
+         ('kneecap', 'knee_auto', CAP_C, CAP_C + (CAP_C - KNEE) / max(np.linalg.norm(CAP_C - KNEE), 1) * 30, {'limits': (-25, 25)}),
+         ('foot', 'calf', ANKLE, TOE, {}),
+         ('ankle_auto', 'calf', ANKLE, ANKLE + (TOE - ANKLE) * 0.25, {'follow': 'foot', 'ratio': 0.5})]
 BI = {b[0]: i for i, b in enumerate(BONES)}
 def bpath(n):
     out = [];
@@ -68,7 +77,7 @@ def outline_of(outline, bstep=6.0):
 # knee, the instep, the groin); the crease side short, the stretch side long. Where Dima drew the leg in other
 # poses (BODY_44) his drawings keep the calf and the pelvis junction rigid, so they no longer mix bones there.
 RIGID = {'clavicle': 'ribcage', 'ribcage': 'ribcage', 'calf': 'calf', 'ankle_cap': 'calf', 'knee_joint': 'knee_auto',
-         'knee_cap': 'knee_auto', 'ankle_joint': 'ankle_auto', 'foot': 'foot', 'pelvis': 'pelvis', 'leg': 'thigh'}
+         'knee_cap': 'kneecap', 'ankle_joint': 'ankle_auto', 'foot': 'foot', 'pelvis': 'pelvis', 'leg': 'thigh'}
 H = lambda **w: w
 MANUAL = {   # (point near the outline, shift along it in units, weights)
     'leg': [((-187, -143), 0, H(pelvis=1)), ((-242, -115), 0, H(pelvis=1)),            # the buttock's top: pelvis
@@ -123,7 +132,8 @@ for g in ORDER:
     if g in KEY_PIECES:   # the rest drawing (hip 0) is the piece's outline; no marks: the keyforms shape it
         V = KEYS[g][int(np.argmin(np.abs(KEYS['angles'])))]; MESH[g] = dict(V=V, nb=len(V), marks=[])
         print(f'{g:11s} keyforms {len(KEYS[g])} x {len(V)} points'); continue
-    V = outline_of(P[g]['outline'][0]); M = marks(g, V, len(V))
+    src = KEYS['knee_cap'][int(np.argmin(np.abs(KEYS['angles'])))] if (KEYS and g == 'knee_cap') else P[g]['outline'][0]
+    V = outline_of(src); M = marks(g, V, len(V))
     MESH[g] = dict(V=V, nb=len(V), marks=M)
     print(f'{g:11s} outline points {len(V):4d} marks {len(M):2d} bones {sorted({b for _, w in M for b in w})}')
 
@@ -154,12 +164,19 @@ FILL = '0.941, 0.827, 0.749, 1'; LINE = '0.361, 0.259, 0.204, 1'   # (240,211,19
 out = ['[gd_scene format=3]', '', '[ext_resource type="Script" path="res://debug/body_doll/doll.gd" id="1"]', '',
        '[node name="BodyDoll" type="Node2D"]', 'script = ExtResource("1")', '',
        '[node name="Skeleton2D" type="Skeleton2D" parent="."]', '']
-for n, par, o, tip, half in BONES:
+def _meta(m):
+    out = []
+    for k, v in m.items():
+        if isinstance(v, tuple): out.append(f'metadata/{k} = Vector2({v[0]}, {v[1]})')
+        elif isinstance(v, str): out.append(f'metadata/{k} = "{v}"')
+        else: out.append(f'metadata/{k} = {v}')
+    return out
+for n, par, o, tip, meta in BONES:
     po = next(b[2] for b in BONES if b[0] == par) if par else np.zeros(2); lp = o - po; v = tip - o
     out += [f'[node name="{n}" type="Bone2D" parent="Skeleton2D{"/" + bpath(par) if par else ""}"]',
             f'position = Vector2({f2(lp[0])}, {f2(lp[1])})', f'rest = Transform2D(1, 0, 0, 1, {f2(lp[0])}, {f2(lp[1])})',
             'auto_calculate_length_and_angle = false', f'length = {f2(np.linalg.norm(v))}',
-            f'bone_angle = {np.degrees(np.arctan2(v[1], v[0])):.2f}'] + ([f'metadata/half_of = "{half}"'] if half else []) + ['']
+            f'bone_angle = {np.degrees(np.arctan2(v[1], v[0])):.2f}'] + _meta(meta) + ['']
     # (bone_angle is in degrees in the scene file; get_bone_angle() gives radians)
 nk = NECK - RIB_J
 out += [f'[node name="NeckSlotFollow" type="RemoteTransform2D" parent="Skeleton2D/{bpath("ribcage")}"]',

@@ -4,8 +4,11 @@ extends Node2D
 ## In the editor: select a Bone2D under Skeleton2D and rotate it (do not move it).
 ## Running it (F6): drag a bone's ring to turn it around its joint; R resets the pose; M shows / hides the marks.
 ## A neck (or anything) put under NeckSlot follows the ribcage and draws between the back and the ribcage.
-## Bones with metadata "half_of" (knee_auto, ankle_auto) carry the joint pieces and turn half as much as the named
-## bone, also in the editor; they cannot be grabbed.
+## Bones with metadata "follow" + "ratio" (knee_auto, ankle_auto) carry the joint pieces and turn by that share of
+## the named bone (the kneecap: its place stays on the thigh, its turn comes from the calf), also in the editor;
+## they cannot be grabbed. "limits" (degrees from rest) bound a dragged bone, shown as a blue arc; the thigh's
+## "overflow_to" passes what goes past its limits to the pelvis, which turns around its own axis and carries the hip;
+## the pelvis' "keep_upright" turns the lower back back by as much, so the torso stays and the waist bends.
 ##
 ## Marks: each piece has Marks with Marker2D children on its outline; a mark's metadata "weights" says how much each
 ## bone holds the outline there, e.g. {"pelvis": 0.5, "thigh": 0.5}. Between two marks the weights go over along
@@ -47,8 +50,9 @@ var _last_sig := ""
 func _ready() -> void:
 	for b in find_children("*", "Bone2D", true, false):
 		_rest[b] = b.rest.get_rotation()
-		if b.has_meta("half_of"):
-			_halves[b] = b.get_parent().get_node_or_null(str(b.get_meta("half_of")))
+		var follow := str(b.get_meta("follow", b.get_meta("half_of", "")))
+		if follow != "":
+			_halves[b] = b.get_parent().get_node_or_null(follow)
 		else:
 			_bones.append(b)
 	for poly in _pieces() + _key_pieces():
@@ -76,7 +80,7 @@ func _process(_delta: float) -> void:
 	for j in _halves:
 		var n: Bone2D = _halves[j]
 		if n:
-			j.rotation = _rest[j] + 0.5 * (n.rotation - _rest[n])
+			j.rotation = _rest[j] + float(j.get_meta("ratio", 0.5)) * (n.rotation - _rest[n])
 	_skin_all()
 	if Engine.is_editor_hint():
 		return
@@ -551,8 +555,37 @@ func _unhandled_input(e: InputEvent) -> void:
 		var o := _drag.global_position
 		if motion.position.distance_to(o) > DEAD and _last.distance_to(o) > DEAD:
 			var step := wrapf((motion.position - o).angle() - (_last - o).angle(), -PI, PI)
-			_drag.rotation += clampf(step, -deg_to_rad(MAX_STEP), deg_to_rad(MAX_STEP))
+			_turn(_drag, clampf(step, -deg_to_rad(MAX_STEP), deg_to_rad(MAX_STEP)))
 		_last = motion.position
+
+
+func _turn(b: Bone2D, step: float) -> void:
+	# a turn within the bone's limits ("limits": degrees from rest); with "overflow_to", what goes past them turns
+	# that bone (the thigh carries the pelvis on), and turning back first takes the overflow back
+	var lim = b.get_meta("limits", null)
+	var to: Bone2D = get_node("Skeleton2D").find_child(str(b.get_meta("overflow_to", "")), true, false) as Bone2D if b.has_meta("overflow_to") else null
+	if to:
+		var held: float = to.rotation - float(_rest[to])
+		if held * step < 0.0:   # turning back: the pelvis returns first
+			var back := signf(step) * minf(absf(step), absf(held))
+			_turn(to, back)
+			step -= back
+	var before := b.rotation
+	if lim == null:
+		b.rotation += step
+	else:
+		var lo: float = _rest[b] + deg_to_rad((lim as Vector2).x)
+		var hi: float = _rest[b] + deg_to_rad((lim as Vector2).y)
+		b.rotation = clampf(b.rotation + step, lo, hi)
+	var want := before + step
+	if b.has_meta("keep_upright"):   # the pelvis tilts under the torso: the waist bends, the back stays where it was
+		var up := b.find_child(str(b.get_meta("keep_upright")), false, false) as Bone2D
+		if up:
+			up.rotation -= b.rotation - before
+	if lim == null:
+		return
+	if to and not is_equal_approx(want, b.rotation):
+		_turn(to, want - b.rotation)
 
 
 func _tip(b: Bone2D, t := 1.0) -> Vector2:
@@ -588,6 +621,10 @@ func _draw_overlay() -> void:
 		var tip := inv * _tip(b)
 		var h := inv * _tip(b, HANDLE_AT)
 		var col := Color(1.0, 0.5, 0.0, 0.9) if b != _drag else Color(1.0, 0.2, 0.2, 1.0)
+		if b == _drag and b.has_meta("limits"):   # the allowed range, as an arc around the joint
+			var lim: Vector2 = b.get_meta("limits")
+			var base: float = (b.get_parent() as Node2D).global_rotation + float(_rest[b]) + b.get_bone_angle()
+			_overlay.draw_arc(o, 40.0 * px, base + deg_to_rad(lim.x), base + deg_to_rad(lim.y), 32, Color(0.3, 0.8, 1.0, 0.8), 3.0 * px)
 		_overlay.draw_line(o, tip, col, 2.0 * px)
 		_overlay.draw_circle(o, 5.0 * px, col)
 		_overlay.draw_arc(h, 9.0 * px, 0.0, TAU, 24, col, 2.0 * px)

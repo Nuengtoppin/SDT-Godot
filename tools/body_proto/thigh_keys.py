@@ -22,14 +22,14 @@ DOTS = [
     [(-267.8, -117.0), (-368.8, 56.8), (-283.8, 292.1), (-172.8, 505.8), (-65.2, 487.3), (-72.5, 417.0), (-123.8, 137.5), (-132.4, -43.1)],
     [(-225.5, -105.3), (-430.9, 5.7), None, (-674.7, 273.8), (-637.2, 323.9), (-528.2, 305.1), (-211.9, 105.5), (-109.5, 2.3)],
 ]
-G = 2.0
+G = 4.0
 def layers(root, names):
     lib = Lib(root); sym = lib.sym('Templates/Body/Body Template - копия'); out = {}
     for L in sym.iter(X + 'DOMLayer'):
         if L.get('name') in names and L.get('layerType') != 'folder':
             out[L.get('name')] = [np.array(p) for kind, c, al, ps in lib.render_layer(L, (1, 0, 0, 1, 0, 0)) if kind == 'fill' for p in ps if len(p) > 2]
     return out
-def loop(polys, close=10.0):
+def loop(polys, close=10.0, smooth=2.0):
     """The union's outer loop, counter-clockwise on screen (negative area), smoothed a little."""
     pts = np.vstack([p for v in polys.values() for p in v]); x0, y0 = pts.min(0) - 30
     W, H = ((pts.max(0) - pts.min(0) + 60) * G).astype(int); m = np.zeros((H, W), np.uint8)
@@ -40,7 +40,10 @@ def loop(polys, close=10.0):
     m = (cv2.GaussianBlur(m.astype(np.float32), (0, 0), 2.0 * G) > 0.5).astype(np.uint8)
     cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE); c = max(cs, key=cv2.contourArea)[:, 0, :] / G + [x0, y0]
     if cv2.contourArea(c.astype(np.float32), oriented=True) > 0: c = c[::-1]
-    return c.astype(float)
+    # a smooth closed curve through the traced edge (the drawings are brush strokes; Dima: "not smooth")
+    from scipy.interpolate import splprep, splev
+    c = c[::2].astype(float); tck, _ = splprep([c[:, 0], c[:, 1]], s=len(c) * smooth, per=True, k=3)
+    x, y = splev(np.linspace(0, 1, len(c) * 3, endpoint=False), tck); return np.c_[x, y]
 def arc(c):
     return np.r_[0, np.cumsum(np.linalg.norm(np.diff(np.vstack([c, c[:1]]), axis=0), axis=1))]
 def at(c, s, u):
@@ -48,7 +51,7 @@ def at(c, s, u):
     t = (u - s[j]) / np.maximum(s[j + 1] - s[j], 1e-9); return c[j] * (1 - t)[:, None] + c[(j + 1) % len(c)] * t[:, None]
 
 def main(dirs):
-    thighs = [loop(layers(d, THIGH)) for d in dirs]; caps = [loop(layers(d, CAP), 2.0) for d in dirs]
+    thighs = [loop(layers(d, THIGH)) for d in dirs]; caps = [loop(layers(d, CAP), 2.0, 0.5) for d in dirs]
     # the points on each outline (arc length from the outline's start), missing ones placed by the others' shares
     U = []
     for c, dots in zip(thighs, DOTS):
@@ -69,9 +72,7 @@ def main(dirs):
         for i in range(n):
             a = us[i]; span = (us[(i + 1) % n] - a) % L
             pts.append(at(c, s, a + span * np.arange(counts[i]) / counts[i]))
-        P = np.vstack(pts)   # a little smoothing along the loop (the traced outline is a raster edge)
-        from scipy.ndimage import gaussian_filter1d
-        keys.append(np.c_[gaussian_filter1d(P[:, 0], 1.5, mode='wrap'), gaussian_filter1d(P[:, 1], 1.5, mode='wrap')])
+        keys.append(np.vstack(pts))
     # hip angles: the rest thigh's far part fitted onto each drawing; the hip: the point the turns keep still
     hip0 = np.array([-222.8, -8.9]); knee0 = np.array([174.5, 294.8])
     rest = _poses.resample(thighs[0]); sh = ((rest - hip0) @ (knee0 - hip0)) / ((knee0 - hip0) @ (knee0 - hip0)); far = rest[sh > 0.45]

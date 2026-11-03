@@ -117,3 +117,13 @@ between the two nearest drawings by the thigh's angle - each point around the hi
 the hip straight - and turns the first / last drawing as a whole outside their range. No weights or marks for these
 pieces. Hip: the point the drawings' thigh turns keep still, (-213.0, 4.8). Running: 1/2/3 jump to the drawn poses,
 G shows the drawings.
+
+### Pelvis, limits, the kneecap (BODY_47)
+
+The pelvis turns around its own axis (-163.8, -50.5) - for now the middle of the pelvis junction - and carries the
+hip. Bones carry metadata: `limits` (degrees from rest; the doll keeps a dragged bone inside, a blue arc shows the
+range), `overflow_to` (the thigh: what it would turn past its limits turns the pelvis, and turning back first takes
+that back), `keep_upright` (the pelvis turns the lower back back by as much: the torso stays, the waist bends),
+`follow` + `ratio` (knee_auto, ankle_auto: a share of another bone's turn). The kneecap is a rigid piece on its own
+bone `kneecap` under knee_auto: its place stays on the thigh, its turn comes from the calf (half), and it can turn on
+its own axis within +-25. thigh_keys.py traces the drawings at 4 px per unit and fits smooth closed splines.
