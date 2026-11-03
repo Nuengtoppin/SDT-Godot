@@ -25,3 +25,13 @@ Needs numpy, scipy, opencv, pillow, matplotlib and libarchive. The template itse
 Torso: ribcage, back clavicle, abs, belly, lower back, back. Pelvis junction: the pelvis waist (V), pubis, vagina,
 anus - it closes the torso's open bottom and shows when the leg moves away. Near leg: buttock and the thigh's parts.
 Pelvis bone and seat bone are inner forms (colliders), not drawn.
+
+## Five pieces with smooth outlines (3 Nov)
+
+    python3 pieces.py          # back < belly < ribcage < pelvis junction < leg; smooth spline outlines
+    python3 pieces_render.py   # muscle groups, the pieces' outlines (inner lines where an upper piece overlaps), volume
+
+The torso splits into back (lower back + back), belly (belly + abs) and ribcage (ribcage + back clavicle; it also takes
+the belly's sliver along its front). Cut-out style: the lower pieces reach under the upper ones, all within the
+torso's one smooth outline, so there are no gaps; an upper piece's outline shows as an inner line (the ribcage's
+bottom, the waist, the V of the pelvis junction, the buttock).
