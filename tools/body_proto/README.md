@@ -158,3 +158,10 @@ ragged: three separate outlines meeting. Now calf, ankle link and foot draw with
 the union of the parts, opened by 4 px (drops slivers and spikes) and closed by 14 px (fills dents and gaps
 narrower than ~28 px, so heel and Achilles stay joined), with one outline `lower_bridge_line`. Foot 3 redrawn by
 Dima: angles 0 / -34.2 / -83.3, ankle (-330.9, 337.2).
+
+### The shin's end goes with the foot (BODY_54)
+At the knelt -83 the heel still tore from the shin: the calf keyforms come from the calf drawings, where the shin
+ends at the ankle, while the shin Dima drew under each heel (in the foot drawings) was not used. Now foot_keys.py
+joins each drawing's shin end (its calf inside 55 px of the ankle) to that drawing's ankle link, so heel and shin
+move together as drawn; and doll.py makes every calf keyform's last 60-150 px around the ankle the rest calf's, so
+bending the knee does not pull the shin's end off the heel.

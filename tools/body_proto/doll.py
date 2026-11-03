@@ -47,11 +47,18 @@ if CALF:   # its knee point wins over the one from the old poses (the calf turns
 # the foot as keyforms (foot_keys.py, BODY_FOOT): three drawings in the calf's frame, mixed around the ankle by the
 # foot bone's angle; the ankle link with them (no line of its own: it merges with the shin); the ankle bone keeps
 # one shape on the calf, drawn in front of everything; the ankle is the point the drawings turn around
+ANKLE_FADE = (60.0, 150.0)   # px from the ankle: below the first the shin is the foot drawings' one, above the second its own
 FOOT = pickle.load(open(os.environ['BODY_FOOT'], 'rb')) if os.environ.get('BODY_FOOT') else None
 if FOOT:
     KEY_PIECES += ['foot', 'ankle_joint']
     print('foot keyforms at', [round(a, 1) for a in FOOT['angles']], ' ankle', ANKLE.round(1), '->', np.round(FOOT['pivot'], 1))
     ANKLE = np.array(FOOT['pivot'])
+if CALF and FOOT:   # the shin's lower end was drawn once, under the heel of the foot drawings (straight leg): every calf
+    # keyform takes it from there, faded into its own shape higher up, so bending the knee does not pull it off the heel
+    i0 = int(np.argmin(np.abs(CALF['angles']))); R0 = np.array(CALF['calf'][i0])
+    d = np.linalg.norm(R0 - ANKLE, axis=1); w = np.clip((ANKLE_FADE[1] - d) / (ANKLE_FADE[1] - ANKLE_FADE[0]), 0, 1); w = w * w * (3 - 2 * w)
+    CALF['calf'] = [np.array(k) * (1 - w[:, None]) + R0 * w[:, None] for k in CALF['calf']]
+    print('calf ankle end from the foot drawings: knee-ankle', round(float(np.linalg.norm(KNEE - ANKLE)), 1), ' fade', ANKLE_FADE)
 def keyform(g):   # (angles, shapes, pivot, driver bone, carrier bone, around the pivot?)
     if g == 'foot': return FOOT['angles'], FOOT['foot'], ANKLE, 'foot', 'calf', True
     if g == 'ankle_joint': return FOOT['angles'], FOOT['link'], ANKLE, 'foot', 'calf', True

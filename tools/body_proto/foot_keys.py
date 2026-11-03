@@ -20,6 +20,20 @@ HIP = np.array([-213.5, 4.2]); KNEE = np.array([182.3, 300.9]); ANKLE0 = np.arra
 def turn(P, c, deg):
     r = np.radians(deg); R = np.array([[np.cos(r), -np.sin(r)], [np.sin(r), np.cos(r)]]); return (P - c) @ R.T + c
 
+SHIN_R = 55.0   # px around the ankle: the shin Dima drew with each foot joins its ankle link (heel and shin stay as drawn)
+
+def with_shin(link, calf, ankle, r=SHIN_R, k=4.0):
+    # the link and the drawn shin's end (the calf inside a circle around the ankle) as one loop, on a raster k x finer
+    import cv2
+    pts = np.vstack([link, calf]); o = pts.min(0) - 10; size = np.ceil((pts.max(0) - o + 10) * k).astype(int)
+    m1 = np.zeros((size[1], size[0]), np.uint8); m2 = m1.copy(); m3 = m1.copy()
+    cv2.fillPoly(m1, [np.round((link - o) * k).astype(np.int32)], 1); cv2.fillPoly(m2, [np.round((calf - o) * k).astype(np.int32)], 1)
+    cv2.circle(m3, tuple(int(v) for v in np.round((ankle - o) * k)), int(r * k), 1, -1)
+    m = (m1 | (m2 & m3)).astype(np.uint8)
+    cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    c = max(cs, key=cv2.contourArea)[:, 0, :].astype(float) / k + o
+    return ccw(_poses.resample(c, 2.0))
+
 def main(dirs):
     R = pickle.load(open(os.path.join(WORK, 'pieces.pkl'), 'rb'))['pieces']
     leg = _poses.resample(R['leg']['outline'][0]); s = ((leg - HIP) @ (KNEE - HIP)) / ((KNEE - HIP) @ (KNEE - HIP)); far = leg[s > 0.45]
@@ -30,12 +44,14 @@ def main(dirs):
         Rt, tt, et = _poses._best(far, _poses.resample(P['leg']['outline'][0]), HIP)
         Rc, tc, ec = _poses._best(rest_calf, _poses.resample(P['calf']['outline'][0]), KNEE, (Rt, tt))
         back = lambda g, step=2.0: ccw((_poses.resample(P[g]['outline'][0], step) - tc) @ Rc)
-        local.append(dict(foot=back('foot'), link=back('ankle_joint'), cap=back('ankle_cap', 1.5), calf_rms=ec))
+        local.append(dict(foot=back('foot'), link=back('ankle_joint'), calf=back('calf'), cap=back('ankle_cap', 1.5), calf_rms=ec))
     base = ccw(_poses.resample(local[0]['foot'], 4.0))
     fits = [_poses._best(base, L['foot'], ANKLE0) for L in local]
     A = np.vstack([np.eye(2) - Rf for Rf, tf, e in fits[1:]]); b = np.hstack([tf for Rf, tf, e in fits[1:]])
     ankle = np.linalg.lstsq(A, b, rcond=None)[0]
     angles = [_poses._ang(Rf) for Rf, tf, e in fits]
+    for L in local:
+        L['link'] = with_shin(L['link'], L['calf'], ankle)
     link0 = ccw(_poses.resample(local[0]['link'], 4.0))
     foot_keys, link_keys = [], []
     for L, a in zip(local, angles):
