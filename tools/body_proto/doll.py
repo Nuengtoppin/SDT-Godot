@@ -34,6 +34,13 @@ HIP, KNEE, POSES = _poses.load(P, _pose_dirs, HIP, KNEE)
 for _p in POSES:
     print(f"pose {_p['name']}: hip {_p['hip']:.1f}, knee {_p['knee']:.1f}, fit rms thigh {_p['rms'][0]:.1f} calf {_p['rms'][1]:.1f}")
 if POSES: print('hip', _hip0, '->', HIP.round(1), ' knee', _knee0, '->', KNEE.round(1))
+# the thigh as keyforms (thigh_keys.py, BODY_THIGH = its pickle): Dima's drawings are the shapes, the doll
+# interpolates them by the hip angle; their hip point wins (it is the newest fit)
+KEYS = pickle.load(open(os.environ['BODY_THIGH'], 'rb')) if os.environ.get('BODY_THIGH') else None
+KEY_PIECES = ['leg', 'knee_cap'] if KEYS else []
+if KEYS:
+    print('thigh keyforms at hip', [round(a, 1) for a in KEYS['angles']], ' hip', HIP.round(1), '->', np.round(KEYS['hip'], 1))
+    HIP = np.array(KEYS['hip'])
 # name, parent, origin, tip, half_of: a joint piece's bone turns half as much as its neighbour (the doll script)
 BONES = [('pelvis', None, HIP, PELVIS_J, None), ('lower_back', 'pelvis', PELVIS_J, LUMBAR_J, None),
          ('upper_back', 'lower_back', LUMBAR_J, RIB_J, None), ('ribcage', 'upper_back', RIB_J, NECK, None),
@@ -113,6 +120,9 @@ ORDER = R['order']
 OUTER_ONLY = ['belly', 'clavicle', 'back', 'ankle_joint']   # no lines of their own (the knee joint has one: Dima)
 MESH = {}
 for g in ORDER:
+    if g in KEY_PIECES:   # the rest drawing (hip 0) is the piece's outline; no marks: the keyforms shape it
+        V = KEYS[g][int(np.argmin(np.abs(KEYS['angles'])))]; MESH[g] = dict(V=V, nb=len(V), marks=[])
+        print(f'{g:11s} keyforms {len(KEYS[g])} x {len(V)} points'); continue
     V = outline_of(P[g]['outline'][0]); M = marks(g, V, len(V))
     MESH[g] = dict(V=V, nb=len(V), marks=M)
     print(f'{g:11s} outline points {len(V):4d} marks {len(M):2d} bones {sorted({b for _, w in M for b in w})}')
@@ -121,7 +131,10 @@ f2 = lambda x: f'{x:.2f}'.rstrip('0').rstrip('.')
 vec = lambda Q: 'PackedVector2Array(' + ', '.join(f'{f2(x)}, {f2(y)}' for x, y in Q) + ')'
 def poly_node(name, V, color, g=None):   # no weights: doll.gd builds them from the marks (and the correctives)
     meta = []
-    if g in _poses.POSE_PIECES and POSES:
+    if g in KEY_PIECES:
+        meta = ['metadata/keyforms = {"pivot": Vector2(%s, %s), "angles": PackedFloat32Array(%s), "shapes": [%s]}' % (
+            f2(HIP[0]), f2(HIP[1]), ', '.join(f'{a:.2f}' for a in KEYS['angles']), ', '.join(vec(k) for k in KEYS[g]))]
+    elif g in _poses.POSE_PIECES and POSES:
         meta = ['metadata/poses = [' + ', '.join(
             f'{{"name": "{p["name"]}", "hip": {p["hip"]:.2f}, "knee": {p["knee"]:.2f}, "outline": {vec(p["outlines"][g])}}}'
             for p in POSES if g in p['outlines']) + ']']
@@ -156,6 +169,7 @@ for g in OUTER_ONLY: out.append(line_node(g + '_line', MESH[g]['V'], LINE))
 for g in ORDER:
     if g == 'ribcage': out += ['[node name="NeckSlot" type="Node2D" parent="."]', f'position = Vector2({f2(NECK[0])}, {f2(NECK[1])})', '']
     if g not in OUTER_ONLY: out.append(line_node(g + '_line', MESH[g]['V'], LINE))
-    out.append(poly_node(g, MESH[g]['V'], FILL, g)); out.append(marks_nodes(g))
+    out.append(poly_node(g, MESH[g]['V'], FILL, g))
+    if g not in KEY_PIECES: out.append(marks_nodes(g))
 open(os.path.join(WORK, 'doll.tscn'), 'w').write('\n'.join(out))
 print('doll.tscn', os.path.getsize(os.path.join(WORK, 'doll.tscn')) // 1024, 'KB')

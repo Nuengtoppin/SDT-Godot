@@ -104,3 +104,16 @@ thickness; Polygon2D's matrix mixing shrinks it and folds under correctives), tr
 triangles when the loop crosses itself) and draws the outline as a Line2D along it (2 x LW wide, under the fill).
 The weights live in the piece's `weights` metadata, not in Polygon2D bones. Pose outlines are matched in rest space,
 in order along both loops (dynamic time warping).
+
+### The thigh as keyforms (BODY_46)
+
+    python3 thigh_keys.py <thigh template 1> <2> <3>      # unpacked; template 1 = the rest pose -> thigh_keys.pkl
+    BODY_THIGH=$BODY_WORK/thigh_keys.pkl BODY_POSES=... python3 doll.py
+
+Dima drew the thigh (and the kneecap over it) at three hip angles and marked the same points on each outline
+(`DOTS` in thigh_keys.py, read off his screenshots). Each outline is cut at his points and every stretch gets the same
+number of points in all drawings, so point i is the same place on the thigh in every pose. The doll interpolates
+between the two nearest drawings by the thigh's angle - each point around the hip (radius and angle mixed), close to
+the hip straight - and turns the first / last drawing as a whole outside their range. No weights or marks for these
+pieces. Hip: the point the drawings' thigh turns keep still, (-213.0, 4.8). Running: 1/2/3 jump to the drawn poses,
+G shows the drawings.
