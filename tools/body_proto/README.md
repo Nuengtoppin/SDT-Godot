@@ -36,6 +36,7 @@ the belly's sliver along its front). Cut-out style: the lower pieces reach under
 torso's one smooth outline, so there are no gaps; an upper piece's outline shows as an inner line (the ribcage's
 bottom, the waist, the V of the pelvis junction, the buttock).
 
-The torso's and the leg's outer edges follow the vanilla template (Back, Chest, Chest Under; Right Thigh with Dima's
-buttock); Dima's zones divide the inside. The far shoulder with its clavicle is its own piece (vanilla Left Shoulder
-and Dima's clavicle zone) under everything, as the game draws it.
+From the vanilla template only the outer edges of the belly, the back and the buttock with the thigh (Back, Chest,
+Chest Under; Right Thigh); nothing that would belong to the ribcage outside Dima's ribcage. The ribcage and the
+clavicle are Dima's own (lightly smoothed: the clavicle traces the vanilla shoulder's bump and keeps its notch), the
+clavicle under the ribcage as in his file.
