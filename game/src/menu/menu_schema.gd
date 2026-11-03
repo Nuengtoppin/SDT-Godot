@@ -528,10 +528,6 @@ static func hotkey_groups() -> Array:
 
 static func _help() -> Dictionary:
 	return {"id": "help", "name": "Help", "groups": [
-		{"title": "Keys", "controls": [
-			note("Y U I O P: open this menu (Her, Clothes, Mods, Settings, Help) · Esc: close it\nA: auto mode · Space: hold her\nC / X: next / previous character · B: background on/off · H: show/hide him\n/: screenshot · Shift+/: shuffle her look
-These are the default keys: Settings › Hotkeys › Edit hotkeys… lists every key, extensions' too, and changes them."),
-		]},
 		{"title": "Extensions", "controls": [
 			note("Options with an orange dot or tag come from an extension. Switch extensions on or off in Mods › Extensions; Vanilla mode switches all of them off and brings back the original menu."),
 		]},

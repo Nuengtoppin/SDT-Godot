@@ -119,7 +119,6 @@ func _enable() -> void:
 		"format": func(v): return str(snappedf(v, 0.01))})
 	for gr in GROUPS:
 		menu_control("behaviour", CARD, MenuSchema.setting_control(self, gr[0]))
-	menu_control("help", "Keys", MenuSchema.note("Progressive exhaustion: ' she is rested again, ; adds a pass-out"))
 	on_key(RESET_KEY, reset, "exhaustion: rested again")
 	on_key(INCREMENT_KEY, increment, "exhaustion: +1 pass-out")
 	charcode_field("exhaustionFactor", func(): return null if factor == 1.0 else str(factor),

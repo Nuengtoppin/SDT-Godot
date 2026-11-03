@@ -95,8 +95,6 @@ func _enable() -> void:
 		func(): return get_setting("keepPunchMarks"), func(v: bool): set_setting("keepPunchMarks", v)))
 	menu_control("behaviour", "Spanking", MenuSchema.actions("", "", [["Clear marks", clear_marks,
 		"Her spank and punch marks fade away."]]))
-	menu_control("help", "Keys", MenuSchema.note("Spank anywhere: hold the left mouse button over her and let go to "
-		+ "spank, G spank / punch, N clear the marks"))
 
 
 func _disable() -> void:

@@ -150,10 +150,6 @@ func _enable() -> void:
 		for k in _keys:
 			var names: Array = _keys[k].map(func(pair): return ("left " if pair[0] else "right ") + str(pair[1]))
 			on_key(k, _position_key.bind(k), "arms: " + ", ".join(names), "position:%d" % k)
-		menu_control("help", "Keys", MenuSchema.note("Arm overhaul: numpad 7 / 9 her left arm, 4 / 6 her right arm, "
-			+ "5 she lets go of his hand (or takes it), 2 his leg in front, 8 dynamic arms (off, both, left, right), "
-			+ "9 restrained mode (loose, tight, fixed, off) · "
-			+ "[ / ] his right / left arm (default keys, see Settings › Hotkeys)"))
 	if get_setting("himLegLayerDefault") and not leg_on_top:
 		_toggle_leg()
 	her.setLeftArmPosition()

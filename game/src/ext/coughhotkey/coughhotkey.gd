@@ -15,7 +15,6 @@ func _init() -> void:
 
 func _enable() -> void:
 	on_key(KEY_F, cough, "cough")
-	menu_control("help", "Keys", MenuSchema.note("F: she coughs (coughhotkey)"))
 
 
 func cough() -> void:
