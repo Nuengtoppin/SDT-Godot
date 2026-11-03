@@ -55,3 +55,13 @@ lower back's and the back's zones (eroded 10) on their bones, what lies under th
 ribcage on the ribcage. Belly, clavicle and back draw only the body's outer outline (their dark copies sit under
 all fills); ribcage, pelvis and leg keep theirs as inner lines. NeckSlot follows the ribcage (RemoteTransform2D) and
 draws between the back and the ribcage. In the editor rotate the Bone2D nodes; run the scene (F6) to drag the rings.
+
+### The lower leg (BODY_42)
+
+Dima's template now also has the calf (икра, нога), the knee (сустав колена, колено), the ankle bone (чашечка стопы),
+the ankle link (связка стопы\нога) and the foot (стопа, пятка); pieces.py makes each its own piece, in his layer
+order: thigh < calf < ankle cap < knee joint < kneecap < ankle link < foot (toes later). Bones: calf at the knee
+(189.9, 285.0) - the anatomical axis, inside his knee joint - to the ankle (-304.5, 349.0), the middle of his ankle
+bone; foot from the ankle to its tip (-527.0, 359.5). knee_auto and ankle_auto (metadata half_of) carry the joint
+pieces and turn half as much as the calf / the foot - doll.gd does it, also in the editor (it is a tool script).
+The joints draw only the body's outer outline, so they hide the seams; calf, foot and the cyan caps keep theirs.

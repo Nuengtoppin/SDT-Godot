@@ -5,9 +5,11 @@ stretches), clavicle, back (lower back and back, each on its own bone, soft betw
 pelvis junction, buttock + thigh. Belly, clavicle and back get only the outer outline (their outlines sit under all
 fills); ribcage, pelvis and leg keep theirs as inner lines (the ribcage's bottom, the pelvis V, the buttock).
 
-Bones (template space; Dima's points from his sketch, the neck base and the knee ours):
+Bones (template space; Dima's points from his sketch, the neck base ours, the knee and ankle in his joint pieces):
   pelvis      at the hip (it tilts around the hip, as in body-her) -> the lower back's pivot
-  lower_back  -> upper_back -> ribcage -> the neck base;  thigh at the hip -> the knee
+  lower_back  -> upper_back -> ribcage -> the neck base
+  thigh at the hip -> calf at the knee -> foot at the ankle; knee_auto and ankle_auto carry the joint pieces and
+  turn half as much as the calf / the foot (doll.gd), so the joint hides the seam from both sides
 Writes $BODY_WORK/doll.tscn for res://debug/body_doll/ (the scene holds template outlines: never commit it).
 """
 import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -20,11 +22,16 @@ SH = P['back']['mask'].shape
 px = lambda Q: np.round((np.asarray(Q) - [X0, Y0]) * G).astype(np.int32)
 
 HIP = np.array([-221.6, -2.3]); PELVIS_J = np.array([-152.4, -68.0]); LUMBAR_J = np.array([-79.5, -146.3])
-RIB_J = np.array([-25.0, -211.7]); NECK = np.array([119.2, -453.15]); KNEE = np.array([160.3, 291.1])
-# name, parent, origin, tip
-BONES = [('pelvis', None, HIP, PELVIS_J), ('lower_back', 'pelvis', PELVIS_J, LUMBAR_J),
-         ('upper_back', 'lower_back', LUMBAR_J, RIB_J), ('ribcage', 'upper_back', RIB_J, NECK),
-         ('thigh', 'pelvis', HIP, KNEE)]
+RIB_J = np.array([-25.0, -211.7]); NECK = np.array([119.2, -453.15])
+# the knee: the anatomical axis (thigh (387, 280) in the game = the vanilla calf point (160.3, 291.1) + (29.6, -6.1)),
+# inside Dima's knee joint; the ankle: the middle of his ankle bone (the cyan cap); the foot's tip: its far end
+KNEE = np.array([189.9, 285.0]); ANKLE = np.array([-304.5, 349.0]); TOE = np.array([-527.0, 359.5])
+# name, parent, origin, tip, half_of: a joint piece's bone turns half as much as its neighbour (the doll script)
+BONES = [('pelvis', None, HIP, PELVIS_J, None), ('lower_back', 'pelvis', PELVIS_J, LUMBAR_J, None),
+         ('upper_back', 'lower_back', LUMBAR_J, RIB_J, None), ('ribcage', 'upper_back', RIB_J, NECK, None),
+         ('thigh', 'pelvis', HIP, KNEE, None), ('calf', 'thigh', KNEE, ANKLE, None),
+         ('knee_auto', 'thigh', KNEE, KNEE + (ANKLE - KNEE) * 0.15, 'calf'), ('foot', 'calf', ANKLE, TOE, None),
+         ('ankle_auto', 'calf', ANKLE, ANKLE + (TOE - ANKLE) * 0.25, 'foot')]
 BI = {b[0]: i for i, b in enumerate(BONES)}
 def bpath(n):
     out = [];
@@ -58,7 +65,9 @@ def grown(V, nb, w):
 
 def weights(g, V, m):
     W = np.zeros((len(V), len(BONES)))
-    one = {'clavicle': 'ribcage', 'ribcage': 'ribcage', 'pelvis': 'pelvis', 'leg': 'thigh'}
+    one = {'clavicle': 'ribcage', 'ribcage': 'ribcage', 'pelvis': 'pelvis', 'leg': 'thigh', 'calf': 'calf',
+           'ankle_cap': 'calf', 'knee_joint': 'knee_auto', 'knee_cap': 'knee_auto', 'ankle_joint': 'ankle_auto',
+           'foot': 'foot'}
     if g in one: W[:, BI[one[g]]] = 1; return W
     zm = lambda n: P[g]['zmask'][n] & m
     core = lambda z: cv2.erode(z.astype(np.uint8), np.ones((int(10 * G),) * 2, np.uint8)).astype(bool)
@@ -71,8 +80,8 @@ def weights(g, V, m):
     for i, (b, _) in enumerate(fixed): W[:, BI[b]] = w[:, i]
     return W
 
-ORDER = ['belly', 'clavicle', 'back', 'ribcage', 'pelvis', 'leg']
-OUTER_ONLY = ['belly', 'clavicle', 'back']
+ORDER = R['order']
+OUTER_ONLY = ['belly', 'clavicle', 'back', 'knee_joint', 'ankle_joint']   # joints hide the seams, so no lines of their own
 MESH = {}
 for g in ORDER:
     V, tri, nb, m = mesh(P[g]['outline'][0]); W = weights(g, V, m)
@@ -95,12 +104,13 @@ FILL = '0.941, 0.827, 0.749, 1'; LINE = '0.361, 0.259, 0.204, 1'   # (240,211,19
 out = ['[gd_scene format=3]', '', '[ext_resource type="Script" path="res://debug/body_doll/doll.gd" id="1"]', '',
        '[node name="BodyDoll" type="Node2D"]', 'script = ExtResource("1")', '',
        '[node name="Skeleton2D" type="Skeleton2D" parent="."]', '']
-for n, par, o, tip in BONES:
+for n, par, o, tip, half in BONES:
     po = next(b[2] for b in BONES if b[0] == par) if par else np.zeros(2); lp = o - po; v = tip - o
     out += [f'[node name="{n}" type="Bone2D" parent="Skeleton2D{"/" + bpath(par) if par else ""}"]',
             f'position = Vector2({f2(lp[0])}, {f2(lp[1])})', f'rest = Transform2D(1, 0, 0, 1, {f2(lp[0])}, {f2(lp[1])})',
             'auto_calculate_length_and_angle = false', f'length = {f2(np.linalg.norm(v))}',
-            f'bone_angle = {np.degrees(np.arctan2(v[1], v[0])):.2f}', '']   # degrees in the scene file; get_bone_angle() gives radians
+            f'bone_angle = {np.degrees(np.arctan2(v[1], v[0])):.2f}'] + ([f'metadata/half_of = "{half}"'] if half else []) + ['']
+    # (bone_angle is in degrees in the scene file; get_bone_angle() gives radians)
 nk = NECK - RIB_J
 out += [f'[node name="NeckSlotFollow" type="RemoteTransform2D" parent="Skeleton2D/{bpath("ribcage")}"]',
         f'position = Vector2({f2(nk[0])}, {f2(nk[1])})', 'remote_path = NodePath("../../../../../../NeckSlot")',

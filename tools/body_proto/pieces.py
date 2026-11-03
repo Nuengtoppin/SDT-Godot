@@ -63,10 +63,15 @@ for g,names in grp.items():
         m=biggest(blur_bin(Z['грудная клетка'],1.5))   # Dima's own ribcage, lightly smoothed
     PIECES[g]=(m,{n:(tp==TORSO.index(n)+1) for n in names})
 PEL=['анал','лобок','талия таз','вагина']; LEG=['ягодица','Слой_18','Слой_19','бедро1']
-for g,names in [('pelvis',PEL),('leg',LEG)]:
+# the lower leg (Dima, 3 Nov): calf, foot, and the joints between them - each its own piece, his layers top first
+LOWER=[('calf',['икра','нога']),('ankle_cap',['чашечка стопы']),('knee_joint',['сустав колена']),('knee_cap',['колено']),
+       ('ankle_joint',['связка стопы\\нога']),('foot',['стопа','пятка'])]
+has=lambda n:any(k.split('#')[0]==n for k in items)
+LOWER=[(g,ns) for g,ns in LOWER if all(has(n) for n in ns)]   # older templates have no lower leg
+for g,names in [('pelvis',PEL),('leg',LEG)]+LOWER:
     Zs=[mask(n) for n in names]; lb=np.zeros((H,W),np.int16)
     for i in reversed(range(len(Zs))): lb[Zs[i]]=i+1
-    o=outer_of(lb>0,10,12)   # pelvis junction and leg: Dima's own zones (as in BODY_37)
+    o=outer_of(lb>0,10,12) if len(names)>1 or g in ('pelvis','leg') else biggest(blur_bin(lb>0,1.5))   # Dima's own zones
     p=partition(lb,len(names),o,16)
     PIECES[g]=(o,{n:(p==i+1)&o for i,n in enumerate(names)})
 # --- smooth vector curves: a periodic smoothing spline through the raster contour
@@ -82,7 +87,7 @@ def curve(m,smooth=1.0,minarea=30):
 # the far shoulder with its clavicle: the vanilla Left Shoulder and Dima's clavicle zone, under everything
 cl=biggest(blur_bin(mask('ключица сздади'),1.0))   # Dima's clavicle (it traces the vanilla shoulder's bump)
 PIECES['clavicle']=(cl,{'ключица сздади':cl})
-ORDER=['belly','clavicle','back','ribcage','pelvis','leg']
+ORDER=['belly','clavicle','back','ribcage','pelvis','leg']+[g for g,_ in LOWER]
 res={'order':ORDER,'pieces':{}}
 for g in ORDER:
     o,zones=PIECES[g]

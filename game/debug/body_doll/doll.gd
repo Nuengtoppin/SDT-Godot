@@ -1,8 +1,11 @@
+@tool
 extends Node2D
 ## The body doll: Dima's pieces on bones (scene made by tools/body_proto/doll.py, kept out of git).
 ## In the editor: select a Bone2D under Skeleton2D and rotate it.
 ## Running it (F6): drag a bone's handle (the ring on the bone) to turn it around its joint; R resets the pose.
-## A neck (or anything) put under NeckSlot follows the ribcage and draws between the clavicle and the ribcage.
+## A neck (or anything) put under NeckSlot follows the ribcage and draws between the back and the ribcage.
+## Bones with metadata "half_of" (knee_auto, ankle_auto) carry the joint pieces and turn half as much as the named
+## bone, also in the editor; they cannot be grabbed.
 
 const PICK := 24.0        # px: how close to a handle a press must be
 const DEAD := 12.0        # px: no turning this close to the joint (the angle jumps there)
@@ -14,12 +17,18 @@ var _rest := {}
 var _drag: Bone2D
 var _last := Vector2.ZERO
 var _overlay: Node2D
+var _halves := {}   # joint bone -> the bone it follows by half
 
 
 func _ready() -> void:
 	for b in find_children("*", "Bone2D", true, false):
-		_bones.append(b)
-		_rest[b] = b.rotation
+		_rest[b] = b.rest.get_rotation()
+		if b.has_meta("half_of"):
+			_halves[b] = b.get_parent().get_node_or_null(str(b.get_meta("half_of")))
+		else:
+			_bones.append(b)
+	if Engine.is_editor_hint():
+		return
 	_overlay = Node2D.new()
 	_overlay.z_index = 100
 	add_child(_overlay)
@@ -35,6 +44,12 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	for j in _halves:
+		var n: Bone2D = _halves[j]
+		if n:
+			j.rotation = _rest[j] + 0.5 * (n.rotation - _rest[n])
+	if Engine.is_editor_hint():
+		return
 	_overlay.queue_redraw()   # bones may turn from anywhere (the editor's remote tree, an animation, a script)
 
 
@@ -43,7 +58,7 @@ func _fit() -> void:
 	var vs := get_viewport_rect().size
 	var s := minf(vs.x / 1150.0, vs.y / 1200.0)
 	scale = Vector2(s, s)
-	position = vs * 0.5 - Vector2(-110, -40) * s
+	position = vs * 0.5 - Vector2(-120, -40) * s
 
 
 func _origin(b: Bone2D) -> Vector2:
@@ -55,6 +70,8 @@ func _tip(b: Bone2D, t := 1.0) -> Vector2:
 
 
 func _unhandled_input(e: InputEvent) -> void:
+	if Engine.is_editor_hint():
+		return
 	var key := e as InputEventKey
 	var button := e as InputEventMouseButton
 	var motion := e as InputEventMouseMotion
