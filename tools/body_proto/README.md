@@ -96,3 +96,11 @@ squares). The scene gets each pose piece's drawn outline (metadata `poses`); dol
 it (marks as anchors, then by length), keeps the difference in rest space (`pose_deltas`) and, running, mixes rest
 and the drawn poses by how near the thigh's and calf's angles are (1 / distance squared). pieces.py grows its
 raster grid when a template reaches past the old box (the grid is stored in pieces.pkl).
+
+### No inner mesh (BODY_45)
+
+A piece is now only its outline loop: doll.gd skins the loop on the CPU with dual quaternions (a bend keeps its
+thickness; Polygon2D's matrix mixing shrinks it and folds under correctives), triangulates it each frame (the rest
+triangles when the loop crosses itself) and draws the outline as a Line2D along it (2 x LW wide, under the fill).
+The weights live in the piece's `weights` metadata, not in Polygon2D bones. Pose outlines are matched in rest space,
+in order along both loops (dynamic time warping).
