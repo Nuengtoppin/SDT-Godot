@@ -36,6 +36,9 @@ static func _loader_handler(path: String, bytes: PackedByteArray) -> FlashDispla
 	return mod.instantiate_root()
 
 
+## Set when the game quits: conversions on worker threads stop at the next symbol (ModCatalog.shutdown). A stopped
+## conversion writes no library.json, so the mod is converted again next time.
+static var stop_converting := false
 static var _loaded: Dictionary = {}   # digest -> FlashSwfMod (each file's library is loaded once)
 
 
@@ -149,6 +152,8 @@ static func convert_swf(bytes: PackedByteArray, out_dir: String, scale: float) -
 	var grids: Dictionary = swf.get_scaling_grids()
 	var morph_uses := {}
 	for cid in all_chars:
+		if stop_converting:
+			return false
 		if all_chars[cid]["type"] == "sprite":
 			var tl := _build_timeline(swf.get_timeline(int(cid)), morph_uses)
 			tl["t"] = "sprite"
@@ -178,6 +183,8 @@ static func convert_swf(bytes: PackedByteArray, out_dir: String, scale: float) -
 		blob.append_array(r["hit"])
 		return entry
 	for cid in all_chars:
+		if stop_converting:
+			return false
 		var t: String = all_chars[cid]["type"]
 		var id := int(cid)
 		match t:

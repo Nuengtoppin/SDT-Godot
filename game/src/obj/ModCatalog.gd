@@ -177,6 +177,19 @@ func _convert(job: Array, bytes := PackedByteArray()) -> void:
 	_converting[id] = [job[0], bytes]
 
 
+## The game quits: mods still converting on worker threads stop and are waited for (a worker thread still running
+## GDScript while the engine shuts down crashes it).
+func shutdown() -> void:
+	if _converting.is_empty():
+		return
+	FlashSwfMod.stop_converting = true
+	for id in _converting.keys():
+		WorkerThreadPool.wait_for_task_completion(id)
+	_converting.clear()
+	_waiting.clear()
+	_queue.clear()
+
+
 ## The scan's progress, for the loading notice: {finished, done, total, converting: file names}.
 func progress() -> Dictionary:
 	var names: Array = []

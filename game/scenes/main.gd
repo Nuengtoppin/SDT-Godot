@@ -81,6 +81,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if g.modCatalog != null:
+		g.modCatalog.shutdown()   # before anything else goes: mods converting on worker threads
 	Extensions.shutdown()
 
 
