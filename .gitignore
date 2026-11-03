@@ -41,3 +41,6 @@ __pycache__/
 /native/build/
 # release builds (tools/make_release.sh)
 /release/
+
+# The body doll scene: generated from the template by tools/body_proto/doll.py, holds its outlines - never commit
+/game/debug/body_doll/*.tscn

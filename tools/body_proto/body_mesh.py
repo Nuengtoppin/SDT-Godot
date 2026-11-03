@@ -4,7 +4,8 @@ from scipy.spatial import Delaunay
 from scipy.sparse import lil_matrix, csr_matrix
 from scipy.sparse.linalg import spsolve
 G=2.0; X0,Y0=-700,-560
-M=np.load(os.path.join(WORK,'proto_masks.npz'))
+_mp=os.path.join(WORK,'proto_masks.npz')
+M=np.load(_mp) if os.path.exists(_mp) else None   # frames.py needs masks.py first; doll.py does not
 to_u=lambda px:np.array([px[...,0]/G+X0, px[...,1]/G+Y0]).T if px.ndim==2 else None
 def inside(m,P):
     q=np.round((P-[X0,Y0])*G).astype(int); h,w=m.shape

@@ -40,3 +40,18 @@ From the vanilla template only the outer edges of the belly and the back; nothin
 outside Dima's ribcage. The ribcage and the clavicle are Dima's own (lightly smoothed: the clavicle traces the vanilla
 shoulder's bump and keeps its notch), the clavicle under the ribcage as in his file. Back and belly are one piece (no
 seam between them; their groups stay inside for weights and morphs). The pelvis junction and the leg are Dima's own.
+
+## The doll (BODY_41, Dima's scheme, 3 Nov)
+
+    python3 pieces.py   # now: belly + abs (underlay) < clavicle < back < ribcage < pelvis junction < leg
+    python3 doll.py     # -> $BODY_WORK/doll.tscn; copy it to game/debug/body_doll/ (gitignored: it holds outlines)
+
+Pieces turn on bones instead of bending; only the back bends, by its two zones. Bones from Dima's sketch (template
+space): pelvis at the hip (-221.6, -2.3) -> lower back pivot (-152.4, -68.0) -> back pivot (-79.5, -146.3) ->
+ribcage pivot (-25.0, -211.7) -> the neck base (119.2, -453.15); thigh at the hip -> the knee (160.3, 291.1).
+Weights: clavicle and ribcage on the ribcage, pelvis junction on the pelvis, leg on the thigh (rigid until Dima's
+drawn leg poses); belly by Laplace between the ribcage (A) and the pelvis (B, the pubis); back by Laplace with the
+lower back's and the back's zones (eroded 10) on their bones, what lies under the pelvis on the pelvis and under the
+ribcage on the ribcage. Belly, clavicle and back draw only the body's outer outline (their dark copies sit under
+all fills); ribcage, pelvis and leg keep theirs as inner lines. NeckSlot follows the ribcage (RemoteTransform2D) and
+draws between the back and the ribcage. In the editor rotate the Bone2D nodes; run the scene (F6) to drag the rings.

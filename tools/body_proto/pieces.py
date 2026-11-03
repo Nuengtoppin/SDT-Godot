@@ -48,13 +48,15 @@ rib_i=TORSO.index('грудная клетка')+1
 torso_outer=biggest(van&~((near==rib_i)&(lab!=rib_i)) | (lab==rib_i))
 tp=partition(lab,len(TORSO),torso_outer,22)
 PIECES={}
-grp={'trunk':['пресс','живот','поясница','спина'],'ribcage':['грудная клетка']}   # back and belly one piece: no seam between them
-# cut-out style: the lower pieces reach under the upper ones (no gaps), all within the torso's one smooth outline
-under_k=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(int(14*G)*2+1,)*2)
+# the doll (Dima, 3 Nov): belly + abs an underlay drawn first (it stretches between the ribcage and the pubis, so it
+# reaches far under its neighbours); the back (lower back + back) one piece over it that bends by its two zones
+grp={'belly':['пресс','живот'],'back':['поясница','спина'],'ribcage':['грудная клетка']}
+REACH={'belly':40,'back':14}   # how far a lower piece reaches under its neighbours (no gaps when they turn)
 for g,names in grp.items():
     m=np.zeros((H,W),bool)
     for n in names: m|=tp==TORSO.index(n)+1
     if g!='ribcage':
+        under_k=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(int(REACH[g]*G)*2+1,)*2)
         m=cv2.dilate(m.astype(np.uint8),under_k).astype(bool)
         m=biggest(blur_bin(m&torso_outer,4))&torso_outer
     else:
@@ -80,7 +82,7 @@ def curve(m,smooth=1.0,minarea=30):
 # the far shoulder with its clavicle: the vanilla Left Shoulder and Dima's clavicle zone, under everything
 cl=biggest(blur_bin(mask('ключица сздади'),1.0))   # Dima's clavicle (it traces the vanilla shoulder's bump)
 PIECES['clavicle']=(cl,{'ключица сздади':cl})
-ORDER=['clavicle','trunk','ribcage','pelvis','leg']
+ORDER=['belly','clavicle','back','ribcage','pelvis','leg']
 res={'order':ORDER,'pieces':{}}
 for g in ORDER:
     o,zones=PIECES[g]
