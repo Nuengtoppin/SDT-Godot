@@ -44,7 +44,17 @@ if CALF:   # its knee point wins over the one from the old poses (the calf turns
     KEY_PIECES += ['calf'] + (['knee_cap'] if 'cap' in CALF else []); print('calf keyforms at knee', [round(a, 1) for a in CALF['angles']], ' knee', KNEE.round(1), '->', np.round(CALF['pivot'], 1))
     KNEE = np.array(CALF['pivot'])
     if 'cap' in CALF: CAP_C = CALF['cap'][int(np.argmin(np.abs(CALF['cap_angles'])))].mean(0)
+# the foot as keyforms (foot_keys.py, BODY_FOOT): three drawings in the calf's frame, mixed around the ankle by the
+# foot bone's angle; the ankle link with them (no line of its own: it merges with the shin); the ankle bone keeps
+# one shape on the calf, drawn in front of everything; the ankle is the point the drawings turn around
+FOOT = pickle.load(open(os.environ['BODY_FOOT'], 'rb')) if os.environ.get('BODY_FOOT') else None
+if FOOT:
+    KEY_PIECES += ['foot', 'ankle_joint']
+    print('foot keyforms at', [round(a, 1) for a in FOOT['angles']], ' ankle', ANKLE.round(1), '->', np.round(FOOT['pivot'], 1))
+    ANKLE = np.array(FOOT['pivot'])
 def keyform(g):   # (angles, shapes, pivot, driver bone, carrier bone, around the pivot?)
+    if g == 'foot': return FOOT['angles'], FOOT['foot'], ANKLE, 'foot', 'calf', True
+    if g == 'ankle_joint': return FOOT['angles'], FOOT['link'], ANKLE, 'foot', 'calf', True
     if g == 'leg': return KEYS['angles'], KEYS['leg'], HIP, 'thigh', 'pelvis', True
     # the kneecap: Dima's two drawings of it (calf pressed / unfolded) in the thigh's frame; between them it slides
     # around the knee on the knee's front, picked by the calf's angle; its own bone adds a small turn of its own
@@ -65,8 +75,8 @@ BONES = [('pelvis', None, PELVIS_AX, PELVIS_J, {'limits': (-25, 25), 'keep_uprig
          ('thigh', 'pelvis', HIP, KNEE, {'limits': (-45, 115), 'overflow_to': 'pelvis'}),
          ('calf', 'thigh', KNEE, ANKLE, {'limits': (-150, 5)}),
          ('kneecap', 'thigh', CAP_C, CAP_C + (CAP_C - KNEE) / max(np.linalg.norm(CAP_C - KNEE), 1) * 30, {'limits': (-25, 25)}),
-         ('foot', 'calf', ANKLE, TOE, {}),
-         ('ankle_auto', 'calf', ANKLE, ANKLE + (TOE - ANKLE) * 0.25, {'follow': 'foot', 'ratio': 0.5})]
+         ('foot', 'calf', ANKLE, TOE, {'limits': (-85, 10)})] + ([] if FOOT else [
+         ('ankle_auto', 'calf', ANKLE, ANKLE + (TOE - ANKLE) * 0.25, {'follow': 'foot', 'ratio': 0.5})])
 BI = {b[0]: i for i, b in enumerate(BONES)}
 def bpath(n):
     out = [];
@@ -136,14 +146,19 @@ def marks(g, V, nb):
         return out
     return [(B[int(k)], {RIGID[g]: 1}) for k in np.linspace(0, nb, 4, endpoint=False)]
 
-ORDER = R['order']
+ORDER = list(R['order'])
+if FOOT and 'ankle_cap' in ORDER:   # Dima: the ankle bone in front of everything; the ankle link over the foot,
+    ORDER.remove('ankle_cap'); ORDER.append('ankle_cap')   # with no line of its own, bridges heel and shin smoothly
+    if 'ankle_joint' in ORDER and 'foot' in ORDER:
+        ORDER.remove('ankle_joint'); ORDER.insert(ORDER.index('foot') + 1, 'ankle_joint')
 OUTER_ONLY = ['belly', 'clavicle', 'back', 'ankle_joint']   # no lines of their own (the knee joint has one: Dima)
 MESH = {}
 for g in ORDER:
     if g in KEY_PIECES:   # the rest drawing (hip 0) is the piece's outline; no marks: the keyforms shape it
         ang, shp = keyform(g)[:2]; V = shp[int(np.argmin(np.abs(ang)))]; MESH[g] = dict(V=V, nb=len(V), marks=[])
         print(f'{g:11s} keyforms {len(shp)} x {len(V)} points'); continue
-    src = KEYS['knee_cap'][int(np.argmin(np.abs(KEYS['angles'])))] if (KEYS and g == 'knee_cap') else P[g]['outline'][0]
+    src = KEYS['knee_cap'][int(np.argmin(np.abs(KEYS['angles'])))] if (KEYS and g == 'knee_cap') else \
+          FOOT['cap'] if (FOOT and g == 'ankle_cap') else P[g]['outline'][0]
     V = outline_of(src); M = marks(g, V, len(V))
     MESH[g] = dict(V=V, nb=len(V), marks=M)
     print(f'{g:11s} outline points {len(V):4d} marks {len(M):2d} bones {sorted({b for _, w in M for b in w})}')

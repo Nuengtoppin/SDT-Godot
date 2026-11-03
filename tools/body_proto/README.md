@@ -139,3 +139,14 @@ matched point by point along the loop (DTW); it also stands at -45 (`RELAX`), so
 opens that far. The knee point is the one the calf turns around in the drawing, (182.3, 300.9). In the doll the calf
 keyform has driver = carrier = calf (a plain mix in the calf's frame); the thigh's has driver thigh, carrier
 pelvis, `around` = true. Template 1 is now the doll's base (it drops the knee joint layer).
+
+### The foot as keyforms (BODY_51)
+
+    BODY_WORK=<rest pieces> python3 foot_keys.py <foot drawing 1 pieces> <2> <3>
+    BODY_FOOT=$BODY_WORK/foot_keys.pkl ... python3 doll.py      # calf_keys.py takes foot drawing 3 as the unfolded calf
+
+Three foot drawings in the straight-leg pose: pointed (= the rest foot), half, flexed up (0 / -34.9 / -80.5; the foot
+is rigid between them, fits rms 1.5-2.8). Each is taken into the rest calf's frame (thigh, then calf fitted); the
+ankle is the point the foot turns keep still, (-329.9, 339.7). Foot and ankle link are keyforms around the ankle,
+driven by the foot bone (limits -85..10), carried by the calf; the link draws over the foot without a line, so heel
+and shin join smoothly; the ankle bone keeps one shape on the calf, drawn last.

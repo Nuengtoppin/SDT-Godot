@@ -10,7 +10,7 @@ import os, pickle, numpy as np
 from scipy.spatial import cKDTree
 
 # the foot is not matched yet (Dima, 3 Nov); the pelvis junction is, so its crotch keeps the drawn shape
-POSE_PIECES = ['pelvis', 'ankle_cap']   # thigh and calf are keyforms now, the kneecap rides its own bone
+POSE_PIECES = ['pelvis']   # thigh, calf and foot are keyforms now; kneecap and ankle bone keep one shape
 
 def _rot(d):
     r = np.radians(d); return np.array([[np.cos(r), -np.sin(r)], [np.sin(r), np.cos(r)]])
