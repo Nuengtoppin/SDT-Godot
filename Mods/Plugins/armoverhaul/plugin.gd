@@ -41,6 +41,7 @@ var hands                     # hands.gd
 var spank                     # spank.gd
 var restrained := false       # restrained mode
 var restrained_type := 3      # 0 loose, 1 tight, 2 fixed, 3 off
+var exhaustion_jitter := 1.0   # setting exhaustionJitter (hands.gd's jitter), kept here: asked every tick
 var push := 0.0               # how far her head goes back off him this tick (jitter, struggling): value point Her.pushBack
 var _keys := {}               # Flash key code -> [[left: bool, position name]] (values.cfg [keys])
 var _key_lists := {}          # values.cfg [keys] as read: the mod's key name -> "76,77"
@@ -77,9 +78,18 @@ func _setup() -> void:
 		+ "she lets go of his hand, numpad 2: his leg in front, [ / ]: his right / left arm, plus the keys in values.cfg [keys]. "
 		+ "Change them in Settings › Hotkeys."})
 	setting("himLegLayerDefault", false, {"label": "His leg in front at the start"})
+	setting("exhaustionJitter", 1.0, {"label": "Shaking as she tires", "min": 0.0, "max": 3.0, "step": 0.05,
+		"desc": "How much her exhaustion (Progressive exhaustion) changes her shaking: 1 as in the pack (most moods "
+		+ "shake more with every pass-out, Ahegao and Broken less), 0 not at all."})
+
+
+func _setting_changed(key: String, value) -> void:
+	if key == "exhaustionJitter":
+		exhaustion_jitter = float(value)
 
 
 func _enable() -> void:
+	exhaustion_jitter = float(get_setting("exhaustionJitter"))
 	# her head: pushed back by her hands' jitter and her struggling, slowed by her arms' resistance (value points, so
 	# the game clamps and eases as with its own movement)
 	modify(&"Her.pushBack", {"phase": Hooks.MOOD, "op": "fn", "fn": _take_push})

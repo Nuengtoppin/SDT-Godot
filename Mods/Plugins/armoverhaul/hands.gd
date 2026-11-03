@@ -201,7 +201,7 @@ func _jitter(her: Her) -> void:
 			d = (V["jitterDistFallOff"] - dist) / (V["jitterDistFallOff"] - V["jitterDistMax"])
 	var amount: float = randf() * (V["maxJitter"] - V["minJitter"]) + V["minJitter"]
 	x.push += maxf(0.0, (1.0 + _arms_on_him(V["jitterArmFactor"])) * amount * (m()["jitterFactor"]
-		+ m()["jitterExhaustionFactor"] * x.dyn.exhaustion + m()["jitterDistanceFactor"] * d * (1.0 - x.dyn.exh("jitterDistance"))))
+		+ m()["jitterExhaustionFactor"] * x.dyn.exhaustion * x.exhaustion_jitter + m()["jitterDistanceFactor"] * d * (1.0 - x.dyn.exh("jitterDistance"))))
 
 
 func _resist(her: Her) -> void:
