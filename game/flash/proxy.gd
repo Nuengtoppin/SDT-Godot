@@ -85,6 +85,30 @@ static func shown(n: Node) -> bool:
 static var msaa_level: Viewport.MSAA = ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_2d", 0)
 
 
+## Slack around the visible area a render target still covers, as a share of the viewport's size: content glides
+## between ticks (physics interpolation) and the camera zooms smoothly, while targets are laid out once per tick.
+const VIEW_SLACK := 0.15
+## Off: render targets cover their whole bounds again (debug comparisons).
+static var view_clip := true
+
+
+## The part of local rect b (in the space that `screen` maps to viewport pixels) inside the viewport ci draws in,
+## grown by VIEW_SLACK plus margin_px. Zoomed in, a group or mask can be many times the window; rendering only
+## what can show keeps each target at most about the window's size. Empty when b is entirely off-screen.
+static func clip_to_view(ci: CanvasItem, screen: Transform2D, b: Rect2, margin_px: float) -> Rect2:
+	var vp := ci.get_viewport()
+	var size := Vector2(vp.size) if vp != null else Vector2.ZERO
+	if not view_clip or size.x <= 0.0 or size.y <= 0.0 or absf(screen.determinant()) < 1e-9:
+		return b
+	var view := Rect2(Vector2.ZERO, size).grow_individual(size.x * VIEW_SLACK + margin_px,
+		size.y * VIEW_SLACK + margin_px, size.x * VIEW_SLACK + margin_px, size.y * VIEW_SLACK + margin_px)
+	var inv := screen.affine_inverse()
+	var local := Rect2(inv * view.position, Vector2.ZERO)
+	for p in [Vector2(view.end.x, view.position.y), view.end, Vector2(view.position.x, view.end.y)]:
+		local = local.expand(inv * p)
+	return b.intersection(local)
+
+
 static func set_msaa(vp: SubViewport) -> void:
 	if vp.msaa_2d != msaa_level:
 		vp.msaa_2d = msaa_level
@@ -150,6 +174,13 @@ func refresh() -> void:
 	# screen pixels per unit along each axis (a uniform max of the two made stretched masks far too big)
 	var sc := Vector2(maxf(screen.x.length(), 0.01), maxf(screen.y.length(), 0.01))
 	b = b.grow_individual(1.0 / sc.x, 1.0 / sc.y, 1.0 / sc.x, 1.0 / sc.y)
+	b = FlashProxy.clip_to_view(self, screen, b, 1.0)   # only what can show on screen
+	if b.size.x <= 0.0 or b.size.y <= 0.0:   # off-screen
+		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_mask_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_rect = Rect2()
+		queue_redraw()
+		return
 	var want := (b.size * sc).ceil()
 	if want.x > MAX_SIZE or want.y > MAX_SIZE:
 		sc *= minf(MAX_SIZE / want.x, MAX_SIZE / want.y)
