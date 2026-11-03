@@ -34,6 +34,10 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_fit)
 
 
+func _process(_delta: float) -> void:
+	_overlay.queue_redraw()   # bones may turn from anywhere (the editor's remote tree, an animation, a script)
+
+
 func _fit() -> void:
 	# the body in template space spans about (-520, -520)..(300, 400); leave room for a turned leg
 	var vs := get_viewport_rect().size
