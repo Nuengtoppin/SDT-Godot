@@ -150,3 +150,11 @@ is rigid between them, fits rms 1.5-2.8). Each is taken into the rest calf's fra
 ankle is the point the foot turns keep still, (-329.9, 339.7). Foot and ankle link are keyforms around the ankle,
 driven by the foot bone (limits -85..10), carried by the calf; the link draws over the foot without a line, so heel
 and shin join smoothly; the ankle bone keeps one shape on the calf, drawn last.
+
+### One lower-leg silhouette (BODY_53)
+At the knelt poses the foot's heel came off the shin and the joins under the heel and at the shin front were
+ragged: three separate outlines meeting. Now calf, ankle link and foot draw without their own lines, and a
+`lower_bridge` polygon under them (metadata `bridge`: parts, `open`, `close`) is rebuilt every frame in doll.gd:
+the union of the parts, opened by 4 px (drops slivers and spikes) and closed by 14 px (fills dents and gaps
+narrower than ~28 px, so heel and Achilles stay joined), with one outline `lower_bridge_line`. Foot 3 redrawn by
+Dima: angles 0 / -34.2 / -83.3, ankle (-330.9, 337.2).

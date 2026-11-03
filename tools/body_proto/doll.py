@@ -152,6 +152,11 @@ if FOOT and 'ankle_cap' in ORDER:   # Dima: the ankle bone in front of everythin
     if 'ankle_joint' in ORDER and 'foot' in ORDER:
         ORDER.remove('ankle_joint'); ORDER.insert(ORDER.index('foot') + 1, 'ankle_joint')
 OUTER_ONLY = ['belly', 'clavicle', 'back', 'ankle_joint']   # no lines of their own (the knee joint has one: Dima)
+# the lower leg as one silhouette (Dima: the heel tore off the shin, ragged spots under it): calf, ankle link and
+# foot draw without lines of their own; under them a "bridge" - their union, small bumps opened away and gaps
+# under the heel closed (doll.gd, each frame) - carries the fill between them and the one outline
+BRIDGE = ['calf', 'ankle_joint', 'foot'] if FOOT else []
+NO_LINE = BRIDGE
 MESH = {}
 for g in ORDER:
     if g in KEY_PIECES:   # the rest drawing (hip 0) is the piece's outline; no marks: the keyforms shape it
@@ -210,10 +215,16 @@ nk = NECK - RIB_J
 out += [f'[node name="NeckSlotFollow" type="RemoteTransform2D" parent="Skeleton2D/{bpath("ribcage")}"]',
         f'position = Vector2({f2(nk[0])}, {f2(nk[1])})', 'remote_path = NodePath("../../../../../../NeckSlot")',
         'update_scale = false', '']
-for g in OUTER_ONLY: out.append(line_node(g + '_line', MESH[g]['V'], LINE))
+for g in OUTER_ONLY:
+    if g not in NO_LINE: out.append(line_node(g + '_line', MESH[g]['V'], LINE))
 for g in ORDER:
     if g == 'ribcage': out += ['[node name="NeckSlot" type="Node2D" parent="."]', f'position = Vector2({f2(NECK[0])}, {f2(NECK[1])})', '']
-    if g not in OUTER_ONLY: out.append(line_node(g + '_line', MESH[g]['V'], LINE))
+    if BRIDGE and g == BRIDGE[0]:
+        out.append(line_node('lower_bridge_line', MESH[g]['V'], LINE))
+        out.append('\n'.join(['[node name="lower_bridge" type="Polygon2D" parent="."]', f'color = Color({FILL})',
+            'metadata/bridge = {"parts": PackedStringArray(%s), "open": 4.0, "close": 14.0}' % ', '.join(f'"{b}"' for b in BRIDGE),
+            f'polygon = {vec(MESH[g]["V"])}', '']))
+    if g not in OUTER_ONLY and g not in NO_LINE: out.append(line_node(g + '_line', MESH[g]['V'], LINE))
     out.append(poly_node(g, MESH[g]['V'], FILL, g))
     if g not in KEY_PIECES: out.append(marks_nodes(g))
 open(os.path.join(WORK, 'doll.tscn'), 'w').write('\n'.join(out))

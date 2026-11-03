@@ -431,6 +431,46 @@ func _skin_all() -> void:
 		for i in shape.size():
 			shape[i] = move * shape[i]
 		_set_shape(poly, shape)
+	_bridges()
+
+
+func _largest(polys: Array) -> PackedVector2Array:
+	var best := PackedVector2Array()
+	var area := -1.0
+	for p in polys:
+		var a := absf(_area(p))
+		if a > area:
+			area = a
+			best = p
+	return best
+
+
+func _bridges() -> void:
+	# a silhouette over several pieces (the lower leg): their union, small bumps opened away ("open") and gaps
+	# narrower than about twice "close" filled (under the heel, at the shin), drawn under them with the one outline
+	for c in get_children():
+		var poly := c as Polygon2D
+		if poly == null or not poly.has_meta("bridge"):
+			continue
+		var b: Dictionary = poly.get_meta("bridge")
+		var merged := PackedVector2Array()
+		for name in b["parts"]:
+			var part := get_node_or_null(NodePath(str(name))) as Polygon2D
+			if part == null or part.polygon.size() < 3:
+				continue
+			merged = part.polygon if merged.is_empty() else _largest(Geometry2D.merge_polygons(merged, part.polygon))
+		if merged.size() < 3:
+			continue
+		var r_open := float(b.get("open", 0.0))
+		var r_close := float(b.get("close", 0.0))
+		if r_open > 0.0:
+			merged = _largest(Geometry2D.offset_polygon(merged, -r_open, Geometry2D.JOIN_ROUND))
+			merged = _largest(Geometry2D.offset_polygon(merged, r_open, Geometry2D.JOIN_ROUND))
+		if r_close > 0.0:
+			merged = _largest(Geometry2D.offset_polygon(merged, r_close, Geometry2D.JOIN_ROUND))
+			merged = _largest(Geometry2D.offset_polygon(merged, -r_close, Geometry2D.JOIN_ROUND))
+		if merged.size() >= 3:
+			_set_shape(poly, merged)
 
 
 func _pose_mix(poses: Array, now: Vector2) -> PackedFloat32Array:
