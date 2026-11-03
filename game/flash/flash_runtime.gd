@@ -1121,6 +1121,9 @@ func _handle_input(event: InputEvent) -> void:
 		var k := event as InputEventKey
 		if k.echo and not k.pressed:
 			return
+		if Hotkeys.capturing() and Hotkeys.capture_event(k):   # the menu waits for a key to bind
+			get_viewport().set_input_as_handled()
+			return
 		var e := FlashEvent.new(FlashEvent.KEY_DOWN if k.pressed else FlashEvent.KEY_UP, true)
 		e.keyCode = FlashKeys.to_flash(k.physical_keycode if k.keycode == KEY_NONE else k.keycode)
 		e.charCode = k.unicode

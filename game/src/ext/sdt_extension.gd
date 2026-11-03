@@ -185,9 +185,11 @@ func menu_control(section: String, group: String, spec: Dictionary) -> void:
 
 
 ## Runs `fn()` when the key with Flash key code `keycode` is pressed during play (not while typing in a text field
-## or while controls are locked). `label` describes it in clash warnings.
-func on_key(keycode: int, fn: Callable, label := "") -> void:
-	Extensions._add_key(self, keycode, fn, label)
+## or while controls are locked). It is an action the player can rebind in Settings › Hotkeys: `keycode` is its
+## default (add Hotkeys.SHIFT / CTRL / ALT for a combination, 0 for none), `label` names it there. `id` keeps a
+## changed key when the label is reworded (default: the label).
+func on_key(keycode: int, fn: Callable, label := "", id := "") -> void:
+	Extensions._add_key(self, keycode, fn, label, id)
 
 
 ## A plugin's own script (path relative to its folder), compiled like its main script. Built-in extensions use

@@ -64,7 +64,7 @@ func _passed_out(call: Hooks.Call) -> void:
 | `menu_slider(menu, x, y, w, h, value, on_change)` | A slider (ExtSlider, value 0..1) in a game menu. |
 | `menu_label(menu, x, y, w, text)` | A text label in a game menu. |
 | `menu_add(menu, obj, x, y)` | Any display object (an ExtList, ...) in a game menu; removed when the extension is disabled. |
-| `on_key(keycode, fn, label)` | `fn()` when a key is pressed during play (Flash key codes; not while typing). Clashes with the game's keys or other extensions are reported in the log. |
+| `on_key(keycode, fn, label, id = "")` | `fn()` when a key is pressed during play (Flash key codes; not while typing). It is a rebindable action in Settings › Hotkeys: `keycode` is the default (`\| Hotkeys.SHIFT / CTRL / ALT` for a combination, 0 for none), `label` names it there, `id` (default: the label) keeps the player's key when the label changes. Keys several actions share are marked there; all of them run. |
 
 Settings and on/off choices are stored in `extensions.cfg` next to the save files. Test runs with `--save-dir` use
 their own copy.

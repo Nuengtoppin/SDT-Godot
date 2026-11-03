@@ -514,13 +514,39 @@ static func _settings() -> Dictionary:
 				"reset": func(): om.call().volumeSlider.setPos(1.0); _m().volumeChanged()}, {}),
 			check("Intro sound", "", func(): return om.call().cbIntroSound, _m().cbIntroSoundClicked),
 		]},
-	]}
+	] + hotkey_groups()}
+
+
+## Settings › Hotkeys: the game's keys, then one group per extension with keys (its tag on the heading).
+static func hotkey_groups() -> Array:
+	var game: Array = [note("Click a key, then press the new one (Shift, Ctrl or Alt with it if you like). Esc cancels, Delete leaves the action without a key. A key in red is used by more than one action: all of them run.")]
+	var by_owner := {}
+	var owners: Array = []
+	for a in Hotkeys.actions:
+		var spec := {"type": "hotkey", "action": a["id"], "label": a["label"].substr(0, 1).to_upper() + a["label"].substr(1),
+			"tip": "", "keywords": "hotkey key shortcut keyboard"}
+		if a["owner"] == Hotkeys.GAME:
+			game.append(spec)
+			continue
+		if not by_owner.has(a["owner"]):
+			by_owner[a["owner"]] = []
+			owners.append(a["owner"])
+		spec["owner"] = a["owner"]
+		spec["tagless"] = true   # the group's heading has the tag
+		by_owner[a["owner"]].append(spec)
+	var out: Array = [{"title": "Hotkeys", "controls": game}]
+	for o in owners:
+		var ext: SDTExtension = Extensions.by_id.get(o)
+		out.append({"title": "Hotkeys: " + (ext.title if ext != null and ext.title != "" else o), "owner": o,
+			"controls": by_owner[o]})
+	return out
 
 
 static func _help() -> Dictionary:
 	return {"id": "help", "name": "Help", "groups": [
 		{"title": "Keys", "controls": [
-			note("Y U I O P: open this menu (Her, Clothes, Mods, Settings, Help) · Esc: close it\nA: auto mode · Space: hold her\nC / X: next / previous character · B: background on/off · H: show/hide him\n/: screenshot · Shift+/: shuffle her look"),
+			note("Y U I O P: open this menu (Her, Clothes, Mods, Settings, Help) · Esc: close it\nA: auto mode · Space: hold her\nC / X: next / previous character · B: background on/off · H: show/hide him\n/: screenshot · Shift+/: shuffle her look
+These are the default keys: Settings › Hotkeys lists every key, extensions' too, and changes them."),
 		]},
 		{"title": "Extensions", "controls": [
 			note("Options with an orange dot or tag come from an extension. Switch extensions on or off in Mods › Extensions; Vanilla mode switches all of them off and brings back the original menu."),

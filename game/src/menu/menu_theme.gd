@@ -14,6 +14,7 @@ const INK := Color("08131d")
 const PLUGIN := Color("f0b45a")
 const PLUGIN_INK := Color("2a1b05")
 const TRACK := Color("3a4354")
+const WARN := Color("ff7f6e")   # a problem to look at (a hotkey two actions share)
 
 const FONT_SIZE := 10
 const SMALL := 8

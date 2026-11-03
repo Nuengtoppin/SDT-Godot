@@ -225,6 +225,7 @@ func initGame() -> void:
 	addEventListener(FlashEvent.MOUSE_MOVE, mouseMoved)
 	addEventListener(FlashEvent.MOUSE_WHEEL, mouseWheel)
 	stage.addEventListener(FlashEvent.KEY_DOWN, keyPressed)
+	registerHotkeys()   # port: the keys below as rebindable actions (Hotkeys)
 	stage.addEventListener(FlashEvent.KEY_UP, keyReleased)
 	stage.addEventListener(FlashEvent.MOUSE_LEAVE, mouseLeft)
 	# port (widescreen): the side areas outside the 700x600 field hit the stage itself, below which DT's listeners
@@ -396,67 +397,63 @@ func keyPressed(e: FlashEvent) -> void:
 			g.ctrlDown = true
 	if g.inTextField or g.controlLocked:
 		return
-	Extensions.key_pressed(e.keyCode)   # HOOK port extension: extension hotkeys
-	match e.keyCode:
-		191:
-			if g.shiftDown:
-				g.inGameMenu.shuffle()
-			else:
-				g.takeScreenShot()
-		32:
-			her.activeHold()
-		65:
-			g.toggleAutoMode()
-			inGameMenu.setCBAuto()
-		80:
-			inGameMenu.toggleMenu(true, 5)
-		79:
-			inGameMenu.toggleMenu(true, 4)
-		73:
-			inGameMenu.toggleMenu(true, 3)
-		85:
-			inGameMenu.toggleMenu(true, 2)
-		89:
-			inGameMenu.toggleMenu(true, 1)
-		67:
-			characterControl.nextCharacter()
-		88:
-			characterControl.prevCharacter()
-		66:
-			characterControl.toggleBackground()
-			g.saveData.saveCharData()
-		72:
-			characterControl.toggleHim()
-			g.saveData.saveCharData()
-		75:
-			g.her.swallow()
-		84:
-			characterControl.toggleBreasts()
-			g.saveData.saveCharData()
-		83:
-			characterControl.toggleSkin()
-			g.saveData.saveCharData()
-		74:
-			him.ejaculate()
-		189, 109:
-			g.sceneLayer.zoomOut()
-			g.saveData.saveOptionsData()
-		187, 107:
-			g.sceneLayer.zoomIn()
-			g.saveData.saveOptionsData()
-		188:
-			soundControl.decreaseVolume()
-			g.saveData.saveOptionsData()
-		190:
-			soundControl.increaseVolume()
-			g.saveData.saveOptionsData()
-		77:
-			soundControl.toggleMute()
-			g.saveData.saveOptionsData()
-		81:
-			g.toggleQuality()
-			g.saveData.saveOptionsData()
+	Hotkeys.pressed(e.keyCode, e.shiftKey, e.ctrlKey, e.altKey)   # HOOK port: rebindable keys, extensions' first
 
+
+## Port: the game's keys (the original's keyPressed switch) as Hotkeys actions, with the original keys as defaults.
+## The original ignored Shift on every key but / (Shift+/ shuffles); Hotkeys falls back to the plain key the same way.
+func registerHotkeys() -> void:
+	var k := func(id: String, label: String, key: int, fn: Callable) -> void:
+		Hotkeys.add("game:" + id, Hotkeys.GAME, label, key, fn)
+	k.call("screenshot", "Screenshot", 191, func(): g.takeScreenShot())
+	k.call("shuffle", "Shuffle her look", 191 | Hotkeys.SHIFT, func(): g.inGameMenu.shuffle())
+	k.call("hold", "Hold her", 32, func(): her.activeHold())
+	k.call("auto", "Auto mode", 65, func():
+		g.toggleAutoMode()
+		inGameMenu.setCBAuto())
+	k.call("menu_her", "Menu: Her", 89, func(): inGameMenu.toggleMenu(true, 1))
+	k.call("menu_clothes", "Menu: Clothes", 85, func(): inGameMenu.toggleMenu(true, 2))
+	k.call("menu_mods", "Menu: Mods", 73, func(): inGameMenu.toggleMenu(true, 3))
+	k.call("menu_settings", "Menu: Settings", 79, func(): inGameMenu.toggleMenu(true, 4))
+	k.call("menu_help", "Menu: Help", 80, func(): inGameMenu.toggleMenu(true, 5))
+	k.call("next_character", "Next character", 67, func(): characterControl.nextCharacter())
+	k.call("prev_character", "Previous character", 88, func(): characterControl.prevCharacter())
+	k.call("background", "Next background", 66, func():
+		characterControl.toggleBackground()
+		g.saveData.saveCharData())
+	k.call("him", "His look", 72, func():
+		characterControl.toggleHim()
+		g.saveData.saveCharData())
+	k.call("swallow", "She swallows", 75, func(): g.her.swallow())
+	k.call("breasts", "Breast size", 84, func():
+		characterControl.toggleBreasts()
+		g.saveData.saveCharData())
+	k.call("skin", "Skin", 83, func():
+		characterControl.toggleSkin()
+		g.saveData.saveCharData())
+	k.call("ejaculate", "He cums", 74, func(): him.ejaculate())
+	var zoom_out := func():
+		g.sceneLayer.zoomOut()
+		g.saveData.saveOptionsData()
+	var zoom_in := func():
+		g.sceneLayer.zoomIn()
+		g.saveData.saveOptionsData()
+	k.call("zoom_out", "Zoom out", 189, zoom_out)
+	k.call("zoom_out_numpad", "Zoom out (2nd)", 109, zoom_out)
+	k.call("zoom_in", "Zoom in", 187, zoom_in)
+	k.call("zoom_in_numpad", "Zoom in (2nd)", 107, zoom_in)
+	k.call("volume_down", "Volume down", 188, func():
+		soundControl.decreaseVolume()
+		g.saveData.saveOptionsData())
+	k.call("volume_up", "Volume up", 190, func():
+		soundControl.increaseVolume()
+		g.saveData.saveOptionsData())
+	k.call("mute", "Mute", 77, func():
+		soundControl.toggleMute()
+		g.saveData.saveOptionsData())
+	k.call("quality", "Quality", 81, func():
+		g.toggleQuality()
+		g.saveData.saveOptionsData())
 
 func closeMainMenu() -> void:
 	fadingBG = true

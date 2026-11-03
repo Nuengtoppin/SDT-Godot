@@ -472,6 +472,7 @@ func close_menu() -> void:
 	if not is_open:
 		return
 	is_open = false
+	Hotkeys.cancel_capture()   # a key button still waiting
 	_dock.visible = false
 	_search.release_focus()
 	g.inTextField = false
@@ -725,7 +726,7 @@ func _signature() -> String:
 	for ext in Extensions.all:
 		if ext.enabled:
 			on.append(ext.id)
-	return "%s|%d" % [",".join(on), _controls_version]
+	return "%s|%d|%d" % [",".join(on), _controls_version, Hotkeys.version]
 
 
 ## Closes colour pickers and other popups that belong to rows.
@@ -799,7 +800,7 @@ func _input(event: InputEvent) -> void:
 				p.close_menu()
 		get_viewport().set_input_as_handled()   # the click only closes the menu, it does not reach the scene
 		return
-	if is_open and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+	if is_open and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE and not Hotkeys.capturing():
 		if _search.has_focus() and _search.text != "":
 			_search.text = ""
 			query = ""

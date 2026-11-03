@@ -74,18 +74,9 @@ func _init() -> void:
 
 func _setup() -> void:
 	setting("hotkeys", true, {"label": "Arm hotkeys", "desc": "Numpad 7 / 9 and 4 / 6: her left / right arm, numpad 5: "
-		+ "she lets go of his hand, numpad 2: his leg in front, [ / ]: his right / left arm, plus the keys in values.cfg [keys]."})
-	setting("cycleLeftArmKeyLeft", 103, {"label": "Left arm back key", "group": "Keys", "min": 0, "max": 255})
-	setting("cycleLeftArmKeyRight", 105, {"label": "Left arm on key", "group": "Keys", "min": 0, "max": 255})
-	setting("cycleRightArmKeyLeft", 100, {"label": "Right arm back key", "group": "Keys", "min": 0, "max": 255})
-	setting("cycleRightArmKeyRight", 102, {"label": "Right arm on key", "group": "Keys", "min": 0, "max": 255})
-	setting("toggleReleaseHandKey", 101, {"label": "Let go of his hand key", "group": "Keys", "min": 0, "max": 255})
-	setting("toggleHimLegLayerKey", 98, {"label": "His leg in front key", "group": "Keys", "min": 0, "max": 255})
-	setting("cycleHisLeftArmKey", 221, {"label": "His left arm key", "group": "Keys", "min": 0, "max": 255})
-	setting("cycleHisRightArmKey", 219, {"label": "His right arm key", "group": "Keys", "min": 0, "max": 255})
+		+ "she lets go of his hand, numpad 2: his leg in front, [ / ]: his right / left arm, plus the keys in values.cfg [keys]. "
+		+ "Change them in Settings › Hotkeys."})
 	setting("himLegLayerDefault", false, {"label": "His leg in front at the start"})
-	setting("toggleDynamicArmsKey", 56, {"label": "Dynamic arms key", "group": "Keys", "min": 0, "max": 255})
-	setting("cycleRestrainedModeKey", 57, {"label": "Restrained mode key", "group": "Keys", "min": 0, "max": 255})
 
 
 func _enable() -> void:
@@ -144,24 +135,25 @@ func _enable() -> void:
 		"In His Hand / Holding Hand: she lets go of his hand, or takes it again."]],
 		{"after": "His leg in front", "visible": func(): return _right_name() in RIGHT_ONLY}))
 	if get_setting("hotkeys"):
-		on_key(get_setting("cycleLeftArmKeyLeft"), func(): _cycle(true, -1), "her left arm back")
-		on_key(get_setting("cycleLeftArmKeyRight"), func(): _cycle(true, 1), "her left arm on")
-		on_key(get_setting("cycleRightArmKeyLeft"), func(): _cycle(false, -1), "her right arm back")
-		on_key(get_setting("cycleRightArmKeyRight"), func(): _cycle(false, 1), "her right arm on")
-		on_key(get_setting("toggleReleaseHandKey"), _toggle_release, "let go of his hand")
-		on_key(get_setting("toggleHimLegLayerKey"), _toggle_leg, "his leg in front")
-		on_key(get_setting("toggleDynamicArmsKey"), func(): set_dynamic((dyn.mode + 1) % 4), "dynamic arms")
-		on_key(get_setting("cycleRestrainedModeKey"), func(): set_restrained((restrained_type + 1) % 4), "restrained mode")
-		on_key(get_setting("cycleHisLeftArmKey"), func():
-			g.him.setLeftArmPosition((g.him.currentLeftArmPosition + 1) % Him.leftArmPositions.size()), "his left arm")
-		on_key(get_setting("cycleHisRightArmKey"), func():
-			g.him.setArmPosition((g.him.currentArmPosition + 1) % Him.armPositions.size()), "his right arm")
+		on_key(103, func(): _cycle(true, -1), "her left arm back", "cycleLeftArmKeyLeft")
+		on_key(105, func(): _cycle(true, 1), "her left arm on", "cycleLeftArmKeyRight")
+		on_key(100, func(): _cycle(false, -1), "her right arm back", "cycleRightArmKeyLeft")
+		on_key(102, func(): _cycle(false, 1), "her right arm on", "cycleRightArmKeyRight")
+		on_key(101, _toggle_release, "let go of his hand", "toggleReleaseHandKey")
+		on_key(98, _toggle_leg, "his leg in front", "toggleHimLegLayerKey")
+		on_key(56, func(): set_dynamic((dyn.mode + 1) % 4), "dynamic arms", "toggleDynamicArmsKey")
+		on_key(57, func(): set_restrained((restrained_type + 1) % 4), "restrained mode", "cycleRestrainedModeKey")
+		on_key(221, func():
+			g.him.setLeftArmPosition((g.him.currentLeftArmPosition + 1) % Him.leftArmPositions.size()), "his left arm", "cycleHisLeftArmKey")
+		on_key(219, func():
+			g.him.setArmPosition((g.him.currentArmPosition + 1) % Him.armPositions.size()), "his right arm", "cycleHisRightArmKey")
 		for k in _keys:
-			on_key(k, _position_key.bind(k), "arm position key")
+			var names: Array = _keys[k].map(func(pair): return ("left " if pair[0] else "right ") + str(pair[1]))
+			on_key(k, _position_key.bind(k), "arms: " + ", ".join(names), "position:%d" % k)
 		menu_control("help", "Keys", MenuSchema.note("Arm overhaul: numpad 7 / 9 her left arm, 4 / 6 her right arm, "
 			+ "5 she lets go of his hand (or takes it), 2 his leg in front, 8 dynamic arms (off, both, left, right), "
 			+ "9 restrained mode (loose, tight, fixed, off) · "
-			+ "[ / ] his right / left arm"))
+			+ "[ / ] his right / left arm (default keys, see Settings › Hotkeys)"))
 	if get_setting("himLegLayerDefault") and not leg_on_top:
 		_toggle_leg()
 	her.setLeftArmPosition()
