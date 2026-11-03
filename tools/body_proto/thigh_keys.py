@@ -50,6 +50,38 @@ def at(c, s, u):
     L = s[-1]; u = u % L; j = np.clip(np.searchsorted(s, u, side='right') - 1, 0, len(c) - 1)
     t = (u - s[j]) / np.maximum(s[j + 1] - s[j], 1e-9); return c[j] * (1 - t)[:, None] + c[(j + 1) % len(c)] * t[:, None]
 
+# stretches (between Dima's points, 0 = top -> back of the buttock) that are long soft curves: the hand-drawn
+# edge wobbles there (Dima, 3 Nov: under the thigh, keys 1 and 2), so they are smoothed harder, fading out towards
+# the points so those stay put; value = smoothing width in points (~5 units each)
+SOFT = {1: 6.0, 2: 6.0, 5: 3.0, 6: 2.0}
+def smooth_stretches(pts):
+    from scipy.ndimage import gaussian_filter1d
+    P = np.vstack(pts); out = P.copy(); start = 0
+    for i, seg in enumerate(pts):
+        n = len(seg)
+        if i in SOFT:
+            sm = np.c_[gaussian_filter1d(P[:, 0], SOFT[i], mode='wrap'), gaussian_filter1d(P[:, 1], SOFT[i], mode='wrap')]
+            t = np.arange(n) / n; w = np.sin(np.pi * t) ** 0.5   # 0 at the stretch's first point, ~1 inside
+            idx = np.arange(start, start + n); out[idx] = P[idx] * (1 - w[:, None]) + sm[idx] * w[:, None]
+        start += n
+    return out
+# where a stretch is redrawn as one clean curve through Dima's two points, keeping the drawing's direction at them
+# (key: drawing 0, 1, 2 in the order given): under the thigh on the first two (the third looks right to him)
+CLEAN = {0: [1, 2], 1: [1, 2]}
+def hermite(pts, i):
+    P = np.vstack(pts); n = len(pts[i]); start = sum(len(x) for x in pts[:i]); N = len(P)
+    a, b = P[start], P[(start + n) % N]
+    tan = lambda k: (P[(k + 4) % N] - P[(k - 4) % N]) / np.linalg.norm(P[(k + 4) % N] - P[(k - 4) % N])
+    L = np.linalg.norm(b - a); ta, tb = tan(start) * L, tan((start + n) % N) * L
+    t = np.arange(n)[:, None] / n
+    return (2 * t**3 - 3 * t**2 + 1) * a + (t**3 - 2 * t**2 + t) * ta + (-2 * t**3 + 3 * t**2) * b + (t**3 - t**2) * tb
+
+def wobble(P, a, b):
+    """How far a stretch strays from its own smooth version (units): the hand wobble left."""
+    from scipy.ndimage import gaussian_filter1d
+    sm = np.c_[gaussian_filter1d(P[:, 0], 6, mode='wrap'), gaussian_filter1d(P[:, 1], 6, mode='wrap')]
+    return float(np.abs(np.linalg.norm(P[a:b] - sm[a:b], axis=1)).max())
+
 def main(dirs):
     thighs = [loop(layers(d, THIGH)) for d in dirs]; caps = [loop(layers(d, CAP), 2.0, 0.5) for d in dirs]
     # the points on each outline (arc length from the outline's start), missing ones placed by the others' shares
@@ -72,7 +104,10 @@ def main(dirs):
         for i in range(n):
             a = us[i]; span = (us[(i + 1) % n] - a) % L
             pts.append(at(c, s, a + span * np.arange(counts[i]) / counts[i]))
-        keys.append(np.vstack(pts))
+        q = len(keys)
+        for i in CLEAN.get(q, []):   # Dima: under the thigh the drawing waves - a clean curve through his points
+            pts[i] = hermite(pts, i)
+        keys.append(smooth_stretches(pts))
     # hip angles: the rest thigh's far part fitted onto each drawing; the hip: the point the turns keep still
     hip0 = np.array([-222.8, -8.9]); knee0 = np.array([174.5, 294.8])
     rest = _poses.resample(thighs[0]); sh = ((rest - hip0) @ (knee0 - hip0)) / ((knee0 - hip0) @ (knee0 - hip0)); far = rest[sh > 0.45]
@@ -87,7 +122,8 @@ def main(dirs):
         local = (c - t) @ R          # undo the thigh's turn: R^T (c - t)
         k0 = int(np.argmax(local @ ax)); c2 = np.roll(c, -k0, axis=0); s = arc(c2)
         cap_keys.append(at(c2, s, s[-1] * np.arange(N) / N))
-    for a, (R, t, e) in zip(angles, fits): print(f'key at hip {a:7.1f}  fit rms {e:.1f}')
+    for a, (R, t, e), k in zip(angles, fits, keys):
+        c0 = counts[0]; print(f'key at hip {a:7.1f}  fit rms {e:.1f}  wobble under the thigh {wobble(k, c0, c0 + counts[1] + counts[2]):.2f}')
     print('hip', hip0, '->', hip.round(1), ' thigh points per key', len(keys[0]), ' stretches', counts)
     order = np.argsort(angles)
     out = dict(hip=hip, angles=[angles[i] for i in order], leg=[keys[i] for i in order], knee_cap=[cap_keys[i] for i in order])
