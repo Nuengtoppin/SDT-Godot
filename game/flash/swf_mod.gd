@@ -365,6 +365,13 @@ func _abc_for(cls: String) -> FlashAbc:
 
 
 func instantiate_root() -> FlashDisplayObject:
+	library.decode_all()
+	var root := _instantiate_root()
+	library.forget_decoded()
+	return root
+
+
+func _instantiate_root() -> FlashDisplayObject:
 	return instantiate(0)
 
 

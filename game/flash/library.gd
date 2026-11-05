@@ -20,6 +20,8 @@ var mod: Object = null
 var _cutouts: Dictionary = {}    # char id -> has_cutout result
 
 var _textures: Dictionary = {}
+var _decoded: Dictionary = {}    # img -> Image, ready for get_texture (decode_all)
+var _all_decoded := false        # decode_all has run: it is for a mod's first use
 
 ## Morph shapes have one image per ratio (~15k in the base game, several GB of VRAM in total), so their textures
 ## are streamed: loaded on worker threads on first use and kept in an LRU cache of at most morph_cache_bytes.
@@ -91,15 +93,50 @@ func get_texture(img: String) -> Texture2D:
 		t = load(p)   # waits for an in-flight background load of the same file
 	else:
 		# Mods converted at runtime / outside the project are plain PNG files.
-		var image := Image.load_from_file(p)
+		var image: Image = _decoded.get(img)
 		if image != null:
-			# what Godot's importer does for the game's own art: transparent pixels take their neighbours' colour,
-			# so filtering does not draw dark seams where two mod pieces meet
-			image.fix_alpha_edges()
-			image.generate_mipmaps()
+			_decoded.erase(img)
+		else:
+			image = _decode(p)
+		if image != null:
 			t = ImageTexture.create_from_image(image)
 	_cache(img, t)
 	return t
+
+
+static func _decode(p: String) -> Image:
+	var image := Image.load_from_file(p)
+	if image != null:
+		# what Godot's importer does for the game's own art: transparent pixels take their neighbours' colour,
+		# so filtering does not draw dark seams where two mod pieces meet
+		image.fix_alpha_edges()
+		image.generate_mipmaps()
+	return image
+
+
+## Decodes a mod's images on worker threads, all at once: one by one on the main thread, a mod's first use took up
+## to 0.4 s. get_texture takes them from here; forget_decoded() drops those nothing asked for. Not the morph frames:
+## a shape needs one of them, a mod can have hundreds.
+func decode_all() -> void:
+	var dir := path.path_join("shapes")
+	if dir.begins_with("res://") or _all_decoded:
+		return
+	_all_decoded = true
+	var files: Array = Array(DirAccess.get_files_at(dir)).filter(func(f: String):
+		return f.ends_with(".png") and not f.begins_with("m") and _textures.get(f.get_basename()) == null)
+	if files.is_empty():
+		return
+	var images: Array = []
+	images.resize(files.size())
+	var id := WorkerThreadPool.add_group_task(func(i: int): images[i] = _decode(dir.path_join(files[i])), files.size(), -1, true)
+	WorkerThreadPool.wait_for_group_task_completion(id)
+	for i in files.size():
+		if images[i] != null:
+			_decoded[files[i].get_basename()] = images[i]
+
+
+func forget_decoded() -> void:
+	_decoded.clear()
 
 
 ## Non-blocking get for morph frames: returns the texture if it is cached, otherwise starts loading it on a worker
