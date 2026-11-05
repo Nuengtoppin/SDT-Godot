@@ -144,6 +144,7 @@ func step(_frame: int) -> void:
 				_penisrange_checks()
 				_value_point_port_checks()
 				_tongueguard_checks()
+				_loadershortcuts_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -1799,6 +1800,68 @@ func _blink_veto_checks() -> void:
 	her.blinkTime = 0
 	her.updateBlink()
 	_check("blink runs again without the veto", her.blinkTimer == 2)
+
+
+func _loadershortcuts_checks() -> void:
+	var ls: SDTExtension = Extensions.get_extension("loadershortcuts")
+	var her = g.her
+	var him = g.him
+	_check("loader shortcuts: on by default, ten keys", ls.enabled
+		and Hotkeys.actions.filter(func(a): return a["owner"] == "loadershortcuts").size() == 10)
+	for a in Hotkeys.actions.filter(func(a): return a["owner"] == "loadershortcuts"):
+		var others: Array = Hotkeys.clashes(a["id"])
+		_check("loader shortcuts: %s has its key alone" % a["label"], others.is_empty(), str(others.map(func(o): return o["id"])))
+	var closed: bool = her.eyelidMotion["isClosed"]
+	Hotkeys.pressed(49, false, false, false)
+	_check("loader shortcuts: 1 toggles her eye", her.eyelidMotion["isClosed"] != closed)
+	Hotkeys.pressed(49, false, false, false)
+	var point := Vector2(1, 2)
+	Hotkeys.pressed(50, false, false, false)
+	_check("loader shortcuts: gaze up", Hooks.value(&"Her.lookTarget", her, point) == her.hisFace)
+	Hotkeys.pressed(50, false, false, false)
+	_check("loader shortcuts: gaze forward", Hooks.value(&"Her.lookTarget", her, point) == her.eyesDown)
+	Hotkeys.pressed(50, false, false, false)
+	_check("loader shortcuts: gaze back to default", ls.look == 0)
+	var out: bool = her.tongue.hangingOut
+	Hotkeys.pressed(48, false, false, false)
+	_check("loader shortcuts: 0 toggles her tongue", her.tongue.hangingOut != out)
+	Hotkeys.pressed(48, false, false, false)
+	var buk: bool = g.bukkakeMode
+	Hotkeys.pressed(54, false, false, false)
+	_check("loader shortcuts: 6 toggles bukkake mode", g.bukkakeMode != buk)
+	Hotkeys.pressed(54, false, false, false)
+	var pl: float = him.pleasure
+	him.pleasure = 20.0
+	Hotkeys.pressed(97, false, false, false)
+	_check("loader shortcuts: pleasure +", is_equal_approx(him.pleasure, 30.0), str(him.pleasure))
+	Hotkeys.pressed(99, false, false, false)
+	Hotkeys.pressed(99, false, false, false)
+	Hotkeys.pressed(99, false, false, false)
+	_check("loader shortcuts: pleasure - stops at 0", him.pleasure == 0.0, str(him.pleasure))
+	him.pleasure = him.ejacPleasure + 5.0
+	Hotkeys.pressed(97, false, false, false)
+	_check("loader shortcuts: pleasure + stops 10 past his limit", is_equal_approx(him.pleasure, him.ejacPleasure + 10.0), str(him.pleasure))
+	him.pleasure = pl
+	var po := {"pull": 0.5, "power": 0.004}
+	Hotkeys.pressed(53, false, false, false)
+	_check("loader shortcuts: hold stops her pull-off", Hooks.value(&"Her.pullOff", her, po)["pull"] == 0.0
+		and her._pullOffPower()["max"] == 0.0)
+	Hotkeys.pressed(53, false, false, false)
+	var cum: int = g.strandControl.strand_count(true)
+	Hotkeys.pressed(51, false, false, false)
+	_check("loader shortcuts: 3 starts a cum strand", g.strandControl.strand_count(true) == cum + 1)
+	ls._tick()
+	Hotkeys.pressed(51, false, false, false)
+	_check("loader shortcuts: 3 again lets it go", ls._strand == null)
+	Hotkeys.pressed(52, false, false, false)
+	ls._tick()
+	_check("loader shortcuts: 4 keeps cum", ls.keep_cum)
+	Hotkeys.pressed(52, false, false, false)
+	Hotkeys.pressed(51, false, false, false)
+	Extensions.set_enabled("loadershortcuts", false)
+	_check("loader shortcuts: off drops the keys and lets the strand go", ls._strand == null and not Hotkeys.by_id.has("loadershortcuts:eye"))
+	Extensions.set_enabled("loadershortcuts", true)
+	g.strandControl.clearCumStrands()
 
 
 func _disable_checks() -> void:
