@@ -141,9 +141,12 @@ static func _her() -> Dictionary:
 	return {"id": "her", "name": "Her", "groups": [
 		{"title": "Character", "controls": [
 			pick("Character", "Switches to another character: the game's own, then stored ones (C and X also step through them).",
-				func(): return MenuCharacters.names(), func(): return MenuCharacters.index(),
-				func(i): MenuCharacters.select(i)),
-			actions("", "", [["Shuffle her look", func(): _m().shuffle(), "Random hair, colours and clothes (Shift+/)."]]),
+				func(): return MenuCharacters.shown_names(), func(): return MenuCharacters.shown_index(),
+				func(i): MenuCharacters.select_shown(i)),
+			actions("", "", [["Manage characters…", func(): close_then(CharactersPanel.open_editor),
+				"Save her current look as a character; rename, update, delete or reorder stored ones."],
+				["Shuffle her look", func(): _m().shuffle(), "Random hair, colours and clothes (Shift+/)."]],
+				{"keywords": "store save character delete rename edit order"}),
 			_with({"type": "text", "label": "Name in dialogue", "placeholder": "the character's own",
 				"tip": "The name dialogue lines use for her. Empty: the character's own name.",
 				"get": func(): return g.customName,
@@ -530,6 +533,10 @@ static func _help() -> Dictionary:
 	return {"id": "help", "name": "Help", "groups": [
 		{"title": "Extensions", "controls": [
 			note("Options with an orange dot or tag come from an extension. Switch extensions on or off in Mods › Extensions; Vanilla mode switches all of them off and brings back the original menu."),
+		]},
+		{"title": "Credits", "controls": [
+			note("Original game: Konashion"),
+			note("Mods: Colin, DrZombi, Modguy, Pim_gd, Rod, roztoow, sby, SClover13, stuntcock, WeeWillie"),
 		]},
 	]}
 

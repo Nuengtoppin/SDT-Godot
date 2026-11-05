@@ -393,18 +393,24 @@ func select(id: int, custom: bool = false, stored: bool = false) -> void:
 
 func selectNextCharacter() -> void:
 	resetSearch()
-	lastSelectedID += 1
-	if lastSelectedID >= thumbs.size():
-		lastSelectedID = 0
+	for _i in thumbs.size():
+		lastSelectedID += 1
+		if lastSelectedID >= thumbs.size():
+			lastSelectedID = 0
+		if not MenuCharacters.hidden(lastSelectedID):   # port: the new menu can hide the game's characters
+			break
 	triggerSelect(lastSelectedID)
 
 
 func selectPrevCharacter() -> void:
 	resetSearch()
-	if lastSelectedID > 0:
-		lastSelectedID -= 1
-	else:
-		lastSelectedID = thumbs.size() - 1
+	for _i in thumbs.size():
+		if lastSelectedID > 0:
+			lastSelectedID -= 1
+		else:
+			lastSelectedID = thumbs.size() - 1
+		if not MenuCharacters.hidden(lastSelectedID):   # port: the new menu can hide the game's characters
+			break
 	triggerSelect(lastSelectedID)
 
 
@@ -457,6 +463,8 @@ func scrollAreaClicked(_e = null) -> void:
 
 
 func tick() -> void:
+	if not visible:   # port: nothing to scroll while the list is shut (always, with the new menu)
+		return
 	if draggingScroll:
 		var prev := scrollPos
 		scrollBar.x = maxf(1, minf(SCROLL_AREA_SIZE + 1, mouseX - dragOffset))

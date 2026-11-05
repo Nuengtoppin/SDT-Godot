@@ -1656,6 +1656,8 @@ func storeCharClicked(param1 = null):
 
 func characterStoredSuccessfully(param1 = null):
 	closeCharStoring()
+	if SDTMenu.active():   # port: saved from the new menu's Characters panel
+		return
 	currentTab = 1
 	updateTabs()
 	openCharacterMenu()

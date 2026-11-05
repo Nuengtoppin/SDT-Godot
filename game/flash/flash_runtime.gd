@@ -1382,6 +1382,8 @@ func resolve_content_path(url: String) -> String:
 ## display list into a BitmapData; here the displayed frame is read back, which shows the same content (the game
 ## only captures what is on screen) and keeps the window's resolution for high-quality screenshots.
 func capture_screen(stage_size: Vector2, scale: float = 1.0) -> Image:
+	if DisplayServer.get_name() == "headless":   # no pictures to read
+		return null
 	var vp := get_viewport()
 	if vp == null:
 		return null

@@ -40,6 +40,8 @@ func step(_frame: int) -> void:
 				_extension_checks()
 				_dialogue_editor_checks()
 				_hotkey_panel_checks()
+				_credits_checks()
+				_characters_panel_checks()
 				_finish()
 
 
@@ -769,6 +771,92 @@ func _dialogue_editor_checks() -> void:
 	p._delete()
 	p.close()
 	_check("dialogue editor: delete", not g.dialogueControl.exportDialogue().contains("Hello *YOU*"))
+
+
+func _credits_checks() -> void:
+	var credits: Array = MenuSchema._help()["groups"].filter(func(gr): return gr["title"] == "Credits")
+	_check("credits: in Help", credits.size() == 1)
+	var lines: Array = credits[0]["controls"].map(func(c): return c["text"])
+	_check("credits: the game and the mods' authors", lines[0] == "Original game: Konashion" and lines[1].begins_with("Mods: "))
+
+
+func _characters_panel_checks() -> void:
+	MenuSchema.close_then(CharactersPanel.open_editor)
+	var p: CharactersPanel = CharactersPanel.instance
+	_check("characters: panel opens and locks the game's keys", p != null and p.is_open and g.controlLocked)
+	if p == null:
+		return
+	var base := MenuCharacters.count()
+	var rows := func(): return p._rows.get_children().filter(func(r): return not r.is_queued_for_deletion())
+	_check("characters: every character listed", rows.call().size() == base)
+	_check("characters: the game's own have pictures", MenuCharacters.picture(0) != null)
+	var worn := g.inGameMenu.getSaveDataString(false)
+	for i in base:
+		if MenuCharacters.has_clothes(i):
+			MenuCharacters.load_costume(i)
+			break
+	_check("characters: clothes only runs", g.inGameMenu.getSaveDataString(false) != "" and worn != "")
+	p._name.text = "Check! One"
+	p.save_new()
+	_check("characters: saved under a clean name", MenuCharacters.count() == base + 1
+		and MenuCharacters.names()[base] == "Check One" and g.storedChars.back().charData != "")
+	_check("characters: the new one is selected", MenuCharacters.index() == base)
+	g.saveData.saveCharData(false, 0, false)
+	_check("characters: a save held for her mods keeps her selected", MenuCharacters.index() == base)
+	_check("characters: classic list stays shut", not g.inGameMenu.charMenuOpen and not g.inGameMenu.charStoringOpen)
+	_check("characters: saved in the save file", g.saveData._d("customCharNames").has("Check One"))
+	p._name.text = "Check Two"
+	p.save_new()
+	var one: CustomCharacter = MenuCharacters.stored(base)
+	var two: CustomCharacter = MenuCharacters.stored(base + 1)
+	two.dialogue = "two's dialogue"
+	g.saveData.saveCustomChar(two.ID)
+	var data := one.charData
+	p.rename(one, "Check Three")
+	_check("characters: rename keeps the look", MenuCharacters.names()[base] == "Check Three" and one.charData == data
+		and g.saveData._d("customCharNames").has("Check Three"))
+	p.query = "three"
+	_check("characters: search", p.shown_characters() == [base])
+	p.query = ""
+	MenuCharacters.move(base + 1, 0)
+	_check("characters: moved to the top", MenuCharacters.names()[0] == "Check Two" and MenuCharacters.stored(0) == two)
+	_check("characters: position saved", two.menuPosition == 0 and g.saveData._d("customCharOrder").size() == g.storedChars.size())
+	MenuCharacters.move(0, base + 1)
+	p.update(one)
+	_check("characters: update keeps the name and count", one.charName == "Check Three" and MenuCharacters.count() == base + 2)
+	p.delete(one)
+	_check("characters: delete asks first", MenuCharacters.count() == base + 2 and p.confirming == one)
+	p.delete(one)
+	_check("characters: deleted", MenuCharacters.count() == base + 1 and not g.storedChars.has(one) and two.ID == 0)
+	_check("characters: the next one keeps its dialogue", g.saveData._d("customCharDialogue")[0] == "two's dialogue",
+		str(g.saveData._d("customCharDialogue")))
+	_check("characters: saved order stays valid", g.saveData._d("customCharOrder").size() == g.storedChars.size())
+	p.confirming = two
+	p.delete(two)
+	_check("characters: back to the game's own", MenuCharacters.count() == base and g.storedChars.is_empty())
+	p._name.text = "Check Four"
+	p.save_new()
+	var first: String = MenuCharacters.names()[0]
+	p._hide.button_pressed = true
+	_check("characters: hiding leaves the first and the stored ones", p.shown_characters() == [0, base]
+		and MenuCharacters.shown_names() == [first, "Check Four"])
+	_check("characters: hiding is saved", bool(PortSettings.get_value("characters", "hide_defaults", false)))
+	_check("characters: Her > Character follows", MenuCharacters.shown_index() == 1)
+	var seen := []
+	for i in 4:
+		g.inGameMenu.characterMenu.selectNextCharacter()
+		seen.append(g.inGameMenu.characterMenu.lastSelectedID)
+	_check("characters: next character skips the hidden ones", seen == [0, base, 0, base], str(seen))
+	g.inGameMenu.characterMenu.selectPrevCharacter()
+	_check("characters: previous character too", g.inGameMenu.characterMenu.lastSelectedID == 0)
+	MenuCharacters.select_shown(1)
+	_check("characters: picking from the shown list", MenuCharacters.index() == base)
+	p._hide.button_pressed = false
+	_check("characters: all back with the switch off", p.shown_characters().size() == base + 1)
+	p.confirming = MenuCharacters.stored(base)
+	p.delete(MenuCharacters.stored(base))
+	p.close()
+	_check("characters: closing gives the keys back", not g.controlLocked and not g.inTextField)
 
 
 func _hotkey_panel_checks() -> void:
