@@ -357,6 +357,11 @@ var _hb := Rect2()
 var _hb_gen := -1
 
 
+## Scripts don't get NOTIFICATION_POSTINITIALIZE, so a new object is listed here.
+func _init() -> void:
+	off_tree[get_instance_id()] = true
+
+
 func _bounds_changed() -> void:
 	_gclean = false
 	_gb_ok = false
@@ -595,7 +600,7 @@ func _notification(what: int) -> void:
 			_hb_notify_parent()
 		_gb_ok = false
 		return
-	if what == NOTIFICATION_POSTINITIALIZE or what == NOTIFICATION_EXIT_TREE:
+	if what == NOTIFICATION_EXIT_TREE:
 		off_tree[get_instance_id()] = true
 	elif what == NOTIFICATION_PREDELETE:
 		off_tree.erase(get_instance_id())
