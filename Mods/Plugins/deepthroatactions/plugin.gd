@@ -310,4 +310,4 @@ func _splat(her, count: int) -> void:
 		var p := Vector2(bottom.x + her.movement / 10.0 + along * step.x, bottom.y + along * step.y)
 		var vy := (randf() * 2.0 - 1.0 - (along - 50.0) / 10.0) * speed
 		var vx := (randf() * 4.0 + power) * speed
-		g.strandFrontLayer.addChild(Droplet.new(p, Vector2(vx, vy), randf() * 1.5 + 0.1))
+		Droplet.spawn(g.strandFrontLayer, p, Vector2(vx, vy), randf() * 1.5 + 0.1)
