@@ -17,7 +17,7 @@ Put mods in the Mods folder next to SDT.exe:
   Mods\Backgrounds   background mods and images
   Mods\Characters    character files
   Mods\Dialogue      dialogue files
-  Mods\Plugins       plugins for the port (two are included)
+  Mods\Plugins       plugins for the port (the ones the game comes with are here)
 New mods show up in the game's menus by themselves. The Mods folder must be a real folder, not a link to another
 folder (Windows directory junctions are not followed).
 
