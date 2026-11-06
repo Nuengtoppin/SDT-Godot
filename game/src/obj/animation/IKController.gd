@@ -97,6 +97,8 @@ func newSegments(seg1: FlashDisplayObject, seg2: FlashDisplayObject, seg3: Flash
 
 
 func newTarget(p: Vector2, space: FlashDisplayObject, jump: bool = false) -> void:
+	if Hooks.has(&"IKController.newTarget"):   # HOOK
+		Hooks.before(&"IKController.newTarget", self, [p, space, jump])
 	originalTarget = p
 	targetPoint = p
 	if space:

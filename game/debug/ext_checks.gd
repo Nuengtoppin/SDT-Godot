@@ -333,6 +333,9 @@ func _dynamichair_checks() -> void:
 	_check("Dynamic Hair Extender on by default", dh != null and dh.enabled)
 	if dh == null or not dh.enabled:
 		return
+	_check("a strand on her collar is a leash", ModCatalog.is_leash({"modType": ModTypes.DYNAMIC_HAIR, "anchorContainer": "her.collarContainer.collar"}))
+	_check("a strand on her head is not", not ModCatalog.is_leash({"modType": ModTypes.DYNAMIC_HAIR, "anchorContainer": "her.head"}))
+	_check(".mod files are mods", "mod" in ModCatalog.MOD_EXTENSIONS)
 	var her: Her = g.her
 	var cel = g.customElementLoader
 	var strand := func(n: String, settings: Dictionary) -> FlashMovieClip:

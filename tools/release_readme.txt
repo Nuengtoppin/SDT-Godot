@@ -12,7 +12,7 @@ Saves and settings are kept in %APPDATA%\Godot\app_userdata\SDT Godot (shared wi
 Mods
 ----
 Put mods in the Mods folder next to SDT.exe:
-  Mods\Clothing      clothing, body and face mods (.swf)
+  Mods\Clothing      clothing, body and face mods (.swf, .mod)
   Mods\Hair          hair mods
   Mods\Backgrounds   background mods and images
   Mods\Characters    character files

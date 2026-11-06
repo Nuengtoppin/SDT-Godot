@@ -139,7 +139,7 @@ func _read_settings() -> void:
 		var file := l.get_slice("=", 0).strip_edges()
 		var parts := l.substr(l.find("=") + 1).split(":")
 		var name := parts[0].get_slice("+", 0).strip_edges()
-		if file.get_extension().to_lower() in ["swf"] + IMAGES and name != "":
+		if file.get_extension().to_lower() in ModCatalog.MOD_EXTENSIONS + IMAGES and name != "":
 			var key := g.dataName(name)
 			var e := {"file": file, "name": name, "types": Array(parts.slice(1)), "commented": line.begins_with(";")}
 			if not _mc.has(key):
@@ -280,7 +280,7 @@ static func _find_by_stem(dir: String, want: String) -> String:
 	if d == null or want == "":
 		return ""
 	for f in d.get_files():
-		if f.get_extension().to_lower() != "swf":
+		if not f.get_extension().to_lower() in ModCatalog.MOD_EXTENSIONS:
 			continue
 		var stem := g.dataName(f.get_basename())
 		if stem == want:

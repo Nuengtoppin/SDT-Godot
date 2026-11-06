@@ -4,7 +4,8 @@ extends FlashMovieClip
 ## strands), body types (male / female) and his arms.
 
 const armPositions := ["Holding", "Free"]
-const leftArmPositions := ["Hidden", "Loose"]
+const leftArmPositions := ["Hidden", "Loose", "Holding Leash"]
+const LEFT_ARM_LEASH := 2   # port: as Loose, and a leash mod's end is in his hand (dynamichair)
 const DEFAULT_PENIS_SIZE := 1.0
 const DEFAULT_BALL_SIZE := 1.0
 
@@ -253,7 +254,7 @@ func setBodyHidden(on: bool) -> void:
 	straponStraps.visible = currentPenisID == penisNameList.find("Strapon")
 	balls.visible = currentBalls != 0
 	if leftArmContainer != null:
-		leftArmContainer.visible = currentLeftArmPosition == 1
+		leftArmContainer.visible = leftArmShown()
 
 
 func animationChanged() -> void:
@@ -472,6 +473,10 @@ func setArmPosition(p: int, remember: bool = false) -> void:
 	g.inGameMenu.updateHisArmList()
 
 
+func leftArmShown() -> bool:
+	return currentLeftArmPosition != 0
+
+
 func findLeftArmPosition(n: String) -> void:
 	for i in leftArmPositions.size():
 		if g.dataName(leftArmPositions[i]) == g.dataName(n):
@@ -481,7 +486,7 @@ func findLeftArmPosition(n: String) -> void:
 
 func setLeftArmPosition(p: int) -> void:
 	currentLeftArmPosition = p
-	leftArmContainer.visible = currentLeftArmPosition == 1 and not bodyHidden
+	leftArmContainer.visible = leftArmShown() and not bodyHidden
 	g.inGameMenu.updateHisLeftArmList()
 	if Hooks.has(&"Him.setLeftArmPosition"):   # HOOK
 		Hooks.after(&"Him.setLeftArmPosition", self, [p])

@@ -239,12 +239,42 @@ static func _toggle_body(on: bool, e: Dictionary) -> void:
 		g.modCatalog.remove_entry(e)
 
 
+## Leash mods (ModCatalog.is_leash), one at a time; the row shows when the Mods folder has any.
+static func _leash() -> Dictionary:
+	var dh := func(): return Extensions.get_extension("dynamichair")
+	var list := func() -> Array: return dh.call().leashes()
+	return pick("Leash", "Leash mods from the Mods folders. It hangs from her collar.",
+		func(): return ["None"] + list.call().map(func(e): return _leash_title(e["title"])),
+		func(): return 1 + list.call().find(dh.call().worn_leash()),
+		func(i: int): dh.call().pick_leash(i),
+		{"visible": func(): return not list.call().is_empty()})
+
+
+## A leash's colour is her collar's second colour (rgbElement). The row is for when the collar has no such row itself.
+static func _leash_colour() -> Dictionary:
+	var h := func() -> CharacterElementHelper: return g.characterControl.collarControl
+	return colour("Leash colour", "", func(): return h.call().rgb2, func(c, f): h.call().setFill(c, f), "rgbFill2", true,
+		{"visible": func():
+			var on: bool = g.modCatalog != null and g.modCatalog.picker_entries.get(ModCatalog.LEASH_LIST, []).any(
+				func(e): return g.modCatalog.is_applied(e))
+			return on and not (h.call().haveRGBFill2 and h.call().modEntryIndex >= 0)})
+
+
+## "SDT-LeashFrontDangleLong" -> "Front Dangle Long"
+static func _leash_title(title: String) -> String:
+	var words := RegEx.create_from_string("([a-z])([A-Z])")
+	return words.sub(title.trim_prefix("SDT-").trim_prefix("Leash"), "$1 $2", true).strip_edges()
+
+
 static func _clothes() -> Dictionary:
 	var cc := func(): return g.characterControl
 	var head: Array = []
 	for e in [["Headwear", "headwearControl"], ["Eyewear", "eyewearControl"], ["Earrings", "earringControl"],
 			["Collar", "collarControl"], ["Gag", "gagControl"]]:
 		head.append_array(element(e[0], "", func(): return cc.call().get(e[1])))
+		if e[0] == "Collar":
+			head.append(_leash())
+			head.append(_leash_colour())
 	var upper: Array = []
 	for e in [["Top", "topControl", true], ["Bra", "braControl", false], ["Armwear", "armwearControl", false],
 			["Cuffs", "cuffsControl", false]]:
@@ -315,8 +345,10 @@ static func _him() -> Dictionary:
 		{"title": "Arms", "controls": [
 			arrows("Right arm", "Holding: his hand is on her head. Free: he lets go.", func(): return Him.armPositions,
 				func(): return him.call().currentArmPosition, _m().hisArmLeftClicked, _m().hisArmRightClicked),
-			arrows("Left arm", "", func(): return Him.leftArmPositions, func(): return him.call().currentLeftArmPosition,
-				_m().hisLeftArmLeftClicked, _m().hisLeftArmRightClicked),
+			arrows("Left arm", "Holding Leash: he holds the end of her leash (Clothes > Head and neck).", func(): return Him.leftArmPositions,
+				func(): return him.call().currentLeftArmPosition,
+				func(): _m().hisLeftArmLeftClicked(); Extensions.get_extension("dynamichair").left_arm_changed(),
+				func(): _m().hisLeftArmRightClicked(); Extensions.get_extension("dynamichair").left_arm_changed()),
 		]},
 		{"title": "Penis", "controls": penis},
 		{"title": "Balls", "controls": [

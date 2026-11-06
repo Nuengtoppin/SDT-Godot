@@ -329,6 +329,8 @@ func setFill(c, fillName: String) -> void:
 			rgb1 = c
 		elif fillName == "rgbFill2":
 			rgb2 = c
+		if Hooks.has(&"CharacterElementHelper.setFill"):   # HOOK
+			Hooks.after(&"CharacterElementHelper.setFill", self, [c, fillName])
 
 
 ## Port: a mod is worn in this slot and none of its pieces has rgbFill or rgbFill2 parts (the menu then offers the

@@ -28,6 +28,8 @@ var slavedUpdates := false
 var doNotSimulate := false
 var isotropicScaling := false
 var maximumY := INF
+var floorKneeOffset = null     # floorAtKneeLevel: from her body's target to the floor (null: no floor)
+var rgbHelper = null           # rgbElement: the element helper whose colours the strand takes
 var sharedRopes := {}          # DHE rope -> true: strands sharing links with this one
 var sharedLinkInfluences = null    # link index -> influence (null: none given)
 var proximalElasticityFactors := {}   # segment name or index -> factor
@@ -112,6 +114,15 @@ func setup(m) -> void:
 	if m.get("anchored") != null:
 		anchored = _truthy(m.anchored)
 		extended = true
+	if _truthy(m.get("floorAtKneeLevel")):
+		var off = m.get("floorKneeOffset")
+		floorKneeOffset = Vector2(off.x, off.y) if off != null else Vector2(85, 85)
+		set_floor(g.her.torsoIK.targetPoint, g.her.torsoIK.targetPointCoordinateSpace)
+	if m.get("rgbElement") != null:
+		rgbHelper = g.characterControl.get(str(m.rgbElement)) as CharacterElementHelper
+		if rgbHelper != null:
+			set_fill(rgbHelper.rgb1, "rgbFill")
+			set_fill(rgbHelper.rgb2, "rgbFill2")
 	if not extended:
 		return
 	var sli = m.get("sharedLinkInfluences")
@@ -167,6 +178,22 @@ func set_skin(skin: int) -> void:
 	for s in skinSegments:
 		if s is FlashMovieClip and label != "":
 			s.gotoAndStop(label)
+
+
+## rgbElement: one of the helper's colours on this strand's parts of that name (the mod's fillOverrides can rename it).
+func set_fill(c, fill_name: String) -> void:
+	if c == null:
+		return
+	var overrides = ropeGraphic.get("fillOverrides")
+	if overrides is Dictionary and overrides.has(fill_name):
+		fill_name = str(overrides[fill_name])
+	CharacterElementHelper.tryToSetFillChildren(ropeGraphic, fill_name, CharacterControl._ct(c))
+
+
+## floorAtKneeLevel: the floor's height in the scene, from her body's target point.
+func set_floor(p: Vector2, space) -> void:
+	if floorKneeOffset != null and space != null:
+		maximumY = g.sceneLayer.globalToLocal(space.localToGlobal(p + floorKneeOffset)).y
 
 
 func kill() -> void:

@@ -29,7 +29,7 @@ var proxyHairPackage: LoadedModPackage
 var proxyBGPackage: LoadedModPackage
 var modTargetHelpers: Dictionary = {}
 var modFileList: FlashFileReferenceList
-var swfFilter := {"description": "Mods", "extension": "*.swf;*.sdtmod"}
+var swfFilter := {"description": "Mods", "extension": "*.swf;*.mod;*.sdtmod"}
 var loadingMod: int = 0
 var tryingToLoadMods: Array = []
 var tryingToLoadMod: int = 0

@@ -343,7 +343,7 @@ func _set_up(her: Her, n: String, left: bool) -> void:
 			if leg_on_top:
 				_toggle_leg()
 				_leg_by_arm = true
-			if g.him.currentLeftArmPosition != 1:
+			if not g.him.leftArmShown():
 				g.him.setLeftArmPosition(1)
 			hold_released = false
 			if n == "Holding Hand":
@@ -587,7 +587,7 @@ func set_restrained(t: int, save := true) -> void:
 
 ## He hid his left arm: her hand lets go of it
 func _his_left_arm(c: Hooks.Call) -> void:
-	if c.args[0] != 1 and _right_name() in RIGHT_ONLY and not hold_released:
+	if c.args[0] == 0 and _right_name() in RIGHT_ONLY and not hold_released:
 		g.her.rightArmIK.startDropping(V[_key(_right_name()) + "SlipTime"])
 		hold_released = true
 

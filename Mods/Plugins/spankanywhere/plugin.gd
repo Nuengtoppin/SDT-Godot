@@ -297,7 +297,7 @@ func hit_at(part: String, at: Vector2) -> void:
 
 ## His left arm shows again (the mod's leftArmToggle hid it while the hit built up)
 func _hand_back() -> void:
-	if V.get("leftArmToggle", 0.0) == 1 and g.him.currentLeftArmPosition == 1:
+	if V.get("leftArmToggle", 0.0) == 1 and g.him.leftArmShown():
 		g.him.leftArmContainer.visible = true   # direct: the game has no method for it
 
 

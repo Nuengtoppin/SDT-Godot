@@ -63,7 +63,7 @@ func tick(sp) -> void:
 ## His left hand goes up and back as the hit builds up (back where it hangs once his hand has swung back)
 func _wind_up(power: int) -> void:
 	var him: Him = g.him
-	if him.currentLeftArmPosition != 1 or not (him.currentBody is HimMaleBody):
+	if not him.leftArmShown() or not (him.currentBody is HimMaleBody):
 		return
 	var body: HimMaleBody = him.currentBody
 	if V["moveHisArmWithSpankPower"] == 1:

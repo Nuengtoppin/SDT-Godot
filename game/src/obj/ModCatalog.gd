@@ -21,10 +21,13 @@ const BODY_LIST := "body"
 ## Mods of body parts only (ThickerThighs, HardBod, breast mods): the "Body mods" list in Her > Body. A body part that
 ## comes with clothing stays a companion of the clothing's picker entry.
 const BODY_MODS_LIST := "bodymods"
+## Clothes > Head and neck > Leash: dynamic hair strands hanging from her collar (is_leash). One at a time.
+const LEASH_LIST := "leash"
 
 const SCAN_FOLDERS := ["Clothing", "Hair", "Backgrounds"]
+const MOD_EXTENSIONS := ["swf", "mod"]   # .mod: a SWF under the Loader's other name for mods
 const IMAGE_EXTENSIONS := ["png", "jpg", "jpeg", "gif", "bmp"]
-const CATALOG_VERSION := 2   # 2: misspelt mod types normalised (CustomElementLoader.normalModType)
+const CATALOG_VERSION := 3   # 2: misspelt mod types normalised (CustomElementLoader.normalModType); 3: leashes
 const HAIR_TYPES := [ModTypes.HAIR, ModTypes.DYNAMIC_HAIR]
 ## A mod with pieces for several costume slots (a vest with its shirt, sleeves and collar) is one option, in the
 ## first of these slots it has a piece for; its other pieces go on and off with it.
@@ -63,6 +66,8 @@ var _notice: Node = null      # the "Loading mods" notice (mod_load_notice.gd) w
 func start() -> void:
 	picker_entries[BODY_LIST] = []
 	picker_entries[BODY_MODS_LIST] = []
+	picker_entries[LEASH_LIST] = []
+	picker_types[ModTypes.LEASH] = LEASH_LIST
 	for sub in SCAN_FOLDERS:
 		_scan(Flash.mods_dir(sub))
 	Flash.add_enter_frame(self, _tick)
@@ -96,7 +101,7 @@ func _scan(dir: String) -> void:
 		if _known.has(dir.path_join(f).to_lower()):
 			continue
 		_known[dir.path_join(f).to_lower()] = true
-		if ext == "swf":
+		if ext in MOD_EXTENSIONS:
 			_queue.append(dir.path_join(f))
 			_total += 1
 		elif ext in IMAGE_EXTENSIONS and dir.begins_with(Flash.mods_dir("Backgrounds")):
@@ -229,11 +234,13 @@ func _inspect(path: String, bytes: PackedByteArray) -> void:
 		cat["modName"] = str(root.get("modName")) if root.get("modName") else ""
 		cat["modCreator"] = str(root.get("modCreator")) if root.get("modCreator") else ""
 		var mods = root.get("mods")
+		var leash: bool = mods is Array and mods.any(func(m): return is_leash(m))
 		for i in (mods.size() if mods is Array else 0):
 			var m = mods[i]
 			if m is FlashDisplayObject:
 				cat["items"].append({"item": i, "name": m.flash_name,
-					"modType": CustomElementLoader.normalModType(str(m.get("modType"))),
+					"modType": ModTypes.LEASH if leash and str(m.get("modType")) == ModTypes.DYNAMIC_HAIR \
+						else CustomElementLoader.normalModType(str(m.get("modType"))),
 					"targetElement": str(m.get("targetElement")) if m.get("targetElement") else ""})
 	if root != null:
 		root.queue_free()
@@ -550,6 +557,12 @@ func has_named(picker, name: String) -> bool:
 ## character is loading).
 func forget_named(picker) -> void:
 	_wanted = _wanted.filter(func(w): return picker != null and not is_same(w[0], picker))
+
+
+## A dynamic hair item hanging from her collar. Its own mod type, as in dynamicHairExtender: it is worn with her hair,
+## and a new leash replaces only the leash. The mod's other strands (the end in his hand) go with it.
+static func is_leash(m) -> bool:
+	return str(m.get("modType")) == ModTypes.DYNAMIC_HAIR and str(m.get("anchorContainer")).begins_with("her.collarContainer")
 
 
 static func _file_title(path: String) -> String:
