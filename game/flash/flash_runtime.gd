@@ -465,6 +465,7 @@ func _physics_process(_delta: float) -> void:
 	var t2 := Time.get_ticks_usec()
 	update_paints()
 	# 3. Masks follow the (possibly moved) objects.
+	FlashProxy.forget_shown()
 	for p in _mask_proxies.keys():
 		if is_instance_valid(p):
 			p.refresh()
@@ -476,6 +477,7 @@ func _physics_process(_delta: float) -> void:
 			g.update_layout()
 		else:
 			_groups.erase(g)
+	FlashProxy.forget_shown()
 	FlashProxy.update_backdrops()
 	var t4 := Time.get_ticks_usec()
 	_perf_add("#masks", t3 - t2)

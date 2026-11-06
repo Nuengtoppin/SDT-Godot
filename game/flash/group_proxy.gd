@@ -135,7 +135,9 @@ func update_layout() -> void:
 	if _obj == null or not is_instance_valid(_obj) or not is_inside_tree() or not _vp.is_inside_tree():
 		return
 	transform = _obj.transform
-	visible = _obj.visible
+	if visible != _obj.visible:
+		visible = _obj.visible
+		FlashProxy.forget_shown()
 	# hidden or transparent (a closed menu dropdown at alpha 0): stop rendering the target every frame
 	var on := FlashProxy.shown(self)
 	_vp.render_target_update_mode = FlashProxy.target_mode(_vp, on)

@@ -335,10 +335,13 @@ func _draw() -> void:
 	var f := Engine.get_physics_interpolation_fraction() if FlashRectClip.smooth and not g.gamePaused else 1.0
 	for i in _meshes.size():
 		var m: Array = fluids.get_mesh(i, f)
+		var any := not (m[0] as PackedVector2Array).is_empty()
+		if not any and not _shown[i]:
+			continue
 		var gr: FlashGraphics = _meshes[i].graphics
 		gr.clear()
-		_shown[i] = not (m[0] as PackedVector2Array).is_empty()
-		if _shown[i]:
+		_shown[i] = any
+		if any:
 			gr.setMesh(m[0], m[1], m[2])
 
 

@@ -37,6 +37,12 @@ var _ambient_vp: SubViewport
 var _ambient_painter: AmbientPainter
 var _ambient_fill: ColorRect
 var _ambient_mat: ShaderMaterial
+var _blur_vp: SubViewport       # the blur, done once per change instead of on every frame
+var _blur_rect: ColorRect
+var _ambient_tex: TextureRect
+var _sides_tick := -1           # the tick the sides were last checked in; -1: draw them at the next check
+var _ambient_key := []          # what the sides were last drawn from
+var _blur_frames := 0           # frames the blur still has to redraw (it reads _ambient_vp, drawn first)
 var _size := Vector2.ZERO
 var _reserve := 0.0    # window width a panel beside the stage takes (dialogue editor): > 0 on the right, < 0 on the left
 var _reserve_to := 0.0
@@ -98,7 +104,7 @@ func _ready() -> void:
 	_ambient_vp = SubViewport.new()
 	_ambient_vp.disable_3d = true
 	_ambient_vp.world_2d = World2D.new()
-	_ambient_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	_ambient_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	add_child(_ambient_vp)
 	_ambient_painter = AmbientPainter.new()
 	_ambient_vp.add_child(_ambient_painter)
@@ -111,6 +117,22 @@ func _ready() -> void:
 	_ambient_mat.shader = sh
 	_ambient_mat.set_shader_parameter("source", _ambient_vp.get_texture())
 	add_child(_ambient_fill)
+	_blur_vp = SubViewport.new()
+	_blur_vp.name = "BlurredSides"
+	_blur_vp.disable_3d = true
+	_blur_vp.world_2d = World2D.new()
+	_blur_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(_blur_vp)
+	_blur_rect = ColorRect.new()
+	_blur_rect.name = "Blur"
+	_blur_rect.material = _ambient_mat
+	_blur_vp.add_child(_blur_rect)
+	_ambient_tex = TextureRect.new()
+	_ambient_tex.name = "BlurredSidesPicture"
+	_ambient_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ambient_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_ambient_tex.texture = _blur_vp.get_texture()
+	add_child(_ambient_tex)
 	host = Node2D.new()
 	host.name = "GameFrame"
 	add_child(host)
@@ -124,6 +146,11 @@ func _layout() -> void:
 	_place()
 	_ambient_fill.position = Vector2.ZERO
 	_ambient_fill.size = extent
+	_ambient_tex.position = Vector2.ZERO
+	_ambient_tex.size = extent
+	_blur_vp.size = Vector2i(maxi(2, roundi(extent.x)), maxi(2, roundi(extent.y)))
+	_blur_rect.size = extent
+	_sides_tick = -1
 	var down: float = AMBIENT_PX / maxf(1.0, maxf(extent.x, extent.y))
 	_ambient_vp.size = Vector2i(maxi(2, roundi(extent.x * down)), maxi(2, roundi(extent.y * down)))
 	_ambient_painter.canvas_size = Vector2(_ambient_vp.size)
@@ -162,13 +189,39 @@ func _process(delta: float) -> void:
 		_place()
 	var sides := Flash.presentation_rect.size.x > STAGE_SIZE.x + 1.0 or Flash.presentation_rect.size.y > STAGE_SIZE.y + 1.0
 	var blur := sides and PortSettings.blurred_sides()
-	_ambient_fill.material = _ambient_mat if blur else null
-	_ambient_fill.visible = sides
-	_ambient_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS if blur else SubViewport.UPDATE_DISABLED
+	_ambient_fill.visible = sides and not blur
+	_ambient_tex.visible = blur
 	if blur:
-		_ambient_painter.queue_redraw()
+		_update_sides()
+	else:
+		_sides_tick = -1
 	_fit_masks()
 	_fit_title()
+
+
+## Draws the sides again when what they show changed, checked once per tick. Parts of a background that animate on
+## their own are not in the key: those follow five times a second, under the blur.
+func _update_sides() -> void:
+	if _blur_frames > 0:
+		_blur_frames -= 1
+		_blur_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var tick: int = Flash.tick_count
+	if tick == _sides_tick:
+		return
+	var first := _sides_tick < 0
+	_sides_tick = tick
+	var key: Array = [tick / 6]
+	if is_instance_valid(g.bg):
+		var ct: FlashColorTransform = g.bg.colorTransform
+		key.append_array([g.bg.visible, g.bg.y, ct.redMultiplier, ct.greenMultiplier, ct.blueMultiplier, ct.alphaMultiplier,
+			g.bg._children.duplicate()])
+	if is_instance_valid(g.sceneLayer):
+		key.append(g.sceneLayer.currentZoom)
+	if first or key != _ambient_key:
+		_ambient_key = key
+		_ambient_painter.queue_redraw()
+		_ambient_vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		_blur_frames = 3
 
 
 ## The title screen's gradient (and the loading one before it) covers the whole window, not just the game field;

@@ -66,17 +66,32 @@ static func _make_viewport() -> SubViewport:
 ## Whether a canvas item is drawn at all: visible up to the root (across render targets) and not fully
 ## transparent. Hidden or transparent render targets stop updating (they would redraw every frame for nothing).
 static func shown(n: Node) -> bool:
+	return _opacity(n) >= 0.004
+
+
+## Nodes worked out in this pass over the render targets: opacity up to the root, 0 when hidden.
+static var _opacities := {}
+
+
+## Before and after that pass, and when a target's visibility changes in it.
+static func forget_shown() -> void:
+	_opacities.clear()
+
+
+static func _opacity(n: Node) -> float:
+	if n == null:
+		return 1.0
+	var known = _opacities.get(n)
+	if known != null:
+		return known
 	var a := 1.0
-	while n != null:
-		if n is CanvasItem:
-			var ci: CanvasItem = n
-			if not ci.visible:
-				return false
-			a *= ci.modulate.a * ci.self_modulate.a
-			if a < 0.004:
-				return false
-		n = n.get_parent()
-	return true
+	if n is CanvasItem:
+		var ci: CanvasItem = n
+		a = ci.modulate.a * ci.self_modulate.a if ci.visible else 0.0
+	if a > 0.0:
+		a *= _opacity(n.get_parent())
+	_opacities[n] = a
+	return a
 
 
 ## The MSAA level of the screen and of every render target; the game's MSAA setting changes it

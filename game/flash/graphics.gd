@@ -190,6 +190,34 @@ func _add_point(p: Vector2) -> void:
 	_mark()
 
 
+## The current path is a band: two edges from its first point to the last point added so far, and back. Its triangles
+## then need no general triangulation (triangulate_polygon took 0.7 ms for her neck's outline, every tick).
+func markBandTip() -> void:
+	if _cur_fill != null and not _cur_fill["paths"].is_empty():
+		_cur_fill["band_tip"] = _cur_fill["paths"][-1].size() - 1
+
+
+## Triangles between the two edges of a band: walks both, always taking the shorter step across.
+static func band_triangles(path: PackedVector2Array, tip: int) -> PackedInt32Array:
+	var n := path.size()
+	var idx := PackedInt32Array()
+	idx.resize(3 * (n - 1))
+	var a := 0
+	var b := n - 1
+	var k := 0
+	while a < tip or b > tip:
+		idx[k] = a
+		idx[k + 1] = b
+		if b == tip or (a < tip and path[a + 1].distance_squared_to(path[b]) <= path[a].distance_squared_to(path[b - 1])):
+			a += 1
+			idx[k + 2] = a
+		else:
+			b -= 1
+			idx[k + 2] = b
+		k += 3
+	return idx
+
+
 func _end_current_fill() -> void:
 	if _cur_fill != null:
 		_fills.append(_cur_fill)
@@ -312,7 +340,11 @@ func _render(canvas: CanvasItem) -> void:
 		for path in f["paths"]:
 			if path.size() < 3:
 				continue
-			var idx := Geometry2D.triangulate_polygon(path)
+			var idx: PackedInt32Array
+			if f.has("band_tip") and path == f["paths"][-1]:
+				idx = band_triangles(path, f["band_tip"])
+			else:
+				idx = Geometry2D.triangulate_polygon(path)
 			if idx.is_empty():
 				continue
 			RenderingServer.canvas_item_add_triangle_array(rid, idx, path, PackedColorArray([Color.WHITE]))

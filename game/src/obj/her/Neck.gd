@@ -121,6 +121,9 @@ func swallow() -> void:
 	swallowProgress = swallowStart
 
 
+var _drawn_look: Array = []   # what render last drew with, besides the points
+
+
 func render(depth: float) -> void:
 	if Hooks.has_value(&"Neck.depth"):   # HOOK value point: how deep the throat bulge sits (his depth / 400)
 		depth = Hooks.value(&"Neck.depth", self, depth)
@@ -159,6 +162,11 @@ func render(depth: float) -> void:
 		swallowProgress += 0.05
 		if swallowProgress > 1:
 			swallowing = false
+	var look := [shade1, shade3, shadeLight, tanAlpha, mainGradient, highlightGradient]
+	if pts == renderedPoints and look == _drawn_look:   # the same neck: nothing to draw again
+		lastDepth = depth
+		return
+	_drawn_look = look
 	renderedPoints = pts
 	lastDepth = depth
 	var gr := graphics
@@ -243,6 +251,7 @@ func render(depth: float) -> void:
 		gr.curveTo(outer[i].x, outer[i].y, outerMid[i + 1].x, outerMid[i + 1].y)
 		i += 1
 	gr.lineTo(pts[numPoints - 1].x, pts[numPoints - 1].y)
+	gr.markBandTip()
 	i = numPoints - 1
 	gr.lineTo(innerMid[i].x, innerMid[i].y)
 	while i > 1:
