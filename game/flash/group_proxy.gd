@@ -37,6 +37,21 @@ func _init() -> void:
 	material = _mat
 
 
+## The grouped object itself must not be interpolated (its transform is cancelled per tick), but what moves inside it
+## must glide, or it snaps to each tick ahead of the parts around it. Children would inherit the object's OFF.
+static func children_glide(obj: Node, on: bool) -> void:
+	for c in obj.get_children():
+		c.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON if on else Node.PHYSICS_INTERPOLATION_MODE_INHERIT
+	if on and not obj.child_entered_tree.is_connected(_child_glides):
+		obj.child_entered_tree.connect(_child_glides)
+	elif not on and obj.child_entered_tree.is_connected(_child_glides):
+		obj.child_entered_tree.disconnect(_child_glides)
+
+
+static func _child_glides(c: Node) -> void:
+	c.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
+
+
 func configure(obj: FlashDisplayObject) -> void:
 	_obj = obj
 	name = "group_" + obj.flash_name

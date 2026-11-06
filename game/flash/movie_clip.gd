@@ -325,7 +325,9 @@ func _apply_place(child: FlashDisplayObject, place: Dictionary, pidx: int, is_ne
 			child.set_flash_matrix(m)
 		else:
 			child.transform = Transform2D.IDENTITY
-		child.reset_physics_interpolation()
+		# a new child starts where it is placed; one the timeline moves glides there like everything around it
+		if is_new or not FlashRectClip.smooth:
+			child.reset_physics_interpolation()
 	if is_new or place.get("ct") != old.get("ct"):
 		var ct = place.get("ct")
 		child.colorTransform = FlashColorTransform.from_array(ct) if ct != null else FlashColorTransform.new()

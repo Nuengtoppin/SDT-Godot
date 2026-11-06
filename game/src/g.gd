@@ -253,12 +253,17 @@ func clearSmudgeCache() -> void:
 
 func setPenisOut(out: bool = true) -> void:
 	if out and not penisOut:
-		# port fix (sby's hairlayerpatch): him under the hair costume layer (her forearm is under the hair now)
-		frontLayer.addChildAt(sceneLayer.removeChild(him), frontLayer.getChildIndex(hairCostumeOver))
+		# port change: him above her head and hair but below her right arm, which stays in front of him as when the
+		# penis is in (the game put him above the arm). Her hair goes below him for this; her arm is then above it.
+		frontLayer.addChildAt(sceneLayer.removeChild(him), 0)
+		frontLayer.setChildIndex(hairOverContainer, 0)
+		frontLayer.setChildIndex(hairCostumeUnderOver, 0)
 		frontLayer.addChildAt(her.leftHandOver, frontLayer.getChildIndex(himOverLayer))
 		penisOut = true
 	elif penisOut:
 		sceneLayer.addChildAt(frontLayer.removeChild(him), 0)
+		frontLayer.setChildIndex(hairCostumeUnderOver, frontLayer.getChildIndex(hairCostumeOver) - 1)
+		frontLayer.setChildIndex(hairOverContainer, frontLayer.getChildIndex(hairCostumeOver) - 1)
 		# port fix: only if it is still where the penis put it (plugins move her hand overlay, e.g. armoverhaul's
 		# taps; Flash threw here and left the penis out)
 		if her.leftHandOver.parent == frontLayer:

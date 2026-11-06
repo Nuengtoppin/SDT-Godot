@@ -346,11 +346,13 @@ static func update_for(obj: FlashDisplayObject) -> void:
 		inner = g
 		# Inside its viewport the object's transform is cancelled per tick; it must not be interpolated.
 		obj.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+		FlashGroupProxy.children_glide(obj, FlashRectClip.smooth)
 		g.transform = obj.transform
 		g.reset_physics_interpolation()
 	elif old_group != null:
 		old_group.queue_free()
 		obj.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_INHERIT
+		FlashGroupProxy.children_glide(obj, false)
 	if need_mask:
 		var rect := FlashRectClip.rect_of(obj._mask)
 		if rect.size != Vector2.ZERO:

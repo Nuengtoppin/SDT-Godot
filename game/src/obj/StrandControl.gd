@@ -21,6 +21,7 @@ var _containers: Dictionary = {}     # display object -> container index
 var _container_objs: Array = []      # index -> display object
 var _layers: Array = []              # strandBackLayer, strandFrontLayer, cumLayer
 var _meshes: Array = []              # a FlashSprite per layer, drawing that layer's strands
+var _shown: Array = []               # per layer: it has strands now
 
 enum { EV_CUM_ON_FACE, EV_EYE_HIT, EV_EYE_CLEAR, EV_TONGUE_CUM_HIT, EV_TONGUE_CUM_REMOVED, EV_DROPLET }
 const IN_HEAD := 1
@@ -192,12 +193,18 @@ func _native() -> bool:
 		m.mouseEnabled = false
 		l.addChild(m)
 		_meshes.append(m)
+		_shown.append(false)
 	var h: Her = g.her
 	var scene := container_index(g.sceneLayer)
 	fluids.set_special(container_index(h.head.face), container_index(h.head.jaw), container_index(h.eye.hitBox), scene)
 	_set_params()
 	# after all of the tick's game logic (her movement), whenever this is first used
 	Flash.tick_after.append(_tick)
+	if FlashRectClip.smooth:
+		var drawer := _Drawer.new()
+		drawer.control = self
+		drawer.name = "FluidDrawer"
+		Flash.add_child(drawer)
 	return true
 
 
@@ -304,17 +311,34 @@ func _tick() -> void:
 	fluids.set_targets(_targets(g.sceneLayer.flash_global_transform().affine_inverse()))
 	_set_params()
 	_apply_events(fluids.tick())
-	_draw()
-
-
-## Draws the strands at the tick's positions: her body is not interpolated between ticks either (it is drawn inside
-## the scene layer's mask viewport), so interpolating the strands would make them trail behind it.
-func _draw() -> void:
+	if not FlashRectClip.smooth:
+		_draw()
+		return
+	# the strand layers are render targets (the spit filters): without this they draw once per tick, at its start,
+	# so the strands would show a tick behind her
 	for i in _meshes.size():
-		var m: Array = fluids.get_mesh(i, 1.0)
+		if _shown[i]:
+			Flash.note_moved(_meshes[i].get_viewport())
+
+
+## Redraws the strands every rendered frame, between ticks like the body they stick to.
+class _Drawer:
+	extends Node
+	var control
+
+	func _process(_delta: float) -> void:
+		control._draw()
+
+
+## Draws the strands between their last two tick positions, like the body they stick to.
+func _draw() -> void:
+	var f := Engine.get_physics_interpolation_fraction() if FlashRectClip.smooth and not g.gamePaused else 1.0
+	for i in _meshes.size():
+		var m: Array = fluids.get_mesh(i, f)
 		var gr: FlashGraphics = _meshes[i].graphics
 		gr.clear()
-		if not (m[0] as PackedVector2Array).is_empty():
+		_shown[i] = not (m[0] as PackedVector2Array).is_empty()
+		if _shown[i]:
 			gr.setMesh(m[0], m[1], m[2])
 
 
