@@ -242,20 +242,28 @@ func _goto(f: int, initial: bool) -> void:
 	var frames: Array = _sym["frames"]
 	var places: Array = _sym["places"]
 	var row: Array = frames[f]
-	var want := {}
+	# Remove children that are not on the target frame. Nearly always there are none (morphing eyelids and lips change
+	# frame every tick), which counting shows without building a set of the row's depths.
+	var kept := 0
 	for e in row:
-		want[int(e[0])] = e
-	# Remove children that are not on the target frame.
-	for d in _timeline_children.keys():
-		if not want.has(d):
-			_remove_timeline_child(d)
+		if _timeline_children.has(int(e[0])):
+			kept += 1
+	if kept != _timeline_children.size():
+		var want := {}
+		for e in row:
+			want[int(e[0])] = e
+		for d in _timeline_children.keys():
+			if not want.has(d):
+				_remove_timeline_child(d)
 	# Add / update.
 	for e in row:
 		var d: int = e[0]
 		var pidx: int = e[1]
 		var birth: int = e[2]
-		var place: Dictionary = places[pidx]
 		var child: FlashDisplayObject = _timeline_children.get(d)
+		if child != null and child._place_index == pidx and child._birth == birth:
+			continue   # the same placement: nothing to do
+		var place: Dictionary = places[pidx]
 		if child != null and (child._birth != birth or child._char_id != int(place["c"])):
 			_remove_timeline_child(d)
 			child = null

@@ -345,7 +345,7 @@ var _gb_ok := false
 
 # Loose cache (FlashSprite._hit_bounds, for rejecting hit tests early): a superset of the content's local bounds.
 # Moved / added / reshaped children only grow it (_hb_include), removals leave it as is, and every cache is rebuilt
-# tight when the runtime bumps hb_gen (twice a second). Valid when _hb_gen == hb_gen; an invalid object's
+# tight when the runtime bumps hb_gen (every 30 s). Valid when _hb_gen == hb_gen; an invalid object's
 # ancestors are always invalid.
 static var hb_gen := 0
 

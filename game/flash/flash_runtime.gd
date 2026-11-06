@@ -411,8 +411,10 @@ func _physics_process(_delta: float) -> void:
 	tick_count += 1
 	in_tick = true
 	_ph["tick_start"] = Time.get_ticks_usec()
-	if tick_count % 15 == 0:
-		FlashDisplayObject.hb_gen += 1   # periodically rebuild loose hit-test bounds tight
+	if tick_count % 900 == 0:
+		# rebuild the loose hit-test bounds tight: this walks the whole display list (about 8 ms), and loose bounds only
+		# make a search look at a little more
+		FlashDisplayObject.hb_gen += 1
 	var prof := profiling
 	var t0 := Time.get_ticks_usec()
 	var snap: Dictionary = _prof.duplicate() if prof else {}

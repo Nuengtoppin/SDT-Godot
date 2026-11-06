@@ -2429,9 +2429,9 @@ func generateSplat(power: float, count: int = 1, spread: float = 1.0, isCum: boo
 		var vx := (randf() * 8.0 - 4.0 + power) * spread
 		var mass := randf() * 1.5 + 0.1
 		if isCum:
-			g.cumLayer.addChild(Droplet.new(p, Vector2(vx, vy), mass, 0.2, 1, true))
+			Droplet.spawn(g.cumLayer, p, Vector2(vx, vy), mass, 0.2, 1, true)
 		elif g.spit:
-			g.strandFrontLayer.addChild(Droplet.new(p, Vector2(vx, vy), mass))
+			Droplet.spawn(g.strandFrontLayer, p, Vector2(vx, vy), mass)
 
 
 func generateRandomStrand(side: String = "front", long: bool = true) -> void:

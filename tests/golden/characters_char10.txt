@@ -214,7 +214,7 @@ mouseX=-55.084
 mouseY=-398.822
 _gclean=false
 _gb_ok=false
-_hb_gen=30
+_hb_gen=0
 width=1064.924
 height=1497.995
 ---- him
@@ -318,7 +318,7 @@ mouseX=-650.928
 mouseY=-292.373
 _gclean=false
 _gb_ok=false
-_hb_gen=30
+_hb_gen=0
 width=1023.474
 height=1886.904
 ---- display list
