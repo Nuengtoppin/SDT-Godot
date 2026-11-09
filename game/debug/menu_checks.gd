@@ -732,25 +732,8 @@ func _behaviour_checks() -> void:
 		absf(rad_to_deg(wrapf(rel1 - rel0, -PI, PI))) < 1.5 and start_back and (absf(hung[0]) > 5.0 or absf(hung[1]) > 5.0)
 		and hung[0] >= nl.x - 0.01 and hung[0] <= nl.y + 0.01 and hung[1] >= hl.x - 0.01 and hung[1] <= hl.y + 0.01
 		and not DevBodyOverlay._before_fn.is_valid(), "%.2f %s %s" % [rad_to_deg(wrapf(rel1 - rel0, -PI, PI)), start_back, hung])
-	var sq: Dictionary = DevBodyVector.parse_shape('<Edge fillStyle0="1" edges="!0 0|4000 0|4000 4000"/><Edge fillStyle0="1" fillStyle1="2" edges="!0 0|4000 4000"/><Edge fillStyle1="2" edges="!0 0[0 4000 4000 4000"/>')
-	var parsed_ok: bool = sq["sil"].size() == 11 and absf(DevBodyVector.area(sq["sil"])) > 30000.0
 	DevBodyOverlay.ours = true
-	var tq := PackedVector2Array([Vector2(0, 0), Vector2(400, 250), Vector2(380, 320), Vector2(-20, 60)])
-	var cq := PackedVector2Array([Vector2(0, 0), Vector2(-600, 30), Vector2(-600, 80), Vector2(0, 60)])
-	DevBodyVector.data = {"thigh_r": {"sil": tq}, "calf_r": {"sil": cq}}
-	DevBodyVector.set_on(true)
-	h.updateElements()
-	var built: bool = DevBodyVector._nodes.size() == 5 and not h.torso.leg.thigh.visible and (DevBodyVector._nodes[DevBodyVector.THIGH_SKIN] as Polygon2D).polygon.size() == 4 and DevBodyVector._nodes[0].get_parent() == h.torso and (DevBodyVector._nodes[DevBodyVector.THIGH_DARK] as Polygon2D).polygon.size() > 4 and DevBodyVector._nodes[DevBodyVector.CALF_DARK].get_index() > DevBodyVector._nodes[DevBodyVector.THIGH_SKIN].get_index() and DevBodyVector._nodes[DevBodyVector.PATCH].get_index() < h.torso.rightCalfContainer.get_index()
-	var tt: Transform2D = h.torso.leg.transform
-	var tcf: Transform2D = h.torso.rightCalfContainer.transform * h.torso.rightCalfContainer.calf.transform
-	var from_thigh: Vector2 = DevBodyVector._skin_pts(PackedVector2Array([DevBodyVector.KNEE]), tt, tcf, false)[0]
-	var from_calf: Vector2 = DevBodyVector._skin_pts(PackedVector2Array([Vector2.ZERO]), tt, tcf, true)[0]
-	DevBodyVector.set_on(false)
-	var gone: bool = DevBodyVector._nodes.is_empty() and h.torso.leg.thigh.visible and not DevBodyVector._after.is_valid()
-	DevBodyVector.data = {}
-	DevBodyVector.status = ""
-	_check("vector leg: XFL silhouette parsed (two greys' outer boundary, a curve); on: the thigh in her torso before her leg group, the calf over it before the calf's container (as the game draws them), the outline grown around, the game's thigh hidden; the knee meets from both bones; off: all back",
-		parsed_ok and built and from_thigh.distance_to(from_calf) < 0.01 and gone, "%s %s %.3f %s" % [parsed_ok, built, from_thigh.distance_to(from_calf), gone])
+	_baked_legs_checks(h)
 	_hands_feet_checks(h)
 	DevBodyOverlay.ours = ours_was
 	_check("our neck: its bone and two lines; our breasts: base to the game's nipple, longer for a bigger size",
@@ -1116,6 +1099,72 @@ func _dialogue_editor_checks() -> void:
 	_check("dialogue editor: delete", not g.dialogueControl.exportDialogue().contains("Hello *YOU*"))
 
 
+## Leg test (SDT_Body_Data docs/LEG_TEST_PLAN.md step 4): baked legs from a tiny bake made here (2 x 2 snapshots,
+## a triangle per piece, moved 10 px per snapshot): on, our pieces sit where the game draws its thigh and calf
+## (and in the far leg's container), the game's skin pictures and highlights and the backside are hidden, our thigh
+## turns about our hip by the game's thigh angle, the shader gets the 4 snapshots and weights of the game's pose,
+## the shoes ride our calf; off: everything back.
+func _baked_legs_checks(h) -> void:
+	var tri := [0.0, 0.0, 100.0, 0.0, 0.0, 100.0]
+	var bin := PackedFloat32Array()
+	var layers := {"near": [], "far": []}
+	var bits := Marshalls.raw_to_base64(PackedByteArray([7]))
+	for leg in ["near", "far"]:
+		for piece in [["leg", "thigh"], ["calf", "calf"]]:
+			var off := bin.size() * 4
+			for s in 4:
+				for i in 3:
+					bin.append(tri[i * 2] + 10.0 * s)
+					bin.append(tri[i * 2 + 1])
+			layers[leg].append({"name": piece[0], "bone": piece[1], "kind": "skin", "outline": 3, "interior": 0, "band": 0,
+				"triangles": [0, 1, 2], "band_triangles": [], "uv": tri, "resampled": false,
+				"positions_offset": off, "positions_bytes": 4 * 3 * 8, "ink_visible": [bits, bits, bits, bits]})
+	var bake := {"format": "sdt-body-bake", "version": 1, "source": {"body": "check", "baked": ""},
+		"bones": {"torso": {}, "thigh": {"rest_origin": [-207.63, -13.98]}, "calf": {"rest_origin": [187.57, 282.72]}},
+		"drivers": {"hip": {"keys": [-45.0, 150.0]}, "knee": {"keys": [0.0, -140.0]}},
+		"positions_file": "", "legs": {"near": {"layers": layers.near}, "far": {"layers": layers.far}},
+		"pelvis": {"outline": tri, "ink_visible": [bits, bits, bits, bits]}}
+	var was_data := DevBodyBaked.data
+	var was_bin := DevBodyBaked._bin
+	DevBodyBaked.data = {}
+	DevBodyBaked.use_bake(bake, bin.to_byte_array(), "check")
+	DevBodyBaked.set_on(true)
+	h.updateElements()
+	var t = h.torso
+	var thigh_fill: MeshInstance2D = DevBodyBaked._layers["near/leg"].fill
+	var calf_fill: MeshInstance2D = DevBodyBaked._layers["near/calf"].fill
+	var far_fill: MeshInstance2D = DevBodyBaked._layers["far/leg"].fill
+	var placed: bool = DevBodyBaked._nodes.size() == 10 and thigh_fill.get_parent() == t \
+		and thigh_fill.get_index() < DevBodyBaked._anchor().get_index() and calf_fill.get_index() < t.rightCalfContainer.get_index() \
+		and calf_fill.get_index() > thigh_fill.get_index() and far_fill.get_parent() == h.leftLegContainer \
+		and far_fill.get_index() < h.leftLegContainer.leg.get_index()
+	var hidden: bool = not t.leg.thigh.visible and not t.leg.highlights.visible and not h.leftLegContainer.leg.thigh.visible \
+		and DevBodyBaked._shapes(t.rightCalfContainer.calf).all(func(s): return not s.visible) \
+		and DevBodyBaked._shapes(t.backside).all(func(s): return not s.visible)
+	var gb := DevBodyBaked.game_bones()
+	var ob := DevBodyBaked.our_bones()
+	var hip_ok: bool = ob[0].origin.is_equal_approx(t.leg.position - DevBodyBaked.V_HIP + Vector2(-207.63, -13.98)) \
+		and is_equal_approx(ob[0].get_rotation(), gb[0].get_rotation()) and thigh_fill.transform.is_equal_approx(ob[0])
+	DevBodyBaked._frame()
+	var m: ShaderMaterial = thigh_fill.material
+	var rows: Vector4i = m.get_shader_parameter("rows")
+	var w: Vector2 = m.get_shader_parameter("weights")
+	var a: Vector2 = DevBodyBaked._angles.now
+	var shader_ok: bool = rows == Vector4i(0, 1, 2, 3) and is_equal_approx(w.x, inverse_lerp(-45.0, 150.0, a.x)) \
+		and is_equal_approx(w.y, inverse_lerp(0.0, -140.0, a.y))
+	var shoe_ok: bool = not t.rightCalfContainer.footwear.transform.is_equal_approx(t.rightCalfContainer.calf.transform) \
+		and (t.rightCalfContainer.transform * t.rightCalfContainer.footwear.transform).is_equal_approx(ob[1] * Transform2D(0.0, -DevBodyBaked.CALF_TO_VANILLA))
+	DevBodyBaked.set_on(false)
+	h.updateElements()
+	var gone: bool = DevBodyBaked._nodes.is_empty() and t.leg.thigh.visible and t.leg.highlights.visible \
+		and not DevBodyBaked._after.is_valid() and t.rightCalfContainer.footwear.transform.is_equal_approx(t.rightCalfContainer.calf.transform)
+	DevBodyBaked.data = was_data
+	DevBodyBaked._bin = was_bin
+	DevBodyBaked.status = ""
+	_check("baked legs: our pieces where the game draws its thigh / calf / far leg, its skin, highlights and backside hidden; our thigh about our hip by the game's angle; the shader's 4 snapshots and weights; shoes on our calf; off: all back",
+		placed and hidden and hip_ok and shader_ok and shoe_ok and gone, "%s %s %s %s %s %s" % [placed, hidden, hip_ok, shader_ok, shoe_ok, gone])
+
+
 ## BODY_33: the wrist ring turns her hand picture (its costume too) and never feeds the arm's IK; the ankle and toes
 ## rings turn our bones (from a straight line, within their limits) and the vector leg's foot; reset and
 ## our layer off put everything back.
@@ -1163,24 +1212,18 @@ func _hands_feet_checks(h) -> void:
 	var feet_ok: bool = absf(foot_turn - 30.0) < 0.5 and absf(DevBodyRings.fold_now("ankle_r") - af0 - 30.0) < 0.01 \
 		and ball2.is_equal_approx(ball1) and absf(DevBodyRings.fold_now("toes_r") - tf0 - 25.0) < 0.01 and toes2.distance_to(toes0) > 20.0 \
 		and h.torso.rightCalfContainer.calf.transform.is_equal_approx(pic0) and absf(ball1.distance_to(ank) - ball0.distance_to(ank)) < 0.01
-	var tt: Transform2D = h.torso.leg.transform
-	var tc: Transform2D = h.torso.rightCalfContainer.transform * h.torso.rightCalfContainer.calf.transform
-	var pts := PackedVector2Array([Vector2(-60, 40), DevBodyOverlay.mark("toes_r")])
-	var bent := DevBodyVector._skin_pts(pts, tt, tc, true, DevBodyVector._foot())
-	var plain := DevBodyVector._skin_pts(pts, tt, tc, true)
-	var vec_ok: bool = bent[0].distance_to(plain[0]) < 0.01 and bent[1].distance_to(tc * (DevBodyRings.foot_xf("_r")[1] * pts[1])) < 0.01 and bent[1].distance_to(plain[1]) > 20.0
 	var fitted_ok: bool = not DevBodyRings.JOINTS.has("fingers_r") and not DevBodyOverlay.mark_defs().has("fingers_l") \
 		and DevBodyOverlay.mark("ball_l") == Vector2(-669, 81) and DevBodyOverlay.mark("toes_l") == Vector2(-707, 88) \
 		and DevBodyOverlay.mark("hand_l") == Vector2(16, 87) and not Hooks.has(&"Her.updateArms")
 	DevBodyRings.set_turn("ankle_r", 999.0)
 	var ankle_max: float = DevBodyRings.fold_now("ankle_r")
 	DevBodyOverlay.set_ours(false)
-	var off_ok: bool = DevBodyOverlay.joint_at("toes_r").is_equal_approx(DevBodyOverlay.mark_at("toes_r")) and DevBodyVector._foot().is_empty()
+	var off_ok: bool = DevBodyOverlay.joint_at("toes_r").is_equal_approx(DevBodyOverlay.mark_at("toes_r"))
 	DevBodyOverlay.ours = true
 	DevBodyRings.reset_turns()
-	_check("ankle and toe rings: the foot bone turns 30 about the ankle, the toes 25 about the ball, the game's calf untouched; the vector calf's toes follow, its shin not; no fingers, the feet and hands as fitted; clamped; our layer off: as drawn",
-		feet_ok and vec_ok and fitted_ok and absf(ankle_max - DevBodyRings.limit("ankle_r").y) < 0.01 and off_ok,
-		"%.2f %s %s %s %.1f %s" % [foot_turn, feet_ok, vec_ok, fitted_ok, ankle_max, off_ok])
+	_check("ankle and toe rings: the foot bone turns 30 about the ankle, the toes 25 about the ball, the game's calf untouched; no fingers, the feet and hands as fitted; clamped; our layer off: as drawn",
+		feet_ok and fitted_ok and absf(ankle_max - DevBodyRings.limit("ankle_r").y) < 0.01 and off_ok,
+		"%.2f %s %s %.1f %s" % [foot_turn, feet_ok, fitted_ok, ankle_max, off_ok])
 
 
 func _credits_checks() -> void:

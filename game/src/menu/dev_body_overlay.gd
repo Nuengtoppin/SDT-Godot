@@ -75,7 +75,7 @@ static func clear() -> void:
 	set_spring(false)
 	DevBodySides.reset()
 	DevBodyRings.mode = ""
-	DevBodyVector.set_on(false)
+	DevBodyBaked.set_on(false)
 	DevBodyDrag.on = false
 	DevBodyDrag.release()
 	DevBodyRings.reset_turns()
@@ -105,7 +105,7 @@ static func set_ours(on: bool) -> void:
 	if not on:
 		set_spring(false)
 		DevBodySides.set_breasts(false)
-		DevBodyVector.set_on(false)
+		DevBodyBaked.set_on(false)
 	DevBodySides.sync()
 	DevBodyRings.refresh()
 
