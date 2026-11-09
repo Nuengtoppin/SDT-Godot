@@ -141,9 +141,12 @@ static func _her() -> Dictionary:
 	return {"id": "her", "name": "Her", "groups": [
 		{"title": "Character", "controls": [
 			pick("Character", "Switches to another character: the game's own, then stored ones (C and X also step through them).",
-				func(): return MenuCharacters.names(), func(): return MenuCharacters.index(),
-				func(i): MenuCharacters.select(i)),
-			actions("", "", [["Shuffle her look", func(): _m().shuffle(), "Random hair, colours and clothes (Shift+/)."]]),
+				func(): return MenuCharacters.shown_names(), func(): return MenuCharacters.shown_index(),
+				func(i): MenuCharacters.select_shown(i)),
+			actions("", "", [["Manage characters…", func(): close_then(CharactersPanel.open_editor),
+				"Save her current look as a character; rename, update, delete or reorder stored ones."],
+				["Shuffle her look", func(): _m().shuffle(), "Random hair, colours and clothes (Shift+/)."]],
+				{"keywords": "store save character delete rename edit order"}),
 			_with({"type": "text", "label": "Name in dialogue", "placeholder": "the character's own",
 				"tip": "The name dialogue lines use for her. Empty: the character's own name.",
 				"get": func(): return g.customName,
@@ -193,6 +196,14 @@ static func _her() -> Dictionary:
 				"tip": "Mods that change her body (thicker thighs, other breasts...) from Mods/Clothing. Several can be on.",
 				"build": func(): return ModSwitchList.build(ModCatalog.BODY_MODS_LIST, _toggle_body, "None found in Mods/Clothing.")},
 		]},
+		{"title": "Arms", "controls": [
+			arrows("Left arm", "Where she keeps her left arm.", func(): return Her.armPositionsFor(true),
+				func(): return Her.armPositionsFor(true).find(Her.armPositions[g.her.currentLeftArmPosition]),
+				_m().leftArmLeftClicked, _m().leftArmRightClicked),
+			arrows("Right arm", "Where she keeps her right arm.", func(): return Her.armPositionsFor(false),
+				func(): return Her.armPositionsFor(false).find(Her.armPositions[g.her.currentRightArmPosition]),
+				_m().rightArmLeftClicked, _m().rightArmRightClicked),
+		]},
 		{"title": "Hair", "controls": [
 			pick("Hairstyle", "The game's hairstyles, then hair mods from the Mods folders.",
 				func(): return _m().charNames + (g.modCatalog.hair_entries.map(func(e): return e["title"]) if g.modCatalog else []),
@@ -228,12 +239,42 @@ static func _toggle_body(on: bool, e: Dictionary) -> void:
 		g.modCatalog.remove_entry(e)
 
 
+## Leash mods (ModCatalog.is_leash), one at a time; the row shows when the Mods folder has any.
+static func _leash() -> Dictionary:
+	var dh := func(): return Extensions.get_extension("dynamichair")
+	var list := func() -> Array: return dh.call().leashes()
+	return pick("Leash", "Leash mods from the Mods folders. It hangs from her collar.",
+		func(): return ["None"] + list.call().map(func(e): return _leash_title(e["title"])),
+		func(): return 1 + list.call().find(dh.call().worn_leash()),
+		func(i: int): dh.call().pick_leash(i),
+		{"visible": func(): return not list.call().is_empty()})
+
+
+## A leash's colour is her collar's second colour (rgbElement). The row is for when the collar has no such row itself.
+static func _leash_colour() -> Dictionary:
+	var h := func() -> CharacterElementHelper: return g.characterControl.collarControl
+	return colour("Leash colour", "", func(): return h.call().rgb2, func(c, f): h.call().setFill(c, f), "rgbFill2", true,
+		{"visible": func():
+			var on: bool = g.modCatalog != null and g.modCatalog.picker_entries.get(ModCatalog.LEASH_LIST, []).any(
+				func(e): return g.modCatalog.is_applied(e))
+			return on and not (h.call().haveRGBFill2 and h.call().modEntryIndex >= 0)})
+
+
+## "SDT-LeashFrontDangleLong" -> "Front Dangle Long"
+static func _leash_title(title: String) -> String:
+	var words := RegEx.create_from_string("([a-z])([A-Z])")
+	return words.sub(title.trim_prefix("SDT-").trim_prefix("Leash"), "$1 $2", true).strip_edges()
+
+
 static func _clothes() -> Dictionary:
 	var cc := func(): return g.characterControl
 	var head: Array = []
 	for e in [["Headwear", "headwearControl"], ["Eyewear", "eyewearControl"], ["Earrings", "earringControl"],
 			["Collar", "collarControl"], ["Gag", "gagControl"]]:
 		head.append_array(element(e[0], "", func(): return cc.call().get(e[1])))
+		if e[0] == "Collar":
+			head.append(_leash())
+			head.append(_leash_colour())
 	var upper: Array = []
 	for e in [["Top", "topControl", true], ["Bra", "braControl", false], ["Armwear", "armwearControl", false],
 			["Cuffs", "cuffsControl", false]]:
@@ -266,12 +307,6 @@ static func _clothes() -> Dictionary:
 				func(): tan.call().tanLeftClicked(), func(): tan.call().tanRightClicked()),
 			slider("Tan strength", "", func(): return tan.call()._alphaSlider, func(): tan.call().alphaSliderChanged(),
 				func(): tan.call().alphaSliderReleased(), func(): tan.call().resetAlpha()),
-		]},
-		{"title": "Arms", "controls": [
-			arrows("Left arm", "Where she keeps her left arm.", func(): return Her.armPositions,
-				func(): return g.her.currentLeftArmPosition, _m().leftArmLeftClicked, _m().leftArmRightClicked),
-			arrows("Right arm", "Where she keeps her right arm.", func(): return Her.armPositions,
-				func(): return g.her.currentRightArmPosition, _m().rightArmLeftClicked, _m().rightArmRightClicked),
 		]},
 	]}
 
@@ -310,8 +345,10 @@ static func _him() -> Dictionary:
 		{"title": "Arms", "controls": [
 			arrows("Right arm", "Holding: his hand is on her head. Free: he lets go.", func(): return Him.armPositions,
 				func(): return him.call().currentArmPosition, _m().hisArmLeftClicked, _m().hisArmRightClicked),
-			arrows("Left arm", "", func(): return Him.leftArmPositions, func(): return him.call().currentLeftArmPosition,
-				_m().hisLeftArmLeftClicked, _m().hisLeftArmRightClicked),
+			arrows("Left arm", "Holding Leash: he holds the end of her leash (Clothes > Head and neck).", func(): return Him.leftArmPositions,
+				func(): return him.call().currentLeftArmPosition,
+				func(): _m().hisLeftArmLeftClicked(); Extensions.get_extension("dynamichair").left_arm_changed(),
+				func(): _m().hisLeftArmRightClicked(); Extensions.get_extension("dynamichair").left_arm_changed()),
 		]},
 		{"title": "Penis", "controls": penis},
 		{"title": "Balls", "controls": [
@@ -360,9 +397,9 @@ static func _scene() -> Dictionary:
 
 static func _behaviour() -> Dictionary:
 	var om := func(): return _m().optionsMenu
-	# its long cards fold (Resistance and Reactions folded at first: MenuFold) and reset as a whole; "default": the
-	# game's starting values of its checkboxes (g.gd), for that reset
-	return {"id": "behaviour", "name": "Behaviour", "fold": {"Resistance": true, "Reactions": true}, "groups": [
+	# its cards fold (all open at first: MenuFold) and reset as a whole; "default": the game's starting values of its
+	# checkboxes (g.gd), for that reset
+	return {"id": "behaviour", "name": "Behaviour", "fold": {}, "groups": [
 		{"title": "Resistance", "controls": [
 			slider("Resistance", "How much she resists at first; it wears off while you play.",
 				func(): return _m().costumeMenu.resistanceSlider, _m().resistanceSliderChanged, _m().resistanceSliderReleased,
@@ -512,16 +549,26 @@ static func _settings() -> Dictionary:
 				"reset": func(): om.call().volumeSlider.setPos(1.0); _m().volumeChanged()}, {}),
 			check("Intro sound", "", func(): return om.call().cbIntroSound, _m().cbIntroSoundClicked),
 		]},
-	]}
+	] + hotkey_groups()}
+
+
+## Settings › Hotkeys: opens the hotkey editor (HotkeyPanel).
+static func hotkey_groups() -> Array:
+	return [{"title": "Hotkeys", "controls": [
+		actions("", "Every key the game and the extensions use. Change any of them, with Shift, Ctrl or Alt if you like.",
+			[["Edit hotkeys…", func(): close_then(HotkeyPanel.open_editor), "The hotkey editor: every action and its key."]],
+			{"keywords": "hotkey hotkeys key keys shortcut keyboard bind rebind"}),
+	]}]
 
 
 static func _help() -> Dictionary:
 	return {"id": "help", "name": "Help", "groups": [
-		{"title": "Keys", "controls": [
-			note("Y U I O P: open this menu (Her, Clothes, Mods, Settings, Help) · Esc: close it\nA: auto mode · Space: hold her\nC / X: next / previous character · B: background on/off · H: show/hide him\n/: screenshot · Shift+/: shuffle her look"),
-		]},
 		{"title": "Extensions", "controls": [
 			note("Options with an orange dot or tag come from an extension. Switch extensions on or off in Mods › Extensions; Vanilla mode switches all of them off and brings back the original menu."),
+		]},
+		{"title": "Credits", "controls": [
+			note("Original game: Konashion"),
+			note("Mods: Colin, DrZombi, Modguy, Pim_gd, Rod, roztoow, sby, SClover13, stuntcock, WeeWillie"),
 		]},
 	]}
 

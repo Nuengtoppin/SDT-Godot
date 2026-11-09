@@ -93,7 +93,10 @@ func clearTearSpots() -> void:
 
 func drawLowerEyelidMascara() -> void:
 	lowerEyelidData.fillRect(lowerEyelidArea, 0)
-	lowerEyelidData.draw_bitmap(mascaraData, Vector2i(-33, -3), Rect2i(0, 0, 50, 20))
+	var top := 0
+	if Hooks.has_value(&"Tears.lowerMascaraTop"):   # HOOK value point: the first row of the lower eyelid's mascara band that is drawn (0; higher: a thinner band)
+		top = int(Hooks.value(&"Tears.lowerMascaraTop", self, top))
+	lowerEyelidData.draw_bitmap(mascaraData, Vector2i(-33, -3), Rect2i(0, top, 50, 20))
 	lowerEyelidClear = false
 	lowerEyelidLayer.refresh()
 	if Hooks.has(&"Tears.drawLowerEyelidMascara"):   # HOOK

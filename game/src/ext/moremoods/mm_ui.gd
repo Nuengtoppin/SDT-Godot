@@ -79,8 +79,8 @@ func set_eyeroll(mode: int) -> void:
 	if not face.eyeroll_enabled():
 		g.her.lookAt(g.her.lookPoint)   # re-aim at once at what she looks at (through the gaze value point)
 	var her = g.her
-	her.eye.ball.irisContainer.x = -50.65
-	her.eye.ball.highlights.x = 20.95
+	her.eye.ball.irisContainer.x = -50.65   # direct: the iris back at its place in the art
+	her.eye.ball.highlights.x = 20.95   # direct: the highlights back at their place in the art
 	refresh()
 
 

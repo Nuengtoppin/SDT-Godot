@@ -66,7 +66,7 @@ func _disable() -> void:
 	if _hidden.get("hair", false):
 		_show_hair(true)
 	if _hidden.get("his_arm", false) and g.him != null:
-		g.him.leftArmContainer.visible = true
+		g.him.leftArmContainer.visible = true   # direct: a trigger's hidden arm shown again
 	_hidden.clear()
 	for k in _alpha_set:
 		_set_alpha(k, "normal", 1.0)
@@ -112,9 +112,9 @@ func _register(p_da) -> void:
 	t.call("SHOW_HER_PENIS", 1, func(a): _her_penis(int(AS3.Number(a[0]))))
 	t.call("HIDE_HER_PENIS", 0, func(_a): _her_penis(0))
 	da.vars.register("mt.cuminmouth", _cum_in_mouth, func(v): _set_percent(v, _cum_in_mouth, "mt.cuminmouth",
-		func(p): g.her.cumInMouth = roundi(g.her.maxCumInMouth * p / 100.0)))
+		func(p): g.her.cumInMouth = roundi(g.her.maxCumInMouth * p / 100.0)))   # direct: a dialogue variable written by the dialogue
 	da.vars.register("mt.vigour", _vigour, func(v): _set_percent(v, _vigour, "mt.vigour",
-		func(p): g.her.vigour = roundf(1050.0 * p / 100.0)))
+		func(p): g.her.vigour = roundf(1050.0 * p / 100.0)))   # direct: a dialogue variable written by the dialogue
 	screen.register(da)
 
 
@@ -130,7 +130,7 @@ static func _ms(v) -> float:
 # ---------------------------------------------------------------- simple triggers
 
 func _tongue(on: bool) -> void:
-	g.tongue = on
+	g.tongue = on   # direct: a trigger switches the tongue setting
 	g.her.tongueToggled()
 	g.inGameMenu.updateCBTongue()
 
@@ -152,7 +152,7 @@ func _loader_arm(state: String) -> void:
 
 func _his_arm(on: bool) -> void:
 	if g.him.visible:
-		g.him.leftArmContainer.visible = on
+		g.him.leftArmContainer.visible = on   # direct: a trigger hides or shows his arm
 		_hidden["his_arm"] = not on
 
 
@@ -180,7 +180,7 @@ func _her_parts() -> Array:
 
 
 func _show_her(on: bool) -> void:
-	g.her.visible = on
+	g.her.visible = on   # direct: a trigger hides or shows her
 	for p in _her_parts():
 		if p != null:
 			p.visible = on
@@ -334,7 +334,7 @@ func _tick() -> void:
 	var her = g.her
 	if _shock_id != 0 and not Hooks.has_modifier(_shock_id):
 		_shock_id = 0
-		her.eyelidMotion["shock"] = _shock_power   # it ends: the shock fades from here, as after the game's own
+		her.eyelidMotion["shock"] = _shock_power   # direct: the trigger's shock ends: it fades from here, as after the game's own
 	if _wince_until >= 0:
 		if now > _wince_until:
 			_wince_until = -1

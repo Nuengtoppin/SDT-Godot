@@ -30,7 +30,6 @@ func _setup() -> void:
 func _enable() -> void:
 	menu_control("him", "Penis", MenuSchema.setting_control(self, "on", {"after": "Width"}))
 	on_key(KEY_M, toggle, "aim with the mouse")
-	menu_control("help", "Keys", MenuSchema.note("M: aim his penis with the mouse, on / off (aimpenis)"))
 	modify(&"Him.penisTiltTarget", {"phase": Hooks.MOOD, "op": "fn", "when": _aiming, "fn": func(v, _him):
 		# bukkake mode already aims (the game adds this once)
 		return v if g.bukkakeMode else v + (-2.5 - g.currentPos.y * 15.0) * AIM})

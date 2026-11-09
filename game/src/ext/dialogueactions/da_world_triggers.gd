@@ -283,7 +283,7 @@ func _register_body() -> void:
 	vars.register("da.her.body.mascara", func(): return g.mascaraAmount, func(v):
 		var n := relative(g.mascaraAmount, v)
 		if is_nan(n): return
-		g.mascaraAmount = clampf(n, 0, 100)
+		g.mascaraAmount = clampf(n, 0, 100)   # direct: a dialogue variable written by the dialogue
 		menu.updateMascaraSlider())
 	vars.register("da.her.body.freckles", func(): return g.frecklesAmount, func(v):
 		var n := relative(g.frecklesAmount, v)

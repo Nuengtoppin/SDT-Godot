@@ -72,6 +72,9 @@ var rub: FlashSound
 var rubSC: FlashSoundChannel = null
 var rubST: FlashSoundTransform = null
 var intro: FlashSound
+## Port: which of her sounds is asking value point SoundControl.herSoundVolume (&"cough", &"openCough", &"gag",
+## &"passOut"), for its modifiers
+var herSound: StringName = &""
 
 
 func _init() -> void:
@@ -102,6 +105,16 @@ static func _play(s: FlashSound, vol: float, pan: float, start: float = 0.0) -> 
 	if ch:
 		ch.soundTransform = FlashSoundTransform.new(vol, pan)
 	return ch
+
+
+## Port: the volume of one of her sounds after value point SoundControl.herSoundVolume (herSound says which)
+func _her_volume(which: StringName, vol: float) -> float:
+	if not Hooks.has_value(&"SoundControl.herSoundVolume"):   # HOOK value point: the volume of her cough, open cough, gag, pass-out sound
+		return vol
+	herSound = which
+	vol = Hooks.value(&"SoundControl.herSoundVolume", self, vol)
+	herSound = &""
+	return vol
 
 
 func loadAudioMod(kind: String, mod) -> void:
@@ -280,16 +293,21 @@ func playUp(p: float, movement: float) -> void:
 
 
 func playGag(p: float) -> void:
+	if Hooks.has(&"SoundControl.playGag"):   # HOOK
+		var h := Hooks.before(&"SoundControl.playGag", self, [p])
+		if h.cancelled:
+			return
+		p = h.args[0]
 	var vol := 0.5 + randf() * 0.2
 	var i := _pick(gag, lastRandomGag)
 	lastRandomGag = i
-	_play(gag[i], vol, _pan(p))
+	_play(gag[i], _her_volume(&"gag", vol), _pan(p))
 
 
 func playCough() -> void:
 	var i := _pick(cough, lastRandomCough)
 	lastRandomCough = i
-	_play(cough[i], 1, rightPan)
+	_play(cough[i], _her_volume(&"cough", 1.0), rightPan)
 
 
 func playSplat() -> void:
@@ -301,7 +319,7 @@ func playSplat() -> void:
 func playPassOut(p: float = 0.0) -> void:
 	var i := _pick(passOut, lastRandomPassOut)
 	lastRandomPassOut = i
-	_play(passOut[i], 1, _pan(p))
+	_play(passOut[i], _her_volume(&"passOut", 1.0), _pan(p))
 
 
 func playGrab(p: float = 0.0, vol: float = 1.0) -> void:
@@ -489,7 +507,7 @@ func playOpenCough() -> void:
 		lastRandomOpenCough = i
 		currentOpenCough = openCough[i].play()
 	if currentOpenCough:
-		currentOpenCough.soundTransform = FlashSoundTransform.new(vol, leftPan)
+		currentOpenCough.soundTransform = FlashSoundTransform.new(_her_volume(&"openCough", vol), leftPan)
 		currentOpenCough.addEventListener(FlashEvent.SOUND_COMPLETE, coughFinished)
 		openCoughing = true
 		startOnInBreath = true

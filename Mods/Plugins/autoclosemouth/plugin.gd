@@ -48,16 +48,16 @@ func _enable() -> void:
 	goclose = get_setting("manualstartsclosed")
 	manual = not get_setting("startauto")
 	on = get_setting("defaultmode")
-	_button = menu_button("sceneMenu", -330 + 100 + 1 + 22 + 22, 40, "ᾑ0", func(): on = not on)
+	_button = menu_button("sceneMenu", -330 + 100 + 1 + 22 + 22, 40, "ᾑ0", func(): on = not on; g.saveData.saveCharData())
 	on_late_tick(_tick)
 	menu_control("behaviour", "Reactions", MenuSchema.toggle("Close her mouth after sucking",
 		"She closes her mouth a while after the penis left it. Saved with the character.",
-		func(): return on, func(v: bool): on = v, {"keywords": "mouth close autoclosemouth"}))
+		func(): return on, func(v: bool): on = v; g.saveData.saveCharData(), {"keywords": "mouth close autoclosemouth"}))
 	# closing: her jaw drawn towards closed by closepercent (MOOD modifier of Her.jawAngle, after moods' mouth hang;
 	# dialogue triggers such as MoreTriggers' [OPEN_MOUTH_ms] override it)
 	modify(&"Her.jawAngle", {"phase": Hooks.MOOD, "order": 10, "op": "fn", "fn": func(v, _her):
 		return v + (Her.closedJawAngle - v) * closepercent if closingmouth else v})
-	hook_after(&"Tongue.encourage", func(_c): _encourage())
+	hook_before(&"Tongue.encourage", _encourage)
 	if get_setting("registerkeys"):
 		on_key(77, func(): goclose = not goclose, "close mouth")
 		on_key(78, func(): manual = not manual, "close mouth manual / auto")
@@ -109,9 +109,10 @@ func _tick() -> void:
 	_button.set_color(0x00FF00 if on else 0xFFFFFF)
 
 
-func _encourage() -> void:
+## Her mouth closed all the way: no licking head bob (the mod set the tongue's encouragement back to 0 afterwards)
+func _encourage(c) -> void:
 	if get_setting("preventlickbobonclose") and closepercent == get_setting("maxcloseamount"):
-		g.her.tongue.increasedAction = 0
+		c.cancel()
 
 
 func _breath_ok() -> bool:

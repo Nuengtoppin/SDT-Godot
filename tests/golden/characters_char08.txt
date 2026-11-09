@@ -64,6 +64,8 @@ currentLeftArmPosition=0
 currentRightArmPosition=0
 leftArmFree=false
 rightArmFree=false
+leftHandClosed=false
+rightHandClosed=false
 leftIsFirstHandJobHand=false
 armsPushing=false
 armsPushPower=0.000
@@ -109,6 +111,10 @@ eyePosWince=200
 blinkTime=46
 blinkTimer=0
 winceTimer=0
+_blushByPoint=false
+_highlightsBase=-1.000
+mouthShape=Normal
+_moodMouth=Normal
 lookChangeTimer=-1
 cumInEye=0
 passedOut=false
@@ -203,7 +209,7 @@ alpha=1.000
 _had_offsets=false
 blendMode=normal
 _mask_hidden=false
-_gxf_epoch=84834
+_gxf_epoch=75978
 mouseX=-54.750
 mouseY=-398.520
 _gclean=false
@@ -221,6 +227,7 @@ currentPenisLengthScale=1.000
 currentPenisWidthScale=1.000
 penisPullScale=0.000
 currentBallSize=1.000
+ballsHome=(39.500,180.000)
 currentBalls=0
 penisTilt=10.862
 penisTiltSpeed=-0.001
@@ -306,12 +313,12 @@ alpha=1.000
 _had_offsets=false
 blendMode=layer
 _mask_hidden=false
-_gxf_epoch=84834
+_gxf_epoch=75978
 mouseX=-651.040
 mouseY=-292.441
 _gclean=false
 _gb_ok=false
-_hb_gen=24
+_hb_gen=0
 width=1023.474
 height=1886.919
 ---- display list
@@ -557,7 +564,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             jawBack [FlashMovieClip#991] f=1/1 pos=(-28.6,84.8) sc=(1.00,1.00) rot=-0.0
               jawBulgeOutline [FlashMovieClip#990] f=1/81 pos=(67.8,50.2) sc=(1.00,1.00) rot=0.0
                  [FlashShape#987] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-            neck [Neck#992] f=1/1 pos=(-32.0,131.8) sc=(1.01,1.01) rot=367.4
+            neck [Neck#992] f=1/1 pos=(-32.0,131.8) sc=(1.01,1.01) rot=7.4
               outline0 [FlashMovieClip#226] f=1/1 pos=(77.3,-74.7) sc=(1.00,1.00) rot=0.0
               outline2 [FlashMovieClip#226] f=1/1 pos=(59.3,-26.9) sc=(1.00,1.00) rot=0.0
               outline3 [FlashMovieClip#226] f=1/1 pos=(57.5,16.8) sc=(1.00,1.00) rot=0.0
@@ -722,7 +729,7 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
             rightEyebrowFill [FlashMovieClip#1284] f=113/200 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0 ct=(1.00,1.00,1.00|180,142,61)
                [FlashShape#1281] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           gagFront [FlashMovieClip#1316] f=1/4 'None' pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          collarContainer [FlashMovieClip#1342] f=1/1 pos=(-32.5,-24.4) sc=(1.01,1.01) rot=367.4
+          collarContainer [FlashMovieClip#1342] f=1/1 pos=(-32.5,-24.4) sc=(1.01,1.01) rot=7.4
             collar [FlashMovieClip#1341] f=2/4 'Leather' pos=(12.1,79.8) sc=(1.00,1.00) rot=-3.0
               rgbFill [FlashMovieClip#1318] f=1/1 pos=(-18.1,-5.4) sc=(1.00,1.00) rot=0.0
                  [FlashShape#1317] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
@@ -2242,10 +2249,10 @@ root1 [FlashStage#-1] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
           scrollArea [FlashMovieClip#2781] f=1/1 pos=(0.0,122.0) sc=(1.00,1.00) rot=0.0
              [FlashShape#2780] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
            [FlashShape#2782] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
-          scrollBar [FlashMovieClip#2783] f=1/1 pos=(187.0,123.0) sc=(1.00,1.00) rot=0.0
+          scrollBar [FlashMovieClip#2783] f=1/1 pos=(1.0,123.0) sc=(1.00,1.00) rot=0.0
              [FlashShape#2504] pos=(50.0,13.4) sc=(10.00,5.33) rot=0.0
            [FlashShape#2504] pos=(325.0,104.2) sc=(64.80,31.67) rot=0.0
-          thumbLayer [FlashMovieClip#226] f=1/1 pos=(-551.1,32.0) sc=(1.00,1.00) rot=0.0
+          thumbLayer [FlashMovieClip#226] f=1/1 pos=(20.0,32.0) sc=(1.00,1.00) rot=0.0
              [CharacterMenuItem#2851] f=1/1 pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0
               box [FlashMovieClip#2840] f=1/3 'Normal' pos=(34.5,29.5) sc=(1.00,1.00) rot=0.0
                  [FlashShape#2837] pos=(0.0,0.0) sc=(1.00,1.00) rot=0.0

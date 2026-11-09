@@ -60,10 +60,10 @@ func reset() -> void:
 
 
 func _apply() -> void:
-	g.cumRGB = (int(rgb["r"]) << 16) | (int(rgb["g"]) << 8) | int(rgb["b"])
+	g.cumRGB = (int(rgb["r"]) << 16) | (int(rgb["g"]) << 8) | int(rgb["b"])   # direct: the cum colour setting
 	if g.cumHighlight != null:
-		g.cumHighlight.shaderParams["trans"] = float(rgb["a"]) * MAX_TRANS
-		g.cumHighlight.shaderParams["totMult"] = highlights
+		g.cumHighlight.shaderParams["trans"] = float(rgb["a"]) * MAX_TRANS   # direct: the cum colour setting
+		g.cumHighlight.shaderParams["totMult"] = highlights   # direct: the cum highlights setting
 		if g.inGameMenu != null and g.cumLayer != null:
 			g.inGameMenu.updateStrandShaders()   # re-applies the filter with the new values
 

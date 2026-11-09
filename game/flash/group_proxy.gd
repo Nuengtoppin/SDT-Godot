@@ -37,6 +37,21 @@ func _init() -> void:
 	material = _mat
 
 
+## The grouped object itself must not be interpolated (its transform is cancelled per tick), but what moves inside it
+## must glide, or it snaps to each tick ahead of the parts around it. Children would inherit the object's OFF.
+static func children_glide(obj: Node, on: bool) -> void:
+	for c in obj.get_children():
+		c.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON if on else Node.PHYSICS_INTERPOLATION_MODE_INHERIT
+	if on and not obj.child_entered_tree.is_connected(_child_glides):
+		obj.child_entered_tree.connect(_child_glides)
+	elif not on and obj.child_entered_tree.is_connected(_child_glides):
+		obj.child_entered_tree.disconnect(_child_glides)
+
+
+static func _child_glides(c: Node) -> void:
+	c.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
+
+
 func configure(obj: FlashDisplayObject) -> void:
 	_obj = obj
 	name = "group_" + obj.flash_name
@@ -72,7 +87,7 @@ func configure(obj: FlashDisplayObject) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_PREDELETE:
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(Flash):   # at quit the runtime can go first
 		Flash.unregister_group(self)
 
 
@@ -120,7 +135,9 @@ func update_layout() -> void:
 	if _obj == null or not is_instance_valid(_obj) or not is_inside_tree() or not _vp.is_inside_tree():
 		return
 	transform = _obj.transform
-	visible = _obj.visible
+	if visible != _obj.visible:
+		visible = _obj.visible
+		FlashProxy.forget_shown()
 	# hidden or transparent (a closed menu dropdown at alpha 0): stop rendering the target every frame
 	var on := FlashProxy.shown(self)
 	_vp.render_target_update_mode = FlashProxy.target_mode(_vp, on)
@@ -136,6 +153,13 @@ func update_layout() -> void:
 	# screen pixels per unit along each axis (a uniform max of the two made stretched groups far too big)
 	var sc := Vector2(maxf(screen.x.length(), 0.01), maxf(screen.y.length(), 0.01))
 	b = b.grow_individual(_margin / sc.x, _margin / sc.y, _margin / sc.x, _margin / sc.y)
+	# only what can show on screen (a filter's margin beyond the edge, so a blur there still reads its neighbours)
+	b = FlashProxy.clip_to_view(self, screen, b, _margin)
+	if b.size.x <= 0.0 or b.size.y <= 0.0:   # off-screen
+		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_rect = Rect2()
+		queue_redraw()
+		return
 	# Without rotation / skew on screen, start the render target on a whole screen pixel so its texels land on
 	# pixels 1:1 (a fractional offset makes the linear filter blur everything, e.g. text).
 	if is_zero_approx(screen.x.y) and is_zero_approx(screen.y.x) and screen.x.x > 0.0 and screen.y.y > 0.0:

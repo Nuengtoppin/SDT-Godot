@@ -1424,7 +1424,7 @@ void SWFFile::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_scenes"), &SWFFile::get_scenes);
 	ClassDB::bind_method(D_METHOD("get_timeline", "id"), &SWFFile::get_timeline);
 	ClassDB::bind_method(D_METHOD("get_abc_blocks"), &SWFFile::get_abc_blocks);
-	ClassDB::bind_method(D_METHOD("render", "id", "ratio", "scale"), &SWFFile::render);
+	ClassDB::bind_method(D_METHOD("render", "id", "ratio", "scale", "grow"), &SWFFile::render, DEFVAL(0.0));
 	ClassDB::bind_method(D_METHOD("get_bitmap", "id"), &SWFFile::get_bitmap);
 	ClassDB::bind_method(D_METHOD("get_sound", "id"), &SWFFile::get_sound);
 	ClassDB::bind_method(D_METHOD("get_edit_text", "id"), &SWFFile::get_edit_text);
@@ -1921,13 +1921,166 @@ bool SWFFile::shape_for(int id, int ratio, Shape &out) {
 	return false;
 }
 
-Dictionary SWFFile::render(int p_id, int p_ratio, double p_scale) {
+// Grows the solid parts of a premultiplied RGBA image outward by n pixels, keeping the anti-aliased edge's profile and
+// colour. Only into the outside (transparent pixels connected to the image border: enclosed holes, like a net's, stay)
+// and only from parts at least ~2n+1 pixels thick (straps, strings and lace stay as drawn). Used for the colour fills of
+// mod costume pieces: where a piece's edge lies exactly on her outline or on the next piece's edge, both edges are
+// partly transparent and what is underneath shows through as a light line; Flash's renderer shows much less of it.
+static void grow_outward(std::vector<float> &img, int w, int h, int n) {
+	if (n <= 0) {
+		return;
+	}
+	const size_t N = (size_t)w * h;
+	auto A = [&](size_t i) { return img[i * 4 + 3]; };
+	// solid mask, its opening (erode n then dilate n + 1, 8-neighbour) as the growth's sources, and the outside
+	std::vector<uint8_t> solid(N), outside(N, 0), core(N);
+	for (size_t i = 0; i < N; i++) {
+		solid[i] = A(i) >= 0.5f;
+	}
+	// chessboard distance to the nearest pixel with seed[i] set (two passes; the same as repeated 3x3 steps)
+	std::vector<int> dist(N);
+	auto distance = [&](const std::vector<uint8_t> &seed) {
+		const int far = w + h;
+		for (int y = 0; y < h; y++) {
+			for (int x = 0; x < w; x++) {
+				size_t i = (size_t)y * w + x;
+				int d = seed[i] ? 0 : far;
+				if (x > 0) d = std::min(d, dist[i - 1] + 1);
+				if (y > 0) {
+					d = std::min(d, dist[i - w] + 1);
+					if (x > 0) d = std::min(d, dist[i - w - 1] + 1);
+					if (x < w - 1) d = std::min(d, dist[i - w + 1] + 1);
+				}
+				dist[i] = d;
+			}
+		}
+		for (int y = h - 1; y >= 0; y--) {
+			for (int x = w - 1; x >= 0; x--) {
+				size_t i = (size_t)y * w + x;
+				int d = dist[i];
+				if (x < w - 1) d = std::min(d, dist[i + 1] + 1);
+				if (y < h - 1) {
+					d = std::min(d, dist[i + w] + 1);
+					if (x < w - 1) d = std::min(d, dist[i + w + 1] + 1);
+					if (x > 0) d = std::min(d, dist[i + w - 1] + 1);
+				}
+				dist[i] = d;
+			}
+		}
+	};
+	std::vector<uint8_t> seed(N);
+	for (size_t i = 0; i < N; i++) {
+		int x = (int)(i % w), y = (int)(i / w);
+		seed[i] = !solid[i] || x == 0 || y == 0 || x == w - 1 || y == h - 1;   // the image's edge counts as empty
+	}
+	distance(seed);
+	for (size_t i = 0; i < N; i++) {
+		seed[i] = dist[i] > n;   // eroded n times
+	}
+	distance(seed);
+	for (size_t i = 0; i < N; i++) {
+		core[i] = dist[i] <= n + 1;   // one more: the opened region's own anti-aliased rim is a source too
+	}
+	std::vector<int> stack;
+	for (int x = 0; x < w; x++) {
+		stack.push_back(x);
+		stack.push_back((h - 1) * w + x);
+	}
+	for (int y = 0; y < h; y++) {
+		stack.push_back(y * w);
+		stack.push_back(y * w + w - 1);
+	}
+	while (!stack.empty()) {
+		int i = stack.back();
+		stack.pop_back();
+		if (outside[i] || solid[i]) {
+			continue;
+		}
+		outside[i] = 1;
+		int x = i % w, y = i / w;
+		if (x > 0) stack.push_back(i - 1);
+		if (x < w - 1) stack.push_back(i + 1);
+		if (y > 0) stack.push_back(i - w);
+		if (y < h - 1) stack.push_back(i + w);
+	}
+	// the outside plus the edge pixels next to it, which the grown edge may make more opaque
+	std::vector<uint8_t> target = outside;
+	for (int y = 0; y < h; y++) {
+		for (int x = 0; x < w; x++) {
+			size_t i = (size_t)y * w + x;
+			if (!outside[i] && A(i) < 1.0f &&
+					((x > 0 && outside[i - 1]) || (x < w - 1 && outside[i + 1]) || (y > 0 && outside[i - w]) ||
+							(y < h - 1 && outside[i + w]))) {
+				target[i] = 1;
+			}
+		}
+	}
+	// max-dilate the sources' alpha n times (alternating 4- and 8-neighbour steps: a rounder spread), carrying colour;
+	// only over the target pixels the growth can reach (within n of a source), each with a slot in vals
+	std::vector<int> act;
+	for (size_t i = 0; i < N; i++) {
+		if (target[i] && dist[i] <= 2 * n + 1) {
+			act.push_back((int)i);
+		}
+	}
+	std::vector<int> &slot = dist;   // the distances are not needed any more
+	std::fill(slot.begin(), slot.end(), -1);
+	std::vector<float> vals(act.size() * 4, 0.0f), nxt;
+	for (size_t k = 0; k < act.size(); k++) {
+		slot[act[k]] = (int)k;
+		if (core[act[k]]) {
+			memcpy(&vals[k * 4], &img[(size_t)act[k] * 4], sizeof(float) * 4);
+		}
+	}
+	static const float zero[4] = { 0, 0, 0, 0 };
+	auto value = [&](size_t i) -> const float * {
+		int k = slot[i];
+		return k >= 0 ? &vals[(size_t)k * 4] : (core[i] ? &img[i * 4] : zero);
+	};
+	for (int step = 0; step < n; step++) {
+		nxt = vals;
+		bool diag = (step & 1) == 1;
+		for (size_t k = 0; k < act.size(); k++) {
+			int x = act[k] % w, y = act[k] / w;
+			const float *best = &vals[k * 4];
+			for (int dy = -1; dy <= 1; dy++) {
+				for (int dx = -1; dx <= 1; dx++) {
+					if ((dx == 0 && dy == 0) || (!diag && dx != 0 && dy != 0)) {
+						continue;
+					}
+					int xx = x + dx, yy = y + dy;
+					if (xx < 0 || yy < 0 || xx >= w || yy >= h) {
+						continue;
+					}
+					const float *c = value((size_t)yy * w + xx);
+					if (c[3] > best[3]) {
+						best = c;
+					}
+				}
+			}
+			if (best != &vals[k * 4]) {
+				memcpy(&nxt[k * 4], best, sizeof(float) * 4);
+			}
+		}
+		vals.swap(nxt);
+	}
+	for (size_t k = 0; k < act.size(); k++) {
+		size_t i = act[k];
+		if (vals[k * 4 + 3] > A(i)) {
+			memcpy(&img[i * 4], &vals[k * 4], sizeof(float) * 4);
+		}
+	}
+}
+
+Dictionary SWFFile::render(int p_id, int p_ratio, double p_scale, double p_grow) {
 	Shape s;
 	if (!shape_for(p_id, p_ratio, s)) {
 		return Dictionary();
 	}
-	double ox = s.bounds[0], oy = s.bounds[2];
-	double bw = (s.bounds[1] - s.bounds[0]) / 20.0, bh = (s.bounds[3] - s.bounds[2]) / 20.0;
+	// room around the shape for grow_outward (whole pixels at 1x, so the 1x hit mask grid stays where it was)
+	double pad = p_grow > 0 ? std::ceil(p_grow) : 0.0;
+	double ox = s.bounds[0] - pad * 20.0, oy = s.bounds[2] - pad * 20.0;
+	double bw = (s.bounds[1] - s.bounds[0]) / 20.0 + 2 * pad, bh = (s.bounds[3] - s.bounds[2]) / 20.0 + 2 * pad;
 	int w = std::max(1, (int)std::ceil(bw * p_scale - 1e-9));
 	int h = std::max(1, (int)std::ceil(bh * p_scale - 1e-9));
 	if (bw <= 0 || bh <= 0 || w > 8192 || h > 8192) {
@@ -1935,6 +2088,9 @@ Dictionary SWFFile::render(int p_id, int p_ratio, double p_scale) {
 	}
 	Raster r(w, h, p_scale, ox, oy);
 	rasterize(s, r, [this](int bid) { return get_bitmap(bid); });
+	if (p_grow > 0) {
+		grow_outward(r.img, w, h, (int)std::lround(p_grow * p_scale));
+	}
 
 	PackedByteArray px;
 	px.resize((int64_t)w * h * 4);

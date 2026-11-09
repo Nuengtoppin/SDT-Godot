@@ -85,6 +85,11 @@ func setMouthFull(v: bool = true) -> void:
 
 
 func encourage(amount: int = 5) -> void:
+	if Hooks.has(&"Tongue.encourage"):   # HOOK
+		var h := Hooks.before(&"Tongue.encourage", self, [amount])
+		if h.cancelled:
+			return
+		amount = h.args[0]
 	increasedAction = amount
 	if Hooks.has(&"Tongue.encourage"):   # HOOK
 		Hooks.after(&"Tongue.encourage", self, [amount])

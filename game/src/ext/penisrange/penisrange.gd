@@ -24,9 +24,7 @@ const GAME_BALL_MAX := 1.3
 const MASK_OFFSET := 140.0   # how far past her lips (screen px at zoom 1) the mask starts to uncover him
 const MASK_LENGTH := 300.0   # mask travel per unit of length
 
-var _balls_pos := Vector2.ZERO
-var _balls_size := -1.0
-var _mask_scaled := false
+var _on := false   # the wider limits apply (the value point modifiers' condition)
 
 
 func _init() -> void:
@@ -46,9 +44,14 @@ func _setup() -> void:
 
 
 func _enable() -> void:
-	_balls_pos = Vector2(g.him.balls.x, g.him.balls.y)
-	_balls_size = -1.0
-	on_late_tick(_tick)
+	# value points of Him (see the header): the mask, the in-mouth smoothing, where big balls sit
+	modify(&"Him.penisMask", {"phase": Hooks.MOOD, "op": "fn", "when": func(him): return _on and _outside(him),
+		"fn": func(m, him): return _mask(m, him)})
+	modify(&"Him.mouthSmoothing", {"phase": Hooks.MOOD, "op": "fn",
+		"when": func(him): return _on and _outside(him) and g.her.mouthFull and not g.gamePaused,
+		"fn": func(_v, him): return 0.6 - 0.95 * clampf((him.penis.scaleX + him.penis.scaleY - 1.2) / 3.6, 0.0, 1.0)})
+	modify(&"Him.ballsOffset", {"phase": Hooks.MOOD, "op": "fn", "when": func(_him): return _on,
+		"fn": func(v, him): return v + Vector2(20.0, 22.0) * maxf(0.0, him.currentBallSize - GAME_BALL_MAX)})
 	var on := func(): return get_setting("on")
 	menu_control("him", "Penis", MenuSchema.setting_control(self, "on", {"after": "Width"}))
 	menu_control("him", "Penis", MenuSchema.setting_control(self, "max_size", {"after": "Width", "visible": on, "wide": true}))
@@ -73,6 +76,7 @@ func _apply_limits(on: bool) -> void:
 	var him = g.him
 	var f: float = get_setting("min_factor") if on else 1.0
 	var top: float = maxf(GAME_MAX, get_setting("max_size")) if on else GAME_MAX
+	_on = on
 	Him.MIN_PENIS_SIZE = GAME_MIN / f
 	Him.MAX_PENIS_SIZE = top
 	Him.MIN_BALL_SIZE = GAME_BALL_MIN / f
@@ -80,54 +84,27 @@ func _apply_limits(on: bool) -> void:
 	if him == null:
 		return
 	him.loadPenisScales(him.currentPenisLengthScale, him.currentPenisWidthScale)   # clamps, updates the sliders
-	him.setBallScale(him.currentBallSize)
+	him.setBallScale(him.currentBallSize)   # also places his balls (Him.ballsOffset)
 	g.inGameMenu.updateBallSizeSlider()
-	if not on:
-		_restore(him)
 
 
-func _restore(him) -> void:
-	if _mask_scaled:
-		him.penisMask.scaleX = 1.0
-		_mask_scaled = false
-	him.balls.x = _balls_pos.x
-	him.balls.y = _balls_pos.y
-	_balls_size = -1.0
-
-
-func _tick() -> void:
-	var him = g.him
-	var her = g.her
-	if not get_setting("on") or him == null or her == null:
-		return
+## A size outside the game's own range.
+func _outside(him) -> bool:
 	var length: float = him.currentPenisLengthScale
 	var width: float = him.currentPenisWidthScale
-	var outside: bool = length > GAME_MAX or width > GAME_MAX or length < GAME_MIN or width < GAME_MIN
-	if outside:
-		_mask(him, her, length)
-		if her.mouthFull and not g.gamePaused:
-			him.mouthConstraintSmoothing = 0.6 - 0.95 * clampf((him.penis.scaleX + him.penis.scaleY - 1.2) / 3.6, 0.0, 1.0)
-	elif _mask_scaled:
-		him.penisMask.scaleX = 1.0
-		_mask_scaled = false
-	if him.currentBallSize != _balls_size:
-		_balls_size = him.currentBallSize
-		var over: float = maxf(0.0, _balls_size - GAME_BALL_MAX)
-		him.balls.x = _balls_pos.x + over * 20.0
-		him.balls.y = _balls_pos.y + over * 22.0
+	return length > GAME_MAX or width > GAME_MAX or length < GAME_MIN or width < GAME_MIN
 
 
-## The mod's mask: uncovered by how far his tip is past her lips, scaled to his length.
-func _mask(him, her, length: float) -> void:
-	_mask_scaled = true
-	him.penisMask.scaleX = length
+## The mod's mask (Him.penisMask): uncovered by how far his tip is past her lips, scaled to his length.
+func _mask(_m: Dictionary, him) -> Dictionary:
+	var her = g.her
+	var length: float = him.currentPenisLengthScale
 	if not her.mouthFull:
-		him.penisMask.x = -100.0
-		return
+		return {"x": -100.0, "scale": length}
 	var dist: float = her.localToGlobal(her.topLipA).distance_to(him.getPenisTipPoint(0, 0))
 	var zoom: float = g.sceneLayer.currentZoom
 	var lo: float = MASK_OFFSET * zoom
 	var hi: float = MASK_LENGTH * length * zoom + lo
 	var full: float = MASK_LENGTH * length
 	var x: float = clampf(full * (dist - lo) / (hi - lo), 0.0, full)
-	him.penisMask.x = -100.0 if x == 0.0 else x
+	return {"x": -100.0 if x == 0.0 else x, "scale": length}

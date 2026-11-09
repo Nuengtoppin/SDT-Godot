@@ -6,7 +6,7 @@ extends SDTExtension
 ##   - "Swallow bulge": the game's, by how big the swallow is, by a slider, or the larger of the two (the game's by
 ##     default).
 ## Settings for all characters, like the mod's own default. Values from its settings file as shipped. Written from its
-## source (its replacement of the neck drawing is the port's Neck.swallowScale).
+## source (its replacement of the neck drawing is the port's value point Neck.swallowScale).
 ## Swallowing, after sby's swallowguzzle but on the game's own swallow (so the Her.swallow veto and the developer
 ## panel's switch still apply), all off by default:
 ##   - "Swallow until empty": when a swallow ends with cum left and her mouth free, she swallows again;
@@ -38,7 +38,7 @@ const PUMP_MODES := ["Off", "When full", "Always"]
 const AMOUNT_FULL := 10.0   # a swallow of this much gives the largest bulge of "By swallow" (SWALLOW_MAX)
 
 var _cumming := false
-var _base := 1.0     # the throat bulge setting while it is raised
+var _raise := 0.0    # how much the cum raises her throat bulge over its setting (value point Neck.throatBulge)
 var _volume := 0.0
 var _prev_cum := 0
 var _prev_wave := false
@@ -86,10 +86,15 @@ func _setup() -> void:
 
 
 func _enable() -> void:
-	_base = g.throatBulgeAmount
+	_raise = 0.0
 	on_late_tick(_tick)
-	charcode_field("throatvanillabulge", func(): return "%.5f" % (_base if _cumming else g.throatBulgeAmount),
+	charcode_field("throatvanillabulge", func(): return "%.5f" % g.throatBulgeAmount,
 		func(v, _l): _set_bulge(v.split(",")[0].to_float()))
+	modify(&"Neck.throatBulge", {"phase": Hooks.MOOD, "op": "fn", "when": func(_neck): return _raise > 0.0,
+		"fn": func(v, _neck): return minf(v + _raise, maxf(v, MAX_BULGE))})
+	modify(&"Neck.swallowScale", {"phase": Hooks.MOOD, "op": "fn", "fn": _swallow_scale})
+	modify(&"Her.swallowAmount", {"phase": Hooks.MOOD, "op": "fn", "when": func(_her): return get_setting("per_swallow") > 0,
+		"fn": func(_v, _her): return int(get_setting("per_swallow"))})
 	var after := {"after": "Throat bulge"}
 	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "cum_bulge", after))
 	menu_control("behaviour", "Reactions", MenuSchema.setting_control(self, "cum_amount",
@@ -146,19 +151,17 @@ func _apply_mods() -> void:
 
 
 func _disable() -> void:
-	if _cumming:
-		_set_bulge(_base)
+	_raise = 0.0
 	_cumming = false
 	queued = 0
 	_queue_hook = false   # its hooks and modifiers go with it
-	if g.her != null:
-		g.her.head.neck.swallowScale = Vector2(0.8, 0.5)
 
 
+## Her throat bulge setting, from the character code (the mod saved it per character).
 func _set_bulge(v: float) -> void:
 	if is_nan(v):
 		return
-	g.throatBulgeAmount = v
+	g.throatBulgeAmount = v   # direct: the setting itself, loaded from her character code
 	if g.her != null:
 		g.her.throatBulgeChanged()
 	g.inGameMenu.updateThroatBulgeSlider()
@@ -171,38 +174,33 @@ func _tick() -> void:
 	_cum_bulge(her)
 	_swallowing(her)
 	_queue(her)
-	_swallow_scale(her)
 
 
+## While he cums down her held throat it bulges more with the cum's volume, then settles back (Neck.throatBulge: the
+## setting plus _raise, never past MAX_BULGE).
 func _cum_bulge(her) -> void:
 	if not (get_setting("cum_bulge") or _cumming):
-		_base = g.throatBulgeAmount
 		return
 	if her.held and g.him.ejaculating:
-		if not _cumming:
-			_cumming = true
-			_base = g.throatBulgeAmount
+		_cumming = true
 		if g.soundControl.currentCumVolume > 0:
 			_volume += (minf(g.soundControl.currentCumVolume / 0.6, 1) - _volume) * SOUND_TRACK_SPEED
 		var target: float = MAX_BULGE * get_setting("cum_amount") * _volume
-		var inc: float = (target + _base - g.throatBulgeAmount) * CHANGE_SPEED
-		_set_bulge(maxf(minf(g.throatBulgeAmount + inc, MAX_BULGE), _base))
+		_raise = clampf(_raise + (target - _raise) * CHANGE_SPEED, 0.0, maxf(0.0, MAX_BULGE - g.throatBulgeAmount))
 	elif _cumming:
 		_volume = 0.0
-		if _base != g.throatBulgeAmount:
-			_set_bulge(maxf(_base, g.throatBulgeAmount - RETURN_RATE))
+		if _raise > 0.0:
+			_raise = maxf(0.0, _raise - RETURN_RATE)
 		else:
 			_cumming = false
-	else:
-		_base = g.throatBulgeAmount
 
 
-func _swallow_scale(her) -> void:
+## How her swallow pushes her neck out (Neck.swallowScale; the game's: (0.8, 0.5)).
+func _swallow_scale(v: Vector2, _neck) -> Vector2:
 	var mode: String = get_setting("swallow_mode")
-	var neck = her.head.neck
-	if mode == SWALLOW_MODES[0] or not neck.swallowing:
-		neck.swallowScale = Vector2(0.8, 0.5)
-		return
+	var her = g.her
+	if mode == SWALLOW_MODES[0] or her == null:
+		return v
 	var intensity: float = float(her.swallowSequence.get("intensity", INTENSITY_MIN))
 	var by_swallow := clampf(SWALLOW_MIN + (intensity - INTENSITY_MIN) / (INTENSITY_MAX - INTENSITY_MIN)
 		* (SWALLOW_MAX - SWALLOW_MIN), SWALLOW_MIN, SWALLOW_MAX)
@@ -211,7 +209,7 @@ func _swallow_scale(her) -> void:
 	var k: float = by_swallow if mode == SWALLOW_MODES[1] else (slider if mode == SWALLOW_MODES[2] else
 		(by_amount if mode == SWALLOW_MODES[4] else maxf(by_swallow, slider)))
 	# the mod's smoothlargeswallow: big swallows push out more than down
-	neck.swallowScale = Vector2(0.8 * k * 4, 0.5 * minf(1, by_swallow * -16.0 / 3 + 4.0 / 3))
+	return Vector2(v.x * k * 4, v.y * minf(1, by_swallow * -16.0 / 3 + 4.0 / 3))
 
 
 # ---------------------------------------------------------------- swallowing
@@ -221,12 +219,7 @@ func _swallow_scale(her) -> void:
 func _swallowing(her) -> void:
 	var neck = her.head.neck
 	if neck.swallowing and not _prev_wave:
-		var took: int = _prev_cum - her.cumInMouth
-		var per: int = get_setting("per_swallow")
-		if per > 0 and took > 0:
-			took = mini(per, _prev_cum)
-			her.cumInMouth = _prev_cum - took
-		last_amount = maxi(0, took)
+		last_amount = maxi(0, _prev_cum - her.cumInMouth)   # "Per swallow": Her.swallowAmount
 	if _prev_swallowing and not her.swallowing and get_setting("guzzle") and her.cumInMouth > 0 \
 			and her.penisInMouthDist < 0 and not her.passedOut:
 		her.swallow(0.0, false)

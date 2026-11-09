@@ -81,6 +81,7 @@ var _p_adj := 0.0
 var _blink_tension := 0
 var _blink_until := -1
 var _arm_hidden := false                 # hide_left_arm: his left arm was put away for the extra arm
+var _arm_before := 1      # his left arm position before _arm_hidden
 
 
 func _init() -> void:
@@ -682,7 +683,7 @@ func _follow_layers() -> void:
 	_r_arm.arm.upperArm.transform = a.arm.upperArm.transform
 	_r_arm.arm.foreArm.transform = a.arm.lowerArm.transform
 	_r_arm.arm.hand.transform = a.arm.hand.transform
-	_l_arm.visible = him.currentLeftArmPosition == 1
+	_l_arm.visible = him.leftArmShown()
 	if _l_arm.visible:
 		var l = him.leftArmContainer
 		_l_arm.transform = l.transform
@@ -740,11 +741,12 @@ func _tick() -> void:
 func _left_arm(la) -> void:
 	var shown: bool = la != null and la.enabled and la.shown()
 	var him = g.him
-	if shown and get_setting("hide_left_arm") and not _arm_hidden and him.currentLeftArmPosition == 1:
+	if shown and get_setting("hide_left_arm") and not _arm_hidden and him.leftArmShown():
+		_arm_before = him.currentLeftArmPosition
 		him.setLeftArmPosition(0)
 		_arm_hidden = true
 	elif _arm_hidden and not (shown and get_setting("hide_left_arm")):
-		him.setLeftArmPosition(1)
+		him.setLeftArmPosition(_arm_before)
 		_arm_hidden = false
 
 

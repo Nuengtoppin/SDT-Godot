@@ -18,6 +18,8 @@ extends RefCounted
 ##   hsl      get() -> {h, s, l, c}, set(dict), release(), remove()
 ##   chips    options, get() -> String, set(String): a wrapping row of buttons (moods, backgrounds)
 ##   note     text
+##   hotkey   action: a Hotkeys action id. A key button (click, then press the key; Esc cancels, Delete clears it),
+##            a reset button while it is not the default; a key another action also uses shows in WARN
 ##   custom   build() -> Control (its own refresh: give the Control a "refresh" meta Callable)
 ## Optional for all: visible() -> bool, enabled() -> bool, wide (label above the control).
 

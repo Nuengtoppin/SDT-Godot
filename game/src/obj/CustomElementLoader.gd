@@ -29,7 +29,7 @@ var proxyHairPackage: LoadedModPackage
 var proxyBGPackage: LoadedModPackage
 var modTargetHelpers: Dictionary = {}
 var modFileList: FlashFileReferenceList
-var swfFilter := {"description": "Mods", "extension": "*.swf;*.sdtmod"}
+var swfFilter := {"description": "Mods", "extension": "*.swf;*.mod;*.sdtmod"}
 var loadingMod: int = 0
 var tryingToLoadMods: Array = []
 var tryingToLoadMod: int = 0
@@ -497,6 +497,10 @@ func addLayerModElement(m, modType: String) -> void:
 
 
 func addDynamicHairMod(m) -> void:
+	if Hooks.has(&"CustomElementLoader.addDynamicHairMod"):   # HOOK
+		var h := Hooks.before(&"CustomElementLoader.addDynamicHairMod", self, [m])
+		if h.cancelled:
+			return
 	var key = _p(m, "targetElement")
 	if not key:
 		key = _p(m, "modType")

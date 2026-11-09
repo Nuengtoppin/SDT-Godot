@@ -71,8 +71,8 @@ func _apply_nipples() -> void:
 	if her == null or nipples == "Auto":
 		return
 	var on := nipples == "Shown"
-	her.torsoBack.leftBreast.nipple.visible = on
-	her.torso.midLayer.rightBreast.nipple.visible = on
+	her.torsoBack.leftBreast.nipple.visible = on   # direct: the nipples setting (art visibility)
+	her.torso.midLayer.rightBreast.nipple.visible = on   # direct: the nipples setting (art visibility)
 
 
 func _load_code(v: String) -> void:

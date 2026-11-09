@@ -51,10 +51,12 @@ func _setup() -> void:
 func _enable() -> void:
 	_defaults()
 	hook_before(&"Her.canSpeak", _can_speak)
-	hook_before(&"Her.setTargetPhoneme", _set_target_phoneme)
+	modify(&"Her.targetPhoneme", {"phase": Hooks.MOOD, "op": "fn", "when": func(_her): return _active(),
+		"fn": func(t, _her): return _gagged_phoneme(t)})
 	hook_after(&"Her.checkPosition", func(_c): _check_position())
 	hook_after(&"Her.checkMovementSounds", func(_c): _check_mouth())
-	hook_after(&"Her.setSpeaking", func(_c): _set_speaking())
+	modify(&"Her.speakingMouth", {"phase": Hooks.MOOD, "op": "fn", "when": func(_her): return _active(),
+		"fn": func(t, _her): return _speaking_mouth(t)})
 	hook_after(&"Dialogue.startSpeakingPhrase", func(_c): _line_started())
 	hook_after(&"Dialogue.continueSpeaking", func(_c): _continue())
 	if get_setting("enablevanillasaving"):
@@ -158,15 +160,9 @@ func _last_lip() -> int:
 	return mini(79, int(floor(maxf(0.0, -g.her.head.jaw.rotation_degrees * 4.5 + 30.0))))
 
 
-## Her.setTargetPhoneme: gagged or full, her lips only move a little around the gag / him.
-func _set_target_phoneme(c: Hooks.Call) -> void:
-	var word: Dictionary = c.args[0]
-	if not word.get("phoneme") or not _active():
-		return
-	c.cancel()
+## Her.targetPhoneme: gagged or full, her lips only move a little around the gag / him.
+func _gagged_phoneme(t: Dictionary) -> Dictionary:
 	var her = g.her
-	her.targetPhoneme = word["phoneme"]
-	her.phonemeDelay = c.args[1]
 	var up := 3
 	var down := 3
 	if not her.gagged:
@@ -189,7 +185,6 @@ func _set_target_phoneme(c: Hooks.Call) -> void:
 	elif not her.gagged:
 		top_mult = 0.25
 		bottom_mult = 0.25
-	var t: Dictionary = her.targetPhoneme
 	var upper := clampi(int(up + (t["upperLip"] - 50) * top_mult), 0, 79)
 	var lower := clampi(int(down + (t["lowerLip"] - 50) * bottom_mult), 0, 79)
 	var jaw: float
@@ -202,18 +197,16 @@ func _set_target_phoneme(c: Hooks.Call) -> void:
 		if not get_setting("enablesmallmouthmovement"):
 			a = 0.0
 		jaw = roundf(base + a)
-	her.targetPhoneme = {"name": "GTH", "upperLip": upper, "lowerLip": lower, "jaw": jaw}
+	return {"name": "GTH", "upperLip": upper, "lowerLip": lower, "jaw": jaw}
 
 
-func _set_speaking() -> void:
-	if not _active():
-		return
-	var her = g.her
-	var t: Dictionary = her.targetPhoneme.duplicate()
+## Her.speakingMouth: starting or stopping a line, her mouth stays shaped around him.
+func _speaking_mouth(t: Dictionary) -> Dictionary:
+	t = t.duplicate()
 	t["jaw"] = _penis_jaw()
 	t["upperLip"] = _last_lip()
 	t["lowerLip"] = t["upperLip"]
-	her.targetPhoneme = t
+	return t
 
 
 ## Held down or pulled off while speaking like this: she stops.

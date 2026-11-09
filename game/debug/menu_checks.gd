@@ -1,8 +1,8 @@
 extends RefCounted
 ## Checks of the new in-game menu (src/menu): every section builds, the controls change the game through the classic
 ## menu's handlers (and the classic menu shows the same), settings (side, pause, classic menu), extension settings
-## pages and controls added by extensions, the dialogue editor. Run by tools/regress.sh (main.gd --driver); prints
-## "MENU CHECKS: n passed, m failed" and quits.
+## pages and controls added by extensions, the dialogue editor, the hotkey editor. Run by tools/regress.sh (main.gd
+## --driver); prints "MENU CHECKS: n passed, m failed" and quits.
 
 var _pass := 0
 var _fail := 0
@@ -39,6 +39,9 @@ func step(_frame: int) -> void:
 				_behaviour_checks()
 				_extension_checks()
 				_dialogue_editor_checks()
+				_hotkey_panel_checks()
+				_credits_checks()
+				_characters_panel_checks()
 				_finish()
 
 
@@ -247,8 +250,8 @@ func _control_checks() -> void:
 		str(fits))
 
 
-## Behaviour's cards fold (MenuFold): Resistance and Reactions folded at first, the rest open; the button and a click
-## on the heading; the state kept; none in search results.
+## Behaviour's cards fold (MenuFold): all open at first; the button and a click on the heading; the state kept; none
+## in search results.
 func _fold_checks() -> void:
 	menu.open_menu()
 	menu.show_section("behaviour")
@@ -259,27 +262,26 @@ func _fold_checks() -> void:
 			continue
 		var cv: VBoxContainer = card.get_child(0)
 		var h: HBoxContainer = cv.get_child(0)
-		cards[(h.get_child(1) as Label).text] = [h, cv.get_child(1)]
+		cards[(h.get_child(1).get_child(0) as Label).text] = [h, cv.get_child(1)]   # fold, title box (title, count, tag), reset
 	_check("fold: Behaviour cards have a fold button", cards.has("RESISTANCE") and cards.has("REACTIONS")
 		and (cards["REACTIONS"][0].get_child(0) as Button).text in ["▸", "▾"], str(cards.keys()))
-	var others_open := true
+	var all_open := true
 	for k in cards:
-		if k not in ["RESISTANCE", "REACTIONS"] and not cards[k][1].visible:
-			others_open = false
-	_check("fold: Resistance and Reactions folded at first, the rest open", not cards["RESISTANCE"][1].visible
-		and not cards["REACTIONS"][1].visible and others_open)
+		if not cards[k][1].visible:
+			all_open = false
+	_check("fold: every card open at first", all_open)
 	var fold_btn: Button = cards["REACTIONS"][0].get_child(0)
 	fold_btn.pressed.emit()
-	_check("fold: the button opens it, and it is kept", cards["REACTIONS"][1].visible and fold_btn.text == "▾"
-		and PortSettings.get_value("menu_fold", "behaviour/Reactions", true) == false)
+	_check("fold: the button folds it, and it is kept", not cards["REACTIONS"][1].visible and fold_btn.text == "▸"
+		and PortSettings.get_value("menu_fold", "behaviour/Reactions", false) == true)
+	var count: Label = cards["REACTIONS"][0].get_child(1).get_child(1)
+	_check("fold: a folded card shows how many settings it holds", count.visible and count.text.begins_with("("))
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
 	cards["REACTIONS"][0].gui_input.emit(click)
-	_check("fold: a click on the heading folds it again", not cards["REACTIONS"][1].visible and fold_btn.text == "▸"
-		and PortSettings.get_value("menu_fold", "behaviour/Reactions", false) == true)
-	_check("fold: a folded card shows how many settings it holds", (cards["REACTIONS"][0].get_child(2) as Label).visible
-		and (cards["REACTIONS"][0].get_child(2) as Label).text.begins_with("("))
+	_check("fold: a click on the heading opens it again", cards["REACTIONS"][1].visible and fold_btn.text == "▾"
+		and PortSettings.get_value("menu_fold", "behaviour/Reactions", true) == false)
 	# a card's reset: change a game checkbox, a game slider and extension settings in Reactions and the collar's
 	# stiffness in Resistance; ↺ once only asks, twice sets Reactions back and leaves Resistance as it is
 	var x = Extensions.get_extension("throatcumbulge")
@@ -804,6 +806,13 @@ func _behaviour_checks() -> void:
 	air["Oxygen"]["set"].call(80.0)
 	_check("Air 100: out of breath at half of it; Oxygen 80", g.breathLevelMax == 100.0 and g.outOfBreathPoint == 50.0
 		and g.her.passOutMax == 80.0)
+	# a mood's lowered breath, as moremoods does it: a share of her base air
+	var mood_air := Hooks.add_modifier(&"Her.breathMax", {"phase": Hooks.MOOD, "op": "fn",
+		"fn": func(v, _her): return v * 4.0 / g.BREATH_MAX}, "menu_checks")
+	g.resolveBreath()
+	_check("Air by hand is her base, a mood scales it (moremoods' lowered breath: 4 of 50)", g.breathLevelMax == 8.0,
+		str(g.breathLevelMax))
+	_check("The Air slider shows her base, not the mood's", air["Air"]["get"].call() == 100.0, str(air["Air"]["get"].call()))
 	DevBehaviour.set_all(false)
 	_check("Freeze all switches off every behaviour", DevBehaviour.off_count() == DevBehaviour.hooks().size())
 	DevBehaviour.set_all(true, "eyes")
@@ -829,6 +838,10 @@ func _behaviour_checks() -> void:
 	_check("Developer mode off: hand settings back to the game's", DevTuning._mods.is_empty() and not DevTuning._spam_fn.is_valid()
 		and DevTuning.clench_s == 0.0 and not Hooks.has_value(&"Her.clenchTime"))
 	_check("Developer mode off: the body's debug layers off", not DevBodyOverlay.any_on())
+	_check("Developer mode off: a mood's air stays", g.breathLevelMax == 4.0 and g.outOfBreathPoint == 2.0,
+		"%s %s" % [g.breathLevelMax, g.outOfBreathPoint])
+	Hooks.remove_modifier(mood_air)
+	g.resolveBreath()
 	_check("Developer mode off: her air and oxygen the game's again", g.breathLevelMax == 50.0 and g.outOfBreathPoint == 25.0
 		and g.her.passOutMax == 40.0)
 	_check("Developer mode off: the event log stops, no hooks or tick of its own", not Journal.active
@@ -1164,3 +1177,125 @@ func _hands_feet_checks(h) -> void:
 	_check("ankle and toe rings: the foot bone turns 30 about the ankle, the toes 25 about the ball, the game's calf untouched; the vector calf's toes follow, its shin not; no fingers, the feet and hands as fitted; clamped; our layer off: as drawn",
 		feet_ok and vec_ok and fitted_ok and absf(ankle_max - DevBodyRings.limit("ankle_r").y) < 0.01 and off_ok,
 		"%.2f %s %s %s %.1f %s" % [foot_turn, feet_ok, vec_ok, fitted_ok, ankle_max, off_ok])
+
+
+func _credits_checks() -> void:
+	var credits: Array = MenuSchema._help()["groups"].filter(func(gr): return gr["title"] == "Credits")
+	_check("credits: in Help", credits.size() == 1)
+	var lines: Array = credits[0]["controls"].map(func(c): return c["text"])
+	_check("credits: the game and the mods' authors", lines[0] == "Original game: Konashion" and lines[1].begins_with("Mods: "))
+
+
+func _characters_panel_checks() -> void:
+	MenuSchema.close_then(CharactersPanel.open_editor)
+	var p: CharactersPanel = CharactersPanel.instance
+	_check("characters: panel opens and locks the game's keys", p != null and p.is_open and g.controlLocked)
+	if p == null:
+		return
+	var base := MenuCharacters.count()
+	var rows := func(): return p._rows.get_children().filter(func(r): return not r.is_queued_for_deletion())
+	_check("characters: every character listed", rows.call().size() == base)
+	_check("characters: the game's own have pictures", MenuCharacters.picture(0) != null)
+	var worn := g.inGameMenu.getSaveDataString(false)
+	for i in base:
+		if MenuCharacters.has_clothes(i):
+			MenuCharacters.load_costume(i)
+			break
+	_check("characters: clothes only runs", g.inGameMenu.getSaveDataString(false) != "" and worn != "")
+	p._name.text = "Check! One"
+	p.save_new()
+	_check("characters: saved under a clean name", MenuCharacters.count() == base + 1
+		and MenuCharacters.names()[base] == "Check One" and g.storedChars.back().charData != "")
+	_check("characters: the new one is selected", MenuCharacters.index() == base)
+	g.saveData.saveCharData(false, 0, false)
+	_check("characters: a save held for her mods keeps her selected", MenuCharacters.index() == base)
+	_check("characters: classic list stays shut", not g.inGameMenu.charMenuOpen and not g.inGameMenu.charStoringOpen)
+	_check("characters: saved in the save file", g.saveData._d("customCharNames").has("Check One"))
+	p._name.text = "Check Two"
+	p.save_new()
+	var one: CustomCharacter = MenuCharacters.stored(base)
+	var two: CustomCharacter = MenuCharacters.stored(base + 1)
+	two.dialogue = "two's dialogue"
+	g.saveData.saveCustomChar(two.ID)
+	var data := one.charData
+	p.rename(one, "Check Three")
+	_check("characters: rename keeps the look", MenuCharacters.names()[base] == "Check Three" and one.charData == data
+		and g.saveData._d("customCharNames").has("Check Three"))
+	p.query = "three"
+	_check("characters: search", p.shown_characters() == [base])
+	p.query = ""
+	MenuCharacters.move(base + 1, 0)
+	_check("characters: moved to the top", MenuCharacters.names()[0] == "Check Two" and MenuCharacters.stored(0) == two)
+	_check("characters: position saved", two.menuPosition == 0 and g.saveData._d("customCharOrder").size() == g.storedChars.size())
+	MenuCharacters.move(0, base + 1)
+	p.update(one)
+	_check("characters: update keeps the name and count", one.charName == "Check Three" and MenuCharacters.count() == base + 2)
+	p.delete(one)
+	_check("characters: delete asks first", MenuCharacters.count() == base + 2 and p.confirming == one)
+	p.delete(one)
+	_check("characters: deleted", MenuCharacters.count() == base + 1 and not g.storedChars.has(one) and two.ID == 0)
+	_check("characters: the next one keeps its dialogue", g.saveData._d("customCharDialogue")[0] == "two's dialogue",
+		str(g.saveData._d("customCharDialogue")))
+	_check("characters: saved order stays valid", g.saveData._d("customCharOrder").size() == g.storedChars.size())
+	p.confirming = two
+	p.delete(two)
+	_check("characters: back to the game's own", MenuCharacters.count() == base and g.storedChars.is_empty())
+	p._name.text = "Check Four"
+	p.save_new()
+	var first: String = MenuCharacters.names()[0]
+	p._hide.button_pressed = true
+	_check("characters: hiding leaves the first and the stored ones", p.shown_characters() == [0, base]
+		and MenuCharacters.shown_names() == [first, "Check Four"])
+	_check("characters: hiding is saved", bool(PortSettings.get_value("characters", "hide_defaults", false)))
+	_check("characters: Her > Character follows", MenuCharacters.shown_index() == 1)
+	var seen := []
+	for i in 4:
+		g.inGameMenu.characterMenu.selectNextCharacter()
+		seen.append(g.inGameMenu.characterMenu.lastSelectedID)
+	_check("characters: next character skips the hidden ones", seen == [0, base, 0, base], str(seen))
+	g.inGameMenu.characterMenu.selectPrevCharacter()
+	_check("characters: previous character too", g.inGameMenu.characterMenu.lastSelectedID == 0)
+	MenuCharacters.select_shown(1)
+	_check("characters: picking from the shown list", MenuCharacters.index() == base)
+	p._hide.button_pressed = false
+	_check("characters: all back with the switch off", p.shown_characters().size() == base + 1)
+	p.confirming = MenuCharacters.stored(base)
+	p.delete(MenuCharacters.stored(base))
+	p.close()
+	_check("characters: closing gives the keys back", not g.controlLocked and not g.inTextField)
+
+
+func _hotkey_panel_checks() -> void:
+	var opened := false
+	for grp in MenuSchema.hotkey_groups():
+		for c in grp["controls"]:
+			for btn in c.get("buttons", []):
+				if btn[0] == "Edit hotkeys…":
+					btn[1].call()
+					opened = true
+	var p: HotkeyPanel = HotkeyPanel.instance
+	_check("hotkey editor: Settings › Hotkeys opens it", opened and p != null and p.is_open and g.controlLocked)
+	if p == null:
+		return
+	_check("hotkey editor: every action listed", p.shown_actions().size() == Hotkeys.actions.size())
+	p.group = Hotkeys.GAME
+	p._show()
+	_check("hotkey editor: the game's keys", p._rows.get_children().filter(func(r): return r.has_meta("action")).size()
+		== Hotkeys.actions.filter(func(a): return a["owner"] == Hotkeys.GAME).size())
+	p._key_clicked("game:mute")
+	var e := InputEventKey.new()
+	e.keycode = KEY_N
+	e.pressed = true
+	_check("hotkey editor: a key button waits for a key", Hotkeys.capturing() and Hotkeys.capture_event(e))
+	_check("hotkey editor: the new key is kept", Hotkeys.binding("game:mute") == 78
+		and int(PortSettings.get_value("hotkeys", "game:mute", 0)) == 78)
+	p.group = HotkeyPanel.CHANGED
+	_check("hotkey editor: changed keys", p.shown_actions().map(func(a): return a["id"]) == ["game:mute"])
+	p.undo()
+	_check("hotkey editor: undo", Hotkeys.binding("game:mute") == 77 and PortSettings.get_value("hotkeys", "game:mute", null) == null)
+	p.query = "screenshot"
+	_check("hotkey editor: search", p.shown_actions().map(func(a): return a["id"]) == ["game:screenshot"])
+	p.query = ""
+	p.group = HotkeyPanel.ALL
+	p.close()
+	_check("hotkey editor: closed, the game's keys back", not p.is_open and not g.controlLocked)

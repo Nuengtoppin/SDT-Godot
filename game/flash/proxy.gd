@@ -66,23 +66,62 @@ static func _make_viewport() -> SubViewport:
 ## Whether a canvas item is drawn at all: visible up to the root (across render targets) and not fully
 ## transparent. Hidden or transparent render targets stop updating (they would redraw every frame for nothing).
 static func shown(n: Node) -> bool:
+	return _opacity(n) >= 0.004
+
+
+## Nodes worked out in this pass over the render targets: opacity up to the root, 0 when hidden.
+static var _opacities := {}
+
+
+## Before and after that pass, and when a target's visibility changes in it.
+static func forget_shown() -> void:
+	_opacities.clear()
+
+
+static func _opacity(n: Node) -> float:
+	if n == null:
+		return 1.0
+	var known = _opacities.get(n)
+	if known != null:
+		return known
 	var a := 1.0
-	while n != null:
-		if n is CanvasItem:
-			var ci: CanvasItem = n
-			if not ci.visible:
-				return false
-			a *= ci.modulate.a * ci.self_modulate.a
-			if a < 0.004:
-				return false
-		n = n.get_parent()
-	return true
+	if n is CanvasItem:
+		var ci: CanvasItem = n
+		a = ci.modulate.a * ci.self_modulate.a if ci.visible else 0.0
+	if a > 0.0:
+		a *= _opacity(n.get_parent())
+	_opacities[n] = a
+	return a
 
 
 ## The MSAA level of the screen and of every render target; the game's MSAA setting changes it
 ## (PortSettings.apply_msaa). Render targets need it as much as the screen: a rotated shape whose image is cut off at
 ## its border shows that border as a hard polygon edge (the end of her collar, eyeliner), which only MSAA smooths.
 static var msaa_level: Viewport.MSAA = ProjectSettings.get_setting("rendering/anti_aliasing/quality/msaa_2d", 0)
+
+
+## Slack around the visible area a render target still covers, as a share of the viewport's size: content glides
+## between ticks (physics interpolation) and the camera zooms smoothly, while targets are laid out once per tick.
+const VIEW_SLACK := 0.15
+## Off: render targets cover their whole bounds again (debug comparisons).
+static var view_clip := true
+
+
+## The part of local rect b (in the space that `screen` maps to viewport pixels) inside the viewport ci draws in,
+## grown by VIEW_SLACK plus margin_px. Zoomed in, a group or mask can be many times the window; rendering only
+## what can show keeps each target at most about the window's size. Empty when b is entirely off-screen.
+static func clip_to_view(ci: CanvasItem, screen: Transform2D, b: Rect2, margin_px: float) -> Rect2:
+	var vp := ci.get_viewport()
+	var size := Vector2(vp.size) if vp != null else Vector2.ZERO
+	if not view_clip or size.x <= 0.0 or size.y <= 0.0 or absf(screen.determinant()) < 1e-9:
+		return b
+	var view := Rect2(Vector2.ZERO, size).grow_individual(size.x * VIEW_SLACK + margin_px,
+		size.y * VIEW_SLACK + margin_px, size.x * VIEW_SLACK + margin_px, size.y * VIEW_SLACK + margin_px)
+	var inv := screen.affine_inverse()
+	var local := Rect2(inv * view.position, Vector2.ZERO)
+	for p in [Vector2(view.end.x, view.position.y), view.end, Vector2(view.position.x, view.end.y)]:
+		local = local.expand(inv * p)
+	return b.intersection(local)
 
 
 static func set_msaa(vp: SubViewport) -> void:
@@ -114,7 +153,7 @@ func _release_children() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_PREDELETE:
+	if what == NOTIFICATION_PREDELETE and is_instance_valid(Flash):   # at quit the runtime can go first
 		Flash.unregister_mask_proxy(self)
 
 
@@ -150,6 +189,13 @@ func refresh() -> void:
 	# screen pixels per unit along each axis (a uniform max of the two made stretched masks far too big)
 	var sc := Vector2(maxf(screen.x.length(), 0.01), maxf(screen.y.length(), 0.01))
 	b = b.grow_individual(1.0 / sc.x, 1.0 / sc.y, 1.0 / sc.x, 1.0 / sc.y)
+	b = FlashProxy.clip_to_view(self, screen, b, 1.0)   # only what can show on screen
+	if b.size.x <= 0.0 or b.size.y <= 0.0:   # off-screen
+		_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_mask_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		_rect = Rect2()
+		queue_redraw()
+		return
 	var want := (b.size * sc).ceil()
 	if want.x > MAX_SIZE or want.y > MAX_SIZE:
 		sc *= minf(MAX_SIZE / want.x, MAX_SIZE / want.y)
@@ -316,11 +362,13 @@ static func update_for(obj: FlashDisplayObject) -> void:
 		inner = g
 		# Inside its viewport the object's transform is cancelled per tick; it must not be interpolated.
 		obj.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+		FlashGroupProxy.children_glide(obj, FlashRectClip.smooth)
 		g.transform = obj.transform
 		g.reset_physics_interpolation()
 	elif old_group != null:
 		old_group.queue_free()
 		obj.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_INHERIT
+		FlashGroupProxy.children_glide(obj, false)
 	if need_mask:
 		var rect := FlashRectClip.rect_of(obj._mask)
 		if rect.size != Vector2.ZERO:

@@ -7,6 +7,7 @@ const BACKGROUND := "Background"
 const HAIR := "StaticHair"
 const DYNAMIC_HAIR := "DynamicHair"
 const HAIR_COSTUME := "HairCostume"
+const LEASH := "LEASH"   # port: dynamicHairExtender's type (ModCatalog.is_leash)
 const BODY := "Body"
 const GAG := "CostumeGag"
 const COLLAR := "CostumeCollar"

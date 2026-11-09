@@ -23,6 +23,16 @@ static func set_value(section: String, key: String, value) -> void:
 		push_error("port settings: cannot save %s (%s)" % [FILE, error_string(err)])
 
 
+static func erase_value(section: String, key: String) -> void:
+	_load()
+	if not _cfg.has_section_key(section, key):
+		return
+	_cfg.erase_section_key(section, key)
+	var err := _cfg.save(FlashSharedObject.save_dir.path_join(FILE))
+	if err != OK:
+		push_error("port settings: cannot save %s (%s)" % [FILE, error_string(err)])
+
+
 ## Frame rate limit (Settings > Graphics > FPS limit): "Off" (as fast as it goes), "Monitor" (the screen's refresh rate) or a
 ## number. A limit keeps the GPU from drawing frames the screen cannot show.
 const FPS_LIMITS := ["Off", "Monitor", "60", "120", "144", "240"]

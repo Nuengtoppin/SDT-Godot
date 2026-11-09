@@ -126,6 +126,7 @@ func step(_frame: int) -> void:
 				_extramod_checks()
 				_shock_spray_veto_checks()
 				_extramodhim_checks()
+				_dynamichair_checks()
 				_leglayer_checks()
 				_aimpenis_checks()
 				_regulaterandom_checks()
@@ -141,7 +142,9 @@ func step(_frame: int) -> void:
 				_swallow_points_checks()
 				_swallow_queue_checks()
 				_penisrange_checks()
+				_value_point_port_checks()
 				_tongueguard_checks()
+				_loadershortcuts_checks()
 				_disable_checks()
 				_plugin_checks()
 				print("EXT CHECKS: %d passed, %d failed" % [_pass, _fail])
@@ -268,6 +271,120 @@ func _extramod_checks() -> void:
 		futa._flash_parent == her.torso.penisContainer and futa.visible == (her._penisControl.currentPenisID != 0))
 	cel.clearInstancedMods()
 	_check("ExtraMod cleared: the game's dialogue box and text colour back", box.visible and field.textColor == color0)
+	# BodyExpanded: parts beside her own, vanillaOverwrite hides hers (the calf: her children 0 and 2), clearing
+	# brings them back
+	_check("ExtraMod body type", helpers.has("BodyExpanded") and cat.picker_types.get("BodyExpanded") == "extramod_body")
+	var mcat := {"modName": "EM merge test", "items": [
+		{"item": 0, "modType": "BodyHead", "name": "", "targetElement": ""},
+		{"item": 1, "modType": "BodyExpanded", "name": "", "targetElement": ""},
+		{"item": 2, "modType": "DynamicHair", "name": "", "targetElement": ""}]}
+	var fcat := {"modName": "EM face test", "items": [{"item": 0, "modType": "BodyHead", "name": "", "targetElement": ""}]}
+	cat._add("test/em_merge.swf", mcat)
+	cat._add("test/em_face.swf", fcat)
+	var mine := func(k): return cat.picker_entries[k].filter(func(e): return e["path"].begins_with("test/em_"))
+	var whole: Array = mine.call(em.BODY_LIST)
+	var face: Array = mine.call(em.LIST)
+	var hair_e: Array = cat.hair_entries.filter(func(e): return e["path"].begins_with("test/em_"))
+	_check("ExtraMod whole-body mod: one switch in the body list with its head and hair items, a face mod stays in the face list",
+		whole.size() == 1 and whole[0]["items"] == [1, 0, 2] and face.size() == 1 and face[0]["path"] == "test/em_face.swf"
+		and hair_e.is_empty(), "%s %s %s" % [whole, face, hair_e])
+	var test_e: Array = whole + face
+	cat.entries = cat.entries.filter(func(e): return not e in test_e)
+	for k in [em.BODY_LIST, em.LIST]:
+		cat.picker_entries[k] = cat.picker_entries[k].filter(func(e): return not e in test_e)
+	cat._seen = cat._seen.filter(func(s): return not s[0].begins_with("test/em_"))
+	var hand = em.body.target("altrighthand")
+	var calf = em.body.target("altrightcalf")
+	var own_hand: Array = em.body._own_children(hand)
+	var own_calf: Array = em.body._own_children(calf)
+	var vis_before := (own_hand + own_calf).map(func(o): return o.visible)
+	var upper = em.body.target("altleftupperarm")
+	var upper_vis: bool = upper.visible
+	upper.visible = false   # as the game hides it (her arms behind her back): clearing must not show it
+	pkg = LoadedModPackage.new("swfMod")
+	pkg.setFilePath("test/em_body.swf|0")
+	cel.loadedModPackages.append(pkg)
+	cel.loadingModPackage = pkg
+	var bodymod := FlashMovieClip.new()
+	bodymod.set("modType", "BodyExpanded")
+	bodymod.set("vanillaOverwrite", true)
+	for n in ["altrighthand", "altrightcalf"]:
+		var part := FlashMovieClip.new()
+		part.flash_name = n
+		bodymod.addChild(part)
+	cel.parseMod(bodymod)
+	cel.loadingModPackage = null
+	var hparts: Array = em.body._parts("altrighthand")
+	_check("ExtraMod body mod: parts in her hand and calf, her own hidden",
+		hparts.size() == 1 and hparts[0]._flash_parent == hand and em.body._parts("altrightcalf").size() == 1
+		and own_hand.all(func(o): return not o.visible) and not own_calf[0].visible and not own_calf[2].visible,
+		"%s %s" % [hparts, own_calf.map(func(o): return o.visible)])
+	cel.clearInstancedMods()
+	_check("ExtraMod body mod cleared: her own parts back, the parts the game hid still hidden",
+		em.body._parts().is_empty() and (own_hand + own_calf).map(func(o): return o.visible) == vis_before
+		and not em.body.on and not upper.visible)
+	upper.visible = upper_vis
+
+
+## Dynamic Hair Extender: a strand with DHE settings is built by it (anchor container, visual parent, its physics,
+## shared links), a plain one stays the game's; clearing takes both off.
+func _dynamichair_checks() -> void:
+	var dh: SDTExtension = Extensions.get_extension("dynamichair")
+	_check("Dynamic Hair Extender on by default", dh != null and dh.enabled)
+	if dh == null or not dh.enabled:
+		return
+	_check("a strand on her collar is a leash", ModCatalog.is_leash({"modType": ModTypes.DYNAMIC_HAIR, "anchorContainer": "her.collarContainer.collar"}))
+	_check("a strand on her head is not", not ModCatalog.is_leash({"modType": ModTypes.DYNAMIC_HAIR, "anchorContainer": "her.head"}))
+	_check(".mod files are mods", "mod" in ModCatalog.MOD_EXTENSIONS)
+	var her: Her = g.her
+	var cel = g.customElementLoader
+	var strand := func(n: String, settings: Dictionary) -> FlashMovieClip:
+		var m := FlashMovieClip.new()
+		m.flash_name = n
+		m.set("modType", "DynamicHair")
+		m.set("targetElement", "dynamicHairOver")
+		for k in settings:
+			m.set(k, settings[k])
+		for i in 3:
+			var seg := FlashMovieClip.new()
+			seg.flash_name = "SHARED_link%d" % i if n != "plain" else ""
+			seg.y = i * 20.0
+			seg.addChild(FlashShape.new())
+			m.addChild(seg)
+		return m
+	var pkg := LoadedModPackage.new("swfMod")
+	pkg.setFilePath("test/dhe.swf|0")
+	cel.loadedModPackages.append(pkg)
+	cel.loadingModPackage = pkg
+	var a: FlashMovieClip = strand.call("a", {"anchorContainer": "her.torso.back", "visualParent": "her.torso.back",
+		"rotationBlending": 0.5, "linkWeights": {"0": 0, "1.0": 3}, "modTypeReplacer": "CostumeTop"})
+	var b: FlashMovieClip = strand.call("b", {"anchorContainer": "her.torso.back", "slavedUpdates": true, "anchored": true})
+	var plain: FlashMovieClip = strand.call("plain", {})
+	for m in [a, b, plain]:
+		cel.parseMod(m)
+	cel.loadingModPackage = null
+	var ropes: Array = dh.ropes.filter(func(r): return r.ropeGraphic in [a, b])
+	var ra = ropes[0] if ropes.size() == 2 else null
+	var rb = ropes[1] if ropes.size() == 2 else null
+	_check("DHE strands: built by the extension, in their visual parent, hanging from their anchor container",
+		ra != null and ra.extended and ra._flash_parent == her.torso.back and ra.ropeAnchorContainer == her.torso.back
+		and ra.links[1].mass == 3.0 and ra.links[0].mass == 0.0 and rb.slavedUpdates,
+		"%s" % [ropes.map(func(r): return [r.extended, r._flash_parent.flash_name])])
+	var lms: Array = cel.instancedModElements.filter(func(lm): return lm._mod == ra)
+	_check("DHE modTypeReplacer: the strand counts as that type", lms.size() == 1 and lms[0].modType == "CostumeTop")
+	_check("DHE shared links: same-named segments share their links, the slaved strand joins the other",
+		ra != null and ra.links[2] == rb.links[2] and ra.sharedRopes.has(rb) and rb.sharedRopes.has(ra))
+	var plain_rope = plain._flash_parent
+	_check("DHE: a strand without its settings stays the game's", plain_rope is Rope and not dh.ropes.has(plain_rope))
+	for i in 5:
+		ra.move()
+	ra._links_to_anchors(true)
+	var finite: bool = (ra.links + rb.links).all(func(l): return is_finite(l.x) and is_finite(l.y))
+	_check("DHE physics: steps leave every link finite, the anchor link on her back", finite
+		and Vector2(ra.links[0].x, ra.links[0].y).is_equal_approx(g.sceneLayer.globalToLocal(her.torso.back.localToGlobal(ra.ropeAnchorPoint))))
+	cel.clearInstancedMods()
+	_check("DHE cleared: its strands and shared links gone", dh.ropes.is_empty() and dh.shared_links.is_empty(),
+		"%d %s" % [dh.ropes.size(), dh.shared_links.keys()])
 
 
 ## ExtraModHim (his body and penis so far): types registered, follow his body change, off removes them.
@@ -608,7 +725,7 @@ func _rings_checks() -> void:
 	_check("rings: profiles by name", ThroatRings.apply_profile("Band") and ThroatRings.stiffness == 0.2
 		and not ThroatRings.apply_profile("nope"))
 	ThroatRings.set_stiffness(0.6)
-	var game := [g.throatResistance, her.pos, n.throatBulgeAmount, her.collarContainer.collar.scaleX, n.swallowScale]
+	var game := [g.throatResistance, her.pos, n.throatBulgeAmount, her.collarContainer.collar.scaleX]
 	var r := ThroatRings._ring("test", 0.2, 0.3, 0.8, 0.0, 5.0)
 	ThroatRings.tip = 0.5
 	ThroatRings.push = 1.0
@@ -645,7 +762,7 @@ func _rings_checks() -> void:
 	ThroatRings.set_stiffness(0.6)
 	_ring_tick(her)
 	_check("rings: they change nothing in the game by themselves", game == [g.throatResistance, her.pos, n.throatBulgeAmount,
-		her.collarContainer.collar.scaleX, n.swallowScale])
+		her.collarContainer.collar.scaleX])
 	cc.select(was)
 	ThroatRings.reset_stretch()
 
@@ -814,21 +931,24 @@ func _swallowing_checks() -> void:
 	her.swallowing = false
 	her.speaking = false
 	her.passedOut = false
-	# a swallow's wave starts: the game took 7 of 20; with "per swallow" 3 it takes 3
+	# a swallow takes from her mouth (value point Her.swallowAmount): with "per swallow" 3 it takes 3, and a swallow's
+	# wave starting records how much it took
 	x.set_setting("per_swallow", 3)
+	her.cumInMouth = 20
+	her.swallowFromMouth()
 	x._prev_cum = 20
 	x._prev_wave = false
 	x._prev_swallowing = false
-	her.cumInMouth = 13
 	neck.swallowing = true
 	x._swallowing(her)
 	_check("per swallow: takes what is set", her.cumInMouth == 17 and x.last_amount == 3)
+	her.cumInMouth = 2
+	her.swallowFromMouth()
+	_check("per swallow: no more than she has", her.cumInMouth == 0)
 	x.set_setting("per_swallow", 0)
-	x._prev_cum = 20
-	x._prev_wave = false
-	her.cumInMouth = 13
-	x._swallowing(her)
-	_check("per swallow 0: the game's amount", her.cumInMouth == 13 and x.last_amount == 7)
+	her.cumInMouth = 20
+	her.swallowFromMouth()
+	_check("per swallow 0: the game's amount (5-9)", her.cumInMouth >= 11 and her.cumInMouth <= 15)
 	neck.swallowing = false
 	x.set_setting("guzzle", true)
 	x._prev_swallowing = true
@@ -866,16 +986,16 @@ func _swallowing_checks() -> void:
 	_check("while he cums: not held deep (it goes down her throat)", not her.swallowing)
 	x.set_setting("pump", "Off")
 	x.set_setting("swallow_mode", "By amount")
-	neck.swallowing = true
+	var game_scale := Vector2(0.8, 0.5)
 	x.last_amount = 10
-	x._swallow_scale(her)
-	var big: float = neck.swallowScale.x
+	var big: float = Hooks.value(&"Neck.swallowScale", neck, game_scale).x
 	x.last_amount = 5
-	x._swallow_scale(her)
-	_check("swallow bulge by amount: a bigger swallow, a bigger bulge", big > neck.swallowScale.x and is_equal_approx(big, 0.8 * 0.75 * 4))
+	var small: float = Hooks.value(&"Neck.swallowScale", neck, game_scale).x
+	_check("swallow bulge by amount: a bigger swallow, a bigger bulge (Neck.swallowScale)", big > small
+		and is_equal_approx(big, 0.8 * 0.75 * 4))
 	neck.swallowing = false
 	x.set_setting("swallow_mode", "The game's")
-	x._swallow_scale(her)
+	_check("swallow bulge the game's: the game's scale", Hooks.value(&"Neck.swallowScale", neck, game_scale) == game_scale)
 	her.cumInMouth = was[0]
 	her.swallowing = was[1]
 	her.speaking = was[2]
@@ -892,7 +1012,7 @@ func _swallowing_checks() -> void:
 func _counted(name: StringName, fn: Callable) -> int:
 	var n := [0]
 	var count := func(_c): n[0] += 1
-	Hooks.add_before(name, count, "count")
+	Hooks.add_before(name, count, "count", -1000000)   # first: counts the call before an extension cancels it (moremoods: no wince in some moods)
 	fn.call()
 	Hooks.remove(name, count)
 	return n[0]
@@ -1032,6 +1152,77 @@ func _swallow_queue_checks() -> void:
 	x._prev_swallowing = her.swallowing
 
 
+## Built-in extensions that wrote the game's state now go through value points: gaggeddialog (Her.targetPhoneme),
+## loaderarm (Her.pullOffPower), alternativepassout's eye roll (Her.gazeAngle), throatcumbulge's cum bulge
+## (Neck.throatBulge, her throat bulge setting untouched).
+func _value_point_port_checks() -> void:
+	var her = g.her
+	var gd = Extensions.get_extension("gaggeddialog")
+	var was_gd := [gd.gagged_mode, gd.in_mouth, her.gagged, her.targetPhoneme, her.phonemeDelay]
+	var word := {"phoneme": {"name": "AA", "upperLip": 80, "lowerLip": 80, "jaw": -8.0}}
+	gd.gagged_mode = 0
+	gd.in_mouth = false
+	her.setTargetPhoneme(word, 2)
+	_check("gaggeddialog off: the word's own mouth shape", her.targetPhoneme["name"] == "AA" and her.phonemeDelay == 2)
+	gd.gagged_mode = 1
+	her.gagged = true
+	her.setTargetPhoneme(word, 3)
+	_check("gaggeddialog gagged: a small mouth movement around the gag (Her.targetPhoneme)",
+		her.targetPhoneme["name"] == "GTH" and her.targetPhoneme["jaw"] == -8.0 and her.phonemeDelay == 3)
+	gd.gagged_mode = was_gd[0]
+	gd.in_mouth = was_gd[1]
+	her.gagged = was_gd[2]
+	her.targetPhoneme = was_gd[3]
+	her.phonemeDelay = was_gd[4]
+
+	var la = Extensions.get_extension("loaderarm")
+	if la.arm != null:
+		var was_la := [la.arm.visible, la.get_setting("hold")]
+		la.arm.visible = true
+		la.set_setting("hold", true)
+		var pp: Dictionary = Hooks.value(&"Her.pullOffPower", her, her.pullOffPower.duplicate())
+		_check("loaderarm holding her: she doesn't pull off (Her.pullOffPower)", pp["start"] == 0.0 and pp["increase"] == 0.0
+			and pp["max"] == 0.0)
+		la.set_setting("hold", false)
+		pp = Hooks.value(&"Her.pullOffPower", her, her.pullOffPower.duplicate())
+		_check("loaderarm not holding: the game's pull-off", pp["max"] == her.pullOffPower["max"])
+		la.arm.visible = was_la[0]
+		la.set_setting("hold", was_la[1])
+
+	var ap = Extensions.get_extension("alternativepassout")
+	var was_ap := [ap._active, ap.option, ap._roll, her.passedOut, her.winceTimer, her.passOutFactor]
+	ap._active = true
+	ap.option = 1
+	ap._roll = 10.0
+	her.passedOut = true
+	her.winceTimer = 0
+	her.passOutFactor = her.passOutMax
+	# where she would look, pinned (a mood makes the angle itself, at random: a set wins over it in its phase)
+	var pin := Hooks.add_modifier(&"Her.gazeAngle", {"phase": Hooks.GENERATE, "op": "set", "value": 90.0}, "ext_checks")
+	var rolled = Hooks.value(&"Her.gazeAngle", her, 90.0)
+	ap.option = 0
+	var still = Hooks.value(&"Her.gazeAngle", her, 90.0)
+	Hooks.remove_modifier(pin)
+	_check("alternativepassout eye roll: her gaze rolls up from where it would be (Her.gazeAngle)",
+		is_equal_approx(rolled, 80.0) and still == 90.0, "%s %s" % [rolled, still])
+	ap._active = was_ap[0]
+	ap.option = was_ap[1]
+	ap._roll = was_ap[2]
+	her.passedOut = was_ap[3]
+	her.winceTimer = was_ap[4]
+	her.passOutFactor = was_ap[5]
+
+	var tc = Extensions.get_extension("throatcumbulge")
+	var neck = her.head.neck
+	var setting_was: float = g.throatBulgeAmount
+	tc._raise = 0.3
+	_check("throatcumbulge cum bulge: over her setting (Neck.throatBulge)",
+		is_equal_approx(Hooks.value(&"Neck.throatBulge", neck, 1.0), 1.3)
+		and is_equal_approx(Hooks.value(&"Neck.throatBulge", neck, 1.4), 1.5) and g.throatBulgeAmount == setting_was)
+	tc._raise = 0.0
+	_check("throatcumbulge no cum bulge: her setting", Hooks.value(&"Neck.throatBulge", neck, 1.0) == 1.0)
+
+
 ## penisrange: off by default (the game's limits); on, wider limits, sizes kept as sizes; big sizes move the mask
 ## and the balls; off again, sizes and limits back inside the game's range.
 func _penisrange_checks() -> void:
@@ -1049,18 +1240,19 @@ func _penisrange_checks() -> void:
 	him.loadPenisScales(2.5, 2.0)
 	_check("penisrange: sizes past the game's range load as they are", him.currentPenisLengthScale == 2.5 and him.currentPenisWidthScale == 2.0)
 	him.setBallScale(2.0)
-	x._tick()
-	_check("penisrange: big sizes, the mask follows his length", him.penisMask.scaleX == 2.5)
-	_check("penisrange: big balls move down and back", is_equal_approx(him.balls.y, balls.y + 0.7 * 22.0)
+	var mask := func() -> Dictionary: return Hooks.value(&"Him.penisMask", him, {"x": -100.0, "scale": 1.0})
+	_check("penisrange: big sizes, the mask follows his length (Him.penisMask)", mask.call()["scale"] == 2.5)
+	_check("penisrange: big balls move down and back (Him.ballsOffset)", is_equal_approx(him.balls.y, balls.y + 0.7 * 22.0)
 		and is_equal_approx(him.balls.x, balls.x + 0.7 * 20.0))
 	him.loadPenisScales(1.0, 1.0)
 	him.setBallScale(1.0)
-	x._tick()
-	_check("penisrange: within the game's range, the game's mask and balls", him.penisMask.scaleX == 1.0 and him.balls.y == balls.y)
+	_check("penisrange: within the game's range, the game's mask and balls", mask.call()["scale"] == 1.0 and him.balls.y == balls.y)
 	him.loadPenisScales(2.5, 2.0)
+	him.setBallScale(2.0)
 	x.set_setting("on", false)
 	_check("penisrange off: the game's limits, sizes brought back", Him.MAX_PENIS_SIZE == 1.2 and Him.MIN_PENIS_SIZE == 0.7
-		and him.currentPenisLengthScale == 1.2 and him.currentPenisWidthScale == 1.2 and him.penisMask.scaleX == 1.0)
+		and him.currentPenisLengthScale == 1.2 and him.currentPenisWidthScale == 1.2 and mask.call()["scale"] == 1.0
+		and him.balls.y == balls.y)
 	him.loadPenisScales(was[0], was[1])
 	him.setBallScale(was[2])
 
@@ -1611,6 +1803,68 @@ func _blink_veto_checks() -> void:
 	her.blinkTime = 0
 	her.updateBlink()
 	_check("blink runs again without the veto", her.blinkTimer == 2)
+
+
+func _loadershortcuts_checks() -> void:
+	var ls: SDTExtension = Extensions.get_extension("loadershortcuts")
+	var her = g.her
+	var him = g.him
+	_check("loader shortcuts: on by default, ten keys", ls.enabled
+		and Hotkeys.actions.filter(func(a): return a["owner"] == "loadershortcuts").size() == 10)
+	for a in Hotkeys.actions.filter(func(a): return a["owner"] == "loadershortcuts"):
+		var others: Array = Hotkeys.clashes(a["id"])
+		_check("loader shortcuts: %s has its key alone" % a["label"], others.is_empty(), str(others.map(func(o): return o["id"])))
+	var closed: bool = her.eyelidMotion["isClosed"]
+	Hotkeys.pressed(49, false, false, false)
+	_check("loader shortcuts: 1 toggles her eye", her.eyelidMotion["isClosed"] != closed)
+	Hotkeys.pressed(49, false, false, false)
+	var point := Vector2(1, 2)
+	Hotkeys.pressed(50, false, false, false)
+	_check("loader shortcuts: gaze up", Hooks.value(&"Her.lookTarget", her, point) == her.hisFace)
+	Hotkeys.pressed(50, false, false, false)
+	_check("loader shortcuts: gaze forward", Hooks.value(&"Her.lookTarget", her, point) == her.eyesDown)
+	Hotkeys.pressed(50, false, false, false)
+	_check("loader shortcuts: gaze back to default", ls.look == 0)
+	var out: bool = her.tongue.hangingOut
+	Hotkeys.pressed(48, false, false, false)
+	_check("loader shortcuts: 0 toggles her tongue", her.tongue.hangingOut != out)
+	Hotkeys.pressed(48, false, false, false)
+	var buk: bool = g.bukkakeMode
+	Hotkeys.pressed(54, false, false, false)
+	_check("loader shortcuts: 6 toggles bukkake mode", g.bukkakeMode != buk)
+	Hotkeys.pressed(54, false, false, false)
+	var pl: float = him.pleasure
+	him.pleasure = 20.0
+	Hotkeys.pressed(97, false, false, false)
+	_check("loader shortcuts: pleasure +", is_equal_approx(him.pleasure, 30.0), str(him.pleasure))
+	Hotkeys.pressed(99, false, false, false)
+	Hotkeys.pressed(99, false, false, false)
+	Hotkeys.pressed(99, false, false, false)
+	_check("loader shortcuts: pleasure - stops at 0", him.pleasure == 0.0, str(him.pleasure))
+	him.pleasure = him.ejacPleasure + 5.0
+	Hotkeys.pressed(97, false, false, false)
+	_check("loader shortcuts: pleasure + stops 10 past his limit", is_equal_approx(him.pleasure, him.ejacPleasure + 10.0), str(him.pleasure))
+	him.pleasure = pl
+	var po := {"pull": 0.5, "power": 0.004}
+	Hotkeys.pressed(53, false, false, false)
+	_check("loader shortcuts: hold stops her pull-off", Hooks.value(&"Her.pullOff", her, po)["pull"] == 0.0
+		and her._pullOffPower()["max"] == 0.0)
+	Hotkeys.pressed(53, false, false, false)
+	var cum: int = g.strandControl.strand_count(true)
+	Hotkeys.pressed(51, false, false, false)
+	_check("loader shortcuts: 3 starts a cum strand", g.strandControl.strand_count(true) == cum + 1)
+	ls._tick()
+	Hotkeys.pressed(51, false, false, false)
+	_check("loader shortcuts: 3 again lets it go", ls._strand == null)
+	Hotkeys.pressed(52, false, false, false)
+	ls._tick()
+	_check("loader shortcuts: 4 keeps cum", ls.keep_cum)
+	Hotkeys.pressed(52, false, false, false)
+	Hotkeys.pressed(51, false, false, false)
+	Extensions.set_enabled("loadershortcuts", false)
+	_check("loader shortcuts: off drops the keys and lets the strand go", ls._strand == null and not Hotkeys.by_id.has("loadershortcuts:eye"))
+	Extensions.set_enabled("loadershortcuts", true)
+	g.strandControl.clearCumStrands()
 
 
 func _disable_checks() -> void:

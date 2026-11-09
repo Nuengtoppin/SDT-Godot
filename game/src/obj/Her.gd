@@ -10,7 +10,9 @@ const AHEGAO_MOOD := "Ahegao"
 const fullUp := -40.0
 const fullDown := 250.0
 const range := fullDown - fullUp
-const armPositions := ["Back", "On Legs", "On His Legs", "Hand Job", "Loose"]
+## Her arm positions: the game's five, then the ones extensions add (addArmPosition), in the order they were added.
+static var armPositions: Array = ["Back", "On Legs", "On His Legs", "Hand Job", "Loose"]
+const GAME_ARM_POSITIONS := 5
 const randomArmPositions := ["Back", "On Legs", "On His Legs", "Loose"]
 const MouthShapeAH := {"name": "AH", "upperLip": 51, "lowerLip": 61, "jaw": -4.6}
 const MouthShapeOO := {"name": "OO", "upperLip": 59, "lowerLip": 64, "jaw": -6.6}
@@ -138,6 +140,9 @@ var currentLeftArmPosition: int = 0
 var currentRightArmPosition: int = 0
 var leftArmFree := false
 var rightArmFree := false
+## A hand closed in a fist (the hand art's grip frame, no nail polish shown), set by an extension's arm position.
+var leftHandClosed := false
+var rightHandClosed := false
 var leftIsFirstHandJobHand := false
 var armsPushing := false
 var armsPushPower: float = 0.0
@@ -202,6 +207,10 @@ var eyePosWince: int = 200
 var blinkTime: int = 1
 var blinkTimer: int = 0
 var winceTimer: int = 0
+var _blushByPoint := false   # port: value point Her.blushAlpha set her blush last tick
+var _highlightsBase := -1.0  # port: the highlights' own alpha, read when value point Her.highlightsAlpha is first used
+var mouthShape := "Normal"   # port: the face frame her mouth shows (setMouthShape, value point Her.mouthShape)
+var _moodMouth := "Normal"   # port: ... the one her mood sets
 var lookChangeTimer: int = -1
 var cumInEye: int = 0
 var leftEyebrowNormalTween: LinearTween
@@ -212,7 +221,8 @@ var leftEyebrowAngryTween: LinearTween
 var eyebrowOffsets: Array = []
 var passedOut := false
 var passOutFactor: float = 0.0
-var passOutMax: float = 40.0
+var passOutMax: float = PASS_OUT_MAX   # port: the value point Her.passOutMax's result (g.resolveBreath)
+const PASS_OUT_MAX := 40.0
 var leftBreastController: BreastController
 var rightBreastController: BreastController
 var breastCostumeOn := false
@@ -480,6 +490,8 @@ func setSpeaking(v: bool) -> void:
 			phonemeDelay = 0
 	elif speaking:
 		speakStopDelay = 3
+	if Hooks.has_value(&"Her.speakingMouth"):   # HOOK value point: her mouth's target as she starts or stops speaking (her.speaking: still the old state)
+		targetPhoneme = Hooks.value(&"Her.speakingMouth", self, targetPhoneme)
 	speaking = v
 	if Hooks.has(&"Her.setSpeaking"):   # HOOK
 		Hooks.after(&"Her.setSpeaking", self, [v])
@@ -509,8 +521,11 @@ func setTargetPhoneme(word: Dictionary, delay: int = 0) -> void:
 			return
 	if word.get("phoneme"):
 		targetPhoneme = word["phoneme"]
+		if Hooks.has_value(&"Her.targetPhoneme"):   # HOOK value point: the mouth shape a spoken word aims for (its phoneme)
+			targetPhoneme = Hooks.value(&"Her.targetPhoneme", self, targetPhoneme)
 		phonemeDelay = delay
-		if g.tongue and word.get("sayL") and not tongue.tongueOut and topLipTongue.currentFrameLabel == "Hidden":
+		if g.tongue and word.get("sayL") and targetPhoneme == word["phoneme"] and not tongue.tongueOut \
+				and topLipTongue.currentFrameLabel == "Hidden":
 			topLipTongue.gotoAndPlay("SayL")
 
 
@@ -540,10 +555,109 @@ func setRandomArmPosition() -> void:
 		setRightArmPosition(int(floor(randf() * (randomArmPositions.size() - 1))), true)
 
 
+# ---------------------------------------------------------------- arm positions added by extensions
+
+## name -> {"left": Callable(her) or null, "right": Callable(her) or null, "tap": bool, "owner": String}
+static var _extraArms: Dictionary = {}
+
+
+## Adds an arm position to the end of the list (Her > Left arm / Right arm, the "arms:" field of the character code,
+## dialogue arm triggers by name). left / right set her arm up when she takes the position, called with her
+## (leftArmIK.newTarget, setEndRotationTarget, layers, leftHandClosed...); an empty Callable leaves the position out of
+## that arm's list. spec: "tap" (false: that hand doesn't tap him while she's held), "slip" (ticks the arm takes to
+## drop when she passes out, from where it is; default 15), "pass_out" (Callable(her, left: bool) run instead of the
+## drop). Returns its index; a name already added is replaced in place.
+static func addArmPosition(n: String, left: Callable, right: Callable, owner := "", spec := {}) -> int:
+	var i := armPositions.find(n)
+	if i < 0:
+		armPositions.append(n)
+		i = armPositions.size() - 1
+	elif i < GAME_ARM_POSITIONS:
+		push_error("Her.addArmPosition: %s is one of the game's positions" % n)
+		return i
+	_extraArms[n] = {"left": left if left.is_valid() else null, "right": right if right.is_valid() else null,
+		"tap": spec.get("tap", true), "slip": float(spec.get("slip", 15.0)), "pass_out": spec.get("pass_out", Callable()),
+		"owner": owner}
+	return i
+
+
+## Takes out the positions an extension added; an arm in one of them goes behind her back.
+static func removeArmPositions(owner: String) -> void:
+	var her: Her = g.her if g else null
+	var left_name: String = armPositions[her.currentLeftArmPosition] if her else ""
+	var right_name: String = armPositions[her.currentRightArmPosition] if her else ""
+	for n in _extraArms.keys():
+		if _extraArms[n]["owner"] == owner:
+			_extraArms.erase(n)
+			armPositions.erase(n)
+	if her:
+		her.currentLeftArmPosition = maxi(0, armPositions.find(left_name))
+		her.currentRightArmPosition = maxi(0, armPositions.find(right_name))
+		her.setLeftArmPosition()
+		her.setRightArmPosition()
+
+
+## Whether that arm can take position i (extension positions can be for one arm only).
+static func armPositionAllowed(i: int, left: bool) -> bool:
+	if i < GAME_ARM_POSITIONS:
+		return i >= 0
+	if i >= armPositions.size():
+		return false
+	return _extraArms[armPositions[i]]["left" if left else "right"] != null
+
+
+## The positions that arm can take, in list order (the new menu's Left arm / Right arm lists).
+static func armPositionsFor(left: bool) -> Array:
+	var out := []
+	for i in armPositions.size():
+		if armPositionAllowed(i, left):
+			out.append(armPositions[i])
+	return out
+
+
+## The next position that arm can take from `from` in direction dir (+1 / -1), or `from` at the end of the list.
+static func stepArmPosition(from: int, dir: int, left: bool) -> int:
+	var i := from + dir
+	while i >= 0 and i < armPositions.size():
+		if armPositionAllowed(i, left):
+			return i
+		i += dir
+	return from
+
+
+func _setUpExtraArm(p: int, left: bool) -> void:
+	if p < GAME_ARM_POSITIONS or p >= armPositions.size():
+		return
+	var fn = _extraArms[armPositions[p]]["left" if left else "right"]
+	if fn != null:
+		fn.call(self)
+
+
+## She passed out with that arm in an extension position: it drops from where it is (or the position's own pass_out).
+func _dropExtraArm(p: int, left: bool) -> bool:
+	if p < GAME_ARM_POSITIONS or p >= armPositions.size():
+		return false
+	var spec: Dictionary = _extraArms[armPositions[p]]
+	if spec["pass_out"].is_valid():
+		spec["pass_out"].call(self, left)
+	elif left:
+		leftArmIK.startDropping(spec["slip"])
+		g.changeLayer(leftHandOver, g.backLayer)
+	else:
+		rightArmIK.startDropping(spec["slip"])
+	return true
+
+
+func _armCanTap(p: int) -> bool:
+	return p < GAME_ARM_POSITIONS or p >= armPositions.size() or _extraArms[armPositions[p]]["tap"]
+
+
 func setLeftArmPosition(p: int = -1, update: bool = true) -> void:
 	if p == -1:
 		p = currentLeftArmPosition
 	leftHandOver.visible = false
+	leftArmIK.reversedEnd = false
+	leftHandClosed = false
 	match p:
 		1:
 			g.changeLayer(leftArmContainer, self, leftLegContainer)
@@ -569,6 +683,8 @@ func setLeftArmPosition(p: int = -1, update: bool = true) -> void:
 				leftArmIK.newTarget(leftHandOnLegs, leftLegContainer.leg, false)
 				leftArmIK.setEndRotationTarget(-50, [g.her.torso.leg, g.her.torso])
 			startArmsPassOut(true, false)
+		_:
+			_setUpExtraArm(p, true)
 	currentLeftArmPosition = p
 	checkHandJobMode()
 	if passedOut:
@@ -580,11 +696,15 @@ func setLeftArmPosition(p: int = -1, update: bool = true) -> void:
 	if _tan:
 		_tan.updateSkin()
 	g.characterControl.setNailPolish(g.characterControl.nailPolishRGB)
+	if Hooks.has(&"Her.setLeftArmPosition"):   # HOOK
+		Hooks.after(&"Her.setLeftArmPosition", self, [p])
 
 
 func setRightArmPosition(p: int = -1, update: bool = true) -> void:
 	if p == -1:
 		p = currentRightArmPosition
+	rightArmIK.reversedEnd = false
+	rightHandClosed = false
 	match p:
 		1:
 			rightArmIK.stopDropping()
@@ -602,6 +722,8 @@ func setRightArmPosition(p: int = -1, update: bool = true) -> void:
 				rightArmIK.newTarget(rightHandOnLegs, torso.leg, false)
 				rightArmIK.setEndRotationTarget(-50, [g.her.torso.leg, g.her.torso, g.her])
 			startArmsPassOut(false, true)
+		_:
+			_setUpExtraArm(p, false)
 	currentRightArmPosition = p
 	checkHandJobMode()
 	if passedOut:
@@ -613,6 +735,8 @@ func setRightArmPosition(p: int = -1, update: bool = true) -> void:
 	if _tan:
 		_tan.updateSkin()
 	g.characterControl.setNailPolish(g.characterControl.nailPolishRGB)
+	if Hooks.has(&"Her.setRightArmPosition"):   # HOOK
+		Hooks.after(&"Her.setRightArmPosition", self, [p])
 
 
 func setLeftArmFree(v: bool) -> void:
@@ -670,9 +794,7 @@ func setMood(m: String) -> void:
 			return
 		m = h.args[0]
 	currentMood = m
-	head.face.gotoAndStop(m)
-	head.headTan.face.gotoAndStop(m)
-	topLipstickContainer.gotoAndStop(m)
+	setMouthShape(m)
 	updateLips()
 	updateEyes()
 	g.characterControl.setLipFills()
@@ -683,6 +805,28 @@ func setMood(m: String) -> void:
 	if currentMood != ANGRY_MOOD:
 		clenchTeeth = false
 	Moods.vanilla_mood_set(m)   # HOOK port extension: shared mood for extensions (src/ext/moods.gd)
+
+
+## Port: her mouth's shape for her mood (the face frame: "Normal", "Angry", "Ahegao", ...). Value point Her.mouthShape
+## may show another; while it has modifiers it is asked every tick (updateElements). Extended moods set it here too.
+func setMouthShape(face: String) -> void:
+	_moodMouth = face
+	mouthShape = ""
+	_showMouthShape()
+
+
+## Shows the mouth shape the value point asks for; true if it changed.
+func _showMouthShape() -> bool:
+	var face := _moodMouth
+	if Hooks.has_value(&"Her.mouthShape"):   # HOOK value point: the shape her mouth shows (her mood's face frame)
+		face = str(Hooks.value(&"Her.mouthShape", self, face))
+	if face == mouthShape:
+		return false
+	mouthShape = face
+	head.face.gotoAndStop(face)
+	head.headTan.face.gotoAndStop(face)
+	topLipstickContainer.gotoAndStop(face)
+	return true
 
 
 func setGagged(v: bool) -> void:
@@ -983,6 +1127,8 @@ func move(targetPos: float, tilt: float) -> float:
 	else:
 		acceleration = (targetPos - pos) / moveSmoothing
 	speed += acceleration
+	if Hooks.has_value(&"Her.drag"):   # HOOK value point: slows her head this tick (0; subtracted from her speed, positive: away from him)
+		speed -= Hooks.value(&"Her.drag", self, 0.0)
 	if not passedOut:
 		if penisInMouthDist > 0 and acceleration > 0:
 			var res := previousResistance
@@ -1116,6 +1262,16 @@ func passOut() -> void:
 
 
 func startArmsPassOut(left: bool = true, right: bool = true) -> void:
+	if Hooks.has(&"Her.startArmsPassOut"):   # HOOK
+		var h := Hooks.before(&"Her.startArmsPassOut", self, [left, right])
+		if h.cancelled:
+			return
+		left = h.args[0]
+		right = h.args[1]
+	if left and _dropExtraArm(currentLeftArmPosition, true):
+		left = false
+	if right and _dropExtraArm(currentRightArmPosition, false):
+		right = false
 	if left:
 		if armPositions[currentLeftArmPosition] == "On Legs":
 			leftArmIK.startDropping(5)
@@ -1145,8 +1301,13 @@ func wakeUp() -> void:
 			if passedOut and passOutFactor <= 0:   # vetoed (not replaced): animateBreathing tries again in 80 ticks
 				passOutFactor = passOutMax
 			return
-	shock(85)
+	var wakeShock := 85.0
+	if Hooks.has_value(&"Her.wakeShock"):   # HOOK value point: how shocked her eyes are as she wakes (85)
+		wakeShock = Hooks.value(&"Her.wakeShock", self, wakeShock)
+	shock(roundi(wakeShock))
 	eyeMotion["ang"] = 20.0
+	if Hooks.has_value(&"Her.wakeGaze"):   # HOOK value point: the angle her eyes start from as she wakes (20; higher: rolled from further below)
+		eyeMotion["ang"] = Hooks.value(&"Her.wakeGaze", self, eyeMotion["ang"])
 	g.dialogueControl.clearStates()
 	g.dialogueControl.buildState(Dialogue.WAKE, Dialogue.ONE_OFF_BUILD)
 	passedOut = false
@@ -1181,7 +1342,13 @@ func blink(lookAround: bool = true) -> void:
 			blinkTime = int(floor(randf() * 60 + 90))   # vetoed: the next try after a normal wait, not every tick
 			return
 		lookAround = h.args[0]
-	if randf() > 0.8:
+	var quick := randf() > 0.8
+	if Hooks.has_value(&"Her.quickBlink"):   # HOOK value point: the chance of a quick second blink after this one (0.2)
+		quick = randf() < Hooks.value(&"Her.quickBlink", self, 0.2)
+	if not quick and Hooks.has_value(&"Her.blinks") and not Hooks.value(&"Her.blinks", self, true):   # HOOK value point: whether a due blink happens (true; false: the next try after a normal wait)
+		blinkTime = int(floor(randf() * 60 + 90))
+		return
+	if quick:
 		blinkTime = int(floor(randf() * 5 + 5))
 	else:
 		blinkTime = int(floor(randf() * 60 + 90))
@@ -1203,6 +1370,8 @@ func wince() -> void:
 		if h.cancelled:
 			return
 	winceTimer = 5
+	if Hooks.has_value(&"Her.winceTime"):   # HOOK value point: how long her eyes squint in a wince, ticks (5; 0: no squint)
+		winceTimer = int(Hooks.value(&"Her.winceTime", self, winceTimer))
 	tears.drawLowerEyelidMascara()
 	tears.releaseTears()
 
@@ -1264,8 +1433,9 @@ func tapHands(extra: float = 0.0) -> void:
 		var power := randf() + (1.0 - passOutFactor / passOutMax) * 8.0 + extra
 		if power > 2:
 			if randf() > 0.2:
-				rightArmIK.tap(power / 9.0)
-			else:
+				if _armCanTap(currentRightArmPosition):
+					rightArmIK.tap(power / 9.0)
+			elif _armCanTap(currentLeftArmPosition):
 				leftArmIK.tap(power / 9.0)
 
 
@@ -1286,6 +1456,8 @@ func cough() -> void:
 		nextCoughTime = int(floor(randf() * 210)) + 30
 		coughing = true
 		coughFactor = randf() * 1.5 + 0.5
+		if Hooks.has_value(&"Her.coughForce"):   # HOOK value point: how hard she coughs (0.5..2 at random; eases off by itself)
+			coughFactor = Hooks.value(&"Her.coughForce", self, coughFactor)
 		head.cheekBulge.alpha = 1
 		tears.addTearSpot()
 		generateSplat(5, 10)
@@ -1306,6 +1478,8 @@ func openCough() -> void:
 	if g.coughing:
 		coughing = true
 		coughFactor = randf() + 0.25
+		if Hooks.has_value(&"Her.openCoughForce"):   # HOOK value point: how hard she coughs with her mouth open (0.25..1.25 at random)
+			coughFactor = Hooks.value(&"Her.openCoughForce", self, coughFactor)
 		head.cheekBulge.alpha = minf(1.0, head.cheekBulge.alpha + 0.3)
 		tears.addTearSpot()
 		generateSplat(15, 5, 1, cumInMouth > 0)
@@ -1504,8 +1678,9 @@ func checkPosition() -> void:
 				wince()
 			previousResistance = resistance["lower"]
 			g.addBreath(0.1)
+			var pp := _pullOffPower()
 			pullOff = minf(1.0, pullOff + pullOffPower["current"])
-			pullOffPower["current"] = minf(pullOffPower["max"], pullOffPower["current"] + pullOffPower["increase"])
+			pullOffPower["current"] = minf(pp["max"], pullOffPower["current"] + pp["increase"])
 			g.dialogueControl.buildState(Dialogue.PULL_OFF, Dialogue.FRAME_BUILD)
 		else:
 			if not g.penisOut:
@@ -1516,7 +1691,7 @@ func checkPosition() -> void:
 			if held:
 				g.soundControl.stopHolding()
 				pullOff = 0
-				pullOffPower["current"] = pullOffPower["start"]
+				pullOffPower["current"] = _pullOffPower()["start"]
 				if not passedOut and not g.handsOff and not g.penisOut and g.currentPos.x > pos:
 					pullingOff = true
 					g.him.openHand()
@@ -1552,14 +1727,22 @@ func checkPosition() -> void:
 		if nextCoughTime > 0:
 			if not swallowing:
 				nextCoughTime -= 1
+		elif Hooks.has_value(&"Her.coughDue") and not Hooks.value(&"Her.coughDue", self, true):   # HOOK value point: whether a due cough (while held) happens (true; false: she waits as long as after a cough)
+			nextCoughTime = int(floor(randf() * 210)) + 30
 		else:
 			cough()
 		pos += randf() * 0.01 - 0.005
+	if Hooks.has_value(&"Her.pullOff"):   # HOOK value point: how hard she pulls back off him and its power, after the game's update ({pull, power})
+		var po: Dictionary = Hooks.value(&"Her.pullOff", self, {"pull": pullOff, "power": pullOffPower["current"]})
+		pullOff = po["pull"]
+		pullOffPower["current"] = po["power"]
 	if Hooks.has(&"Her.checkPosition"):   # HOOK
 		Hooks.after(&"Her.checkPosition", self, [])
 
 
 func animateBreathing() -> void:
+	if Hooks.has_value(&"Her.passOutExtra") and not passedOut:   # HOOK value point: how much closer to passing out she gets this tick on top of the game's own (0), with or without air
+		passOutFactor = clampf(passOutFactor + Hooks.value(&"Her.passOutExtra", self, 0.0), 0.0, passOutMax)
 	if breathing:
 		var depth: float = 0.5 if passedOut else maxf(0.5, minf(2.0, g.breathLevel / g.outOfBreathPoint * 2.0))
 		breathingFactor = sin(g.soundControl.breathPosition() * PI * 2.0) * depth
@@ -1571,12 +1754,18 @@ func animateBreathing() -> void:
 			mist.y = p.y
 			g.backLayer.addChild(mist)
 		if passOutFactor > 0:
-			passOutFactor = maxf(0.0, passOutFactor - 0.5)
+			var rec := 0.5
+			if Hooks.has_value(&"Her.passOutRecovery"):   # HOOK value point: how much closer to her air she gets per breathing tick
+				rec = Hooks.value(&"Her.passOutRecovery", self, rec)
+			passOutFactor = maxf(0.0, passOutFactor - rec)
 		elif passedOut:
 			wakeUp()
 	else:
 		if g.breathLevel == g.breathLevelMax and passOutFactor < passOutMax:
-			passOutFactor += 0.05
+			if Hooks.has_value(&"Her.passOutGain"):   # HOOK value point: how much closer to passing out per tick with no air
+				passOutFactor += Hooks.value(&"Her.passOutGain", self, 0.05)
+			else:
+				passOutFactor += 0.05
 			if not blankEyed and currentLookTarget != eyesDown and passOutFactor > 5:
 				currentLookTarget = eyesDown
 				lookChangeTimer = -1
@@ -1587,6 +1776,13 @@ func animateBreathing() -> void:
 	breathingFactor += coughFactor * 0.8
 	if Hooks.has(&"Her.animateBreathing"):   # HOOK
 		Hooks.after(&"Her.animateBreathing", self, [])
+
+
+## Port: how hard she pulls back off him while held ({start, increase, max}; the value point Her.pullOffPower)
+func _pullOffPower() -> Dictionary:
+	if Hooks.has_value(&"Her.pullOffPower"):   # HOOK value point: her pull-off power while held
+		return Hooks.value(&"Her.pullOffPower", self, pullOffPower.duplicate())
+	return pullOffPower
 
 
 func tickCoughBuild() -> void:
@@ -1704,6 +1900,8 @@ func updateElements() -> void:
 	head.headTan.jaw.rotation_degrees = head.jaw.rotation_degrees
 	head.headTan.jawBack.rotation_degrees = head.jaw.rotation_degrees
 	g.herMouthOpeness = maxf(0.0, minf(1.0, 1.0 - head.jaw.rotation_degrees / closedJawAngle))
+	if Hooks.has_value(&"Her.mouthOpenness"):   # HOOK value point: how open her mouth counts as (0..1, from her jaw) for breath and drool
+		g.herMouthOpeness = Hooks.value(&"Her.mouthOpenness", self, g.herMouthOpeness)
 	updateLips()
 	if g.herMouthOpeness < 0.2:
 		if droolingCum:
@@ -1740,7 +1938,10 @@ func updateElements() -> void:
 		lookPoint = Hooks.value(&"Her.lookTarget", self, lookPoint)
 	lookAt(lookPoint)
 	if eyelidMotion["shock"] > 0:
-		eyelidMotion["shock"] -= 1
+		if Hooks.has_value(&"Her.shockFade"):   # HOOK value point: how much her eyes' shock eases this tick (1)
+			eyelidMotion["shock"] = maxf(0.0, eyelidMotion["shock"] - Hooks.value(&"Her.shockFade", self, 1.0))
+		else:
+			eyelidMotion["shock"] -= 1
 	eyelidShock = eyelidMotion["shock"]
 	if Hooks.has_value(&"Her.eyelidShock"):   # HOOK value point: how shocked her eyes are (wider, smaller iris)
 		eyelidShock = Hooks.value(&"Her.eyelidShock", self, eyelidShock)
@@ -1763,10 +1964,14 @@ func updateElements() -> void:
 		eyelidMotion["target"] = maxf(2.0, minf(eyePosWince, eyelidMotion["target"]))
 		if passOutFactor > 0:
 			eyelidMotion["target"] = minf(eyePosBlink, eyelidMotion["target"] + floor(passOutFactor * 3.0))
+		if Hooks.has_value(&"Her.eyelidTarget"):   # HOOK value point: where her open eyelids head this tick
+			eyelidMotion["target"] = Hooks.value(&"Her.eyelidTarget", self, eyelidMotion["target"])
 		eyelidMotion["pos"] += (eyelidMotion["target"] - eyelidMotion["pos"]) * 0.2
 		tears.clearLowerEyelid(200 - eyelidMotion["pos"])
 	updateEyes()
 	var irisScale: float = 0.9 - (0.25 - eyelidMotion["pos"] / 400.0) - eyelidShock / 200.0
+	if Hooks.has_value(&"Her.irisScale"):   # HOOK value point: how big her irises are
+		irisScale = Hooks.value(&"Her.irisScale", self, irisScale)
 	eye.ball.irisContainer.iris.scaleX = irisScale
 	eye.ball.irisContainer.iris.scaleY = irisScale
 	if coughing:
@@ -1778,8 +1983,31 @@ func updateElements() -> void:
 			if coughFactor <= 0.01:
 				coughFactor = 0
 				coughing = false
+	if Hooks.has_value(&"Her.blushAlpha"):   # HOOK value point: how much her blush shows (her blush colour's alpha)
+		_blushByPoint = true
+		_setBlushAlpha(Hooks.value(&"Her.blushAlpha", self, g.characterControl.blushRGB.a))
+	elif _blushByPoint:   # the last modifier went: her blush colour's own alpha again
+		_blushByPoint = false
+		_setBlushAlpha(g.characterControl.blushRGB.a)
+	if (Hooks.has_value(&"Her.mouthShape") or mouthShape != _moodMouth) and _showMouthShape():   # the mouth shape's modifiers changed
+		updateLips()
+		g.characterControl.setLipFills()
+	if Hooks.has_value(&"Her.highlightsAlpha"):   # HOOK value point: how much the highlights in her eyes show (the art's own alpha)
+		if _highlightsBase < 0.0:
+			_highlightsBase = eye.ball.highlights.alpha
+		var a: float = Hooks.value(&"Her.highlightsAlpha", self, _highlightsBase)
+		if absf(eye.ball.highlights.alpha - a) > 0.002:
+			eye.ball.highlights.alpha = a
+	elif _highlightsBase >= 0.0 and eye.ball.highlights.alpha != _highlightsBase:   # the last modifier went
+		eye.ball.highlights.alpha = _highlightsBase
 	if Hooks.has(&"Her.updateElements"):   # HOOK
 		Hooks.after(&"Her.updateElements", self)
+
+
+## Port: a new alpha re-renders her blush, so only a visible change is written
+func _setBlushAlpha(a: float) -> void:
+	if absf(blush.alpha - a) > 0.002:
+		blush.alpha = a
 
 
 func updateBreathingScaledElements() -> void:
@@ -1807,12 +2035,17 @@ func updateEyes() -> void:
 		eyebrowOffsets.remove_at(0)
 		if brow < 0:
 			brow = 1 << 32  # uint wrap-around in the original: clamps to the last frame
+	if Hooks.has_value(&"Her.eyebrowFrame"):   # HOOK value point: her eyebrows' frame
+		brow = maxi(1, int(Hooks.value(&"Her.eyebrowFrame", self, brow)))
 
 	rightEyebrow.rightEyebrowFill.gotoAndStop(brow)
 	rightEyebrow.rightEyebrowLine.gotoAndStop(brow)
 	leftEyebrow.leftEyebrowFill.gotoAndStop(brow)
 	leftEyebrow.leftEyebrowLine.gotoAndStop(brow)
-	if currentMood == ANGRY_MOOD:
+	var angry := currentMood == ANGRY_MOOD
+	if Hooks.has_value(&"Her.angryEyebrows"):   # HOOK value point: angry eyebrows (the angry mood's)
+		angry = Hooks.value(&"Her.angryEyebrows", self, angry)
+	if angry:
 		var r := brow / 200.0
 		leftEyebrowAngryTween.tween(r)
 		rightEyebrowAngryTween.tween(r)
@@ -1889,7 +2122,7 @@ func updateNeck() -> void:
 	var neckP: Vector2 = globalToLocal(head.localToGlobal(Vector2(head.neck.x, head.neck.y)))
 	var torsoP: Vector2 = globalToLocal(torso.localToGlobal(Vector2(0, 0)))
 	var ang: float = g.getAngle(torsoP.x - neckP.x, torsoP.y - neckP.y) + 180.0
-	head.neck.rotation_degrees = ang
+	head.neck.rotation_degrees = wrapf(ang, -180.0, 180.0)   # Flash keeps rotation in -180..180 (ang reaches 367)
 	collarContainer.rotation_degrees = head.neck.rotation_degrees
 
 
@@ -1922,7 +2155,7 @@ func updateLips() -> void:
 	else:
 		upper = int(minf(79.0, floor(maxf(0.0, -head.jaw.rotation_degrees * 4.5 + 30.0))))
 		lower = upper
-	if currentMood == ANGRY_MOOD or clenchTeethRatio > 0:
+	if currentMood == ANGRY_MOOD and mouthShape == "Angry" or clenchTeethRatio > 0:   # port: angry lips while her mouth shows the angry shape
 		upper = int(Maths.round(upper + (58 - upper) * clenchTeethRatio))
 		lower = int(Maths.round(lower + (61 - lower) * clenchTeethRatio))
 		upper = maxi(0, upper - 1)
@@ -2202,9 +2435,9 @@ func generateSplat(power: float, count: int = 1, spread: float = 1.0, isCum: boo
 		var vx := (randf() * 8.0 - 4.0 + power) * spread
 		var mass := randf() * 1.5 + 0.1
 		if isCum:
-			g.cumLayer.addChild(Droplet.new(p, Vector2(vx, vy), mass, 0.2, 1, true))
+			Droplet.spawn(g.cumLayer, p, Vector2(vx, vy), mass, 0.2, 1, true)
 		elif g.spit:
-			g.strandFrontLayer.addChild(Droplet.new(p, Vector2(vx, vy), mass))
+			Droplet.spawn(g.strandFrontLayer, p, Vector2(vx, vy), mass)
 
 
 func generateRandomStrand(side: String = "front", long: bool = true) -> void:
@@ -2286,6 +2519,8 @@ func fillMouth(force: bool = false) -> void:
 		else:
 			g.dialogueControl.buildState(Dialogue.CUM_IN_MOUTH, Dialogue.TICK_BUILD * 2)
 			cumInMouth = mini(maxCumInMouth, cumInMouth + 1)
+	if Hooks.has(&"Her.fillMouth"):   # HOOK
+		Hooks.after(&"Her.fillMouth", self, [force])
 
 
 ## Port: the moment she swallows (the jaw update's, split out so it has its own hook point): she squints,
@@ -2305,7 +2540,10 @@ func gulp() -> void:
 
 
 func swallowFromMouth() -> void:
-	var amount := mini(cumInMouth, int(floor(randf() * 5 + 5)))
+	var amount := int(floor(randf() * 5 + 5))
+	if Hooks.has_value(&"Her.swallowAmount"):   # HOOK value point: how much one swallow takes from her mouth (5-9 at random)
+		amount = int(Hooks.value(&"Her.swallowAmount", self, amount))
+	amount = mini(cumInMouth, maxi(0, amount))
 	cumInMouth -= amount
 
 

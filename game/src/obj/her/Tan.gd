@@ -4,6 +4,7 @@ extends RefCounted
 
 var _standardTanItems: Array = []
 var _multiPartTanItems: Array = []
+var _armTanItems: Array = []        # port: the arm parts of _standardTanItems (see updateArms)
 var _skinAlphaScaling: Dictionary = {}
 var _tanNameList: Array = ["None", "Full", "Bikini", "Swimsuit", "Swimsuit-T"]
 var _currentTanID: int = 0
@@ -177,6 +178,34 @@ func _setTanIsolation(target: FlashDisplayObject, active: bool) -> void:
 	FlashProxy.update_for(target)
 
 
+## Port fix: an arm part changing frame (her hand closing or opening, an arm going free or behind her back) gets the
+## new frame's "tan" child, which shows the whole tan art (a hand turned orange with no tan picked); it takes her tan
+## again. CharacterControl.setArmSkin calls this after every arm frame change.
+func updateArms() -> void:
+	var a := _currentTanAlpha * _currentAlphaScaling
+	var show := a > 0 and _currentTanID != 0
+	for item in _armTanItems:
+		var t = item.get("tan")
+		if t:
+			CharacterControl.tryToSetFrameLabel(t, _tanNameList[_currentTanID])
+			t.visible = show
+			if show:
+				t.alpha = a
+
+
+## Port fix (the Loader did this): body mod pieces' own "tan" children follow her tan lines like her own parts (the
+## game left them on their first frame, fully shown).
+func _modTanItems() -> Array:
+	var out: Array = []
+	for m in g.customElementLoader.instancedModElements:
+		if m.modType == ModTypes.BODY and m._mod != null and is_instance_valid(m._mod):
+			for p in [m._mod] + (range(m._mod.numChildren).map(func(i): return m._mod.getChildAt(i)) if m._mod is FlashSprite else []):
+				var t = p.getChildByName("tan") if p is FlashSprite else null
+				if t is FlashMovieClip:
+					out.append(t)
+	return out
+
+
 func tanLeftClicked(_e = null) -> void:
 	setTan(maxi(0, mini(_tanNameList.size() - 1, _currentTanID - 1)))
 	g.saveData.saveCharData()
@@ -222,6 +251,10 @@ func prepItems() -> void:
 		h.rightForeArmContainer.upperArm.foreArm, h.leftArmContainer.upperArm.foreArm.hand,
 		h.leftArmContainer.upperArm.foreArm, h.leftArmContainer.upperArm, h.leftHandOver.hand.grip, h.head.neck,
 		h.torsoBack.backside, h.torso.backside]
+	_armTanItems = [h.torso.midLayer.leftArm, h.torso.behindBackRightArm, h.rightArmContainer.upperArm,
+		h.rightForeArmContainer.upperArm.foreArm.hand, h.rightForeArmContainer.upperArm.foreArm,
+		h.leftArmContainer.upperArm.foreArm.hand, h.leftArmContainer.upperArm.foreArm, h.leftArmContainer.upperArm,
+		h.leftHandOver.hand.grip]
 	h.torso.back.tan.blendMode = "overlay"
 	_multiPartTanItems = [h.head.headTan]
 
@@ -231,14 +264,3 @@ func prepScalingDictionary() -> void:
 	_skinAlphaScaling[SkinPalette.PALE_SKIN] = 0.995
 	_skinAlphaScaling[SkinPalette.TAN_SKIN] = 0.6
 	_skinAlphaScaling[SkinPalette.DARK_SKIN] = 0.5
-
-
-func _modTanItems() -> Array:
-	var out: Array = []
-	for m in g.customElementLoader.instancedModElements:
-		if m.modType == ModTypes.BODY and m._mod != null and is_instance_valid(m._mod):
-			for p in [m._mod] + (range(m._mod.numChildren).map(func(i): return m._mod.getChildAt(i)) if m._mod is FlashSprite else []):
-				var t = p.getChildByName("tan") if p is FlashSprite else null
-				if t is FlashMovieClip:
-					out.append(t)
-	return out
