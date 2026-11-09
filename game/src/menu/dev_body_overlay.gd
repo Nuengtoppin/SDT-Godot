@@ -520,15 +520,18 @@ static func apply_pose() -> void:
 	Hooks.add_modifier(&"Her.resistance", {"phase": Hooks.FINAL, "op": "set", "value": 0.0}, "pose")
 
 
-## Pose mode's zoom: the scene's own camera (its zoom and position), about the mouse, 0.15 to 3 (the game's own goes to
-## 1.4; much closer, the game's render targets for groups and masks get larger than the GPU allows and show
-## garbage) - inside the scene, so nothing is cut off at the stage's edges. The game's camera only moves
-## when its zoom changes, so ours stays; leaving pose mode puts the game's back.
+const POSE_ZOOM_MIN := 0.15
+const POSE_ZOOM_MAX := 6.0
+
+## Pose mode's zoom: the scene's own camera (its zoom and position), about the mouse, POSE_ZOOM_MIN to POSE_ZOOM_MAX
+## (the game's own goes to 1.4; the game's group and mask render targets now cover only the part inside the view, so
+## a close zoom no longer makes them larger than the GPU allows) - inside the scene, so nothing is cut off at the
+## stage's edges. The game's camera only moves when its zoom changes, so ours stays; leaving pose mode puts the game's back.
 func _zoom(at: Vector2, k: float) -> void:
 	var sl: SceneLayer = g.sceneLayer
 	var p: Vector2 = Flash.stage.get_global_transform_with_canvas().affine_inverse() * at   # stage coordinates
 	var old: float = sl.currentZoom
-	var z := clampf(old * k, 0.15, 3.0)
+	var z := clampf(old * k, POSE_ZOOM_MIN, POSE_ZOOM_MAX)
 	k = z / old
 	sl.currentZoom = z
 	sl.targetZoom = z

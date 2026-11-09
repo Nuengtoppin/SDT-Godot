@@ -466,6 +466,10 @@ func _behaviour_checks() -> void:
 	var z0: float = g.sceneLayer.currentZoom
 	DevBodyOverlay.instance._zoom(Vector2(400, 300), 2.0)
 	var zoomed: bool = not is_equal_approx(g.sceneLayer.currentZoom, z0) and g.bg.modulate != Color.WHITE
+	DevBodyOverlay.instance._zoom(Vector2(400, 300), 100.0)
+	var zoom_max: float = g.sceneLayer.currentZoom
+	_check("pose zoom: reaches x6 and stops there", is_equal_approx(zoom_max, DevBodyOverlay.POSE_ZOOM_MAX)
+		and is_equal_approx(DevBodyOverlay.POSE_ZOOM_MAX, 6.0), str(zoom_max))
 	DevBodyOverlay.set_pose(false)
 	_check("pose alive: reactions vetoed, nothing pushes back, no intro, the mouse is ours, not paused; the zoom; off: all back",
 		alive == [true, true, true, true, false] and zoomed and is_equal_approx(g.sceneLayer.currentZoom, z0)
