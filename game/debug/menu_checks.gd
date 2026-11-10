@@ -1135,7 +1135,7 @@ func _baked_legs_checks(h) -> void:
 	var calf_fill: MeshInstance2D = DevBodyBaked._layers["near/calf"].fill
 	var far_fill: MeshInstance2D = DevBodyBaked._layers["far/leg"].fill
 	var placed: bool = DevBodyBaked._nodes.size() == 10 and thigh_fill.get_parent() == t \
-		and thigh_fill.get_index() < DevBodyBaked._anchor().get_index() and calf_fill.get_index() < t.rightCalfContainer.get_index() \
+		and thigh_fill.get_index() > t.backHighlight.get_index() and calf_fill.get_index() < t.rightCalfContainer.get_index() \
 		and calf_fill.get_index() > thigh_fill.get_index() and far_fill.get_parent() == h.leftLegContainer \
 		and far_fill.get_index() < h.leftLegContainer.leg.get_index()
 	var hidden: bool = not t.leg.thigh.visible and not t.leg.highlights.visible and not h.leftLegContainer.leg.thigh.visible \
@@ -1153,7 +1153,7 @@ func _baked_legs_checks(h) -> void:
 	var shader_ok: bool = rows == Vector4i(0, 1, 2, 3) and is_equal_approx(w.x, inverse_lerp(-45.0, 150.0, a.x)) \
 		and is_equal_approx(w.y, inverse_lerp(0.0, -140.0, a.y))
 	var shoe_ok: bool = not t.rightCalfContainer.footwear.transform.is_equal_approx(t.rightCalfContainer.calf.transform) \
-		and (t.rightCalfContainer.transform * t.rightCalfContainer.footwear.transform).is_equal_approx(ob[1] * Transform2D(0.0, -DevBodyBaked.CALF_TO_VANILLA))
+		and (t.rightCalfContainer.transform * t.rightCalfContainer.footwear.transform).is_equal_approx(ob[1] * Transform2D(0.0, -DevBodyBaked.CALF_TO_VANILLA + DevBodyBaked.foot_fit))
 	DevBodyBaked.set_on(false)
 	h.updateElements()
 	var gone: bool = DevBodyBaked._nodes.is_empty() and t.leg.thigh.visible and t.leg.highlights.visible \
@@ -1161,7 +1161,7 @@ func _baked_legs_checks(h) -> void:
 	DevBodyBaked.data = was_data
 	DevBodyBaked._bin = was_bin
 	DevBodyBaked.status = ""
-	_check("baked legs: our pieces where the game draws its thigh / calf / far leg, its skin, highlights and backside hidden; our thigh about our hip by the game's angle; the shader's 4 snapshots and weights; shoes on our calf; off: all back",
+	_check("baked legs: our thigh and pelvis over her back, our calf where the game draws its calf, the far leg in its container; the game's skin, highlights and backside hidden; our thigh about our hip by the game's angle; the shader's 4 snapshots and weights; shoes on our calf; off: all back",
 		placed and hidden and hip_ok and shader_ok and shoe_ok and gone, "%s %s %s %s %s %s" % [placed, hidden, hip_ok, shader_ok, shoe_ok, gone])
 
 

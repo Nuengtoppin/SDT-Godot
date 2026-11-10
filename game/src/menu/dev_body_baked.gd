@@ -16,6 +16,9 @@ extends RefCounted
 const FOLDER := "body_bake"
 const V_HIP := Vector2(-197.1, 5.0)         # the vanilla thigh's place in the Body Template (step 1)
 const CALF_TO_VANILLA := Vector2(27.27, -8.38)   # our calf frame -> the vanilla calf frame (step 1)
+# our foot (the template's vanilla foot) lies this far from the vanilla calf picture's foot (step 1: best fit 3.42, -0.38):
+# the shoes, drawn on the vanilla foot, are moved back by it
+static var foot_fit := Vector2(-3.42, 0.38)
 const STAND := [90.0, -142.5215]            # card angles 0/0 in bone degrees (the doll's two_legs.gd)
 const SLOT_THIGH := ["leg"]                 # drawn where the game's thigh is (before its group)
 const SLOT_CALF := ["lower_bridge", "calf", "calf_muscle", "knee_cap", "foot_v"]   # where the calf is (over the thigh)
@@ -101,7 +104,10 @@ static func _build() -> void:
 	_bones = data.bones
 	_offset = t.leg.position - V_HIP
 	var keys := _keys()
+	# over her back and its highlight (Dima: her back behind our legs, not over them as in the game), under her clothes
 	var thigh_at: int = _anchor().get_index()
+	if t.get("backHighlight") != null:
+		thigh_at = maxi(thigh_at, t.backHighlight.get_index() + 1)
 	var calf_at: int = t.rightCalfContainer.get_index()
 	# near: the pelvis and the thigh before the game's leg group, the lower leg (and the kneecap, over the calf as in
 	# the workshop) before the calf's container; fills first, then lines, per slot
@@ -217,7 +223,33 @@ static func _layer_nodes(layer: Dictionary, keys: Dictionary) -> Array:
 		var n: int = int(layer.outline)
 		ink = _ink_node(n, snaps, _texture_bits(layer.ink_visible, n))
 		ink.name = "BakedInk_%s" % layer.name
+	# the vertices hold indices, not places: tell Godot where the piece really is, or it is culled when zoomed in
+	var box := _bounds(_bin.slice(start, start + int(layer.positions_bytes)).to_float32_array(), verts, count)
+	_set_rect(fill, box)
+	if ink:
+		_set_rect(ink, box)
 	return [fill, ink]
+
+
+## The rectangle every snapshot of a piece stays in (every 7th snapshot read, and the last; a margin for the rest
+## and the lines).
+static func _bounds(pos: PackedFloat32Array, verts: int, count: int) -> Rect2:
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	var snaps := range(0, count, 7)
+	if not snaps.has(count - 1):
+		snaps.append(count - 1)
+	for s in snaps:
+		var base: int = s * verts * 2
+		for i in verts:
+			var p := Vector2(pos[base + i * 2], pos[base + i * 2 + 1])
+			lo = lo.min(p)
+			hi = hi.max(p)
+	return Rect2(lo, hi - lo).grow(40.0)
+
+
+static func _set_rect(node: CanvasItem, box: Rect2) -> void:
+	RenderingServer.canvas_item_set_custom_rect(node.get_canvas_item(), true, box)
 
 
 static func _pelvis_nodes(keys: Dictionary) -> Array:
@@ -237,6 +269,9 @@ static func _pelvis_nodes(keys: Dictionary) -> Array:
 	var ink := _ink_node(pts.size(), snaps, _texture_bits(data.pelvis.ink_visible, pts.size()))
 	ink.name = "BakedInk_pelvis"
 	ink.material.set_shader_parameter("static_rows", true)
+	var box := _bounds(bytes, pts.size(), 1)
+	_set_rect(fill, box)
+	_set_rect(ink, box)
 	_layers["pelvis"] = {"fill": fill, "ink": ink, "bone": "torso"}
 	return [fill, ink]
 
@@ -403,7 +438,7 @@ static func _update() -> void:
 		if l.ink:
 			l.ink.transform = xf
 	# shoes: drawn in the vanilla calf's frame; ours sits at CALF_TO_VANILLA in it, so they ride our calf
-	var shoe: Transform2D = gb[0].affine_inverse() * ob[1] * Transform2D(0.0, -CALF_TO_VANILLA)
+	var shoe: Transform2D = gb[0].affine_inverse() * ob[1] * Transform2D(0.0, -CALF_TO_VANILLA + foot_fit)
 	h.torso.rightCalfContainer.footwear.transform = shoe
 	h.leftLegContainer.leg.footwear.transform = shoe
 	_angles.prev = _angles.now
