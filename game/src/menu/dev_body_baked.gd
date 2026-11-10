@@ -111,8 +111,8 @@ static func _build() -> void:
 	# near: the pelvis and the thigh before the game's leg group, the lower leg (and the kneecap, over the calf as in
 	# the workshop) before the calf's container; fills first, then lines, per slot
 	var pelvis := _pelvis_nodes(keys)
-	var slot_a := [pelvis[0]]
-	var slot_a_ink := [pelvis[1]]
+	var slot_a := [pelvis[0], pelvis[1]]   # the pelvis lines under the thigh, as in the workshop
+	var slot_a_ink := []
 	var slot_b := []
 	var slot_b_ink := []
 	var far := []
