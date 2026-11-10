@@ -409,15 +409,35 @@ static func game_bones() -> Array:
 	return [tt, t.rightCalfContainer.calf.transform]
 
 
-## Our bones for the game's pose, torso space: [thigh, calf] (our thigh about our hip by the game's thigh angle,
-## our calf about our knee by the game's calf angle).
+## The workshop's piston (its hip_piston.gd with the doll's hip_piston_config): the leg's mount turns with the thigh,
+## card angle 0..90 -> 0..90 degrees (the pelvis adds nothing here: ours is fixed to the torso), and the socket on
+## it, 28.6 from the pelvis bone, carries the whole leg round without turning it. The doll's pelvis bone rests at 6
+## degrees. Our hip point in template space for a card hip angle.
+const PISTON_SOCKET := Vector2(25.013046, 13.923862)   # hip_socket in hip_mount (doll.tscn)
+const PELVIS_REST := 6.0                               # the pelvis bone's rest turn, degrees (doll.tscn)
+static func piston_hip(hip_shown: float) -> Vector2:
+	var m := deg_to_rad(clampf(hip_shown, 0.0, 90.0))
+	var rest: Vector2 = _v(_bones.thigh.rest_origin)
+	return rest + (PISTON_SOCKET.rotated(m) - PISTON_SOCKET).rotated(deg_to_rad(PELVIS_REST))
+
+
+## Our bones for the game's pose, torso space: [thigh, calf] (our thigh about our hip - moved by the piston as in the
+## workshop - by the game's thigh angle, our calf about our knee by the game's calf angle).
 static func our_bones() -> Array:
 	var gb := game_bones()
-	var hip: Vector2 = _v(_bones.thigh.rest_origin)
-	var knee: Vector2 = _v(_bones.calf.rest_origin)
+	var hip_shown: float = STAND[0] - rad_to_deg(gb[0].get_rotation())
+	var hip := piston_hip(hip_shown)
+	var knee_rel: Vector2 = _v(_bones.calf.rest_origin) - _v(_bones.thigh.rest_origin)
 	var thigh := Transform2D(gb[0].get_rotation(), _offset + hip)
-	var calf := thigh * Transform2D(gb[1].get_rotation(), knee - hip)
+	var calf := thigh * Transform2D(gb[1].get_rotation(), knee_rel)
 	return [thigh, calf]
+
+
+## The far leg as in the workshop: from our own hip, the near leg's pose, x0.95 about the hip (the game's far leg
+## is the near thigh's copy x0.95 at its own start point; ours would show its buttock from behind the near one).
+static func far_base(ob: Array) -> Transform2D:
+	var p: Vector2 = ob[0].origin
+	return Transform2D(0.0, p) * Transform2D(0.0, Vector2(0.95, 0.95), 0.0, Vector2.ZERO) * Transform2D(0.0, -p)
 
 
 static func _v(a: Array) -> Vector2:
@@ -433,9 +453,11 @@ static func _update() -> void:
 	var gb := game_bones()
 	var ob := our_bones()
 	var near := {"thigh": ob[0], "calf": ob[1], "torso": Transform2D(0.0, _offset)}   # the pelvis: rigid on the torso
-	# the far leg: our near bones taken relative to the game's near thigh, put on the far leg's (x0.95 copy)
-	var far_base: Transform2D = h.leftLegContainer.leg.transform * gb[0].affine_inverse()
-	var far := {"thigh": far_base * ob[0], "calf": far_base * ob[1]}
+	# the far leg from our hip (x0.95 about it); the game's far leg node goes there too, so its shoe and clothes follow
+	var to_far: Transform2D = (h.leftLegContainer as Node2D).global_transform.affine_inverse() * (h.torso as Node2D).global_transform
+	var fb: Transform2D = to_far * far_base(ob)
+	h.leftLegContainer.leg.transform = fb * gb[0]
+	var far := {"thigh": fb * ob[0], "calf": fb * ob[1]}
 	for key in _layers:
 		var l: Dictionary = _layers[key]
 		var xf: Transform2D = (far if key.begins_with("far/") else near)[l.bone]

@@ -1143,8 +1143,23 @@ func _baked_legs_checks(h) -> void:
 		and DevBodyBaked._shapes(t.backside).all(func(s): return not s.visible)
 	var gb := DevBodyBaked.game_bones()
 	var ob := DevBodyBaked.our_bones()
-	var hip_ok: bool = ob[0].origin.is_equal_approx(t.leg.position - DevBodyBaked.V_HIP + Vector2(-207.63, -13.98)) \
+	# the piston as in the workshop: the mount follows the card hip angle 0..90, the socket carries the leg round
+	var hip_card: float = 90.0 - rad_to_deg(gb[0].get_rotation())
+	var sock := DevBodyBaked.PISTON_SOCKET
+	var piston: Vector2 = (sock.rotated(deg_to_rad(clampf(hip_card, 0.0, 90.0))) - sock).rotated(deg_to_rad(6.0))
+	var hip_ok: bool = ob[0].origin.is_equal_approx(t.leg.position - DevBodyBaked.V_HIP + Vector2(-207.63, -13.98) + piston) \
+		and DevBodyBaked.piston_hip(0.0).is_equal_approx(Vector2(-207.63, -13.98)) \
+		and absf(DevBodyBaked.piston_hip(90.0).distance_to(Vector2(-207.63, -13.98)) - sock.length() * sqrt(2.0)) < 0.01 \
 		and is_equal_approx(ob[0].get_rotation(), gb[0].get_rotation()) and thigh_fill.transform.is_equal_approx(ob[0])
+	# the far leg from our own hip, x0.95 (the game's far leg node moved there too)
+	var far_g: Transform2D = far_fill.global_transform
+	var near_g: Transform2D = thigh_fill.global_transform
+	var vanilla_far: Transform2D = (h.leftLegContainer.leg as Node2D).global_transform
+	var vanilla_near: Transform2D = (t.rightCalfContainer as Node2D).global_transform
+	var far_ok: bool = far_g.origin.distance_to(near_g.origin) < 0.01 and absf(far_g.get_scale().x / near_g.get_scale().x - 0.95) < 0.001 \
+		and absf(vanilla_far.get_scale().x / vanilla_near.get_scale().x - 0.95) < 0.001 \
+		and absf(wrapf(vanilla_far.get_rotation() - vanilla_near.get_rotation(), -PI, PI)) < 0.001
+	hip_ok = hip_ok and far_ok
 	DevBodyBaked._frame()
 	var m: ShaderMaterial = thigh_fill.material
 	var rows: Vector4i = m.get_shader_parameter("rows")
@@ -1161,7 +1176,7 @@ func _baked_legs_checks(h) -> void:
 	DevBodyBaked.data = was_data
 	DevBodyBaked._bin = was_bin
 	DevBodyBaked.status = ""
-	_check("baked legs: our thigh and pelvis over her back, our calf where the game draws its calf, the far leg in its container; the game's skin, highlights and backside hidden; our thigh about our hip by the game's angle; the shader's 4 snapshots and weights; shoes on our calf; off: all back",
+	_check("baked legs: our thigh and pelvis over her back, our calf where the game draws its calf, the far leg in its container; the game's skin, highlights and backside hidden; our thigh about our hip (moved by the workshop's piston) by the game's angle, the far leg from the same hip x0.95; the shader's 4 snapshots and weights; shoes on our calf; off: all back",
 		placed and hidden and hip_ok and shader_ok and shoe_ok and gone, "%s %s %s %s %s %s" % [placed, hidden, hip_ok, shader_ok, shoe_ok, gone])
 
 
