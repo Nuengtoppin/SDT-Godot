@@ -18,7 +18,8 @@ const V_HIP := Vector2(-197.1, 5.0)         # the vanilla thigh's place in the B
 const CALF_TO_VANILLA := Vector2(27.27, -8.38)   # our calf frame -> the vanilla calf frame (step 1)
 # our foot (the template's vanilla foot) lies this far from the vanilla calf picture's foot (step 1: best fit 3.42, -0.38):
 # the shoes, drawn on the vanilla foot, are moved back by it
-static var foot_fit := Vector2(-3.42, 0.38)
+const FOOT_FIT := Vector2(-3.42, 0.38)
+static var foot_fit := FOOT_FIT   # Body > Legs > Shoes along / across the foot (Dima fits it by eye)
 const STAND := [90.0, -142.5215]            # card angles 0/0 in bone degrees (the doll's two_legs.gd)
 const SLOT_THIGH := ["leg"]                 # drawn where the game's thigh is (before its group)
 const SLOT_CALF := ["lower_bridge", "calf", "calf_muscle", "knee_cap", "foot_v"]   # where the calf is (over the thigh)
@@ -392,6 +393,12 @@ static func _teardown() -> void:
 
 
 # ---------------------------------------------------------------- every tick: bones; every frame: angles
+
+static func set_foot_fit(v: Vector2) -> void:
+	foot_fit = v
+	if on and not _layers.is_empty():
+		_update()
+
 
 ## The game's thigh (torso space) and calf (thigh space) transforms.
 static func game_bones() -> Array:
