@@ -1120,7 +1120,8 @@ func _baked_legs_checks(h) -> void:
 				"triangles": [0, 1, 2], "band_triangles": [], "uv": tri, "resampled": false,
 				"positions_offset": off, "positions_bytes": 4 * 3 * 8, "ink_visible": [bits, bits, bits, bits]})
 	var bake := {"format": "sdt-body-bake", "version": 1, "source": {"body": "check", "baked": ""},
-		"bones": {"torso": {}, "thigh": {"rest_origin": [-207.63, -13.98]}, "calf": {"rest_origin": [187.57, 282.72]}},
+		"bones": {"torso": {}, "thigh": {"rest_origin": [-207.63, -13.98], "to_vanilla": [-10.53, -18.98]},
+			"calf": {"rest_origin": [187.57, 282.72], "to_vanilla": [27.27, -8.38]}},
 		"drivers": {"hip": {"keys": [-45.0, 150.0]}, "knee": {"keys": [0.0, -140.0]}},
 		"positions_file": "", "legs": {"near": {"layers": layers.near}, "far": {"layers": layers.far}},
 		"pelvis": {"outline": tri, "ink_visible": [bits, bits, bits, bits]}}
@@ -1169,10 +1170,16 @@ func _baked_legs_checks(h) -> void:
 		and is_equal_approx(w.y, inverse_lerp(0.0, -140.0, a.y))
 	var shoe_ok: bool = not t.rightCalfContainer.footwear.transform.is_equal_approx(t.rightCalfContainer.calf.transform) \
 		and (t.rightCalfContainer.transform * t.rightCalfContainer.footwear.transform).is_equal_approx(ob[1] * Transform2D(0.0, -DevBodyBaked.CALF_TO_VANILLA + DevBodyBaked.foot_fit))
+	# her thigh clothes ride our thigh (at the bake's to_vanilla), their mask with them
+	var clothes: Transform2D = ob[0] * Transform2D(0.0, Vector2(10.53, 18.98))
+	var mask_place: Vector2 = DevBodyBaked._mask_rest.origin
+	shoe_ok = shoe_ok and t.rightThighBottoms.transform.is_equal_approx(clothes) and t.rightThighBottomsOver.transform.is_equal_approx(clothes) \
+		and not t.rightThighCostumeMask.legMask.position.is_equal_approx(mask_place)
 	DevBodyBaked.set_on(false)
 	h.updateElements()
 	var gone: bool = DevBodyBaked._nodes.is_empty() and t.leg.thigh.visible and t.leg.highlights.visible \
-		and not DevBodyBaked._after.is_valid() and t.rightCalfContainer.footwear.transform.is_equal_approx(t.rightCalfContainer.calf.transform)
+		and not DevBodyBaked._after.is_valid() and t.rightCalfContainer.footwear.transform.is_equal_approx(t.rightCalfContainer.calf.transform) \
+		and t.rightThighBottoms.transform.is_equal_approx(t.leg.transform) and t.rightThighCostumeMask.legMask.position.is_equal_approx(mask_place)
 	DevBodyBaked.data = was_data
 	DevBodyBaked._bin = was_bin
 	DevBodyBaked.status = ""

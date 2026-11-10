@@ -29,6 +29,8 @@ static var _bin := PackedByteArray()
 static var _layers := {}         # "near/leg" -> {fill: MeshInstance2D, ink: MeshInstance2D, bone: String}
 static var _nodes := []          # every node we added
 static var _hidden := []         # the game's pictures we hid
+static var _mask_rest := Transform2D.IDENTITY   # the thigh clothes mask (rightThighCostumeMask.legMask) as the game left it
+static var _mask_rest_set := false
 static var _after := Callable()
 static var _ticker: Node = null
 static var _angles := {"prev": Vector2.ZERO, "now": Vector2.ZERO}   # card angles (hip, knee) at the last two ticks
@@ -388,6 +390,10 @@ static func _teardown() -> void:
 	if is_instance_valid(_ticker):
 		_ticker.queue_free()
 	_ticker = null
+	# the game sets only the thigh mask's turn each tick, not its place: put the place back
+	if _mask_rest_set and g.her != null:
+		g.her.torso.rightThighCostumeMask.legMask.transform = _mask_rest
+	_mask_rest_set = false
 
 
 # ---------------------------------------------------------------- every tick: bones; every frame: angles
@@ -468,6 +474,21 @@ static func _update() -> void:
 	var shoe: Transform2D = gb[0].affine_inverse() * ob[1] * Transform2D(0.0, -CALF_TO_VANILLA + foot_fit)
 	h.torso.rightCalfContainer.footwear.transform = shoe
 	h.leftLegContainer.leg.footwear.transform = shoe
+	# her thigh clothes (skirt, shorts, thigh stockings, costume) ride our thigh as the shoes ride our calf: drawn in
+	# the vanilla thigh's frame, which sits at the bake's to_vanilla in ours. The skirt's mask turns with the thigh in
+	# the game; it is carried the same way. The far leg's clothes ride its node, already moved to our far leg.
+	var t = h.torso
+	var thigh_clothes: Transform2D = ob[0] * Transform2D(0.0, -_v(_bones.thigh.to_vanilla))
+	for item in [t.rightThighBottoms, t.rightThighBottomsOver, t.rightThighStocking, t.rightThighStockingB, t.rightThighCostume]:
+		item.transform = thigh_clothes
+	var mask: Node2D = t.rightThighCostumeMask.legMask
+	if not _mask_rest_set:
+		_mask_rest = mask.transform
+		_mask_rest_set = true
+	var mask_parent: Transform2D = (t.rightThighCostumeMask as Node2D).transform
+	# as the game has it: its place from before we moved it, the turn it has just given it (torso space)
+	var mask_game: Transform2D = mask_parent * Transform2D(mask.rotation, _mask_rest.get_scale(), 0.0, _mask_rest.origin)
+	mask.transform = mask_parent.affine_inverse() * thigh_clothes * gb[0].affine_inverse() * mask_game
 	_angles.prev = _angles.now
 	_angles.now = Vector2(STAND[0] - rad_to_deg(gb[0].get_rotation()), -(rad_to_deg(gb[1].get_rotation()) - STAND[1]))
 
