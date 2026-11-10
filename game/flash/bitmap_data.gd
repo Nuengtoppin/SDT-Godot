@@ -82,8 +82,11 @@ func get_texture() -> Texture2D:
 	return _texture
 
 
-func mark_dirty() -> void:
+## For pixels changed straight in `image`: re-uploads the texture and counts r (default: the whole bitmap) as content,
+## or fillRect / multiplyAlpha would skip them (they only touch the content bounds).
+func mark_dirty(r: Rect2i = Rect2i(0, 0, -1, -1)) -> void:
 	_tex_dirty = true
+	_grow(rect if r.size.x < 0 else r)
 
 
 ## Extends the content bounds by r (clipped to the bitmap).
@@ -333,5 +336,4 @@ func setPixels(r: Rect2i, bytes: PackedByteArray) -> void:
 		data[i + 3] = bytes[i]
 	var sub := Image.create_from_data(r.size.x, r.size.y, false, Image.FORMAT_RGBA8, data)
 	image.blit_rect(sub, Rect2i(Vector2i.ZERO, r.size), r.position)
-	mark_dirty()
-	_grow(r)
+	mark_dirty(r)

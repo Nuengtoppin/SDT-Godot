@@ -31,6 +31,7 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/counters/counters.gd",
 	"res://src/ext/coughhotkey/coughhotkey.gd",
 	"res://src/ext/clearallshortcut/clearallshortcut.gd",
+	"res://src/ext/loadershortcuts/loadershortcuts.gd",
 	"res://src/ext/throatsoundcontrol/throatsoundcontrol.gd",
 	"res://src/ext/wincecontrol/wincecontrol.gd",
 	"res://src/ext/himnotletgo/himnotletgo.gd",
@@ -53,6 +54,7 @@ const BUILTIN: Array[String] = [
 	"res://src/ext/morecumspurts/morecumspurts.gd",
 	"res://src/ext/lipstickringsmear/lipstickringsmear.gd",
 	"res://src/ext/strandlimit/strandlimit.gd",
+	"res://src/ext/dynamichair/dynamichair.gd",
 	"res://src/ext/extramod/extramod.gd",
 	"res://src/ext/extramodhim/extramodhim.gd",
 ]
@@ -70,11 +72,7 @@ static var _late_ticks: Array = []   # [extension, Callable], after it
 static var _installed := false
 static var _events: Dictionary = {}   # event name -> [[extension, Callable]]
 static var _widgets: Array = []      # [extension, FlashDisplayObject]
-static var _keys: Dictionary = {}    # Flash key code -> [[extension, Callable, label]]
 static var _da_addons: Array = []    # [extension, Callable(da)]: additions to DialogueActions (on_dialogueactions)
-
-## Flash key codes the vanilla game uses during play (DT.keyPressed), for clash warnings.
-const VANILLA_KEYS := [16, 17, 191, 32, 65, 80, 79, 73, 85, 89, 67, 88, 66, 72, 75, 84, 83, 74]
 
 ## Plugins found in Mods/Plugins: id -> {"folder", "name", "author", "version", "error"} ("" = loaded).
 static var plugins: Dictionary = {}
@@ -201,8 +199,7 @@ static func _disable(ext: SDTExtension) -> void:
 		if is_instance_valid(w[1]) and w[1]._flash_parent != null:
 			w[1]._flash_parent.removeChild(w[1])
 	_widgets = _widgets.filter(func(x): return x[0] != ext)
-	for k in _keys:
-		_keys[k] = _keys[k].filter(func(x): return x[0] != ext)
+	Hotkeys.remove_owner(ext.id)
 	for name in _events:
 		_events[name] = _events[name].filter(func(e): return e[0] != ext)
 	_ticks = _ticks.filter(func(t): return t[0] != ext)
@@ -221,7 +218,7 @@ static func shutdown() -> void:
 	_ticks.clear()
 	_late_ticks.clear()
 	_events.clear()
-	_keys.clear()
+	Hotkeys.clear()
 	_widgets.clear()
 	Hooks._hooks.clear()
 	CharCode._fields.clear()
@@ -322,21 +319,19 @@ static func compile_script(path: String) -> GDScript:
 
 # ---------------------------------------------------------------- keys and widgets
 
-## Called from DT.keyPressed after the vanilla guards (not while typing or with controls locked).
+## Runs the extensions' actions on this key (tests; play goes through Hotkeys.pressed from DT.keyPressed).
 static func key_pressed(keycode: int) -> void:
-	for k in _keys.get(keycode, []).duplicate():
-		if k[1].is_valid():
-			k[1].call()
+	for a in Hotkeys.actions.filter(func(x): return x["owner"] != Hotkeys.GAME and Hotkeys.binding(x["id"]) == keycode):
+		if a["fn"].is_valid():
+			a["fn"].call()
 
 
-static func _add_key(ext: SDTExtension, keycode: int, fn: Callable, label: String) -> void:
-	if keycode in VANILLA_KEYS:
-		push_warning("extension %s: key %d (%s) is also a key of the game" % [ext.id, keycode, label])
-	if not _keys.has(keycode):
-		_keys[keycode] = []
-	for other in _keys[keycode]:
-		push_warning("extension %s: key %d (%s) is also used by %s (%s)" % [ext.id, keycode, label, other[0].id, other[2]])
-	_keys[keycode].append([ext, fn, label])
+## An extension's hotkey as a rebindable action (Settings › Hotkeys), id "<extension>:<id or label>".
+static func _add_key(ext: SDTExtension, keycode: int, fn: Callable, label: String, id: String) -> void:
+	var aid := ext.id + ":" + (id if id != "" else label)
+	if Hotkeys.by_id.has(aid):   # the same label twice: told apart by the default key
+		aid += ":%d" % keycode
+	Hotkeys.add(aid, ext.id, label, keycode, fn)
 
 
 static func _add_da_addon(ext: SDTExtension, setup: Callable) -> void:

@@ -12,9 +12,12 @@ extends SDTExtension
 ## Every tick the mod parts follow her own: eyelid / mask / brow frames, jaw frame and position, lip shape, the
 ## mascara / eyeshadow colours. Anything it hid comes back when the mods are cleared or the extension is off.
 ##
+## Her body: BodyExpanded (em_body.gd): her arms, hands, thumb, shoulder, chest, breasts, back, hips, legs, with her
+## skin, tan, breast size, nail polish and hand positions.
+##
 ## Scene, dialogue, her penis, piercings:
 ##   Overlay              art on the screen effects, front, back, scene or mist layer; a "diabox" part replaces the
-##                        dialogue box picture.
+##                        dialogue box picture (an Overlay item named "diabox" is listed with the dialogue box mods).
 ##   DialogueBox          a new dialogue box picture (the game's own is hidden while one is on).
 ##   Overlay and DialogueBox mods may set the dialogue text: newColor (hex), newFontSize, dialogueFontName (a font
 ##   installed on the computer). Dialogue words do the same: [EM_FCOLORff0000], [EM_FSIZE20], [EM_FONTComic_Sans_MS]
@@ -35,6 +38,7 @@ const CONTAINERS := {
 	"backeyelash": ["head", true, ""],
 	"rightbrowpierce": ["rightEyebrow", true, ""], "leftbrowpierce": ["leftEyebrow", true, ""],
 	"nosepierce": ["head.face.nose", true, ""],
+	"thumb": ["leftHandOver.hand", true, ""],
 }
 const HEAD_PARTS := {"nosemask": "head.face.nose", "neckmask": "head.neck", "neck": "head.neck",
 	"face": "head.face.skull", "eyeridge": "eye.eyebrowUnderMask", "ear": "ear", "nose": "head.face.nose",
@@ -57,7 +61,8 @@ const OTHER_TYPES := {
 	"Futa": {"target": "torso.penisContainer"},
 }
 const ALL_TYPES := ["BodyHead", "BodyEye", "CostumeBrowPiercing", "CostumeNosePiercing", "Overlay", "DialogueBox",
-	"Futa"]
+	"Futa", "BodyExpanded"]
+const EmBody := preload("res://src/ext/extramod/em_body.gd")
 
 ## Her own parts a hideVanillaFace head mod covers: their first child is hidden (on load and skin changes)
 const FACE_COVERS := {"nose": "head.face.nose", "ear": "ear", "eyeridge": "eye.eyebrowUnderMask",
@@ -73,8 +78,10 @@ const PIERCING_LIST := "extramod_piercings"   # Clothes > Piercings
 const FUTA_LIST := "extramod_futa"            # Her > Body
 const OVERLAY_LIST := "extramod_overlays"     # Scene > Overlays
 const DIABOX_LIST := "extramod_diabox"        # Dialogue > Dialogue
+const BODY_LIST := "extramod_body"            # Her > Body
 
 var c := {}               # container name -> FlashSprite
+var body = null           # em_body.gd: the BodyExpanded type
 var _mood_parts: Array = []    # parts with a "mood" child
 var _skin_parts: Array = []    # parts (useSkinPalette) shown at the frame named after her skin
 var _face_covers: Array = []   # FACE_COVERS keys some hideVanillaFace mod replaces
@@ -123,6 +130,10 @@ func _enable() -> void:
 		c[n] = s
 	if c.has("backeyelash"):
 		c["backeyelash"]._flash_parent.setChildIndex(c["backeyelash"], 0)   # behind her head
+	if c.has("thumb"):
+		c["thumb"].visible = false
+	body = EmBody.new(self)
+	body.register()
 	_register("BodyHead", HEAD_PARTS)
 	_register("BodyEye", EYE_PARTS)
 	for t in OTHER_TYPES:
@@ -139,6 +150,9 @@ func _enable() -> void:
 	hook_after(&"CharacterControl.setEyebrowFill", func(h): _brow_colour("fill", h.args[0]))
 	hook_after(&"CharacterControl.setEyebrowLine", func(h): _brow_colour("line", h.args[0]))
 	hook_after(&"HerPenisControl.updatePenis", func(_h): _update_futa())
+	for ev in ["Her.setRightArmPosition", "Her.setLeftArmPosition", "CharacterControl.setBreasts",
+			"CharacterControl.setNailPolish", "CharacterControl.applySkinHSL"]:
+		hook_after(StringName(ev), func(_h): _body_event(ev))
 	hook_after(&"Dialogue.startSpeakingPhrase", func(_h): _update_dia())
 	hook_before(&"Dialogue.checkWordAction", _on_word)
 	on_event("mood_changed", func(_m): _update_moods())
@@ -148,7 +162,10 @@ func _enable() -> void:
 		g.modCatalog.add_picker(PIERCING_LIST, ["CostumeBrowPiercing", "CostumeNosePiercing"])
 		g.modCatalog.add_picker(FUTA_LIST, ["Futa"])
 		g.modCatalog.add_picker(OVERLAY_LIST, ["Overlay"])
-		g.modCatalog.add_picker(DIABOX_LIST, ["DialogueBox"])
+		g.modCatalog.add_picker(DIABOX_LIST, ["DialogueBox", "Overlay/diabox"])   # overlays made as a dialogue box too
+		g.modCatalog.add_picker(BODY_LIST, ["BodyExpanded"])
+		# whole-body mods: one switch for their face, hair, clothes and body
+		g.modCatalog.merge_pickers([LIST, "hair", g.modCatalog.COSTUME], BODY_LIST)
 	menu_control("her", "Face", {"type": "custom", "label": "ExtraMod face and eye mods", "wide": true,
 		"tip": "Face, eye and eyebrow mods made with ExtraMod, from Mods/Clothing. Several can be on: they stack.",
 		"build": func(): return ModSwitchList.build(LIST, _toggle), "keywords": "extramod em emc face eyes eyebrows anime"})
@@ -160,6 +177,10 @@ func _enable() -> void:
 		"tip": "Art for her penis made with ExtraMod (Futa mods), from Mods/Clothing. Shown while she has a penis (Penis above).",
 		"build": func(): return ModSwitchList.build(FUTA_LIST, _toggle, "None found in Mods/Clothing."),
 		"keywords": "extramod futa penis"})
+	menu_control("her", "Body", {"type": "custom", "label": "ExtraMod body mods", "wide": true,
+		"tip": "Body mods made with ExtraMod (BodyExpanded): arms, hands, chest, breasts, back, hips, legs, from Mods/Clothing. A mod that also brings face parts, hair or clothes is one switch here.",
+		"build": func(): return ModSwitchList.build(BODY_LIST, _toggle, "None found in Mods/Clothing."),
+		"keywords": "extramod body expanded arms hands legs breasts skin"})
 	menu_control("scene", "Overlays", {"type": "custom", "label": "Overlay mods", "wide": true,
 		"tip": "Art over or behind the scene made with ExtraMod (Overlay mods), from Mods/Clothing. Some also change the dialogue box or its text.",
 		"build": func(): return ModSwitchList.build(OVERLAY_LIST, _toggle, "None found in Mods/Clothing."),
@@ -173,7 +194,7 @@ func _enable() -> void:
 
 func _disable() -> void:
 	if g.modCatalog != null:
-		for k in [LIST, PIERCING_LIST, FUTA_LIST, OVERLAY_LIST, DIABOX_LIST]:
+		for k in [LIST, PIERCING_LIST, FUTA_LIST, OVERLAY_LIST, DIABOX_LIST, BODY_LIST]:
 			g.modCatalog.remove_picker(k)
 	var cel = g.customElementLoader
 	if cel != null:
@@ -200,7 +221,7 @@ func _register(type: String, parts: Dictionary) -> void:
 			o = _node(path)
 		if o != null:
 			d[p] = o
-	g.customElementLoader.modTargetHelpers[type] = CustomElementHelper.new(d)
+	g.customElementLoader.modTargetHelpers[type] = CustomElementHelper.new(d)   # direct: registers a mod target
 
 
 ## Her display object by a dotted path ("eye.ball.sclera"), null if a part is missing.
@@ -255,6 +276,7 @@ static func _hide_children(o, keep := 1) -> void:
 ## A switch per ExtraMod mod found in Mods/Clothing (the list grows while the catalog scans).
 func _toggle(on: bool, e: Dictionary) -> void:
 	if on:
+		g.modCatalog.clear_slots_for(e)   # a whole-body mod's hair and clothes take her own off, as their pickers do
 		g.modCatalog.apply(e)
 	else:
 		g.modCatalog.remove_entry(e)
@@ -274,7 +296,7 @@ func _rebuild() -> void:
 	for r in keep:
 		_apply(r, false)
 	for o in others:
-		_other_placed(str(o[1].get("modType")), o[1], false)
+		_other_placed(str(o[1].get("modType")), o[1], false, o[0])
 
 
 # ---------------------------------------------------------------- a mod was placed
@@ -287,7 +309,7 @@ func _placed(m) -> void:
 		return
 	if t != "BodyHead" and t != "BodyEye":
 		_others.append([g.customElementLoader.loadingModPackage, m])
-		_other_placed(t, m, true)
+		_other_placed(t, m, true, g.customElementLoader.loadingModPackage)
 		return
 	var r := {"pkg": g.customElementLoader.loadingModPackage, "type": t, "flags": {}}
 	for f in FLAG_KEYS:
@@ -338,9 +360,9 @@ func _eye_placed(m: Dictionary, parts: Dictionary) -> void:
 	if not m.get("hideVanillaEye"):
 		return
 	if parts.has("altuppereyelid"):
-		her.eye.upperEyelid.visible = false
+		her.eye.upperEyelid.visible = false   # direct: replaced by a mod's art
 	if parts.has("altlowereyelid"):
-		her.eye.lowerEyelid.visible = false
+		her.eye.lowerEyelid.visible = false   # direct: replaced by a mod's art
 	for p in [["altsclera", "eye.ball.sclera"], ["althighlights", "eye.ball.highlights"],
 			["altiris", "eye.ball.irisContainer.iris"]]:
 		if parts.has(p[0]):
@@ -353,11 +375,11 @@ func _head_placed(m: Dictionary, parts: Dictionary) -> void:
 	if m.get("hideVanillaHeadTan"):
 		_hide["headtan"] = true
 	if m.get("hideScalp"):
-		her.head.scalpHair.visible = false
+		her.head.scalpHair.visible = false   # direct: replaced by a mod's art
 		_hide["scalp"] = true
 	if m.get("hideCheekBulge"):
-		her.head.cheekBulge.visible = false
-		her.head.cheekSuck.visible = false
+		her.head.cheekBulge.visible = false   # direct: replaced by a mod's art
+		her.head.cheekSuck.visible = false   # direct: replaced by a mod's art
 		_hide["cheeks"] = true
 	if parts.has("lowerlipstick") and not parts["lowerlipstick"] in _lower_lipsticks:
 		_lower_lipsticks.append(parts["lowerlipstick"])
@@ -371,7 +393,7 @@ func _head_placed(m: Dictionary, parts: Dictionary) -> void:
 				_face_covers.append(k)
 		if parts.has("jaw"):
 			_hide["jaw"] = true
-			her.head.jawBack.visible = false
+			her.head.jawBack.visible = false   # direct: replaced by a mod's art
 		if parts.has("upperlip"):
 			_hide["upperlip"] = true
 		if parts.has("upperlipstick"):
@@ -411,15 +433,17 @@ func _hide_face() -> void:
 			if not bl.getChildAt(i) in _lower_lipsticks:
 				bl.getChildAt(i).visible = false
 	if _hide.get("headtan", false) and her.head.get("headTan") != null:
-		her.head.headTan.visible = false
+		her.head.headTan.visible = false   # direct: replaced by a mod's art
 
 
 # ---------------------------------------------------------------- scene, dialogue, her penis, piercings
 
-func _other_placed(t: String, m, first: bool) -> void:
-	if first and m.get("overwrite") and t != "Futa":
+func _other_placed(t: String, m, first: bool, pkg = null) -> void:
+	if first and m.get("overwrite") and t != "Futa" and t != "BodyExpanded":
 		g.customElementLoader.clearModTypes([t])
 	match t:
+		"BodyExpanded":
+			body.placed(m, first, pkg)
 		"Futa":
 			_futa = true
 			_update_futa()
@@ -524,10 +548,32 @@ func _update_futa() -> void:
 
 # ---------------------------------------------------------------- skin, moods, brow colours
 
+## Her arms, breasts, nail polish or skin colour changed: the BodyExpanded parts follow.
+func _body_event(ev: String) -> void:
+	if body == null or not body.on:
+		return
+	match ev:
+		"Her.setRightArmPosition":
+			body.right_hand()
+		"Her.setLeftArmPosition":
+			body.left_hand()
+		"CharacterControl.setBreasts":
+			body.breasts()
+		"CharacterControl.setNailPolish":
+			body.nails()
+		"CharacterControl.applySkinHSL":
+			body.skin_hsl()
+	body.hide_vanilla()
+
+
 func _skin_changed(skin: int) -> void:
 	_lip_offset = skin * 81
 	_set_skin_frames()
 	_hide_face()
+	if body != null and body.on:
+		body.skin()
+		body.breasts()
+		body.hide_vanilla()
 
 
 func _set_skin_frames() -> void:
@@ -659,6 +705,8 @@ func _tan_child(part) -> void:
 func _tick() -> void:
 	if _dia_color != null or _dia_size != null:
 		_dia_format()
+	if body != null and body.on:
+		body.tick()
 	if _hide.is_empty() and _skin_parts.is_empty() and not _eye_set:
 		if _brow_pierce and g.gamePaused:
 			_follow_eyes()
@@ -721,6 +769,8 @@ func _reset() -> void:
 
 ## The dialogue box and text, her penis parts and brow piercings back to the game's.
 func _reset_other() -> void:
+	if body != null:
+		body.reset()
 	if _dia_mods and _dia_box != null and is_instance_valid(_dia_box):
 		_dia_box.visible = true
 	_dia_mods = false

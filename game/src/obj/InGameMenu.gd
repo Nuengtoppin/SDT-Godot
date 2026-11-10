@@ -979,28 +979,28 @@ func style2Clicked(param1 = null):
 
 
 func leftArmLeftClicked(param1 = null):
-	var _loc2_ = max(0,min(Her.armPositions.size() - 1,g.her.currentLeftArmPosition - 1))
+	var _loc2_ = Her.stepArmPosition(g.her.currentLeftArmPosition, -1, true)
 	g.her.setLeftArmPosition(_loc2_)
 	updateArmsList()
 	g.saveData.saveCharData()
 
 
 func leftArmRightClicked(param1 = null):
-	var _loc2_ = max(0,min(Her.armPositions.size() - 1,g.her.currentLeftArmPosition + 1))
+	var _loc2_ = Her.stepArmPosition(g.her.currentLeftArmPosition, +1, true)
 	g.her.setLeftArmPosition(_loc2_)
 	updateArmsList()
 	g.saveData.saveCharData()
 
 
 func rightArmLeftClicked(param1 = null):
-	var _loc2_ = max(0,min(Her.armPositions.size() - 1,g.her.currentRightArmPosition - 1))
+	var _loc2_ = Her.stepArmPosition(g.her.currentRightArmPosition, -1, false)
 	g.her.setRightArmPosition(_loc2_)
 	updateArmsList()
 	g.saveData.saveCharData()
 
 
 func rightArmRightClicked(param1 = null):
-	var _loc2_ = max(0,min(Her.armPositions.size() - 1,g.her.currentRightArmPosition + 1))
+	var _loc2_ = Her.stepArmPosition(g.her.currentRightArmPosition, +1, false)
 	g.her.setRightArmPosition(_loc2_)
 	updateArmsList()
 	g.saveData.saveCharData()
@@ -1656,6 +1656,8 @@ func storeCharClicked(param1 = null):
 
 func characterStoredSuccessfully(param1 = null):
 	closeCharStoring()
+	if SDTMenu.active():   # port: saved from the new menu's Characters panel
+		return
 	currentTab = 1
 	updateTabs()
 	openCharacterMenu()

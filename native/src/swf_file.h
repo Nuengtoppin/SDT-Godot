@@ -68,8 +68,9 @@ public:
 	Array get_timeline(int p_id) const;
 	// DoABC payloads (the ABC bytes, after the flags / name header)
 	Array get_abc_blocks() const;
-	// {image: Image, x, y, w, h (bounds in pixels), hit: PackedByteArray, hw, hh} or {} when empty
-	Dictionary render(int p_id, int p_ratio, double p_scale);
+	// {image: Image, x, y, w, h (bounds in pixels), hit: PackedByteArray, hw, hh} or {} when empty; grow > 0 (in 1x
+	// pixels) grows the solid parts outward (see grow_outward) in an image padded by ceil(grow) on each side
+	Dictionary render(int p_id, int p_ratio, double p_scale, double p_grow = 0.0);
 	Ref<Image> get_bitmap(int p_id);
 	Dictionary get_sound(int p_id) const;
 	Dictionary get_edit_text(int p_id) const;

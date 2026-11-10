@@ -24,6 +24,8 @@ func _init(breast: FlashDisplayObject, c1 = null, c2 = null) -> void:
 
 
 func accelerate(v: float) -> void:
+	if Hooks.has_value(&"BreastController.kick"):   # HOOK value point: how much a push (a cough, a spank) speeds the breast up
+		v = Hooks.value(&"BreastController.kick", self, v)
 	_speed += v
 
 

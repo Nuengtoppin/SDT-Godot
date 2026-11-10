@@ -106,8 +106,8 @@ func _set_lip_alpha(left: float) -> void:
 	var her: Her = g.her
 	if her == null or g.characterControl == null:
 		return
-	her.topLipstickContainer.topLipstick.alpha = left
-	her.bottomLipstick.alpha = g.characterControl.lipstickRGB.a * left
+	her.topLipstickContainer.topLipstick.alpha = left   # direct: her lipstick wearing off (the game sets it only with her lipstick)
+	her.bottomLipstick.alpha = g.characterControl.lipstickRGB.a * left   # direct: her lipstick wearing off (the game sets it only with her lipstick)
 
 
 func _before_smear(c: Hooks.Call) -> void:

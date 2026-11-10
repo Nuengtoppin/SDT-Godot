@@ -21,10 +21,13 @@ const BODY_LIST := "body"
 ## Mods of body parts only (ThickerThighs, HardBod, breast mods): the "Body mods" list in Her > Body. A body part that
 ## comes with clothing stays a companion of the clothing's picker entry.
 const BODY_MODS_LIST := "bodymods"
+## Clothes > Head and neck > Leash: dynamic hair strands hanging from her collar (is_leash). One at a time.
+const LEASH_LIST := "leash"
 
 const SCAN_FOLDERS := ["Clothing", "Hair", "Backgrounds"]
+const MOD_EXTENSIONS := ["swf", "mod"]   # .mod: a SWF under the Loader's other name for mods
 const IMAGE_EXTENSIONS := ["png", "jpg", "jpeg", "gif", "bmp"]
-const CATALOG_VERSION := 2   # 2: misspelt mod types normalised (CustomElementLoader.normalModType)
+const CATALOG_VERSION := 3   # 2: misspelt mod types normalised (CustomElementLoader.normalModType); 3: leashes
 const HAIR_TYPES := [ModTypes.HAIR, ModTypes.DYNAMIC_HAIR]
 ## A mod with pieces for several costume slots (a vest with its shirt, sleeves and collar) is one option, in the
 ## first of these slots it has a piece for; its other pieces go on and off with it.
@@ -40,23 +43,35 @@ var bg_entries: Array = []
 ## items of those types). Shown as on / off switches, so several can be on (ExtraMod's face and eye mods stack).
 var picker_types: Dictionary = {}
 var picker_entries: Dictionary = {}
+## List key -> list key (merge_pickers): a mod with items for both lists gets one entry, in the second. Keys:
+## add_picker lists, "hair", "bg", or COSTUME (any clothes picker).
+var picker_merge: Dictionary = {}
+const COSTUME := "*costume"
 var _seen: Array = []         # [path, catalog] of every mod looked at, for lists added later
 var _queue: Array = []        # paths still to inspect
-var _converting: Dictionary = {}  # task id -> [path, bytes, dir]
+var _converting: Dictionary = {}  # task id -> [path, bytes]
+var _waiting: Array = []          # [path, cache dir] of new mods waiting for a free conversion slot
+## Main-thread time per tick for reading cached catalogs (the file read and hash of each .swf are most of it)
+const TICK_BUDGET_US := 3000
 var _busy := false
 var _names: Dictionary = {}   # lower-case file path -> [name, slot] from names.txt
 var _scanned := false         # every mod has been looked at
 var _wanted: Array = []       # [picker, name, callback] asked for before the scan finished (find_named)
 var _due := 0                 # find_named answers found but not called yet (they run deferred)
 var _known: Dictionary = {}   # lower-case paths of the files scanned, so rescan() only adds new ones
+var _total := 0               # .swf files queued by the current scan (the loading notice's count)
+var _notice: Node = null      # the "Loading mods" notice (mod_load_notice.gd) while a scan runs
 
 
 func start() -> void:
 	picker_entries[BODY_LIST] = []
 	picker_entries[BODY_MODS_LIST] = []
+	picker_entries[LEASH_LIST] = []
+	picker_types[ModTypes.LEASH] = LEASH_LIST
 	for sub in SCAN_FOLDERS:
 		_scan(Flash.mods_dir(sub))
 	Flash.add_enter_frame(self, _tick)
+	_show_notice()
 	# MoreClothing's extra body slot (Loader codes): the mod is put on; saving writes it as the port's own mod field
 	CharCode.add_field("moreclothingbody", "port", _no_field, _load_body_slot)
 
@@ -86,8 +101,9 @@ func _scan(dir: String) -> void:
 		if _known.has(dir.path_join(f).to_lower()):
 			continue
 		_known[dir.path_join(f).to_lower()] = true
-		if ext == "swf":
+		if ext in MOD_EXTENSIONS:
 			_queue.append(dir.path_join(f))
+			_total += 1
 		elif ext in IMAGE_EXTENSIONS and dir.begins_with(Flash.mods_dir("Backgrounds")):
 			# background images: shown like the vanilla "Import background"
 			var e := {"path": _relative(dir.path_join(f)), "image": true, "items": [], "modTypes": [],
@@ -107,8 +123,9 @@ func _scan(dir: String) -> void:
 		_scan(dir.path_join(sub))
 
 
-## One mod per tick: cached catalogs are read directly, new mods are converted on a worker thread and then
-## inspected on the main thread (their frame scripts must run to know what they contain).
+## Each tick: mods with a cached catalog are read for up to TICK_BUDGET_US (a small file each, so a collection that was
+## seen before is done in a few frames); new mods are converted on worker threads (two at a time) and then inspected
+## on the main thread one per tick (their frame scripts must run to know what they contain).
 func _tick() -> void:
 	for id in _converting.keys():
 		if WorkerThreadPool.is_task_completed(id):
@@ -117,32 +134,84 @@ func _tick() -> void:
 			_converting.erase(id)
 			_inspect(job[0], job[1])
 			return
-	if _queue.is_empty():
+	while not _waiting.is_empty() and _converting.size() < 2:
+		_convert(_waiting.pop_front())
+	var t0 := Time.get_ticks_usec()
+	while not _queue.is_empty() and Time.get_ticks_usec() - t0 < TICK_BUDGET_US:
+		if not _step(_queue.pop_front()):
+			return
+	if _queue.is_empty() and _waiting.is_empty():
 		if _converting.is_empty():
 			Flash.remove_enter_frame(self, _tick)
 			_sync_loaded()
 			_scanned = true
+			_total = 0
 			for w in _wanted:
 				find_named(w[0], w[1], w[2])
 			_wanted.clear()
-		return
-	if _converting.size() >= 2:
-		return
-	var path: String = _queue.pop_front()
+
+
+## Looks at one queued mod; false if it took a main-thread inspection (that tick's budget is spent).
+func _step(path: String) -> bool:
 	var bytes := FileAccess.get_file_as_bytes(path)
 	if bytes.is_empty():
-		return
-	var dir := FlashSwfMod.CACHE_ROOT.path_join(FlashSwfMod._sha256(bytes))
+		return true
+	var dir := FlashSwfMod.cache_root.path_join(FlashSwfMod._sha256(bytes))
 	var cat := _read_catalog(dir)
 	if not cat.is_empty():
 		_add(path, cat)
-		return
+		return true
 	if FlashSwfMod.is_converted(dir):
 		_inspect(path, bytes)
+		return false
+	if _converting.size() < 2:
+		_convert([path, dir], bytes)
+	else:
+		_waiting.append([path, dir])   # not its bytes: a large new collection would hold them all in memory
+	return true
+
+
+func _convert(job: Array, bytes := PackedByteArray()) -> void:
+	if bytes.is_empty():
+		bytes = FileAccess.get_file_as_bytes(job[0])
+	if bytes.is_empty():
 		return
+	var dir: String = job[1]
 	var scale: float = Flash.base_library.scale
 	var id := WorkerThreadPool.add_task(func(): FlashSwfMod.convert_swf(bytes, dir, scale), false, "convert mod")
-	_converting[id] = [path, bytes]
+	_converting[id] = [job[0], bytes]
+
+
+## The game quits: mods still converting on worker threads stop and are waited for (a worker thread still running
+## GDScript while the engine shuts down crashes it).
+func shutdown() -> void:
+	if _converting.is_empty():
+		return
+	FlashSwfMod.stop_converting = true
+	for id in _converting.keys():
+		WorkerThreadPool.wait_for_task_completion(id)
+	_converting.clear()
+	_waiting.clear()
+	_queue.clear()
+
+
+## The scan's progress, for the loading notice: {finished, done, total, converting: file names}.
+func progress() -> Dictionary:
+	var names: Array = []
+	for job in _converting.values():
+		names.append(str(job[0]).get_file())
+	return {"finished": _scanned, "done": _total - _queue.size() - _waiting.size() - _converting.size(), "total": _total,
+		"converting": names}
+
+
+## Puts up the "Loading mods" notice for the scan just started (it shows itself only if the scan takes a while).
+func _show_notice() -> void:
+	if _total == 0 or (_notice != null and is_instance_valid(_notice)):
+		return
+	_notice = preload("res://src/menu/mod_load_notice.gd").new()
+	_notice.name = "ModLoadNotice"   # named: an auto-generated name would shift the numbering of the game's nodes
+	_notice.catalog = self
+	Flash.add_child(_notice)
 
 
 static func _read_catalog(dir: String) -> Dictionary:
@@ -165,11 +234,13 @@ func _inspect(path: String, bytes: PackedByteArray) -> void:
 		cat["modName"] = str(root.get("modName")) if root.get("modName") else ""
 		cat["modCreator"] = str(root.get("modCreator")) if root.get("modCreator") else ""
 		var mods = root.get("mods")
+		var leash: bool = mods is Array and mods.any(func(m): return is_leash(m))
 		for i in (mods.size() if mods is Array else 0):
 			var m = mods[i]
 			if m is FlashDisplayObject:
 				cat["items"].append({"item": i, "name": m.flash_name,
-					"modType": CustomElementLoader.normalModType(str(m.get("modType"))),
+					"modType": ModTypes.LEASH if leash and str(m.get("modType")) == ModTypes.DYNAMIC_HAIR \
+						else CustomElementLoader.normalModType(str(m.get("modType"))),
 					"targetElement": str(m.get("targetElement")) if m.get("targetElement") else ""})
 	if root != null:
 		root.queue_free()
@@ -180,13 +251,26 @@ func _inspect(path: String, bytes: PackedByteArray) -> void:
 	_add(path, cat)
 
 
-## Adds a list for mods with items of `mod_types` (see picker_types), including mods already scanned.
+## Adds a list for mods with items of `mod_types` (see picker_types), including mods already scanned. An entry
+## "<modType>/<item name>" takes only the items of that type with that name (it wins over the type alone).
 func add_picker(key: String, mod_types: Array) -> void:
 	for t in mod_types:
 		picker_types[t] = key
 	picker_entries[key] = []
+	if picker_merge.values().has(key) or picker_merge.has(key):
+		_rebuild_all()
+		return
 	for s in _seen:
 		_add(s[0], s[1], key)
+
+
+## A mod with items for one of the `from` lists and for `into` gets one entry (one switch) in `into`, with those
+## items too (ExtraMod: a whole-body mod's head parts, hair and clothes go on and off with its body). Mods without
+## `into` items stay where they were.
+func merge_pickers(from: Array, into: String) -> void:
+	for f in from:
+		picker_merge[f] = into
+	_rebuild_all()
 
 
 func remove_picker(key: String) -> void:
@@ -196,6 +280,57 @@ func remove_picker(key: String) -> void:
 	var gone: Array = picker_entries.get(key, [])
 	entries = entries.filter(func(e): return not e in gone)
 	picker_entries.erase(key)
+	var merged := false
+	for f in picker_merge.keys():
+		if f == key or picker_merge[f] == key:
+			picker_merge.erase(f)
+			merged = true
+	if merged:
+		_rebuild_all()
+
+
+## Builds every list again from the mods scanned so far (the merge rules changed), keeping each picker's current
+## option (the hair, the background and the clothes pickers point at their entries by index).
+func _rebuild_all() -> void:
+	if _seen.is_empty():
+		return
+	var menu = g.inGameMenu
+	var helpers := {}
+	for e in entries:
+		if e.has("helper"):
+			helpers[e["helper"]] = true
+	var cur_hair := _at(hair_entries, menu.hairModIndex) if menu != null else {}
+	var cur_bg := _at(bg_entries, menu.bgModIndex) if menu != null else {}
+	var cur_helper := {}
+	for h in helpers:
+		cur_helper[h] = _at(h.modEntries, h.modEntryIndex)
+		h.modEntries.clear()
+	entries = []
+	hair_entries.clear()
+	bg_entries.clear()
+	for k in picker_entries:
+		picker_entries[k] = []
+	for s in _seen:
+		_add(s[0], s[1], null, false)
+	if menu != null:
+		menu.hairModIndex = _refind(hair_entries, cur_hair)
+		menu.bgModIndex = _refind(bg_entries, cur_bg)
+	for h in cur_helper:
+		h.modEntryIndex = _refind(h.modEntries, cur_helper[h])
+
+
+static func _at(list: Array, i: int) -> Dictionary:
+	return list[i] if i >= 0 and i < list.size() else {}
+
+
+## The index of the entry for the same mod and items as `old` (-1: gone, e.g. merged into another list).
+static func _refind(list: Array, old: Dictionary) -> int:
+	if old.is_empty():
+		return -1
+	for i in list.size():
+		if list[i]["path"] == old["path"] and list[i]["items"] == old["items"]:
+			return i
+	return -1
 
 
 ## Whether the entry's mod is on (some of its items are placed).
@@ -217,8 +352,8 @@ func remove_entry(e: Dictionary) -> void:
 
 
 ## Adds a mod's items to the pickers they belong to (only_key: just to that extension list).
-func _add(path: String, cat: Dictionary, only_key = null) -> void:
-	if only_key == null:
+func _add(path: String, cat: Dictionary, only_key = null, remember := true) -> void:
+	if only_key == null and remember:
 		_seen.append([path, cat])
 	var rel := _relative(path)
 	var title: String = cat.get("modName", "")
@@ -250,7 +385,7 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 		var key = _picker_key(it)
 		if key == null and body_only and it["modType"] == ModTypes.BODY:
 			key = BODY_MODS_LIST
-		if key == null or (only_key != null and not is_same(key, only_key)):
+		if key == null:
 			continue
 		if moved is CharacterElementHelper and key is CharacterElementHelper:
 			key = moved
@@ -267,10 +402,12 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 		e["items"].append(int(it["item"]))
 		if not e["modTypes"].has(it["modType"]):
 			e["modTypes"].append(it["modType"])
-	groups = _merge_costume_groups(groups)
+	groups = _merge_costume_groups(_merge_pickers(groups))
 	for gr in groups:
 		var key = gr[0]
 		var e: Dictionary = gr[1]
+		if only_key != null and not is_same(key, only_key):
+			continue
 		entries.append(e)
 		var list: Array
 		if key is String and picker_entries.has(key):
@@ -284,6 +421,27 @@ func _add(path: String, cat: Dictionary, only_key = null) -> void:
 			list = key.modEntries
 		list.append(e)
 		_dedupe(list, e)
+
+
+## picker_merge: a mod's entry for one list joins its entry for another.
+func _merge_pickers(groups: Array) -> Array:
+	if picker_merge.is_empty():
+		return groups
+	var by_key := {}
+	for gr in groups:
+		if gr[0] is String:
+			by_key[gr[0]] = gr
+	for gr in groups.duplicate():
+		var into = picker_merge.get(gr[0] if gr[0] is String else COSTUME)
+		if into == null or not by_key.has(into):
+			continue
+		var e: Dictionary = by_key[into][1]
+		e["items"].append_array(gr[1]["items"])
+		for t in gr[1]["modTypes"]:
+			if not e["modTypes"].has(t):
+				e["modTypes"].append(t)
+		groups.erase(gr)
+	return groups
 
 
 ## A mod's costume options (pickers that are element helpers) become one, in the first slot of SLOT_ORDER; the
@@ -383,6 +541,7 @@ func rescan() -> void:
 			e["named"] = true
 	Flash.remove_enter_frame(self, _tick)
 	Flash.add_enter_frame(self, _tick)
+	_show_notice()
 
 
 ## Whether an installed mod answers to `name` in `picker` (see find_named), as far as the scan has got.
@@ -400,12 +559,21 @@ func forget_named(picker) -> void:
 	_wanted = _wanted.filter(func(w): return picker != null and not is_same(w[0], picker))
 
 
+## A dynamic hair item hanging from her collar. Its own mod type, as in dynamicHairExtender: it is worn with her hair,
+## and a new leash replaces only the leash. The mod's other strands (the end in his hand) go with it.
+static func is_leash(m) -> bool:
+	return str(m.get("modType")) == ModTypes.DYNAMIC_HAIR and str(m.get("anchorContainer")).begins_with("her.collarContainer")
+
+
 static func _file_title(path: String) -> String:
 	return path.get_file().get_basename().replace("_", " ").strip_edges()
 
 
 ## The picker an item goes to: a costume element helper, "hair", or null (not selectable, e.g. Loader-only types).
 func _picker_key(it: Dictionary):
+	var named = picker_types.get("%s/%s" % [it["modType"], it.get("name", "")])
+	if named != null:
+		return named
 	if picker_types.has(it["modType"]):
 		return picker_types[it["modType"]]
 	if it["modType"] in HAIR_TYPES:
@@ -441,6 +609,7 @@ func apply(e: Dictionary) -> void:
 	var mods = root.get("mods") if root != null else null
 	if not mods is Array:
 		return
+	mod.run_initl(root)
 	var pkg := LoadedModPackage.new("swfMod")
 	var items := _applied_items(e)
 	pkg.setFilePath("%s|%s" % [e["path"], "+".join(PackedStringArray(items.map(func(i): return str(i))))])
@@ -460,6 +629,35 @@ func apply(e: Dictionary) -> void:
 	pkg.modItems = mods.duplicate()
 	cel.updateInstancedModElements()
 	g.inGameMenu.charStoring.populateMods()
+
+
+## Frees what an entry's items take the place of, as the hair and clothes pickers do before they put a mod on: her
+## hairstyle and the hair mods for a hairstyle (static hair: dynamic hair alone may be cables or wings),
+## a clothes slot's own piece and mods for clothes items. For entries that hold such items outside those pickers
+## (merge_pickers: ExtraMod's whole-body mods).
+func clear_slots_for(e: Dictionary) -> void:
+	var cel := g.customElementLoader
+	var cc := g.characterControl
+	var types: Array = e["modTypes"]
+	if types.has(ModTypes.HAIR):
+		if cc.customHairLoaded:
+			cel.clearCustomHair(false)
+			cc.customHairLoaded = false
+		cc.clearHair()
+		cel.clearModTypes(HAIR_TYPES)
+		if g.inGameMenu != null:
+			g.inGameMenu.hairModIndex = -1
+	for t in types:
+		var h = _picker_key({"modType": t, "targetElement": "", "name": ""})
+		if not h is CharacterElementHelper:
+			continue
+		h.clearWholeTint()
+		if h.associatedModType:
+			cel.clearModTypes([h.associatedModType])
+		if h.modEntryIndex >= 0 and h.modEntryIndex < h.modEntries.size() and h.modEntries[h.modEntryIndex] != e:
+			remove(h.modEntries[h.modEntryIndex])
+		h.modEntryIndex = -1
+		h.findName("None")
 
 
 ## An entry's items with its companions, in the mod's order.

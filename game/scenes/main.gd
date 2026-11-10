@@ -6,6 +6,7 @@ extends Node2D
 ## --driver=res://debug/<script>.gd runs a scripted test: the script's step(frame: int) is called every frame.
 ## --save-dir=<folder> keeps the save files there instead of user:// (copy a save in first to test with it).
 ## --mods-dir=<folder> reads mods from that folder instead of Mods/ (an empty folder runs without mods).
+## --mod-cache=<folder> keeps converted mods there instead of user://modcache (tests of converter changes).
 ## --vanilla keeps every port extension and plugin off (Vanilla mode, see src/ext/extensions.gd).
 ## Regression tests: tools/regress.sh (driver res://debug/regress.gd, reference dumps in tests/golden/).
 
@@ -51,6 +52,8 @@ func _ready() -> void:
 			DirAccess.make_dir_recursive_absolute(FlashSharedObject.save_dir)
 		elif a.begins_with("--mods-dir="):
 			Flash.mods_dir_override = a.substr(11)
+		elif a.begins_with("--mod-cache="):
+			FlashSwfMod.cache_root = a.substr(12)
 		elif a.begins_with("--seed="):
 			seed(int(a.substr(7)))
 		elif a.begins_with("--frames="):
@@ -78,6 +81,8 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	if g.modCatalog != null:
+		g.modCatalog.shutdown()   # before anything else goes: mods converting on worker threads
 	Extensions.shutdown()
 
 

@@ -242,20 +242,28 @@ func _goto(f: int, initial: bool) -> void:
 	var frames: Array = _sym["frames"]
 	var places: Array = _sym["places"]
 	var row: Array = frames[f]
-	var want := {}
+	# Remove children that are not on the target frame. Nearly always there are none (morphing eyelids and lips change
+	# frame every tick), which counting shows without building a set of the row's depths.
+	var kept := 0
 	for e in row:
-		want[int(e[0])] = e
-	# Remove children that are not on the target frame.
-	for d in _timeline_children.keys():
-		if not want.has(d):
-			_remove_timeline_child(d)
+		if _timeline_children.has(int(e[0])):
+			kept += 1
+	if kept != _timeline_children.size():
+		var want := {}
+		for e in row:
+			want[int(e[0])] = e
+		for d in _timeline_children.keys():
+			if not want.has(d):
+				_remove_timeline_child(d)
 	# Add / update.
 	for e in row:
 		var d: int = e[0]
 		var pidx: int = e[1]
 		var birth: int = e[2]
-		var place: Dictionary = places[pidx]
 		var child: FlashDisplayObject = _timeline_children.get(d)
+		if child != null and child._place_index == pidx and child._birth == birth:
+			continue   # the same placement: nothing to do
+		var place: Dictionary = places[pidx]
 		if child != null and (child._birth != birth or child._char_id != int(place["c"])):
 			_remove_timeline_child(d)
 			child = null
@@ -325,7 +333,9 @@ func _apply_place(child: FlashDisplayObject, place: Dictionary, pidx: int, is_ne
 			child.set_flash_matrix(m)
 		else:
 			child.transform = Transform2D.IDENTITY
-		child.reset_physics_interpolation()
+		# a new child starts where it is placed; one the timeline moves glides there like everything around it
+		if is_new or not FlashRectClip.smooth:
+			child.reset_physics_interpolation()
 	if is_new or place.get("ct") != old.get("ct"):
 		var ct = place.get("ct")
 		child.colorTransform = FlashColorTransform.from_array(ct) if ct != null else FlashColorTransform.new()

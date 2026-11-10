@@ -28,7 +28,7 @@ license. If you are a rights holder and want something removed, please open an i
 - `tools/porting/`: one-off scripts used while porting the ActionScript (kept for reference).
 - `Mods/`: created on first run in the repository root (next to `run_debug.bat`; next to the executable in an
   exported build), with `Clothing`, `Hair`, `Backgrounds`, `Characters`, `Dialogue` and `Plugins` folders.
-  Vanilla SDT `.swf` mods placed there show up in the in-game pickers.
+  Vanilla SDT `.swf` and `.mod` mods placed there show up in the in-game pickers.
 
 ## Running
 

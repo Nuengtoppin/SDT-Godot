@@ -63,7 +63,7 @@ func clearAutoLoadedBGPath() -> void:
 	sdtSave.data["customBGPath"] = null
 
 
-func saveCharData(standard: bool = false, id: int = 0) -> void:
+func saveCharData(standard: bool = false, id: int = 0, mark_custom: bool = true) -> void:
 	if not loadingCharData:
 		# port: her mods go on after her code has loaded (once the mod scan is done, or on the next frame), so a
 		# save now would store her without them; it waits until they are on
@@ -71,12 +71,14 @@ func saveCharData(standard: bool = false, id: int = 0) -> void:
 			if _heldCharSave.is_empty():
 				Flash.add_enter_frame(self, _saveHeldCharData)
 			_heldCharSave = [standard, id]
+			if not standard and mark_custom:   # now, not when the save happens: a stored character selects herself next
+				g.inGameMenu.updateCharMenu(0, true)
 			return
 		sdtSave.data["lastCharData"] = g.inGameMenu.getSaveDataString()
 		sdtSave.data["standardChar"] = standard
 		if standard:
 			sdtSave.data["standardCharID"] = id
-		else:
+		elif mark_custom:
 			g.inGameMenu.updateCharMenu(0, true)
 
 
@@ -90,7 +92,7 @@ func _saveHeldCharData() -> void:
 	Flash.remove_enter_frame(self, _saveHeldCharData)
 	var a := _heldCharSave
 	_heldCharSave = []
-	saveCharData(a[0], a[1])
+	saveCharData(a[0], a[1], false)
 
 
 func saveOptionsData() -> void:
@@ -208,9 +210,11 @@ func clearStoredChars() -> void:
 
 
 func deleteStoredChar(i: int) -> void:
-	for a in [_d("customCharNames"), _d("customCharData"), sdtCharShots.data.get("customCharShots")]:
+	for a in [_d("customCharNames"), _d("customCharData"), _d("customCharDialogue"), sdtCharShots.data.get("customCharShots")]:
 		if a is Array and i < a.size():
 			a.remove_at(i)
+	sdtSave.flush(10240)
+	sdtCharShots.flush(102400)
 
 
 func loadCharData() -> void:

@@ -13,6 +13,7 @@ extends SDTExtension
 ##   cum in mouth how full her mouth is
 ##   finishes     his finishes this session
 ##   her pleasure DialogueActions' da.masturbation.herpleasure (shown only with DialogueActions on)
+##   exhaustion   the progressiveexhaustion plugin's dynamic exhaustion and pass-outs (shown only with it on)
 
 const HEART := "M8.25 -3.1 Q8.25 -2.1 7.85 -1.3 L7.05 -0.15 0.0 7.25 -7.05 -0.15 -7.85 -1.3 Q-8.25 -2.1 -8.25 -3.1 -8.25 -4.8 -7.05 -6.05 -5.8 -7.25 -4.1 -7.25 -2.4 -7.25 -1.15 -6.05 -0.15 -5.05 0.0 -3.8 0.2 -5.1 1.15 -6.05 2.4 -7.25 4.1 -7.25 5.85 -7.25 7.05 -6.05 8.25 -4.8 8.25 -3.1"
 const BOLT := "M6.3 -5.65 L3.2 -1.9 7.65 0.0 3.2 1.9 6.3 5.65 -3.8 4.45 -5.05 4.15 Q-6.55 3.5 -7.3 1.95 -7.7 1.0 -7.6 0.0 -7.7 -1.0 -7.3 -1.95 -6.55 -3.5 -5.05 -4.15 L-3.8 -4.45 6.3 -5.65"
@@ -30,6 +31,7 @@ const COUNTERS := [
 	["cum_in_mouth", "Cum in mouth", Vector2(426.9, 9.95), [-27.8, 1.3, 1.0], Vector2(-8.7, -8.35), [DROPS]],
 	["finishes", "Finishes", Vector2(426.9, 30.25), [-27.8, 1.3, 1.0], Vector2(-8.7, -8.35), [DROPS, HASH]],
 	["her_pleasure", "Her pleasure", Vector2(154, 30.25), [10.3, 0, 0.864], Vector2(27.35, -7.95), [HEART]],
+	["exhaustion", "Exhaustion", Vector2(235, 30.25), [7.6, 0, 1.0], Vector2(26.7, -8.35), [BOLT]],
 ]
 
 var hud: FlashSprite = null
@@ -56,7 +58,11 @@ func _setup() -> void:
 func _enable() -> void:
 	on_late_tick(_tick)
 	for c in COUNTERS:
-		var extra := {"visible": func(): return Extensions.is_on("dialogueactions")} if c[0] == "her_pleasure" else {}
+		var extra := {}
+		if c[0] == "her_pleasure":
+			extra = {"visible": func(): return Extensions.is_on("dialogueactions")}
+		elif c[0] == "exhaustion":
+			extra = {"visible": func(): return Extensions.is_on("progressiveexhaustion")}
 		menu_control("settings", "Counters", MenuSchema.setting_control(self, c[0], extra))
 
 
@@ -128,6 +134,11 @@ func _value(cid: String):
 				return null
 			var hp := snappedf(float(da.vars.mod_value("da.masturbation.herpleasure")), 0.01)
 			return "0%" if hp == 0 else "%.2f%%" % hp
+		"exhaustion":
+			var pe = Extensions.get_extension("progressiveexhaustion")
+			if pe == null or not Extensions.is_on("progressiveexhaustion") or not pe.get_setting("on"):
+				return null
+			return pe.counter_text()
 	return null
 
 
@@ -165,7 +176,8 @@ func _build() -> void:
 		icons.addChild(icon)
 		var tf := FlashTextField.new()
 		tf._font = font
-		tf.setup_from_library(null, {"x": -2.0, "y": -2.0, "w": 49.8, "h": 19.9, "readOnly": 1, "multiline": 1,
+		# the exhaustion counter's "dynamic (pass-outs)" is longer than a number: wider, or it wraps from 10 pass-outs
+		tf.setup_from_library(null, {"x": -2.0, "y": -2.0, "w": 90.0 if c[0] == "exhaustion" else 49.8, "h": 19.9, "readOnly": 1, "multiline": 1,
 			"wordWrap": 1, "selectable": 0, "fontHeight": 12.0, "color": [255, 255, 255, 255], "leading": 2.0})
 		tf.mouseEnabled = false
 		texts.addChild(tf)

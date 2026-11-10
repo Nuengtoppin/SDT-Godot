@@ -15,7 +15,6 @@ func _init() -> void:
 
 func _enable() -> void:
 	on_key(KEY_RIGHT, clear_all, "clear all")
-	menu_control("help", "Keys", MenuSchema.note("→ (right arrow): clear spit, cum, mascara and lipstick (clearAllShortcut)"))
 
 
 func clear_all() -> void:

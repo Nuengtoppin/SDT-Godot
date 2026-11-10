@@ -97,6 +97,8 @@ func newSegments(seg1: FlashDisplayObject, seg2: FlashDisplayObject, seg3: Flash
 
 
 func newTarget(p: Vector2, space: FlashDisplayObject, jump: bool = false) -> void:
+	if Hooks.has(&"IKController.newTarget"):   # HOOK
+		Hooks.before(&"IKController.newTarget", self, [p, space, jump])
 	originalTarget = p
 	targetPoint = p
 	if space:
@@ -240,12 +242,22 @@ func jumpTo(p: Vector2) -> void:
 
 
 func tap(power: float = 1.0, angleOffset: float = 0.0) -> void:
+	if Hooks.has(&"IKController.tap"):   # HOOK
+		var h := Hooks.before(&"IKController.tap", self, [power, angleOffset])
+		if h.cancelled:
+			return
+		power = h.args[0]
+		angleOffset = h.args[1]
 	if not tapping and not dropping:
 		tapVector = Vector2(cos(getEndRotation() + angleOffset), sin(getEndRotation() + angleOffset))
 		tapMultiplier = power
 		tapPower = tapMultiplier * maxTapPower
+		if Hooks.has_value(&"IKController.tapPower"):   # HOOK value point: how hard the tap is (its sound keeps tapMultiplier)
+			tapPower = Hooks.value(&"IKController.tapPower", self, tapPower)
 		tapDist = 0
 		tapSpeed = -tapPower * 6.0
+		if Hooks.has_value(&"IKController.tapSpeed"):   # HOOK value point: how fast the tap starts (-6 x its power)
+			tapSpeed = Hooks.value(&"IKController.tapSpeed", self, tapSpeed)
 		tapping = true
 
 
@@ -323,8 +335,8 @@ func trigBound(v_: float) -> float:
 
 func getEndRotation() -> float:
 	var a := 0.0
-	for t in endRotationTargets:
-		a += t.rotation_degrees / 180.0 * PI
+	for t in endRotationTargets:   # Flash's rotation is always -180..180; a Godot node keeps what was assigned
+		a += wrapf(t.rotation_degrees, -180.0, 180.0) / 180.0 * PI
 	return a + endRotationAngle / 180.0 * PI
 
 

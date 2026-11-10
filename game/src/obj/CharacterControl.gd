@@ -515,14 +515,18 @@ func setArmSkin(force: bool = false) -> void:
 	var h: Her = g.her
 	setArmFrame(h.rightArmContainer.upperArm, h.isRightArmFree(), force)
 	setArmFrame(h.rightForeArmContainer.upperArm.foreArm, h.isRightArmFree(), force)
-	setArmFrame(h.rightForeArmContainer.upperArm.foreArm.hand, h.isRightArmFree(), force, g.rightHandJobMode)
+	setArmFrame(h.rightForeArmContainer.upperArm.foreArm.hand, h.isRightArmFree(), force, g.rightHandJobMode or h.rightHandClosed)
 	if h.rightForeArmContainer.upperArm.foreArm.hand.get("grip"):
 		h.rightForeArmContainer.upperArm.foreArm.hand.grip.visible = true
 		h.rightForeArmContainer.upperArm.foreArm.hand.grip.gotoAndStop(currentSkinType)
 	setArmFrame(h.leftArmContainer.upperArm, h.isLeftArmFree(), force)
 	setArmFrame(h.leftArmContainer.upperArm.foreArm, h.isLeftArmFree(), force)
-	setArmFrame(h.leftArmContainer.upperArm.foreArm.hand, h.isLeftArmFree(), force, g.leftHandJobMode)
+	setArmFrame(h.leftArmContainer.upperArm.foreArm.hand, h.isLeftArmFree(), force, g.leftHandJobMode or h.leftHandClosed)
+	h.leftArmContainer.upperArmCostume.foreArmCostume.handCostume.nailPolish.visible = not h.leftHandClosed
+	h.rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.nailPolish.visible = not h.rightHandClosed
 	armwearControl.resetElement()
+	if h._tan:   # port fix, see Tan.updateArms
+		h._tan.updateArms()
 
 
 func setArmFrame(mc, free: bool, force: bool = false, grip: bool = false) -> void:
@@ -730,6 +734,8 @@ func setBreasts(size: int = -1) -> void:
 	setBreastCostumeSize()
 	for fn in breastSizeChangeListeners:
 		fn.call()
+	if Hooks.has(&"CharacterControl.setBreasts"):   # HOOK
+		Hooks.after(&"CharacterControl.setBreasts", self, [size])
 	FlashShape.load_now = false
 
 
@@ -795,6 +801,8 @@ func setNailPolish(c, _n: String = "rgbFill") -> void:
 	h.rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.nailPolish.colorTransform = ct
 	h.leftHandOver.hand.nailPolish.colorTransform = ct
 	nailPolishRGB = c
+	if Hooks.has(&"CharacterControl.setNailPolish"):   # HOOK
+		Hooks.after(&"CharacterControl.setNailPolish", self, [c])
 
 
 func findCollar(n: String) -> void:
@@ -948,8 +956,8 @@ func setBraFill(c, n: String = "rgbFill") -> void:
 func setArmwear(id: int) -> void:
 	var h: Her = g.her
 	var label: String = armwearNameList[id]
-	tryToSetFrameLabel(h.rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume, "Grip" if g.rightHandJobMode else "Free")
-	tryToSetFrameLabel(h.leftArmContainer.upperArmCostume.foreArmCostume.handCostume, "Grip" if g.leftHandJobMode else "Free")
+	tryToSetFrameLabel(h.rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume, "Grip" if g.rightHandJobMode or h.rightHandClosed else "Free")
+	tryToSetFrameLabel(h.leftArmContainer.upperArmCostume.foreArmCostume.handCostume, "Grip" if g.leftHandJobMode or h.leftHandClosed else "Free")
 	tryToSetFrameLabel(h.rightForeArmContainer.upperArmCostume.foreArmCostume.glove, label)
 	tryToSetFrameLabel(h.leftArmContainer.upperArmCostume.foreArmCostume.glove, label)
 	tryToSetFrameLabel(h.rightForeArmContainer.upperArmCostume.foreArmCostume.handCostume.glove, label)
@@ -1140,10 +1148,25 @@ func _skinHSLTargets() -> Array:
 
 
 func applySkinHSL(hsl: Dictionary) -> void:
-	var f := _hslFilter(hsl)
+	var shown := hsl
+	var sat := _skinSaturation()
+	if sat != 1.0:
+		shown = hsl.duplicate()
+		shown["s"] = float(hsl["s"]) * sat
+	var f := _hslFilter(shown)
 	for t in _skinHSLTargets():
 		t.filters = [f]
 	skinHSL = hsl
+	if Hooks.has(&"CharacterControl.applySkinHSL"):   # HOOK
+		Hooks.after(&"CharacterControl.applySkinHSL", self, [hsl])
+
+
+## Port: how much of her skin's colour saturation shows (value point CharacterControl.skinSaturation; 1: all of it).
+## Asked when her skin filter is made: after changing its modifiers, call updateSkinHSL().
+func _skinSaturation() -> float:
+	if Hooks.has_value(&"CharacterControl.skinSaturation"):   # HOOK value point: how much of her skin's colour saturation shows (1)
+		return float(Hooks.value(&"CharacterControl.skinSaturation", self, 1.0))
+	return 1.0
 
 
 func removeSkinHSL() -> void:
@@ -1153,7 +1176,7 @@ func removeSkinHSL() -> void:
 
 
 func updateSkinHSL() -> void:
-	if is_same(skinHSL, blankHSL):
+	if is_same(skinHSL, blankHSL) and _skinSaturation() == 1.0:
 		removeSkinHSL()
 	else:
 		applySkinHSL(skinHSL)

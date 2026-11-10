@@ -40,6 +40,9 @@ func _enable() -> void:
 	_own = [art.create("upperArm"), art.create("lowerArm"), art.create("hand")]
 	set_art(_own[0], _own[1], _own[2])
 	on_late_tick(_tick)
+	# holding her: she doesn't pull back off him (the game's activeHold halves what she already pulled)
+	modify(&"Her.pullOffPower", {"phase": Hooks.FINAL, "op": "set", "value": {"start": 0.0, "increase": 0.0, "max": 0.0},
+		"when": func(_her): return shown() and get_setting("hold")})
 	menu_control("him", "Arms", MenuSchema.toggle("Extra arm",
 		"The Loader's extra arm: a copy of his right arm in front of her head.", func(): return shown(),
 		func(on: bool): show_arm(on)))
@@ -117,4 +120,3 @@ func _tick() -> void:
 	_follow()
 	if get_setting("hold"):
 		g.her.activeHold(false)
-		g.her.pullOff = 0

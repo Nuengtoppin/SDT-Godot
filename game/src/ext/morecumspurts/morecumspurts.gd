@@ -62,6 +62,9 @@ func _enable() -> void:
 	_apply_thickness()
 	hook_before(&"Him.ejaculate", _ejaculate)
 	on_late_tick(_tick)
+	# his balls grow with edging: of his ball size above the smallest, as the mod grew the size slider's position
+	modify(&"Him.ballScale", {"phase": Hooks.MOOD, "op": "fn",
+		"fn": func(v, _him): return Him.MIN_BALL_SIZE + (v - Him.MIN_BALL_SIZE) * _shown_growth})
 	var edging := func(): return get_setting("edging")
 	var balls := func(): return get_setting("edging") and get_setting("ball_growth")
 	for k in ["amount", "min_spurt", "max_spurt", "pause", "thickness", "edging"]:
@@ -73,7 +76,7 @@ func _enable() -> void:
 
 func _disable() -> void:
 	if g.strandControl != null:
-		g.strandControl.cumMinThickness = 1.0
+		g.strandControl.cumMinThickness = 1.0   # direct: the thickness setting, the game's again
 	_shown_growth = 1.0
 	_show_balls()
 
@@ -88,7 +91,7 @@ func _setting_changed(key: String, _value) -> void:
 
 func _apply_thickness() -> void:
 	if g.strandControl != null:
-		g.strandControl.cumMinThickness = float(get_setting("thickness"))
+		g.strandControl.cumMinThickness = float(get_setting("thickness"))   # direct: the thickness setting
 
 
 ## The game's ejaculate with this extension's numbers (only when an orgasm starts).
@@ -129,12 +132,8 @@ func _tick() -> void:
 			_show_balls()
 
 
-## His balls at his ball size times the shown growth (of the size slider's position, as the mod grew it).
+## His balls redrawn with the shown growth (the Him.ballScale modifier).
 func _show_balls() -> void:
-	var him: Him = g.him
-	if him == null or him.balls == null:
-		return
 	_applied = _shown_growth
-	var s := Him.MIN_BALL_SIZE + (Him.MAX_BALL_SIZE - Him.MIN_BALL_SIZE) * him.ballSizeSlider * _shown_growth
-	him.balls.scaleX = s
-	him.balls.scaleY = s
+	if g.him != null and g.him.balls != null:
+		g.him.updateBalls()

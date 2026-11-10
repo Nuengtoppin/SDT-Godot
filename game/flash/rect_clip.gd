@@ -4,6 +4,10 @@ extends Control
 ## layer). Clips with a scissor rect (Control.clip_contents) instead of Godot's clip_children, which is cheaper and,
 ## unlike clip_children, can contain further masks.
 
+## The game layers glide between ticks. A Control is not interpolated by default and its children inherit that, so
+## this has to be asked for here. --no-smooth: off (A/B comparisons).
+static var smooth := not OS.get_cmdline_user_args().has("--no-smooth")
+
 var _proxy: CanvasItem = null
 var _container = null
 var _mask_obj: FlashDisplayObject = null
@@ -15,6 +19,8 @@ var _holder := Node2D.new()
 func _init() -> void:
 	clip_contents = true
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if smooth:
+		physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_ON
 	_holder.name = "content"
 	add_child(_holder)
 

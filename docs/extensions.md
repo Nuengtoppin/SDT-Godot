@@ -64,7 +64,7 @@ func _passed_out(call: Hooks.Call) -> void:
 | `menu_slider(menu, x, y, w, h, value, on_change)` | A slider (ExtSlider, value 0..1) in a game menu. |
 | `menu_label(menu, x, y, w, text)` | A text label in a game menu. |
 | `menu_add(menu, obj, x, y)` | Any display object (an ExtList, ...) in a game menu; removed when the extension is disabled. |
-| `on_key(keycode, fn, label)` | `fn()` when a key is pressed during play (Flash key codes; not while typing). Clashes with the game's keys or other extensions are reported in the log. |
+| `on_key(keycode, fn, label, id = "")` | `fn()` when a key is pressed during play (Flash key codes; not while typing). It is a rebindable action in Settings › Hotkeys: `keycode` is the default (`\| Hotkeys.SHIFT / CTRL / ALT` for a combination, 0 for none), `label` names it there, `id` (default: the label) keeps the player's key when the label changes. Keys several actions share are marked there; all of them run. |
 
 Settings and on/off choices are stored in `extensions.cfg` next to the save files. Test runs with `--save-dir` use
 their own copy.
@@ -140,6 +140,19 @@ The vanilla game has four moods (`Her.currentMood`). Extensions that add moods (
 
 Everyone else reads `mood()` (or `Moods.current()`): the extended mood while one is active, else the vanilla one.
 The `mood_changed` event reports every change with the mood name.
+
+## Arm positions
+
+`Her.armPositions` starts with the game's five (Back, On Legs, On His Legs, Hand Job, Loose); extensions add more
+with `Her.addArmPosition(name, left, right, id, spec)`, and `Her.removeArmPositions(id)` takes them out again (an arm
+in one goes behind her back). `left` / `right` are `Callable(her)`s that set the arm up when she takes the position
+(`her.leftArmIK.newTarget(point, space, true)`, `setEndRotationTarget`, layers, `her.leftHandClosed = true` for a
+fist); an empty `Callable()` keeps the position out of that arm's list. `spec`: `"tap"` (false: that hand doesn't tap
+him while she's held), `"slip"` (ticks the arm takes to drop when she passes out, default 15), `"pass_out"`
+(`Callable(her, left)` run instead of the drop). The menu's Left arm / Right arm lists, the "arms:" character code
+field and dialogue triggers use the names. `Her.armPositionsFor(left)`, `Her.armPositionAllowed(i, left)` and
+`Her.stepArmPosition(from, dir, left)` list and step through the positions one arm can take. The armoverhaul plugin
+(`Mods/Plugins/armoverhaul`) adds 18.
 
 ## Hooks
 
@@ -223,21 +236,67 @@ The value points in the game, with the field that keeps the result for code that
 | `Her.lookTarget` | the point she looks at (scene coordinates) | `her.lookPoint` |
 | `Her.gazeAngle` | the angle her iris turns towards, before easing | `her.eyeMotion["target"]` |
 | `Her.eyelidShock` | how shocked her eyes are (wider, smaller iris; the game's `shock()` sets 10-85, counting down) | `her.eyelidShock` |
+| `Her.eyelidTarget` | the frame her eyelids ease towards while her eyes are open (not blinking, wincing, closed or passed out), after her movement, shock, cum and passing out terms; 2 open, 150 closed | `her.eyelidMotion["target"]` |
+| `Her.irisScale` | how big her irises are (the game: 0.9 less a share of her eyelid frame and shock), every tick | `her.eye.ball.irisContainer.iris.scaleX` / `scaleY` |
+| `Her.eyebrowFrame` | her eyebrows' frame (her eyelid frame, plus a waggle's offsets), every tick | `her.rightEyebrow` frames |
+| `Her.angryEyebrows` | whether her eyebrows take the angry shape (the angry mood), every tick | the eyebrow tweens |
 | `Her.upperEyelid` | the upper eyelid's frame (2 open, 150 closed, up to 200 squeezed shut) | `her.upperLid` |
 | `Her.lowerEyelid` | the lower eyelid's frame (asked after the upper) | `her.lowerLid` |
 | `Her.jawAngle` | her jaw's angle this tick, after the game's easing (`Her.closedJawAngle` -12: closed, higher: open); lips, cheeks and `g.herMouthOpeness` follow it | `her.head.jaw.rotation_degrees` |
 | `Her.swallowSpeed` | how fast a swallow plays (1; the four phases' lengths are divided by it, at least a tick apart), asked when it starts | `her.swallowSequence` |
 | `Her.swallowWince` | whether she squints around the swallow (true) | |
+| `Her.swallowAmount` | how much one swallow takes from her mouth (5-9 at random; never more than there is) | `her.cumInMouth` |
+| `Her.targetPhoneme` | the mouth shape a spoken word aims for (its phoneme: `{name, upperLip, lowerLip, jaw}`; return a new one); the word's "L" tongue flick plays only with the word's own shape | `her.targetPhoneme` |
+| `Her.speakingMouth` | her mouth's target as she starts or stops speaking (the same Dictionary; `her.speaking` is still the old state) | `her.targetPhoneme` |
 | `Her.clenchTime` | how long she keeps her teeth clenched, ticks (the game: 60..179 at random) | `her.clenchedTeethTime` |
 | `Her.clenchTaps` | whether she taps him as she clenches her teeth (true) | |
 | `Her.teethClosing` | whether her clenched teeth close further this tick (true; false holds them where they are) | `her.clenchTeethRatio` |
+| `Her.shockFade` | how much her eyes' shock (`her.eyelidMotion["shock"]`, set by `Her.shock`) eases this tick (1), while it is above 0 | `her.eyelidMotion["shock"]` |
+| `HerPenisControl.throughClothes` | whether her penis sticks out through her clothes (false: under them it lies against her body); after changing its modifiers call `g.her._penisControl.clothingChanged()` | `her._penisControl.wearingNone` |
+| `HerPenisControl.restAngle` | the angle her penis swings back to while it moves freely (0; positive: down) | `her._penisControl.penisContainer.rotation_degrees` |
+| `HerPenisControl.minAngle` | the furthest her penis rises while it moves freely (-24) | |
+| `Her.breathMax` | how much breath she has (50), once per tick; a change keeps how much of it is used. After changing its modifiers, `g.resolveBreath()` applies them at once | `g.breathLevelMax` |
+| `Her.outOfBreathPoint` | past this she is out of breath (half of `Her.breathMax`), right after it | `g.outOfBreathPoint` |
+| `Her.passOutMax` | how long she lasts with no air before passing out (40), right after it; a change keeps how close she is | `her.passOutMax` |
+| `Her.mouthOpenness` | how open her mouth counts as (0..1, from her jaw) for her breath's volume, the breath mist and drool, every tick | `g.herMouthOpeness` |
+| `Her.blushEffects` | with Dynamic blushing on: the sum of what makes her blush this tick, before her blush factor and the cap (the spankanywhere plugin adds its spank blush here) | `her.blush.alpha` |
+| `Her.blushAlpha` | how much her blush shows, every tick while it has modifiers (her blush colour's alpha; Dynamic blushing sets its own in the `GENERATE` phase) | `her.blush.alpha` |
+| `Her.highlightsAlpha` | how much the highlights in her eyes show, every tick while it has modifiers (the art's own alpha) | `her.eye.ball.highlights.alpha` |
+| `Her.mouthShape` | the shape her mouth shows: a face frame (`"Normal"`, `"Angry"`, `"Ahegao"`, ...; her mood's, set with `her.setMouthShape()`, which extended moods use too), every tick while it has modifiers; angry lips only while it shows `"Angry"` | `her.mouthShape` |
+| `Her.lowerEyelidSquint` | how far her (moremoods) mood's squint tilts the mascara under her eyes (the mood's level, 10-25) | |
+| `Tears.lowerMascaraTop` | the first row of the mascara band drawn under her eyes as she winces (0; higher: a thinner band) | |
+| `Her.biteRarity` | how rarely she bites (moremoods' "How rarely she bites"; higher: rarer) | |
+| `CharacterControl.skinSaturation` | how much of her skin's colour saturation shows (1), when her skin filter is made: after changing its modifiers call `g.characterControl.updateSkinHSL()` | her skin filters |
+| `Her.wakeShock` | how shocked her eyes are as she wakes (85, then counting down) | `her.eyelidMotion["shock"]` |
+| `Her.wakeGaze` | the angle her eyes start from as she wakes (20; higher: rolled from further below) | `her.eyeMotion["ang"]` |
+| `Her.blinks` | whether a due blink happens (true; false: the next try after a normal wait); not asked for a quick second blink | |
+| `Her.quickBlink` | the chance that a quick second blink follows this one (0.2) | `her.blinkTime` |
+| `Her.winceTime` | how long her eyes squint in a wince, ticks (5; 0: no squint, the wince's tears still come) | `her.winceTimer` |
+| `Her.coughDue` | whether a cough that is due while he holds her happens (true; false: she waits as long as after a cough) | `her.nextCoughTime` |
+| `Her.coughForce` / `Her.openCoughForce` | how hard a cough / an open-mouthed cough is as it starts (0.5..2 / 0.25..1.25 at random; it eases off by itself) | `her.coughFactor` |
+| `BreastController.kick` | how much a push (a cough, a spank, a dialogue trigger) speeds a breast up | |
+| `SoundControl.herSoundVolume` | the volume of her cough, open cough, gag or pass-out sound as it starts; `soundControl.herSound` says which (`&"cough"`, `&"openCough"`, `&"gag"`, `&"passOut"`) | |
+| `IKController.tapPower` | how hard a tap of her hand is (its multiplier x `maxTapPower`; the grab sound's volume stays the multiplier) | `ik.tapPower` |
+| `IKController.tapSpeed` | how fast that tap starts (-6 x its power) | `ik.tapSpeed` |
 | `Him.penisTiltTarget` | the angle his penis eases towards (bukkake mode's mouse aim and her push already in), before easing | `him.penisTiltTarget` |
 | `Him.penisAngle` | his penis's angle this tick, after easing and the game's -10..25 limits (`him.penisTilt`: the eased angle before them) | `him.penis.rotation_degrees` |
+| `Him.penisMask` | the mask that hides his penis inside her mouth, every tick: `{x, scale}` (the game's x: -100 + his depth x 200 in her mouth, -100 hides it all; scale 1) | `him.penisMask` |
+| `Him.mouthSmoothing` | how much her mouth holds his penis's tilt while he is in it (0..1, the game's rises by 0.4 a tick) | `him.mouthConstraintSmoothing` |
+| `Him.ballScale` | his balls' scale (his ball size), when it is set: after changing its modifiers call `g.him.updateBalls()` | `him.balls.scaleX` / `scaleY` |
+| `Him.ballsOffset` | how far his balls sit from their place in the art (`him.ballsHome`; `Vector2.ZERO`), when his ball size is set: `g.him.updateBalls()` as above | `him.balls.x` / `y` |
+| `Her.pullOff` | how hard she pulls back off him and its power, every tick after the game's update: `{pull, power}` (`her.pullOff`, `her.pullOffPower["current"]`; return a new one) | `her.pullOff` |
+| `Her.pullOffPower` | how hard she pulls back off him while he holds her deep: `{start, increase, max}` (0.001, 0.00005, 0.008; return a changed copy), every tick held and when he lets go | `her.pullOffPower["current"]` |
+| `Her.passOutGain` | how much closer to passing out she gets per tick with no air left (0.05) | `her.passOutFactor` |
+| `Her.passOutRecovery` | how much of that she gets back per tick while she breathes (0.5); 0 keeps her out | `her.passOutFactor` |
 | `Her.resistance` | what holds him back as he pushes in, per tick (`checkPosition`'s throat resistance zones) | (subtracted from her speed) |
 | `Her.limpResistance` | the same while she is passed out (0: the game holds nothing then) | (subtracted from her speed) |
 | `Her.pushBack` | how far her head is pushed back off him this tick (0), before the `minPos`/`maxPos` clamp | `her.pos` |
+| `Her.drag` | how much her head is slowed this tick (0; subtracted from her speed before friction, positive: away from him), e.g. her arms resisting | `her.speed` |
+| `Her.passOutExtra` | how much closer to passing out she gets this tick on top of the game's own (0), with or without air, while she is awake | `her.passOutFactor` |
+| `Scene.backgroundBrightness` | how bright the background is (1; its colour multipliers), every tick while it has modifiers | `g.bg.colorTransform` |
 | `Neck.depth` | how deep the throat bulge sits (his depth / 400) | `neck.lastDepth` |
 | `Neck.throatBulge` | how much her throat bulges (her throat bulge setting) | |
+| `Neck.swallowScale` | how a swallow pushes her neck out, while she swallows (`Vector2(0.8, 0.5)`: out, down) | |
 | `Neck.bulgeCap` | the most the bulge pushes the neck out, px (35); throatcumbulge's "Neck follows his size" scales it with his width | |
 | `Neck.band` | a band that holds the front of her neck in, asked once per render: `null`, or `{top, bottom, inside, soft}` (edges as depth along the front, px her neck may push out between them, depth over which that blends into the free bulge past each edge); a second holder returns `Neck.narrower(value, its own)` | `neck.renderedPoints` |
 
@@ -248,8 +307,22 @@ Rule: for behaviour that has value points, change the targets through modifiers;
 actions (a blink, a cough) keep their before-hooks, which may cancel (veto) them. Code that writes a target field
 directly (an older plugin) still works, as part of the game's base value: modifiers apply on top of it.
 
+## Painting onto her skin
+
+A plugin can lay a texture over her skin that every shape under a display object composites onto its own pixels
+with hardlight, clipped to each shape and moving with it, under her clothes (spankanywhere's marks):
+`obj.paint = texture` (null: none) and `obj.paint_transform` (stage coordinates -> the texture's UV; update it each
+tick if the texture follows the screen). The nearest object's paint applies, only to shapes drawn with normal blend
+and no colour matrix filter. Draw the texture into a `SubViewport` and pass it to `Flash.draw_early(vp)` so masked
+and grouped parts show this tick's paint, not last tick's.
+
 ## Testing
 
 `tools/regress.sh` runs the game scenarios in Vanilla mode (their reference dumps must not change because of an
 extension), plus `game/debug/ext_checks.gd`, which tests the hook system, the extension lifecycle, tick order and
 settings.
+
+`tools/check_plugin_writes.sh` (also run by `tools/check_all.sh`, on `Mods/Plugins` and the built-in extensions in
+`game/src/ext`) lists the lines that write the game's state directly (`her.x = ...`, `g.her.x *= ...`). Change it through a value point (add one to the game code if it
+is missing) or the game's own methods; a write that is meant, such as an event's one-off push, gets the comment
+`# direct: <why>` on its line.

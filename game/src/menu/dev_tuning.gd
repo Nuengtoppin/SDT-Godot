@@ -14,6 +14,9 @@ static var _mods := {}
 static var clench_s := 0.0
 static var clench_taps := true
 static var spam_j := false
+## Tools > Her's Air and Oxygen: her base breath, which a mood scales (moremoods' lowered breath)
+static var air := AIR
+static var last := LAST
 static var _spam_fn := Callable()
 
 
@@ -62,24 +65,24 @@ static func add_spurt() -> void:
 	Journal.log("him", "Spurt added: %d to come" % him.ejaculation.size())
 
 
-## Tools > Her: her air (g.breathLevelMax, 50 in the game; out of breath at half of it) and how long she lasts with
-## none before passing out (her passOutMax, 40). The game's numbers, changed by hand; back with reset().
-const AIR := 50.0
-const LAST := 40.0
-static var _breath_changed := false
+## Tools > Her: her air (value point Her.breathMax, 50 in the game; out of breath at half of it) and how long she
+## lasts with none before passing out (Her.passOutMax, 40), set by hand in the GENERATE phase: her base, which a mood
+## then scales (moremoods' lowered breath is a share of it); the game's again (no modifier) at its own number and with
+## reset().
+const AIR := 50.0   # g.BREATH_MAX
+const LAST := Her.PASS_OUT_MAX
 
 
 static func set_air(v: float) -> void:
-	_breath_changed = true
-	g.breathLevelMax = v
-	g.outOfBreathPoint = v / 2.0
-	g.currentBreathLevel = minf(g.currentBreathLevel, v)
+	air = v
+	_set_mod(&"Her.breathMax", v != AIR, {"phase": Hooks.GENERATE, "op": "set", "value": v})
+	g.resolveBreath()
 
 
 static func set_last(v: float) -> void:
-	_breath_changed = true
-	g.her.passOutMax = v
-	g.her.passOutFactor = minf(g.her.passOutFactor, v)
+	last = v
+	_set_mod(&"Her.passOutMax", v != LAST, {"phase": Hooks.GENERATE, "op": "set", "value": v})
+	g.resolveBreath()
 
 
 ## All back to the game's.
@@ -87,11 +90,8 @@ static func reset() -> void:
 	set_clench_time(0.0)
 	set_clench_taps(true)
 	set_spam_j(false)
-	if _breath_changed:
-		set_air(AIR)
-		if g.her != null:
-			set_last(LAST)
-		_breath_changed = false
+	set_air(AIR)
+	set_last(LAST)
 
 
 ## The tab's hand settings, under its rows.

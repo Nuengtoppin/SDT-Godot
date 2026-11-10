@@ -150,6 +150,17 @@ func _apply_color_transform() -> void:
 
 var _had_offsets := false
 
+## Port extension (no Flash equivalent): a texture laid over the stage (paint_transform: stage coordinates -> its
+## UV) that every shape under this object composites onto its own pixels with hardlight (shape_paint.gdshader); null
+## for none. The nearest object's paint applies. Marks painted onto her skin (spankanywhere).
+var paint: Texture2D = null:
+	set(value):
+		if value == paint:
+			return
+		paint = value
+		_render_state_changed()
+var paint_transform := Transform2D.IDENTITY
+
 
 ## Called when inherited render state (color offsets, blend mode, color-matrix filters) may have changed for
 ## this object or an ancestor. Shapes rebuild their material; containers forward to their children.
@@ -159,7 +170,7 @@ func _render_state_changed() -> void:
 
 ## True if this object carries render state that its descendants inherit.
 func _has_own_render_state() -> bool:
-	if _color_transform.has_offsets():
+	if _color_transform.has_offsets() or paint != null:
 		return true
 	if _blend_mode != "normal" and _blend_mode != "layer":
 		return true
@@ -334,7 +345,7 @@ var _gb_ok := false
 
 # Loose cache (FlashSprite._hit_bounds, for rejecting hit tests early): a superset of the content's local bounds.
 # Moved / added / reshaped children only grow it (_hb_include), removals leave it as is, and every cache is rebuilt
-# tight when the runtime bumps hb_gen (twice a second). Valid when _hb_gen == hb_gen; an invalid object's
+# tight when the runtime bumps hb_gen (every 30 s). Valid when _hb_gen == hb_gen; an invalid object's
 # ancestors are always invalid.
 static var hb_gen := 0
 
@@ -344,6 +355,11 @@ static var hb_gen := 0
 static var off_tree: Dictionary = {}
 var _hb := Rect2()
 var _hb_gen := -1
+
+
+## Scripts don't get NOTIFICATION_POSTINITIALIZE, so a new object is listed here.
+func _init() -> void:
+	off_tree[get_instance_id()] = true
 
 
 func _bounds_changed() -> void:
@@ -584,7 +600,7 @@ func _notification(what: int) -> void:
 			_hb_notify_parent()
 		_gb_ok = false
 		return
-	if what == NOTIFICATION_POSTINITIALIZE or what == NOTIFICATION_EXIT_TREE:
+	if what == NOTIFICATION_EXIT_TREE:
 		off_tree[get_instance_id()] = true
 	elif what == NOTIFICATION_PREDELETE:
 		off_tree.erase(get_instance_id())

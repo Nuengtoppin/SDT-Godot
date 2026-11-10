@@ -15,7 +15,6 @@ func _init() -> void:
 
 func _enable() -> void:
 	on_key(KEY_F, cough, "cough")
-	menu_control("help", "Keys", MenuSchema.note("F: she coughs (coughhotkey)"))
 
 
 func cough() -> void:
@@ -29,5 +28,5 @@ func cough() -> void:
 	else:
 		g.soundControl.stopBreathing(true)
 		g.soundControl.playOpenCough()
-		g.soundControl.openCoughing = true
-		g.soundControl.breathing = true
+		g.soundControl.openCoughing = true   # direct: the key's open cough, as the game's own open cough sets it
+		g.soundControl.breathing = true   # direct: the key's open cough, as the game's own open cough sets it
