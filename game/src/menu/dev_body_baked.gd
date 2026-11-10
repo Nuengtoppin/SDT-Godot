@@ -16,9 +16,7 @@ extends RefCounted
 const FOLDER := "body_bake"
 const V_HIP := Vector2(-197.1, 5.0)         # the vanilla thigh's place in the Body Template (step 1)
 const CALF_TO_VANILLA := Vector2(27.27, -8.38)   # our calf frame -> the vanilla calf frame (step 1)
-# our foot (the template's vanilla foot) lies this far from the vanilla calf picture's foot (step 1: best fit 3.42, -0.38):
-# the shoes, drawn on the vanilla foot, are moved back by it
-const FOOT_FIT := Vector2(-3.42, 0.38)
+const FOOT_FIT := Vector2(2.0, -22.5)   # fitted by eye by Dima (10.11): the heel inside the shoe as in the game
 static var foot_fit := FOOT_FIT   # Body > Legs > Shoes along / across the foot (Dima fits it by eye)
 const STAND := [90.0, -142.5215]            # card angles 0/0 in bone degrees (the doll's two_legs.gd)
 const SLOT_THIGH := ["leg"]                 # drawn where the game's thigh is (before its group)
